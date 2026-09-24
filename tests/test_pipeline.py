@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from proxyscraper import output, pipeline
 from proxyscraper import sources as srcs
 from proxyscraper.checker import CheckResult
@@ -71,8 +73,45 @@ def test_result_writer_creates_all_formats(tmp_path):
     assert (run / "socks5.txt").read_text() == "2.2.2.2:1080\n"
     assert json.loads((run / "proxies.json").read_text())[0]["url"] == "http://1.1.1.1:80"
     assert (run / "proxies.csv").read_text().splitlines()[0].startswith("ptype,proxy,latency")
-    assert (tmp_path / "extra.txt").exists() and (tmp_path / "latest").resolve() == run.resolve()
+    assert (tmp_path / "extra.txt").exists()
     assert len(files) == 6  # all, http, socks5, json, csv, -o
+    assert output.latest_run_dir(tmp_path) == run
+    assert output.latest_results(tmp_path) == ["http://1.1.1.1:80", "socks5://2.2.2.2:1080"]
+
+
+def test_latest_pointer_works_without_symlinks(tmp_path, monkeypatch):
+    def no_symlinks(*args, **kwargs):
+        raise OSError("symbolic links not permitted")  # Windows ohne Admin-/Entwicklerrechte
+
+    monkeypatch.setattr(output.os, "symlink", no_symlinks)
+    for name in ("run1", "run2"):
+        w = output.ResultWriter(run_dir=tmp_path / name)
+        w.finalize([result(f"http 1.1.1.{len(name)}:80")])
+    assert not (tmp_path / "latest").exists()
+    assert output.latest_run_dir(tmp_path) == tmp_path / "run2"
+
+
+@pytest.mark.parametrize("content", ["", "\n", "..", "../elsewhere", "run1/../..", "does-not-exist"])
+def test_invalid_latest_pointer_is_ignored(tmp_path, content):
+    (tmp_path / "run1").mkdir()
+    (tmp_path / output.LATEST_POINTER).write_text(content)
+    assert output.latest_run_dir(tmp_path) is None
+
+
+def test_unreadable_latest_pointer_falls_back_to_symlink(tmp_path):
+    (tmp_path / "run1").mkdir()
+    (tmp_path / output.LATEST_POINTER).write_bytes(b"\xff\xfe kaputt")
+    assert output.latest_run_dir(tmp_path) is None
+    try:
+        (tmp_path / "latest").symlink_to("run1", target_is_directory=True)
+    except OSError:
+        pytest.skip("keine Symlinks erlaubt")
+    assert output.latest_run_dir(tmp_path) == tmp_path / "latest"
+
+
+def test_latest_results_empty_without_runs(tmp_path):
+    assert output.latest_run_dir(tmp_path) is None
+    assert output.latest_results(tmp_path) == []
 
 
 def test_ui_helpers():

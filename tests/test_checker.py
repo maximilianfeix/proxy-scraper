@@ -1,7 +1,9 @@
 """Checker gegen Fake-Proxys auf localhost – testet die Handshakes ohne Internet."""
 
 import asyncio
+import gc
 import json
+from contextlib import suppress
 
 import pytest
 
@@ -100,3 +102,33 @@ def test_unreachable_proxy_is_cached():
 def test_classify_anonymity(headers, expected):
     own = {"5.5.5.5", "172.226.1.1"}
     assert ck.classify_anonymity(json.dumps({"headers": headers}).encode(), own) == expected
+
+
+def test_wait_for_leaves_no_unretrieved_exception_on_cancel():
+    """Strg+C genau in dem Moment, in dem der innere Connect scheitert (Python < 3.12)."""
+
+    async def go():
+        loop = asyncio.get_running_loop()
+        errors = []
+        loop.set_exception_handler(lambda _loop, context: errors.append(context["message"]))
+        connect = loop.create_future()
+
+        async def check():  # wie Checker._check: innerer Connect mit eigenem Timeout
+            return await asyncio.wait_for(connect, 5)
+
+        outer = asyncio.ensure_future(ck.wait_for(check(), 5))
+        for _ in range(3):
+            await asyncio.sleep(0)
+        outer.cancel()
+        # Ab Python 3.12 bricht wait_for den inneren Connect sofort mit ab – dann gibt es das
+        # Zeitfenster nicht, und der Test prüft nur noch, dass nichts liegen bleibt.
+        if not connect.done():
+            connect.set_exception(ConnectionRefusedError())
+        with suppress(BaseException):
+            await outer
+        for _ in range(3):
+            await asyncio.sleep(0.01)
+            gc.collect()
+        return errors
+
+    assert asyncio.run(go()) == []

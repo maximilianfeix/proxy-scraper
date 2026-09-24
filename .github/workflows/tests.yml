@@ -11,12 +11,15 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest, macos-latest]
+        os: [ubuntu-latest, macos-latest, windows-latest]
         python: ["3.9", "3.11", "3.13"]
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
         with:
           python-version: ${{ matrix.python }}
-      - run: pip install rich certifi pytest
+      - run: pip install -r requirements.txt pytest
       - run: python -m pytest -q
+      # Startet das Programm einmal richtig – fängt Import-Fehler ab, die Tests nicht sehen
+      - run: python proxy_scraper.py --help
+      - run: python proxy_scraper.py --list-sources 5

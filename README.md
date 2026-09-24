@@ -6,7 +6,7 @@
 
 [![tests](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml)
 ![Python](https://img.shields.io/badge/python-3.9%2B-3776AB?logo=python&logoColor=white)
-![Plattform](https://img.shields.io/badge/plattform-macOS%20%7C%20Linux-lightgrey)
+![Plattform](https://img.shields.io/badge/plattform-macOS%20%7C%20Linux%20%7C%20Windows-lightgrey)
 [![Lizenz: MIT](https://img.shields.io/badge/lizenz-MIT-green)](LICENSE)
 
 <img src="docs/dashboard.svg" alt="Live-Dashboard während der Prüfung" width="860">
@@ -91,7 +91,7 @@ flowchart LR
 
 ## Ausgabe
 
-Jeder Lauf bekommt einen eigenen Ordner, `results/latest` zeigt immer auf den neuesten:
+Jeder Lauf bekommt einen eigenen Ordner, `results/latest.txt` nennt immer den neuesten (unter macOS/Linux zusätzlich der Symlink `results/latest`):
 
 ```
 results/2026-09-24_18-42-07/
@@ -136,7 +136,7 @@ Die kuratierte Liste enthält gut 300 Listen, die alle in den letzten Tagen aktu
 
 **Es kommt (fast) nichts durch.** Viele Firmen-, Schul- und Uni-Netze blockieren Proxy-Verbindungen. Das Tool erkennt das an einer Trefferquote unter 0,2 % und warnt dann – in dem Fall hilft ein anderes Netz, z. B. ein Handy-Hotspot. Die gelernten Statistiken werden bei so einem Lauf nicht abgewertet.
 
-**Windows** wird aktuell nicht unterstützt (das `resource`-Modul fehlt dort), siehe [#6](../../issues/6).
+**Windows:** läuft mit Python 3.9+ in PowerShell oder Windows Terminal. `uvloop` gibt es dort nicht und wird automatisch übersprungen. Im alten `cmd.exe`-Fenster fehlen je nach Schriftart einzelne Symbole – Windows Terminal sieht deutlich besser aus.
 
 ## Entwicklung
 

@@ -111,6 +111,7 @@ class LiveStats:
         self.https_ok = 0
         self.anonymity: Counter = Counter()
         self.passing = 0
+        self.fakes = 0  # bestanden die Basisprüfung, aber nicht die Bestätigung
         self.recent: Deque[CheckResult] = deque(maxlen=8)
         self.start = time.perf_counter()
         self.speed: Deque[float] = deque(maxlen=60)
@@ -146,6 +147,13 @@ class LiveStats:
         return self.speed[-1] if self.speed else 0.0
 
 
+def hit_line(found: int, checked: int, fakes: int) -> Text:
+    """"1,5 % Treffer" – mit aussortierten Fake-Proxys kurz genug für schmale Karten: "1,5 % · 638 Fakes"."""
+    if not fakes:
+        return Text(f"{pct(found, checked)} Treffer", style=MUTED)
+    return Text.assemble((f"{pct(found, checked)} · ", MUTED), (f"{fmt(fakes)} Fakes", WARN))
+
+
 class CheckDashboard:
     def __init__(self, stats: LiveStats, outfile: Path, concurrency: int, details: bool,
                  filters_text: str = "", want: int = 0):
@@ -179,7 +187,7 @@ class CheckDashboard:
         wide = width >= 100
         kpis = row(
             card("Geprüft", fmt(s.checked), f"von {fmt(s.total)}"),
-            card("Gefunden", fmt(found), f"{pct(found, s.checked)} Treffer", f"bold {GOOD}"),
+            card("Gefunden", fmt(found), hit_line(found, s.checked, s.fakes), f"bold {GOOD}"),
             card("Tempo", f"{fmt(speed or avg)}/s", sparkline(s.speed, max(width // 4 - 6, 8)), f"bold {ACCENT}"),
             card(
                 "Ø Latenz", f"{s.latency_sum / found:,.0f} ms".replace(",", ".") if found else "–",

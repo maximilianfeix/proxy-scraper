@@ -255,6 +255,10 @@ async def run_checks(
             dashboard.advance()
             if r is None:
                 continue
+            # Zweite, unabhängige Anfrage – Honeypots bestehen die erste Prüfung oft zufällig
+            if not await checker.confirm(r):
+                stats.fakes += 1
+                continue
             run.results.append(r)
             run.working.add(key)
             by_exit_ip.setdefault(r.exit_ip, []).append(r)

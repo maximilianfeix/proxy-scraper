@@ -15,7 +15,7 @@ from rich.live import Live
 from rich.text import Text
 
 from . import sources as srcs
-from .checker import JUDGE_HOST, JUDGE_PORT, Checker
+from .checker import CONFIRM_HOST, CONFIRM_PORT, JUDGE_HOST, JUDGE_PORT, Checker
 from .compat import raise_fd_limit
 from .geo import GeoResolver
 from .history import ProxyHistory
@@ -72,6 +72,16 @@ async def get_own_ips() -> List[str]:
     return list(dict.fromkeys(ip for ip in ips if ip))
 
 
+async def confirm_target() -> Optional[str]:
+    """IP des Bestätigungsziels – nur wenn es von hier aus wirklich antwortet."""
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(CONFIRM_HOST, CONFIRM_PORT, family=socket.AF_INET)
+        await http_get(f"http://{CONFIRM_HOST}/get", timeout=8)
+    except Exception:  # Ziel weg oder blockiert -> ohne Bestätigung weiter, mit Hinweis
+        return None
+    return infos[0][4][0]
+
+
 def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
     """--recheck: Datei, sonst letzter Lauf plus Verlauf."""
     if target:
@@ -94,6 +104,7 @@ class Run:
         self.history = ProxyHistory()
         self.scraped: Optional[ScrapeResult] = None
         self.judge_ip = ""
+        self.confirm_ip: Optional[str] = None
         self.own_ips: List[str] = []
 
     async def execute(self) -> int:
@@ -124,7 +135,14 @@ class Run:
             (ips[0], "bold") if ips else ("unbekannt", "yellow"),
             (f"  (auf Port 80 zusätzlich {', '.join(ips[1:])})" if len(ips) > 1 else "", MUTED),
         ))
-        info("Prüfziel", f"{JUDGE_HOST} ({self.judge_ip})", MUTED)
+        self.confirm_ip = await confirm_target()
+        info("Prüfziel", Text.assemble(
+            (f"{JUDGE_HOST} ({self.judge_ip})", MUTED),
+            (f"  ·  Bestätigung über {CONFIRM_HOST}", MUTED) if self.confirm_ip else "",
+        ))
+        if not self.confirm_ip:
+            note(f"{CONFIRM_HOST} nicht erreichbar – ohne zweite Bestätigung können Fake-Proxys "
+                 "(Honeypots) durchrutschen, und die Anonymität bleibt unbekannt.")
         if not ips:
             note("Eigene IP unbekannt – transparente Proxys (verraten deine IP) werden nicht aussortiert.")
         return True
@@ -198,7 +216,7 @@ class Run:
         stats = LiveStats(Counter(split_key(k)[0] for k in jobs))
         dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
                                    opts.filters.describe(), opts.want)
-        checker = Checker(self.judge_ip, self.own_ips, opts.timeout, opts.connect_timeout)
+        checker = Checker(self.judge_ip, self.own_ips, opts.timeout, opts.connect_timeout, self.confirm_ip)
         geo = GeoResolver(enabled=opts.geo)
         widgets.console.print()
         run = await run_checks(

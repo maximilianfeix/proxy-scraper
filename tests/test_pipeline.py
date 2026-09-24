@@ -159,3 +159,38 @@ def test_card_subtitle_stays_on_one_line():
     console = Console(width=24, file=io.StringIO(), color_system=None)
     console.print(card("Gespeichert", "12", "nur HTTPS · mind. anonymous · ≤ 3000 ms"))
     assert len(console.file.getvalue().splitlines()) == 5  # Rahmen, 3 Zeilen, Rahmen
+
+
+def test_run_checks_drops_unconfirmed_proxies(tmp_path):
+    import asyncio
+    import contextlib
+
+    from proxyscraper.geo import GeoResolver
+    from proxyscraper.options import RunOptions
+    from proxyscraper.ui import CheckDashboard, LiveStats
+
+    class StubChecker:
+        async def check(self, key):
+            ptype, proxy = key.split(" ")
+            return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
+
+        async def confirm(self, r):
+            return r.proxy.startswith("1.")  # 2.x.x.x ist ein "Honeypot"
+
+        async def enrich(self, r):
+            r.https = True
+
+    async def go():
+        jobs = ["http 1.1.1.1:80", "http 2.2.2.2:80"]
+        stats = LiveStats({"http": 2})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, 2, True)
+        run = await pipeline.run_checks(jobs, StubChecker(), RunOptions(no_geo=True), dashboard, writer,
+                                        GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext())
+        return run, stats, writer
+
+    run, stats, writer = asyncio.run(go())
+    assert [r.key for r in run.results] == ["http 1.1.1.1:80"]
+    assert run.working == {"http 1.1.1.1:80"}
+    assert stats.fakes == 1 and stats.found == 1
+    assert writer.live_path.read_text(encoding="utf-8") == "http://1.1.1.1:80\n"

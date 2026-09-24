@@ -13,7 +13,7 @@ from rich.text import Text
 from ..checker import CheckResult
 from ..parsing import PROXY_TYPES
 from . import widgets
-from .dashboard import LiveStats
+from .dashboard import LiveStats, hit_line
 from .widgets import (
     ACCENT,
     ANON_LABEL,
@@ -63,7 +63,7 @@ def render_summary(
     widgets.console.print(header(3, stats.start))
 
     widgets.console.print(row(
-        card("Funktionieren", fmt(found), f"{pct(found, stats.checked)} Treffer", f"bold {GOOD}"),
+        card("Funktionieren", fmt(found), hit_line(found, stats.checked, stats.fakes), f"bold {GOOD}"),
         card("Gespeichert", fmt(len(kept)), filters_text or "ohne Filter", f"bold {ACCENT}"),
         card("Dauer", fmt_duration(elapsed), f"{fmt(stats.checked / max(elapsed, 1e-6))} Prüf./s"),
         card(

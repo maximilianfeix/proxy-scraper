@@ -1,0 +1,6 @@
+rich>=13
+certifi
+# optional, macht die Event-Loop schneller:
+uvloop
+# nur für die Tests (python3 -m pytest tests):
+# pytest

@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.pytest_cache/
+
+# Laufzeitdaten (werden lokal gelernt bzw. bei jedem Lauf neu erzeugt)
+data/
+results/
+working_proxies_*.txt
+*.tmp
+
+# System
+.DS_Store

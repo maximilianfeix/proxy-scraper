@@ -50,6 +50,12 @@ def test_types_are_normalized():
     assert RunOptions.from_args(parse_args(["--types", "socks5", "socks4", "http"])) == RunOptions()
 
 
+@pytest.mark.parametrize("types", [[], ["ftp"], ["http", "socks6"]])
+def test_invalid_types_are_rejected(types):
+    with pytest.raises(ValueError):
+        RunOptions(types=types)
+
+
 def test_to_command_quotes_arguments():
     opts = RunOptions(recheck="meine liste.txt", types=["socks5"])
     assert opts.to_command() == "python3 proxy_scraper.py --types socks5 --recheck 'meine liste.txt'"

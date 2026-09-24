@@ -79,9 +79,14 @@ class RunOptions:
     all_sources: bool = False
 
     def __post_init__(self) -> None:
+        unknown = set(self.types) - set(PROXY_TYPES)
+        if unknown:
+            raise ValueError(f"unbekannte Proxy-Typen: {', '.join(sorted(unknown))}")
         # Die Typen sind fachlich eine Menge: feste Reihenfolge, keine Duplikate.
         # Sonst ergäben "--types socks5 http" und "--types http socks5" verschiedene Einstellungen.
         self.types = [t for t in PROXY_TYPES if t in self.types]
+        if not self.types:
+            raise ValueError("mindestens ein Proxy-Typ nötig")  # sonst wäre to_argv() "--types" ohne Wert
 
     @property
     def details(self) -> bool:

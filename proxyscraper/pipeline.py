@@ -5,7 +5,6 @@ from __future__ import annotations
 import asyncio
 import os
 import random
-import signal
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
@@ -13,6 +12,7 @@ from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from . import sources as srcs
 from .checker import Checker, CheckResult
+from .compat import on_interrupt
 from .geo import GeoResolver
 from .history import ProxyHistory
 from .netio import http_get
@@ -269,20 +269,12 @@ async def run_checks(
     with live_factory(dashboard):
         workers = [asyncio.ensure_future(worker()) for _ in range(min(concurrency, len(jobs)))]
         all_workers = asyncio.gather(*workers)
-        # Strg+C bricht sauber ab, damit die Ergebnisse trotzdem gespeichert werden
-        try:
-            loop.add_signal_handler(signal.SIGINT, all_workers.cancel)
-        except (NotImplementedError, RuntimeError):
-            pass
-        try:
-            await all_workers
-        except asyncio.CancelledError:
-            run.interrupted = not run.reached_goal
-        finally:
+        # Strg+C bricht sauber ab, damit die Ergebnisse trotzdem gespeichert werden (auch unter Windows)
+        with on_interrupt(loop, all_workers.cancel):
             try:
-                loop.remove_signal_handler(signal.SIGINT)
-            except (NotImplementedError, RuntimeError):
-                pass
+                await all_workers
+            except asyncio.CancelledError:
+                run.interrupted = not run.reached_goal
 
     # Offene Länder-Abfragen noch abwarten (höchstens kurz)
     geo.stop()

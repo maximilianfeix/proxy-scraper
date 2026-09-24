@@ -204,7 +204,8 @@ class ResponseScreen:
 
     Zwischenantworten (100 Continue & Co.) gehen sofort an den Client weiter; kommt danach ein 407,
     soll der Client das nie sehen. feed() gibt zurück, was schon weiter darf, und die Entscheidung:
-    None = noch offen, "ok" = alles Weitere einfach durchreichen, "407" = Proxy will einen Login."""
+    None = noch offen, "ok" = alles Weitere einfach durchreichen, "407" = Proxy will einen Login
+    (oder schickt eine unplausibel lange Zwischenantwort – beides heißt: diesen Upstream nicht nehmen)."""
 
     def __init__(self):
         self.buf = b""
@@ -227,7 +228,7 @@ class ResponseScreen:
             end = head.find(b"\r\n\r\n")
             if end < 0:
                 if len(head) > SCREEN_LIMIT:
-                    return out + self._flush(), "ok"
+                    return out, "407"  # riesige Zwischenantwort – lieber als gescheitert werten als blind durchlassen
                 return out, None  # Zwischenantwort noch nicht vollständig
             out += head[:end + 4]
             self.buf = head[end + 4:]

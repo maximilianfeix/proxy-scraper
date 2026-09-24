@@ -257,3 +257,15 @@ async def continue_then_hang_up_proxy(reader, writer):
 def test_hanging_up_after_an_interim_response_is_a_failure(request_):
     reply = through_server("http", continue_then_hang_up_proxy, AUTH, request_)
     assert b"502" in reply
+
+
+
+def test_huge_interim_response_counts_as_failed():
+    from proxyscraper.server import SCREEN_LIMIT, ResponseScreen
+    _, verdict = ResponseScreen().feed(b"HTTP/1.1 100 Continue\r\nX: " + b"a" * (SCREEN_LIMIT + 10))
+    assert verdict == "407"
+
+
+def test_control_characters_in_usernames_never_reach_the_terminal():
+    from proxyscraper.ui.widgets import shown_proxy
+    assert shown_proxy("ev%0Ail%1B%5B31m:pw@1.2.3.4:80") == "ev?il?[31m:•••@1.2.3.4:80"

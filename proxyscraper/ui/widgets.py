@@ -244,4 +244,7 @@ def shown_proxy(proxy: str) -> str:
     auth, sep, address = proxy.rpartition("@")
     if not sep:
         return proxy
-    return f"{unquote(auth.partition(':')[0])}:•••@{address}"
+    user = unquote(auth.partition(":")[0])
+    # Benutzernamen kommen aus fremden Listen – Steuerzeichen (Zeilenumbruch, ESC) nie ins Terminal
+    user = "".join(c if c.isprintable() else "?" for c in user)
+    return f"{user}:•••@{address}"

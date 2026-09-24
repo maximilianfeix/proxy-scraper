@@ -48,6 +48,7 @@ def test_custom_walkthrough():
     press(w, "d", "space", "o", "space", "enter")
     press(w, "down", "down", "enter")          # nur Elite
     press(w, "down", "enter")                  # nur HTTPS
+    press(w, "2")                              # Zielseite Google
     press(w, "3")                              # unter 1 s (Zahl wählt direkt)
     press(w, "4")                              # 50 Stück
     press(w, "enter")                          # gründlich
@@ -55,7 +56,8 @@ def test_custom_walkthrough():
     press(w, "enter")
     opts = w.result
     assert opts.types == ["http", "socks5"]
-    assert opts.filters == Filters(countries={"DE", "AT"}, https_only=True, min_anonymity="elite", max_latency=1000)
+    assert opts.filters == Filters(countries={"DE", "AT"}, https_only=True, min_anonymity="elite", max_latency=1000,
+                                   targets=["https://www.google.com/"])
     assert opts.want == 50 and not opts.fast
 
 
@@ -157,3 +159,15 @@ def test_short_description_is_readable():
     opts = RunOptions(types=["socks5"], want=50, filters=Filters(countries={"DE", "AT"}, https_only=True))
     assert short_description(opts) == "socks5 · AT,DE · nur HTTPS · 50 Stück"
     assert short_description(RunOptions()) == "alle Protokolle"
+
+
+def test_target_step_keeps_custom_targets_from_command_line():
+    from proxyscraper.ui.wizard import TargetStep
+
+    w = Wizard(RunOptions(filters=Filters(targets=["https://example.org/login"])))
+    press(w, preset_index(w, "Eigene"))
+    while not isinstance(w.step, TargetStep):
+        press(w, "enter")
+    assert w.step.options[w.step.cursor].label == "Wie angegeben"   # vorausgewählt statt überschrieben
+    press(w, "enter")
+    assert w.opts.filters.targets == ["https://example.org/login"]

@@ -23,6 +23,7 @@ from rich.text import Text
 from ..geo import flag
 from ..options import RunOptions
 from ..parsing import PROXY_TYPES
+from ..targets import SUGGESTIONS, target_label
 from .widgets import ACCENT, GOOD, MUTED, TYPE_STYLE, WARN, fmt
 
 NEXT, BACK = "next", "back"
@@ -237,6 +238,27 @@ class MultiStep(_ListStep):
         return Group(super().body(), Text(""), status)
 
 
+class TargetStep(SelectStep):
+    """Zielseite wählen. Ziele von der Kommandozeile, die keine Vorschläge sind, bleiben als Option erhalten."""
+
+    def __init__(self):
+        super().__init__(
+            "Muss eine bestimmte Seite gehen?",
+            "Viele Proxys kommen nicht auf Google, Discord & Co. – hier wird es echt ausprobiert.",
+            [Option("Nein", "irgendeine Seite reicht", [])]
+            + [Option(name, target_label(url), [url]) for name, url in SUGGESTIONS],
+            read=lambda o: o.filters.targets, write=lambda o, v: setattr(o.filters, "targets", list(v)),
+        )
+        self._fixed = len(self.options)
+
+    def load(self, opts: RunOptions) -> None:
+        del self.options[self._fixed:]
+        current = list(opts.filters.targets)
+        if current and all(o.value != current for o in self.options):
+            self.options.append(Option("Wie angegeben", ", ".join(target_label(u) for u in current), current))
+        super().load(opts)
+
+
 class SummaryStep(SelectStep):
     START, ADJUST, CANCEL = "start", "adjust", "cancel"
 
@@ -283,6 +305,8 @@ def describe(opts: RunOptions) -> List[tuple]:
     rows.append(("Länder", Text("  ".join(f"{flag(c)} {c}" for c in sorted(f.countries)) if f.countries else "alle")))
     rows.append(("Anonymität", Text(ANON_TEXT[f.min_anonymity])))
     rows.append(("HTTPS", Text("nur HTTPS-fähige", style=GOOD) if f.https_only else Text("egal")))
+    rows.append(("Zielseite", Text(", ".join(target_label(u) for u in f.targets), style=ACCENT) if f.targets
+                 else Text("egal")))
     rows.append(("Latenz", Text(f"unter {fmt_seconds(f.max_latency)}") if f.max_latency else Text("egal")))
     rows.append(("Menge", Text(f"stoppt bei {fmt(opts.want)}") if opts.want else Text("so viele wie möglich")))
     rows.append(("Prüfung", Text("gründlich – mit HTTPS-Test") if opts.details
@@ -314,6 +338,8 @@ def short_description(opts: RunOptions) -> str:
         parts.append(ANON_TEXT[f.min_anonymity])
     if f.max_latency:
         parts.append(f"< {fmt_seconds(f.max_latency)}")
+    if f.targets:
+        parts.append("→ " + ", ".join(target_label(u) for u in f.targets))
     if opts.want:
         parts.append(f"{fmt(opts.want)} Stück")
     if opts.fast:
@@ -365,6 +391,7 @@ def custom_steps() -> List[Step]:
             [Option("Egal", "", False), Option("Nur HTTPS-fähige", "wird mit echtem TLS-Handshake geprüft", True)],
             read=lambda o: o.filters.https_only, write=_set_filter("https_only"),
         ),
+        TargetStep(),
         SelectStep(
             "Wie schnell?", "Langsame Proxys werden gar nicht erst zu Ende geprüft.",
             [Option("Egal", "", 0), Option("Unter 0,5 s", "sehr streng", 500), Option("Unter 1 s", "flott", 1000),

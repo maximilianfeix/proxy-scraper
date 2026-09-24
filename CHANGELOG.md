@@ -5,7 +5,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
-- Docker image (`ghcr.io/maximilianfeix/proxy-scraper`, amd64 + arm64) with volumes for learned state and results; CI runs a real scan inside the container ([#5](https://github.com/maximilianfeix/proxy-scraper/issues/5))
+### Added
+
 - `--export proxychains,clash,curl` (or `all`) writes ready-made configs next to the results ([#4](https://github.com/maximilianfeix/proxy-scraper/issues/4))
 
 ### Changed

@@ -303,7 +303,7 @@ flowchart LR
 1. **Quellen** – die kuratierte Liste in [`sources.json`](proxyscraper/sources.json), Meta-Quellen (andere Projekte, die selbst Listen von Proxy-Quellen pflegen) und alle drei Tage eine Suche auf GitHub nach aktiv gepflegten Repos.
 2. **Sammeln** – Text, HTML-Tabellen, JSON-APIs und `typ://ip:port`-Zeilen werden erkannt, private und reservierte Adressbereiche verworfen. Listen, die sich seit dem letzten Lauf nicht geändert haben, antworten mit `304` und kommen aus einem lokalen Cache – ein zweiter Lauf direkt danach lädt 0 MB statt ~160 MB.
 3. **Priorisieren** – bekannte funktionierende Proxys zuerst, dann nach gelernter Trefferquote ihrer Quellen.
-4. **Prüfen** – jeder Proxy muss `checkip.amazonaws.com` abrufen und eine gültige, *fremde* IP zurückliefern. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier.
+4. **Prüfen** – jeder Proxy muss seine Exit-IP von einem Prüfziel abrufen (`checkip.amazonaws.com`, als Reserve `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` und `ident.me` – keins davon hinter Cloudflare) und eine gültige, *fremde* IP zurückliefern. Fällt das Ziel mitten im Lauf aus, wechselt das Tool und prüft die betroffenen Proxys erneut – die Statistik lernt so nicht aus einem Ausfall. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier.
 5. **Lernen** – Trefferquoten und Verlauf landen in `data/`. Quellen ohne Treffer, mit seit einer Woche unverändertem Inhalt oder dauerhaft unerreichbar werden übersprungen.
 
 <details>
@@ -522,6 +522,7 @@ proxyscraper/
 ├── options.py          RunOptions + Filters – alle Einstellungen an einer Stelle
 ├── pipeline.py         Quellen sammeln, priorisieren, Prüfschleife
 ├── checker.py          HTTP/SOCKS-Handshakes, Bestätigung gegen Honeypots, HTTPS-Test
+├── judges.py           Prüfziele, Cloudflare-Filter, Wechsel bei Ausfall
 ├── sources.py          Quellenlisten, Meta-Quellen, GitHub-Discovery, Statistik
 ├── sources.json        kuratierte Quellen
 ├── fetchcache.py       ETag-Cache für unveränderte Listen
@@ -549,7 +550,7 @@ proxy-scraper baut auf der Arbeit der Leute auf, die freie Proxy-Listen veröffe
 
 - [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) und [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list), deren gepflegte Quellensammlungen als Meta-Quellen eingelesen werden
 - [Textualize/rich](https://github.com/Textualize/rich), das die komplette Oberfläche zeichnet
-- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com) und [ip-api.com](https://ip-api.com) als Prüfziele und für die Länder
+- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) und [ip-api.com](https://ip-api.com) als Prüfziele und für die Länder
 
 ## ⚠️ Hinweis
 

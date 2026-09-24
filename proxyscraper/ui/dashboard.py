@@ -33,6 +33,7 @@ from .widgets import (
     ANON_STYLE,
     BAD,
     BLOCKED_HIT_RATE,
+    BORDER,
     GOOD,
     LATENCY_EDGES,
     LATENCY_LABELS,
@@ -48,6 +49,7 @@ from .widgets import (
     header,
     https_cell,
     latency_style,
+    panel_title,
     pct,
     row,
     sparkline,
@@ -90,7 +92,7 @@ class CollectView:
         return Group(
             header(1, self.started),
             Panel(Group(self.progress, stats), box=box.ROUNDED, border_style=ACCENT,
-                  title="Sammeln", title_align="left"),
+                  title=panel_title("Sammeln", ACCENT), title_align="left"),
         )
 
 
@@ -174,9 +176,9 @@ class CheckDashboard:
         self.progress = Progress(
             TextColumn("[bold]Fortschritt"),
             BarColumn(bar_width=None, complete_style=ACCENT, finished_style=GOOD),
-            TaskProgressColumn(),
+            TaskProgressColumn(text_format=f"[bold {ACCENT}]{{task.percentage:>3.0f}}%"),
             CountColumn(),
-            TextColumn("[grey50]· noch"),
+            TextColumn(f"[{MUTED}]· noch"),
             TimeRemainingColumn(),
             expand=True,
         )
@@ -248,11 +250,13 @@ class CheckDashboard:
 
         height = len(LATENCY_LABELS) + 2  # alle drei gleich hoch
         middle = row(
-            Panel(proto, title="Protokolle", title_align="left", subtitle="Balken = geprüft",
-                  subtitle_align="left", box=box.ROUNDED, border_style=MUTED, height=height),
-            Panel(hist, title="Latenz", title_align="left", box=box.ROUNDED, border_style=MUTED, height=height),
-            Panel(side, title="Details & Länder" if wide else "Details",
-                  title_align="left", box=box.ROUNDED, border_style=MUTED, height=height),
+            Panel(proto, title=panel_title("Protokolle"), title_align="left",
+                  subtitle=Text(" Balken = geprüft ", style=MUTED),
+                  subtitle_align="left", box=box.ROUNDED, border_style=BORDER, height=height),
+            Panel(hist, title=panel_title("Latenz"), title_align="left", box=box.ROUNDED, border_style=BORDER,
+                  height=height),
+            Panel(side, title=panel_title("Details & Länder" if wide else "Details"),
+                  title_align="left", box=box.ROUNDED, border_style=BORDER, height=height),
             ratios=(4, 4, 3),
         )
 
@@ -298,6 +302,6 @@ class CheckDashboard:
             middle,
             Panel(self.progress, box=box.ROUNDED, border_style=ACCENT, padding=(0, 1)),
             Panel(recent if s.recent else Align.center(Text("warte auf den ersten Treffer …", style=MUTED)),
-                  title="Zuletzt gefunden", title_align="left", box=box.ROUNDED, border_style=GOOD),
+                  title=panel_title("Zuletzt gefunden", GOOD), title_align="left", box=box.ROUNDED, border_style=GOOD),
             footer,
         )

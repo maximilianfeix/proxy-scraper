@@ -33,7 +33,7 @@ from proxyscraper.ui import wizard as wizard_module  # noqa: E402
 
 DOCS = ROOT / "docs"
 WIDTH = 104
-TITLE = "python3 proxy_scraper.py"
+TITLE = "proxy-scraper"
 SECONDS_PER_FRAME = 3.2
 
 NETS = ("192.0.2", "198.51.100", "203.0.113")
@@ -128,6 +128,29 @@ def summary_frame(seed: int):
     return s, rows, kept, best, files
 
 
+def setup_view() -> None:
+    """Vorbereitung wie im echten Lauf (Beispielwerte)."""
+    widgets.console.print(widgets.banner())
+    widgets.section("Vorbereitung")
+    for label, value in (
+        ("Deine IP", "203.0.113.7"),
+        ("Prüfziel", "checkip.amazonaws.com  ·  Bestätigung über httpbin.org"),
+        ("Modus", "mit HTTPS-Test · Länder · Filter: nur HTTPS · stoppt bei 50 Treffern"),
+        ("Quellen", "726 aktiv  (328 kuratiert · 238 aus 5/5 Meta-Listen · 540 entdeckt)"),
+        ("Gesammelt", "1.018.830 einzigartige Proxys aus 501/501 Quellen  (162 MB in 28 s)"),
+        ("Verlauf", "644 früher funktionierende Proxys werden zuerst geprüft"),
+    ):
+        widgets.info(label, value)
+    widgets.section_end()
+
+
+NEXT_STEPS = (
+    ("Schnellsten testen", "curl -x socks5h://198.51.100.20:1080 https://api.ipify.org"),
+    ("Als Proxy-Server", "proxy-scraper --recheck --serve"),
+    ("Später neu prüfen", "proxy-scraper --recheck"),
+)
+
+
 def render(renderable=None, printer=None, lines: int = 0) -> str:
     """Rendert in eine aufzeichnende Konsole und gibt das SVG zurück (optional auf feste Zeilenzahl)."""
     console = Console(width=WIDTH, record=True, force_terminal=True, color_system="truecolor", file=io.StringIO())
@@ -177,15 +200,16 @@ def main() -> None:
     s, rows, kept, best, files = summary_frame(11)
 
     def print_summary():
-        report.render_summary(s, rows, kept[:12], best, files, True, "nur HTTPS · mind. anonymous")
+        report.render_summary(s, rows, kept[:12], best, files, True, "nur HTTPS · mind. anonymous", NEXT_STEPS)
 
     views = [
         {"renderable": start},
         {"renderable": wizard_summary},
+        {"printer": setup_view},
         {"renderable": Group(widgets.banner(), collect_view())},
         {"renderable": early},
         {"renderable": late},
-        {"printer": lambda: report.render_summary(s, rows, kept[:5], best[:2], {}, True, "nur HTTPS")},
+        {"printer": lambda: report.render_summary(s, rows, kept[:5], best[:2], {}, True, "nur HTTPS", NEXT_STEPS[:2])},
     ]
     # Alle Frames auf die Höhe der größten Ansicht bringen, damit das Bild beim Wechsel nicht springt
     lines = max(count_lines(**view) for view in views)

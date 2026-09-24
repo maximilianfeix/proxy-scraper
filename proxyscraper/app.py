@@ -32,6 +32,7 @@ from .netio import INSECURE_HOSTS, http_get
 from .options import RunOptions
 from .output import ResultWriter, latest_results
 from .parsing import PROXY_TYPES, parse_keys, split_key
+from .paths import is_checkout
 from .pipeline import (
     CheckRun,
     ScrapeResult,
@@ -46,9 +47,11 @@ from .server import ProxyPool, RotatingServer
 from .targets import Target, parse_target
 from .ui import (
     ACCENT,
+    BAD,
     BLOCKED_HIT_RATE,
     GOOD,
     MUTED,
+    WARN,
     CheckDashboard,
     CollectView,
     LiveStats,
@@ -58,6 +61,8 @@ from .ui import (
     info,
     note,
     render_summary,
+    section,
+    section_end,
     widgets,
 )
 from .ui.serve import ServeDashboard
@@ -117,6 +122,20 @@ def is_network_blocked(stats: LiveStats) -> bool:
     return stats.checked >= 1000 and reached < stats.checked * BLOCKED_HIT_RATE
 
 
+def next_steps(opts: RunOptions, kept: List[CheckResult]) -> List[Tuple[str, str]]:
+    """Fertige Befehle für das, was man nach einem Lauf meistens als Nächstes tut."""
+    program = "python3 proxy_scraper.py" if is_checkout() else "proxy-scraper"
+    steps: List[Tuple[str, str]] = []
+    if kept:
+        best = min(kept, key=lambda r: r.latency)
+        scheme = "socks5h" if best.ptype == "socks5" else best.ptype
+        steps.append(("Schnellsten testen", f"curl -x {scheme}://{best.proxy} https://api.ipify.org"))
+        if not opts.serve:
+            steps.append(("Als Proxy-Server", f"{program} --recheck --serve"))
+    steps.append(("Später neu prüfen", f"{program} --recheck"))
+    return steps
+
+
 class Run:
     def __init__(self, opts: RunOptions, show_banner: bool = True):
         self.opts = opts
@@ -133,13 +152,19 @@ class Run:
     async def execute(self) -> int:
         if self.show_banner:
             widgets.console.print(banner())
-        if not await self.prepare_network():
-            return 1
-        self.show_mode()
-        jobs = await self.gather_jobs()
-        if not jobs:
-            note("Keine Proxys zum Prüfen gefunden.", "red", "✘")
-            return 1
+        section("Vorbereitung")
+        try:
+            with widgets.console.status("Prüfe Netzwerk …", spinner="dots", spinner_style=ACCENT):
+                ready = await self.prepare_network()
+            if not ready:
+                return 1
+            self.show_mode()
+            jobs = await self.gather_jobs()
+            if not jobs:
+                note("Keine Proxys zum Prüfen gefunden.", BAD, "✘")
+                return 1
+        finally:
+            section_end()
         await self.check_and_report(jobs)
         return 0
 
@@ -150,12 +175,12 @@ class Run:
         try:
             self.judge_ip = (await loop.getaddrinfo(JUDGE_HOST, JUDGE_PORT, family=socket.AF_INET))[0][4][0]
         except OSError:
-            note(f"Kann {JUDGE_HOST} nicht auflösen – Internetverbindung prüfen.", "red", "✘")
+            note(f"Kann {JUDGE_HOST} nicht auflösen – Internetverbindung prüfen.", BAD, "✘")
             return False
         self.own_ips = await get_own_ips()
         ips = self.own_ips
         info("Deine IP", Text.assemble(
-            (ips[0], "bold") if ips else ("unbekannt", "yellow"),
+            (ips[0], "bold") if ips else ("unbekannt", WARN),
             (f"  (auf Port 80 zusätzlich {', '.join(ips[1:])})" if len(ips) > 1 else "", MUTED),
         ))
         if not await self.resolve_targets():
@@ -180,7 +205,7 @@ class Run:
             try:
                 infos = await loop.getaddrinfo(target.host, target.port, family=socket.AF_INET)
             except OSError:
-                note(f"Zielseite {target.host} lässt sich nicht auflösen – Tippfehler?", "red", "✘")
+                note(f"Zielseite {target.host} lässt sich nicht auflösen – Tippfehler?", BAD, "✘")
                 return False
             self.targets.append((target, infos[0][4][0]))
         if self.targets:
@@ -277,7 +302,7 @@ class Run:
         geo.save()
 
         render_summary(stats, run.results, kept, best_sources(per_source), files, opts.details,
-                       opts.filters.describe())
+                       opts.filters.describe(), next_steps(opts, kept))
         self.final_notes(run, stats, kept, geo, network_blocked)
         if opts.serve:
             await self.serve(kept)
@@ -285,14 +310,14 @@ class Run:
     async def serve(self, proxies: List[CheckResult]) -> None:
         """Die gefundenen Proxys als lokalen rotierenden Proxy-Server bereitstellen, bis Strg+C."""
         if not proxies:
-            note("Kein passender Proxy gefunden – der Proxy-Server startet nicht.", "red", "✘")
+            note("Kein passender Proxy gefunden – der Proxy-Server startet nicht.", BAD, "✘")
             return
         server = RotatingServer(ProxyPool(proxies), port=self.opts.serve, timeout=self.opts.timeout)
         try:
             await server.start()
         except OSError as e:
             note(f"Port {self.opts.serve} ist nicht verfügbar ({e.strerror or e}) – anderen mit --serve PORT wählen.",
-                 "red", "✘")
+                 BAD, "✘")
             return
         stop = asyncio.Event()
         widgets.console.print()
@@ -328,7 +353,7 @@ class Run:
             note(
                 f"[bold]{fmt(stats.checked)} Proxys geprüft, nur {fmt(stats.found)} funktionieren.[/] "
                 "Dein Netzwerk (Firmen-/Schul-Firewall) blockiert vermutlich Proxy-Verbindungen – probier es "
-                "in einem anderen Netz, z. B. über einen Handy-Hotspot. [grey50]Statistik & Verlauf wurden dafür "
+                f"in einem anderen Netz, z. B. über einen Handy-Hotspot. [{MUTED}]Statistik & Verlauf wurden dafür "
                 "nicht abgewertet.[/]"
             )
         if opts.geo and geo.failed:

@@ -27,7 +27,7 @@ from .output import has_latest_results
 from .parsing import PROXY_TYPES
 from .preferences import load_last_argv, save_last_argv
 from .targets import parse_target
-from .ui import ACCENT, MUTED, banner, note, render_source_ranking, widgets
+from .ui import ACCENT, BAD, MUTED, banner, note, render_source_ranking, widgets
 from .ui.keys import is_interactive
 from .ui.wizard import run_wizard
 
@@ -196,7 +196,7 @@ def run(argv: Optional[List[str]] = None) -> int:
     use_wizard = wants_wizard(args, argv)
     if use_wizard:
         if not is_interactive():
-            note("Der Einrichtungsassistent (-i) braucht ein Terminal.", "red", "✘")
+            note("Der Einrichtungsassistent (-i) braucht ein Terminal.", BAD, "✘")
             return 2
         opts = choose_interactively(opts)
         if opts is None:

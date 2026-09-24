@@ -2,56 +2,116 @@
 
 # ⚡ proxy-scraper
 
-### Freie Proxys, die wirklich funktionieren.
-**700+ Quellen · ~1 Mio. Kandidaten in 25 Sekunden · jeder Treffer echt geprüft · mit jedem Lauf klüger**
+### Free proxies that actually work.
+**700+ sources · ~1M candidates in 25 seconds · every hit really verified · smarter with every run**
+
+**English** · [Deutsch](README.de.md)
 
 [![tests](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml)
 [![lint](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/lint.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/lint.yml)
 [![codeql](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml)
 [![proxy list](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/proxy-list.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/proxy-list.yml)
 <br>
+[![Release](https://img.shields.io/github/v/release/maximilianfeix/proxy-scraper?color=38BDF8)](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
 ![Python](https://img.shields.io/badge/python-3.9%20–%203.13-3776AB?logo=python&logoColor=white)
-![Plattform](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-lightgrey?logo=gnometerminal&logoColor=white)
-![Abhängigkeiten](https://img.shields.io/badge/abhängigkeiten-rich%20%2B%20certifi-informational)
-[![Lizenz: MIT](https://img.shields.io/badge/lizenz-MIT-green)](LICENSE)
+![Platform](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-lightgrey?logo=gnometerminal&logoColor=white)
+![Dependencies](https://img.shields.io/badge/dependencies-rich%20%2B%20certifi-informational)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
 
 <br>
 
-<img src="docs/demo.svg" alt="Animierte Demo: Einrichtungsassistent, Sammeln, Live-Dashboard und Abschlussbericht" width="880">
+<img src="docs/demo.svg" alt="Animated demo: setup wizard, collecting, live dashboard and final report" width="880">
 
 <br>
 
-[**Schnellstart**](#schnellstart) · [**Live-Liste**](#live-liste) · [**Proxy-Server**](#proxy-server) · [**Features**](#features) · [**So funktioniert's**](#so-funktionierts) · [**Optionen**](#optionen) · [**Roadmap**](#roadmap)
+[**Install**](#install) · [**Live list**](#live-list) · [**Proxy server**](#proxy-server) · [**Features**](#features) · [**How it works**](#how-it-works) · [**Options**](#options) · [**FAQ**](#faq)
 
 </div>
 
 ---
 
-Die meisten freien Proxy-Listen sind zu 95 % tot. **proxy-scraper** probiert nicht stumpf alles durch, sondern lernt dazu: Proxys, die schon einmal funktioniert haben, kommen zuerst dran, danach die aus Quellen mit guter Trefferquote. Tote und nicht mehr gepflegte Listen fliegen automatisch raus, neue findet das Tool selbst auf GitHub – und jeder Treffer wird nicht nur angepingt, sondern muss eine echte Seite abrufen, HTTPS tunneln und zeigen, wie anonym er ist.
+Most free proxy lists are 95 % dead. **proxy-scraper** doesn't blindly try everything – it learns. Proxies that worked before are checked first, then those from sources with a good hit rate. Dead and abandoned lists are dropped automatically, new ones are discovered on GitHub, and every hit has to do more than answer a ping: it must fetch a real page, tunnel HTTPS and show how anonymous it is.
 
-<a id="live-liste"></a>
+> [!NOTE]
+> The terminal interface is in German. Commands, options and output files are the same in every language.
 
-## 📡 Live-Proxyliste
+<a id="install"></a>
 
-Keine Lust, selbst zu scannen? Alle 6 Stunden läuft das Tool per **GitHub Actions** und veröffentlicht die Treffer auf dem Branch [`proxy-list`](../../tree/proxy-list) – jeder Eintrag hat beim letzten Lauf wirklich funktioniert, schnellste zuerst.
+## 🚀 Install
+
+**With [pipx](https://pipx.pypa.io/)** (recommended – gives you a `proxy-scraper` command in its own environment):
+
+```bash
+pipx install git+https://github.com/maximilianfeix/proxy-scraper.git
+proxy-scraper
+```
+
+<details>
+<summary><b>Other ways: pip, a faster event loop, or straight from the repo</b></summary>
+<br>
+
+```bash
+# pip into the current environment
+pip install git+https://github.com/maximilianfeix/proxy-scraper.git
+
+# optional: faster event loop on macOS/Linux
+pipx install "proxy-scraper[fast] @ git+https://github.com/maximilianfeix/proxy-scraper.git"
+
+# no install at all
+git clone https://github.com/maximilianfeix/proxy-scraper.git
+cd proxy-scraper
+pip install -r requirements.txt
+python3 proxy_scraper.py
+```
+
+Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) also ships a wheel you can install with `pip install <file>.whl`.
+
+Installed, the learned state lives in your user data folder (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` or `~/.local/share/proxy-scraper`; override with `PROXY_SCRAPER_HOME`) and results go to `./results`. Run from a clone, both stay inside the project.
+
+</details>
+
+Started without arguments, a wizard asks what you are looking for:
+
+<div align="center">
+<img src="docs/wizard.svg" alt="Setup wizard" width="760">
+</div>
+
+| Preset | What it does |
+|---|---|
+| **Alles finden** · find everything | all protocols, maximum yield |
+| **Surfen & Web** · browsing | HTTP + SOCKS5, HTTPS-capable, at least anonymous, under 3 s |
+| **Maximal anonym** · max anonymity | elite SOCKS5 with HTTPS only |
+| **Schnell & stabil** · fast & stable | proxies under 1 s only |
+| **Sofort ein paar** · a few right now | stops after 25 hits |
+| **Letzte Treffer neu prüfen** · recheck | no collecting, takes seconds |
+| **Wie letztes Mal** · same as last time | your previous choice |
+| **Eigene Auswahl …** · custom | protocols, countries, anonymity, HTTPS, target site, latency, amount, check mode |
+
+Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</kbd>–<kbd>9</kbd> jump · <kbd>Enter</kbd> next · <kbd>Esc</kbd> back · <kbd>q</kbd> quit. In scripts and cron jobs the wizard never shows up – pass options or `-y`.
+
+<a id="live-list"></a>
+
+## 📡 Live proxy list
+
+Don't want to scan yourself? Every 6 hours **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, fastest first.
 
 <div align="center">
 
-[![Proxys](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json&style=for-the-badge)](../../tree/proxy-list)
+[![Proxies](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json&style=for-the-badge)](../../tree/proxy-list)
 [![HTTP](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Fhttp.json&style=for-the-badge)](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/http.txt)
 [![SOCKS4](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Fsocks4.json&style=for-the-badge)](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks4.txt)
 [![SOCKS5](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Fsocks5.json&style=for-the-badge)](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt)
-[![Stand](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Fupdated.json&style=for-the-badge)](../../actions/workflows/proxy-list.yml)
+[![Updated](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Fupdated.json&style=for-the-badge)](../../actions/workflows/proxy-list.yml)
 
 </div>
 
-| Liste | Format | Link |
+| List | Format | Link |
 |---|---|---|
-| Alle | `socks5://1.2.3.4:1080` | [all.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/all.txt) |
+| All | `socks5://1.2.3.4:1080` | [all.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/all.txt) |
 | HTTP · SOCKS4 · SOCKS5 | `1.2.3.4:8080` | [http.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/http.txt) · [socks4.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks4.txt) · [socks5.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt) |
-| Nur HTTPS-fähige | `typ://ip:port` | [https.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/https.txt) |
-| Nur Elite | `typ://ip:port` | [elite.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/elite.txt) |
-| Mit allen Details | Latenz, Land, HTTPS, Anonymität, Exit-IP | [proxies.json](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.json) · [proxies.csv](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.csv) |
+| HTTPS-capable only | `type://ip:port` | [https.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/https.txt) |
+| Elite only | `type://ip:port` | [elite.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/elite.txt) |
+| With all details | latency, country, HTTPS, anonymity, exit IP | [proxies.json](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.json) · [proxies.csv](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.csv) |
 
 ```bash
 curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt | head
@@ -65,306 +125,334 @@ curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-lis
 <tr>
 <td width="50%" valign="top">
 
-**🧭 Einrichtungsassistent**<br>
-Ohne Argumente gestartet fragt das Tool per Pfeiltasten, was du suchst – Schnellauswahl oder Schritt für Schritt. Am Ende steht die passende Kommandozeile da.
+**🧭 Setup wizard**<br>
+Started without arguments, the tool asks what you need using the arrow keys – a preset or step by step. At the end it shows the matching command line.
 
 </td>
 <td width="50%" valign="top">
 
-**⚡ Schnell**<br>
-Über 700 Quellen parallel geladen, große Listen auf allen CPU-Kernen geparst, eigene HTTP/SOCKS-Handshakes direkt auf `asyncio` mit 2000+ Prüfungen gleichzeitig.
+**⚡ Fast**<br>
+700+ sources fetched in parallel, large lists parsed on all CPU cores, hand-written HTTP/SOCKS handshakes directly on `asyncio` with 2000+ checks at once.
 
 </td>
 </tr>
 <tr>
 <td valign="top">
 
-**🔐 Echte Detailprüfung**<br>
-Jeder Treffer muss zwei unabhängige Seiten abrufen – das sortiert **Honeypots** aus, die nur auf Prüfanfragen antworten (in manchen Läufen 5 von 6 „Treffern“). Dazu: HTTPS über einen Tunnel mit **verifiziertem TLS**, Anonymitätsstufe *elite / anonymous / transparent* und das Land der Exit-IP.
+**🔐 Real verification**<br>
+Every hit has to fetch two independent pages – that weeds out **honeypots** that only answer check requests (in some runs 5 out of 6 “hits”). Plus: HTTPS through a tunnel with **verified TLS**, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
 
 </td>
 <td valign="top">
 
-**🧠 Lernt mit jedem Lauf**<br>
-Trefferquote pro Quelle, Verlauf funktionierender Proxys, automatisches Aussortieren toter und veralteter Listen. Mit `-l 5000` bekommst du die *besten* 5000 Kandidaten, nicht irgendwelche.
-
-</td>
-</tr>
-<tr>
-<td valign="top">
-
-**🔎 Findet neue Quellen selbst**<br>
-Durchsucht GitHub nach aktiv gepflegten Proxy-Listen und liest fremd gepflegte Quellenlisten ein. Spam-Klonfarmen und reine Spiegel werden erkannt.
-
-</td>
-<td valign="top">
-
-**🎯 Filter & Zielseiten**<br>
-Mit `--target google.com` zählt ein Proxy nur, wenn er die Seite wirklich erreicht – viele öffentliche Proxys sind bei Google, Discord & Co. gesperrt. Dazu nach Land, HTTPS, Anonymität und Latenz filtern – und mit `--want 50` aufhören, sobald genug passende Proxys gefunden sind. Filter machen die Suche sogar schneller: Mit `--max-latency 1000` gibt das Tool langsame Proxys nach 1 s auf statt nach 8 s.
+**🧠 Learns with every run**<br>
+Hit rate per source, history of working proxies, automatic removal of dead and stale lists. With `-l 5000` you get the *best* 5000 candidates, not just any.
 
 </td>
 </tr>
 <tr>
 <td valign="top">
 
-**📊 Live-Dashboard**<br>
-Tempo-Verlauf, Latenz-Histogramm, Protokolle, Länder und die letzten Treffer in Echtzeit. <kbd>Strg</kbd>+<kbd>C</kbd> beendet jederzeit und speichert alles.
+**🔎 Finds new sources by itself**<br>
+Searches GitHub for actively maintained proxy lists and reads source lists maintained by others. Spam clone farms and plain mirrors are detected.
 
 </td>
 <td valign="top">
 
-**🔁 Rotierender Proxy-Server**<br>
-`--serve` macht aus den Treffern einen lokalen Proxy, der jede Verbindung über einen anderen schickt – mit automatischem Wechsel, wenn einer hängt.
+**🎯 Filters & target sites**<br>
+With `--target google.com` a proxy only counts if it really reaches the site – many public proxies are blocked by Google, Discord & co. Filter by country, HTTPS, anonymity and latency, and stop with `--want 50` as soon as enough matching proxies are found. Filters even speed things up: with `--max-latency 1000` slow proxies are given up after 1 s instead of 8 s.
 
 </td>
 </tr>
 <tr>
 <td valign="top">
 
-**💻 Läuft überall**<br>
-macOS, Linux und Windows, Python 3.9 bis 3.13. Einzige Abhängigkeiten: `rich` und `certifi`. Erkennt sogar, wenn eine Firewall Proxys blockiert.
+**📊 Live dashboard**<br>
+Speed chart, latency histogram, protocols, countries and the latest hits in real time. <kbd>Ctrl</kbd>+<kbd>C</kbd> stops at any time and saves everything.
 
 </td>
 <td valign="top">
 
-**🧪 Gründlich getestet**<br>
-200+ Tests laufen ohne Internet gegen echte Mini-Proxys und Honeypots auf `localhost` – auf Linux, macOS und Windows mit Python 3.9, 3.11 und 3.13.
+**🔁 Rotating proxy server**<br>
+`--serve` turns the hits into a local proxy that sends every connection through a different one – with automatic failover when one hangs.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
+**💻 Runs everywhere**<br>
+macOS, Linux and Windows, Python 3.9 to 3.13. Only two dependencies: `rich` and `certifi`. It even notices when a firewall blocks proxies.
+
+</td>
+<td valign="top">
+
+**🧪 Thoroughly tested**<br>
+240+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11 and 3.13.
 
 </td>
 </tr>
 </table>
 
-<a id="schnellstart"></a>
+### Why not just download a list?
 
-## 🚀 Schnellstart
+| | Typical proxy list repo | **proxy-scraper** |
+|---|:---:|:---:|
+| Proxies checked right before you use them | ❌ | ✅ |
+| Honeypots that fake a successful check filtered out | ❌ | ✅ |
+| HTTPS tested with verified TLS | rarely | ✅ |
+| Anonymity level and country per proxy | sometimes | ✅ |
+| Only proxies that reach *your* target site | ❌ | ✅ `--target` |
+| Learns which sources are worth it | ❌ | ✅ |
+| Usable as a single rotating proxy | ❌ | ✅ `--serve` |
+| Ready-made list without running anything | ✅ | ✅ [live list](#live-list) |
 
-```bash
-git clone https://github.com/maximilianfeix/proxy-scraper.git
-cd proxy-scraper
-pip install -r requirements.txt
-
-python3 proxy_scraper.py
-```
-
-Das war's. Der Assistent fragt, was du brauchst:
-
-<div align="center">
-<img src="docs/wizard.svg" alt="Einrichtungsassistent" width="760">
-</div>
-
-| Schnellauswahl | Was passiert |
-|---|---|
-| **Alles finden** | alle Protokolle, maximale Ausbeute |
-| **Surfen & Web** | HTTP + SOCKS5, HTTPS-fähig, mindestens anonym, unter 3 s |
-| **Maximal anonym** | nur Elite-SOCKS5 mit HTTPS |
-| **Schnell & stabil** | nur Proxys unter 1 s |
-| **Sofort ein paar** | stoppt nach 25 Treffern |
-| **Letzte Treffer neu prüfen** | ohne Sammeln, dauert Sekunden |
-| **Wie letztes Mal** | deine letzte Auswahl |
-| **Eigene Auswahl …** | Protokolle, Länder, Anonymität, HTTPS, Zielseite, Latenz, Menge, Prüfmodus |
-
-Bedienung: <kbd>↑</kbd><kbd>↓</kbd> auswählen · <kbd>Leertaste</kbd> an/aus · <kbd>1</kbd>–<kbd>9</kbd> direkt · <kbd>Enter</kbd> weiter · <kbd>Esc</kbd> zurück · <kbd>q</kbd> beenden. In Skripten und Cronjobs kommt der Assistent nie – dort einfach Optionen angeben oder `-y`.
-
-## 💡 Beispiele
+## 💡 Examples
 
 ```bash
-# 50 Proxys, die HTTPS können – danach Schluss
-python3 proxy_scraper.py --want 50 --https-only
+# 50 proxies that can do HTTPS – then stop
+proxy-scraper --want 50 --https-only
 
-# nur Deutschland, Österreich und die Schweiz, die 20.000 vielversprechendsten Kandidaten
-python3 proxy_scraper.py --country DE,AT,CH -l 20000
+# only Germany, Austria and Switzerland, the 20,000 most promising candidates
+proxy-scraper --country DE,AT,CH -l 20000
 
-# schnelle Elite-SOCKS5-Proxys
-python3 proxy_scraper.py --types socks5 --anonymity elite --max-latency 1500
+# fast elite SOCKS5 proxies
+proxy-scraper --types socks5 --anonymity elite --max-latency 1500
 
-# 20 Proxys, die Google UND Discord wirklich erreichen
-python3 proxy_scraper.py --target google.com --target discord.com --want 20
+# 20 proxies that really reach Google AND Discord
+proxy-scraper --target google.com --target discord.com --want 20
 
-# nur die Treffer vom letzten Mal (plus Verlauf) neu prüfen – dauert Sekunden
-python3 proxy_scraper.py --recheck
+# only recheck the last hits (plus history) – takes seconds
+proxy-scraper --recheck
 
-# Assistent mit Startwerten – er übernimmt, was du schon angegeben hast
-python3 proxy_scraper.py -i --country DE
+# wizard with defaults – it keeps what you already passed
+proxy-scraper -i --country DE
 
-# welche Quellen liefern am meisten?
-python3 proxy_scraper.py --list-sources
+# which sources deliver the most?
+proxy-scraper --list-sources
 ```
+
+Running from a clone? Replace `proxy-scraper` with `python3 proxy_scraper.py`.
 
 <a id="proxy-server"></a>
 
-## 🔁 Rotierender Proxy-Server
+## 🔁 Rotating proxy server
 
-Eine Liste ist nett – aber meistens will man einfach **einen** Proxy eintragen, der immer funktioniert:
+A list is nice – but usually you just want to enter **one** proxy that always works:
 
 ```bash
-python3 proxy_scraper.py --recheck --serve     # letzte Treffer prüfen, dann los – dauert Sekunden
+proxy-scraper --recheck --serve     # recheck the last hits, then go – takes seconds
 ```
 
 ```bash
-curl -x http://127.0.0.1:8899 https://api.ipify.org     # jedes Mal eine andere IP
+curl -x http://127.0.0.1:8899 https://api.ipify.org     # a different IP every time
 ```
 
-- jede Verbindung läuft über einen anderen gefundenen Proxy, schnelle und bewährte werden bevorzugt
-- `CONNECT` für HTTPS und normale HTTP-Anfragen; dahinter können HTTP-, SOCKS4- und SOCKS5-Proxys stecken (SOCKS5 mit DNS über den Proxy)
-- für HTTPS nur Proxys, die den Test mit **verifiziertem TLS** bestanden haben – keine aufgebrochene Verschlüsselung
-- bleibt ein Proxy im Tunnel stumm oder liefert statt TLS eine Fehlerseite, geht dasselbe erste Paket unbemerkt an den nächsten
-- wer dreimal hintereinander scheitert, fliegt aus der Rotation
-- lauscht nur auf `127.0.0.1`; Live-Ansicht mit Anfragen, Erfolgsquote, Pool und den letzten Verbindungen
+- every connection goes through a different proxy; fast and proven ones are preferred
+- `CONNECT` for HTTPS and plain HTTP requests; HTTP, SOCKS4 and SOCKS5 proxies can sit behind it (SOCKS5 with DNS through the proxy)
+- HTTPS only uses proxies that passed the test with **verified TLS** – no broken encryption
+- if a proxy stays silent inside the tunnel or returns an error page instead of TLS, the same first packet quietly goes to the next one
+- three failures in a row and a proxy leaves the rotation
+- listens on `127.0.0.1` only; live view with requests, success rate, pool and the latest connections
 
-Im Test: 20 von 20 HTTPS-Anfragen erfolgreich, über 15 verschiedene Exit-IPs. Im Assistenten gibt es dafür **Sofort als Proxy-Server**.
+In testing: 20 of 20 HTTPS requests succeeded, over 15 different exit IPs. In the wizard this is **Sofort als Proxy-Server**.
 
-<a id="so-funktionierts"></a>
+<a id="how-it-works"></a>
 
-## 🔬 So funktioniert's
+## 🔬 How it works
 
 ```mermaid
 flowchart LR
-    A[sources.json<br/>Meta-Listen<br/>GitHub-Discovery] --> B[Laden & Parsen<br/>parallel auf allen Kernen]
-    B --> C[Priorisieren<br/>Verlauf → gute Quellen → Rest]
-    C --> D[Prüfen<br/>HTTP · SOCKS4 · SOCKS5]
-    D --> E[Details<br/>HTTPS · Anonymität · Land]
+    A[sources.json<br/>meta lists<br/>GitHub discovery] --> B[Fetch & parse<br/>in parallel on all cores]
+    B --> C[Prioritize<br/>history → good sources → rest]
+    C --> D[Check<br/>HTTP · SOCKS4 · SOCKS5]
+    D --> E[Details<br/>HTTPS · anonymity · country]
     E --> F[results/]
-    D -. Trefferquote pro Quelle .-> G[(data/)]
-    G -. nächster Lauf .-> C
+    D -. hit rate per source .-> G[(learned state)]
+    G -. next run .-> C
 ```
 
-1. **Quellen** – die kuratierte Liste in [`sources.json`](proxyscraper/sources.json), Meta-Quellen (andere Projekte, die selbst Listen von Proxy-Quellen pflegen) und alle drei Tage eine Suche auf GitHub nach aktiv gepflegten Repos.
-2. **Sammeln** – Text, HTML-Tabellen, JSON-APIs und `typ://ip:port`-Zeilen werden erkannt, private und reservierte Adressbereiche verworfen.
-3. **Priorisieren** – bekannte funktionierende Proxys zuerst, dann nach gelernter Trefferquote ihrer Quellen.
-4. **Prüfen** – jeder Proxy muss `checkip.amazonaws.com` abrufen und eine gültige, *fremde* IP zurückliefern. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier.
-5. **Lernen** – Trefferquoten und Verlauf landen in `data/`. Quellen ohne Treffer, mit seit einer Woche unverändertem Inhalt oder dauerhaft unerreichbar werden übersprungen.
+1. **Sources** – the curated list in [`sources.json`](proxyscraper/sources.json), meta sources (other projects that maintain lists of proxy sources) and, every three days, a GitHub search for actively maintained repos.
+2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped.
+3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
+4. **Check** – every proxy has to fetch `checkip.amazonaws.com` and return a valid, *foreign* IP. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here.
+5. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
 
 <details>
-<summary><b>📸 Live-Dashboard und Abschlussbericht ansehen</b></summary>
+<summary><b>📸 See the live dashboard and final report</b></summary>
 <br>
 <div align="center">
-<img src="docs/dashboard.svg" alt="Live-Dashboard während der Prüfung" width="860">
+<img src="docs/dashboard.svg" alt="Live dashboard while checking" width="860">
 <br><br>
-<img src="docs/summary.svg" alt="Abschlussbericht nach einem Lauf" width="860">
+<img src="docs/summary.svg" alt="Final report after a run" width="860">
 </div>
 </details>
 
-## 📦 Ausgabe
+## 📦 Output
 
-Jeder Lauf bekommt einen eigenen Ordner, `results/latest.txt` nennt immer den neuesten (unter macOS/Linux zusätzlich der Symlink `results/latest`):
+Every run gets its own folder; `results/latest.txt` always names the newest one (on macOS/Linux there is also the symlink `results/latest`):
 
 ```
 results/2026-09-24_18-42-07/
-├── all.txt        socks5://203.0.113.10:1080   (schnellste zuerst)
-├── http.txt       203.0.113.20:8080            (reine ip:port-Listen pro Typ)
+├── all.txt        socks5://203.0.113.10:1080   (fastest first)
+├── http.txt       203.0.113.20:8080            (plain ip:port lists per type)
 ├── socks4.txt
 ├── socks5.txt
-├── proxies.json   Latenz, Land, HTTPS, Anonymität, Exit-IP
+├── proxies.json   latency, country, HTTPS, anonymity, exit IP
 └── proxies.csv
 ```
 
-<a id="optionen"></a>
+<a id="options"></a>
 
-## ⚙️ Optionen
+## ⚙️ Options
 
 <details>
-<summary><b>Alle Optionen anzeigen</b></summary>
+<summary><b>Show all options</b></summary>
 <br>
 
-| Option | Beschreibung |
+| Option | Description |
 |---|---|
-| `-i`, `--interactive` | Einrichtungsassistent (kommt ohne Argumente automatisch) |
-| `-y`, `--yes` | ohne Assistent sofort starten |
-| `--types http socks5` | nur bestimmte Protokolle |
-| `-l`, `--limit N` | nur die *N* vielversprechendsten Proxys prüfen |
-| `--want N` | beenden, sobald *N* passende Proxys gefunden sind |
-| `--country DE,AT` | nur diese Länder |
-| `--https-only` | nur Proxys, die HTTPS tunneln können |
-| `--anonymity elite` | Mindest-Anonymität (`anonymous` oder `elite`) |
-| `--max-latency MS` | maximale Latenz |
-| `--target URL` | nur Proxys, die diese Seite erreichen (mehrfach möglich) |
-| `--recheck [DATEI]` | nur Proxys aus einer Datei bzw. vom letzten Lauf prüfen |
-| `--fast` | ohne HTTPS-Test (Bestätigung und Anonymität laufen trotzdem) |
-| `--no-geo` | ohne Länder-Lookup |
-| `-c`, `--concurrency N` | gleichzeitige Prüfungen (Standard: 2000) |
-| `-t`, `--timeout S` | Timeout pro Proxy (Standard: 8 s) |
-| `--discover` | sofort neue Quellen auf GitHub suchen |
-| `--list-sources [N]` | Rangliste der Quellen anzeigen |
-| `--serve [PORT]` | danach als rotierender Proxy auf `127.0.0.1:PORT` bereitstellen (Standard: 8899) |
-| `-o DATEI` | zusätzlich alle Treffer in diese Datei schreiben |
+| `-i`, `--interactive` | setup wizard (shown automatically without arguments) |
+| `-y`, `--yes` | start right away without the wizard |
+| `--types http socks5` | only these protocols |
+| `-l`, `--limit N` | only check the *N* most promising proxies |
+| `--want N` | stop as soon as *N* matching proxies are found |
+| `--country DE,AT` | only these countries |
+| `--https-only` | only proxies that can tunnel HTTPS |
+| `--anonymity elite` | minimum anonymity (`anonymous` or `elite`) |
+| `--max-latency MS` | maximum latency |
+| `--target URL` | only proxies that reach this site (repeatable) |
+| `--recheck [FILE]` | only check proxies from a file or the last run |
+| `--fast` | skip the HTTPS test (confirmation and anonymity still run) |
+| `--no-geo` | skip the country lookup |
+| `-c`, `--concurrency N` | simultaneous checks (default: 2000) |
+| `-t`, `--timeout S` | timeout per proxy (default: 8 s) |
+| `--discover` | search GitHub for new sources right now |
+| `--list-sources [N]` | show the source ranking |
+| `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
+| `-o FILE` | also write all hits to this file |
+| `-V`, `--version` | print the version |
 
-Alles Weitere: `python3 proxy_scraper.py --help`
+Everything else: `proxy-scraper --help`
 
 </details>
 
 > [!TIP]
-> Für die GitHub-Suche reicht ein eingeloggtes [`gh`](https://cli.github.com/) oder die Umgebungsvariable `GITHUB_TOKEN`. Ohne Token gilt das API-Limit von 60 Anfragen pro Stunde, dann werden nur 40 Repos durchsucht.
+> For the GitHub search a logged-in [`gh`](https://cli.github.com/) or the `GITHUB_TOKEN` environment variable is enough. Without a token the API limit is 60 requests per hour, and only 40 repos are searched.
 
 ## 🤖 GitHub Actions
 
-Das Repo arbeitet selbst mit:
+The repo does part of the work itself:
 
-| Workflow | Was er macht |
+| Workflow | What it does |
 |---|---|
-| [**tests**](../../actions/workflows/tests.yml) | 3 Betriebssysteme × 3 Python-Versionen, dazu ein echter Programmstart – bei jedem Push und Pull Request |
-| [**lint**](../../actions/workflows/lint.yml) | `ruff` mit fest gepinnter Version – lokal und in der CI dieselben Regeln |
-| [**codeql**](../../actions/workflows/codeql.yml) | Sicherheitsanalyse bei jedem Push und einmal pro Woche |
-| [**proxy list**](../../actions/workflows/proxy-list.yml) | alle 6 Stunden: sammeln, prüfen, auf `proxy-list` veröffentlichen. Die gelernte Statistik liegt im Actions-Cache – das Tool wird also auch in der Cloud mit jedem Lauf besser |
-| **Dependabot** | hält die Versionen der Actions aktuell |
+| [**tests**](../../actions/workflows/tests.yml) | 3 operating systems × 3 Python versions, plus a built and installed package – on every push and pull request |
+| [**lint**](../../actions/workflows/lint.yml) | `ruff` with a pinned version – same rules locally and in CI |
+| [**codeql**](../../actions/workflows/codeql.yml) | security analysis on every push and once a week |
+| [**proxy list**](../../actions/workflows/proxy-list.yml) | every 6 hours: collect, check, publish to `proxy-list`. The learned statistics live in the Actions cache, so the tool keeps getting better in the cloud too |
+| [**release**](../../actions/workflows/release.yml) | on a version tag: test, build, smoke-test and publish a GitHub release with the wheel |
+| **Dependabot** | keeps the action versions up to date |
 
-<a id="roadmap"></a>
+<a id="faq"></a>
+
+## ❓ FAQ
+
+<details>
+<summary><b>Almost nothing gets through.</b></summary>
+<br>
+
+Many company, school and university networks block proxy connections. The tool notices a hit rate below 0.2 % and warns you – a different network such as a phone hotspot helps. The learned statistics are not downgraded in such a run.
+
+</details>
+
+<details>
+<summary><b>Does it work on Windows?</b></summary>
+<br>
+
+Yes, in PowerShell and Windows Terminal. `uvloop` doesn't exist there and is skipped automatically. In the old `cmd.exe` window some symbols may be missing depending on the font.
+
+</details>
+
+<details>
+<summary><b>Why does it find fewer proxies than other lists claim to have?</b></summary>
+<br>
+
+Because only proxies that pass every check are kept. Many lists count anything that accepts a TCP connection; here a proxy must fetch two independent pages and show a foreign IP. That's usually a few hundred out of a million candidates – but they work.
+
+</details>
+
+<details>
+<summary><b>How fresh is the live list?</b></summary>
+<br>
+
+It's rebuilt every 6 hours; the “updated” badge shows the last run. Free proxies come and go quickly, so for anything important run `proxy-scraper --recheck` right before use.
+
+</details>
+
+<details>
+<summary><b>Is it safe to use free proxies?</b></summary>
+<br>
+
+Only for things that don't matter. Public proxies are run by strangers who can read everything that isn't encrypted. Never send passwords or personal data through them, and only use them for legal purposes.
+
+</details>
 
 ## 🗺️ Roadmap
 
-Was als Nächstes kommt, steht im Meilenstein [**v1.2**](../../milestone/2) – Ideen und Wünsche gerne als [Issue](../../issues/new/choose).
+What's next is tracked in the milestones [**v1.3**](../../milestone/3) and [**v1.1**](../../milestone/1) – ideas and wishes are welcome as an [issue](../../issues/new/choose).
 
-- [ ] [Schneller prüfen, wenn Filter gesetzt sind](../../issues/13)
-- [ ] [Proxys mit Zugangsdaten](../../issues/7) · [Zweites Prüfziel](../../issues/8) · [ETag-Cache](../../issues/9)
+- [ ] [Proxies with credentials](../../issues/7) · [Second check target](../../issues/8) · [ETag cache](../../issues/9)
+- [ ] [Export for proxychains, Clash & co.](../../issues/4) · [Docker image](../../issues/5) · [IPv6 proxies](../../issues/1)
 
-## 🛠️ Probleme
+## 🤝 Contributing
 
-**Es kommt (fast) nichts durch.** Viele Firmen-, Schul- und Uni-Netze blockieren Proxy-Verbindungen. Das Tool erkennt das an einer Trefferquote unter 0,2 % und warnt dann – in dem Fall hilft ein anderes Netz, z. B. ein Handy-Hotspot. Die gelernten Statistiken werden bei so einem Lauf nicht abgewertet.
-
-**Windows:** läuft in PowerShell und Windows Terminal. `uvloop` gibt es dort nicht und wird automatisch übersprungen. Im alten `cmd.exe`-Fenster fehlen je nach Schriftart einzelne Symbole.
-
-## 👩‍💻 Entwicklung
+Bug reports, new sources and pull requests are very welcome – see [CONTRIBUTING.md](CONTRIBUTING.md). The short version:
 
 ```bash
-pip install pytest ruff==0.16.8
-python3 -m pytest          # läuft ohne Internet – Fake-Proxys auf localhost
+pip install -e ".[dev]"
+python3 -m pytest          # runs offline – fake proxies on localhost
 ruff check .
-python3 docs/make_demo.py  # Bilder für diese README neu erzeugen
+python3 docs/make_demo.py  # regenerate the images in this README
 ```
 
 <details>
-<summary><b>Projektstruktur</b></summary>
+<summary><b>Project structure</b></summary>
 
 ```
-proxy_scraper.py        Einstiegspunkt
+proxy_scraper.py        entry point when run from a clone
 proxyscraper/
-├── cli.py              Argumente, Assistent oder direkter Start
-├── app.py              ein Lauf in Phasen: Netz → Jobs → Prüfen → Lernen & Bericht
-├── options.py          RunOptions + Filters – alle Einstellungen an einer Stelle
-├── pipeline.py         Quellen sammeln, priorisieren, Prüfschleife
-├── checker.py          HTTP/SOCKS-Handshakes, Bestätigung gegen Honeypots, HTTPS-Test
-├── sources.py          Quellenlisten, Meta-Quellen, GitHub-Discovery, Statistik
-├── parsing.py          Proxys in Text, HTML und JSON finden
-├── history.py          Verlauf funktionierender Proxys
-├── geo.py              Länder über ip-api.com (Batch, mit Cache)
-├── targets.py          Zielseiten für --target
-├── output.py           Ergebnisdateien
-├── server.py           rotierender Proxy-Server (--serve)
-├── publish.py          Live-Liste für GitHub Actions aufbereiten
-├── compat.py           Unterschiede zwischen Unix und Windows
-├── netio.py            schlanker HTTP-Client auf asyncio
+├── cli.py              arguments, wizard or direct start
+├── app.py              one run in phases: network → jobs → check → learn & report
+├── options.py          RunOptions + Filters – all settings in one place
+├── pipeline.py         collect sources, prioritize, check loop
+├── checker.py          HTTP/SOCKS handshakes, honeypot confirmation, HTTPS test
+├── sources.py          source lists, meta sources, GitHub discovery, statistics
+├── sources.json        curated sources
+├── parsing.py          find proxies in text, HTML and JSON
+├── history.py          history of working proxies
+├── geo.py              countries via ip-api.com (batched, cached)
+├── targets.py          target sites for --target
+├── output.py           result files
+├── server.py           rotating proxy server (--serve)
+├── publish.py          live list for GitHub Actions
+├── paths.py            where state and results are stored
+├── compat.py           differences between Unix and Windows
+├── netio.py            small HTTP client on asyncio
 └── ui/                 widgets · dashboard · report · wizard · serve · keys
 ```
 
 </details>
 
-## ⚠️ Hinweis
+## ⚠️ Disclaimer
 
-Öffentliche Proxys werden von Unbekannten betrieben, die alles mitlesen können, was unverschlüsselt durchgeht. Keine Passwörter oder persönlichen Daten darüber schicken und nur für legale Zwecke nutzen.
+This tool only collects publicly listed proxies and checks whether they work. You are responsible for how you use them – respect the terms of the sites you visit and the laws where you live.
 
 <div align="center">
 
 ---
 
-[MIT-Lizenz](LICENSE) · Wenn dir das Tool hilft, freut sich das Repo über einen ⭐
+[MIT License](LICENSE) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
+
+If the tool helps you, a ⭐ helps the project.
 
 </div>

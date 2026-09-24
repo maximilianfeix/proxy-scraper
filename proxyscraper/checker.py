@@ -21,7 +21,7 @@ import socket
 import ssl
 import time
 from dataclasses import dataclass
-from typing import Iterable, Optional, Set
+from typing import Iterable, List, Optional, Set
 
 from .netio import USER_AGENT, dechunk, read_response, ssl_context
 from .parsing import split_key
@@ -188,7 +188,7 @@ class Checker:
             body = await wait_for(self._confirm(result.ptype, result.proxy), self.timeout)
         except Exception:  # Fehler bei der zweiten Anfrage heißt: nicht verlässlich
             return False
-        anonymity = classify_confirmation(body, self.own_ips) if body is not None else None
+        anonymity = classify_confirmation(body, self.own_ips, result.exit_ip) if body is not None else None
         if anonymity is None:
             return False
         result.anonymity = anonymity
@@ -280,19 +280,26 @@ class Checker:
         return await _socks5_reply_ok(recv_exact)
 
 
-def classify_confirmation(body: bytes, own_ips: Iterable[str]) -> Optional[str]:
-    """Antwort von httpbin.org/get prüfen -> Anonymitätsstufe, oder None bei unbrauchbarer Antwort.
-
-    Honeypots liefern hier kein JSON mit gültiger Absender-IP.
-    """
+def confirmation_origins(body: bytes) -> Optional[List[str]]:
+    """IPs aus einer httpbin-Antwort ("origin": "1.2.3.4" oder "1.2.3.4, 5.6.7.8"), None wenn unbrauchbar."""
     try:
         data = json.loads(body)
     except ValueError:
         return None
-    if not isinstance(data, dict):
+    if not isinstance(data, dict) or not isinstance(data.get("headers", {}), dict):
         return None
     origins = [part.strip() for part in str(data.get("origin", "")).split(",")]
-    if not any(_is_ipv4(o) for o in origins):
+    return [o for o in origins if _is_ipv4(o)] or None
+
+
+def classify_confirmation(body: bytes, own_ips: Iterable[str], exit_ip: str) -> Optional[str]:
+    """Antwort von httpbin.org/get prüfen -> Anonymitätsstufe, oder None bei unbrauchbarer Antwort.
+
+    Honeypots liefern hier kein JSON mit gültiger Absender-IP. Außerdem muss der Proxy bei beiden
+    Anfragen dieselbe Exit-IP zeigen – rotierende oder verkettete Ausgänge sind nicht verlässlich.
+    """
+    origins = confirmation_origins(body)
+    if origins is None or exit_ip not in origins:
         return None
     return classify_anonymity(body, own_ips)
 
@@ -311,9 +318,11 @@ def classify_anonymity(body: bytes, own_ips: Iterable[str]) -> Optional[str]:
         return "transparent"
     try:
         headers = json.loads(body).get("headers", {})
-    except ValueError:
+    except (ValueError, AttributeError):
         return None
-    names = {name.lower() for name in headers}
+    if not isinstance(headers, dict):
+        return None  # unerwartete Antwort – nicht abstürzen, nur nicht bestätigen
+    names = {str(name).lower() for name in headers}
     return "anonymous" if names & PROXY_HEADERS else "elite"
 
 

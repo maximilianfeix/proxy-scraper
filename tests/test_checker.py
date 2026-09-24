@@ -37,7 +37,7 @@ async def http_proxy(reader, writer):
 async def honeypot(reader, writer):
     """Wie beobachtet: beantwortet die Prüfanfrage mit 200 + IP, alles andere mit 400."""
     head = await reader.readuntil(b"\r\n\r\n")
-    if b"checkip.amazonaws.com" in head:
+    if head.startswith(b"GET http://checkip.amazonaws.com/ "):
         writer.write(b"HTTP/1.1 200 OK\r\nServer: lighttpd/1.4.53\r\nContent-Length: 8\r\n\r\n9.9.9.9\n")
     else:
         writer.write(b"HTTP/1.1 400 Bad Request\r\nServer: NSC/0.6.4 (JVM)\r\nContent-Length: 0\r\n\r\n")
@@ -163,10 +163,28 @@ def test_wait_for_leaves_no_unretrieved_exception_on_cancel():
 @pytest.mark.parametrize("body, expected", [
     (json.dumps({"origin": "7.7.7.7", "headers": {}}).encode(), "elite"),
     (json.dumps({"origin": "5.5.5.5, 7.7.7.7", "headers": {"Via": "x"}}).encode(), "transparent"),
+    (json.dumps({"origin": "8.8.8.8", "headers": {}}).encode(), None),       # andere Exit-IP als vorher
     (json.dumps({"origin": "kein ip", "headers": {}}).encode(), None),
+    (json.dumps({"origin": "7.7.7.7", "headers": [1]}).encode(), None),     # darf nicht abstürzen
+    (json.dumps({"origin": "7.7.7.7", "headers": "x"}).encode(), None),
     (json.dumps(["kein", "objekt"]).encode(), None),
     (b"<html>400 Bad Request</html>", None),
     (b"9.9.9.9", None),
 ])
 def test_classify_confirmation(body, expected):
-    assert ck.classify_confirmation(body, {"5.5.5.5"}) == expected
+    assert ck.classify_confirmation(body, {"5.5.5.5"}, exit_ip="7.7.7.7") == expected
+
+
+def test_confirm_survives_malformed_headers():
+    async def weird(reader, writer):
+        head = await reader.readuntil(b"\r\n\r\n")
+        if head.startswith(b"GET http://checkip.amazonaws.com/ "):
+            writer.write(JUDGE_REPLY)
+        else:
+            body = b'{"origin": "9.9.9.9", "headers": [1]}'
+            writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body)
+        await writer.drain()
+        writer.close()
+
+    result, confirmed = run_check(weird, "http")
+    assert result is not None and confirmed is False

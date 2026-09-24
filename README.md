@@ -501,6 +501,14 @@ Because only proxies that pass every check are kept. Many lists count anything t
 </details>
 
 <details>
+<summary><b>What about proxies with a username and password?</b></summary>
+<br>
+
+Lines like `socks5://user:pass@1.2.3.4:1080` keep their login: HTTP proxies get a `Proxy-Authorization` header, SOCKS5 uses username/password auth (RFC 1929), SOCKS4 the user ID. The same works for `--recheck` with your own list. The result files keep the credentials, the terminal only shows `user:•••`.
+
+</details>
+
+<details>
 <summary><b>How fresh is the live list?</b></summary>
 <br>
 
@@ -548,7 +556,8 @@ proxyscraper/
 ├── app.py              one run in phases: network → jobs → check → learn & report
 ├── options.py          RunOptions + Filters – all settings in one place
 ├── pipeline.py         collect sources, prioritize, check loop
-├── checker.py          HTTP/SOCKS handshakes, honeypot confirmation, HTTPS test
+├── checker.py          checks, honeypot confirmation, HTTPS test
+├── handshake.py        HTTP/SOCKS4/SOCKS5 handshakes incl. login
 ├── judges.py           check targets, Cloudflare filter, failover
 ├── sources.py          source lists, meta sources, GitHub discovery, statistics
 ├── sources.json        curated sources

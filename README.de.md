@@ -483,6 +483,14 @@ Weil nur Proxys bleiben, die jede Prüfung bestehen. Viele Listen zählen alles,
 </details>
 
 <details>
+<summary><b>Und Proxys mit Benutzername und Passwort?</b></summary>
+<br>
+
+Zeilen wie `socks5://user:pass@1.2.3.4:1080` behalten ihren Login: HTTP-Proxys bekommen einen `Proxy-Authorization`-Header, SOCKS5 nutzt Benutzer/Passwort (RFC 1929), SOCKS4 die User-ID. Das klappt genauso mit `--recheck` und einer eigenen Liste. In den Ergebnisdateien stehen die Zugangsdaten vollständig, im Terminal nur `user:•••`.
+
+</details>
+
+<details>
 <summary><b>Wie aktuell ist die Live-Liste?</b></summary>
 <br>
 
@@ -522,7 +530,8 @@ proxyscraper/
 ├── app.py              ein Lauf in Phasen: Netz → Jobs → Prüfen → Lernen & Bericht
 ├── options.py          RunOptions + Filters – alle Einstellungen an einer Stelle
 ├── pipeline.py         Quellen sammeln, priorisieren, Prüfschleife
-├── checker.py          HTTP/SOCKS-Handshakes, Bestätigung gegen Honeypots, HTTPS-Test
+├── checker.py          Prüfung, Bestätigung gegen Honeypots, HTTPS-Test
+├── handshake.py        HTTP/SOCKS4/SOCKS5-Handshakes inkl. Login
 ├── judges.py           Prüfziele, Cloudflare-Filter, Wechsel bei Ausfall
 ├── sources.py          Quellenlisten, Meta-Quellen, GitHub-Discovery, Statistik
 ├── sources.json        kuratierte Quellen

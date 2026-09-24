@@ -48,7 +48,7 @@ def _number(kind, minimum, strict=False):
         try:
             value = kind(text)
         except ValueError:
-            raise argparse.ArgumentTypeError(f"keine Zahl: {text!r}")
+            raise argparse.ArgumentTypeError(f"keine Zahl: {text!r}") from None
         if value < minimum or (strict and value == minimum):
             raise argparse.ArgumentTypeError(f"muss {'größer als' if strict else 'mindestens'} {minimum} sein")
         return value
@@ -93,7 +93,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="welche Protokolle (Standard: alle)")
     g.add_argument("-l", "--limit", type=non_negative_int, default=0,
                    help="nur die N vielversprechendsten Proxys prüfen (nach Verlauf & Quellenqualität)")
-    g.add_argument("--want", type=non_negative_int, default=0, metavar="N", help="beenden, sobald N passende Proxys gefunden sind")
+    g.add_argument("--want", type=non_negative_int, default=0, metavar="N",
+                   help="beenden, sobald N passende Proxys gefunden sind")
     g.add_argument("--fast", action="store_true", help="ohne HTTPS- und Anonymitätstest (schneller)")
     g.add_argument("--no-geo", action="store_true", help="keine Länder ermitteln")
     g.add_argument("--recheck", nargs="?", const="", metavar="DATEI",
@@ -103,7 +104,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     f.add_argument("--country", metavar="CC", help="nur diese Länder, z. B. DE,AT,CH")
     f.add_argument("--https-only", action="store_true", help="nur Proxys, die HTTPS-Seiten tunneln können")
     f.add_argument("--anonymity", choices=["anonymous", "elite"], help="Mindest-Anonymität")
-    f.add_argument("--max-latency", type=non_negative_int, default=0, metavar="MS", help="nur Proxys bis zu dieser Latenz")
+    f.add_argument("--max-latency", type=non_negative_int, default=0, metavar="MS",
+                   help="nur Proxys bis zu dieser Latenz")
 
     o = p.add_argument_group("Ausgabe")
     o.add_argument("-o", "--output", help="zusätzlich alle Treffer als typ://ip:port in diese Datei")
@@ -137,7 +139,9 @@ def choose_interactively(initial: RunOptions) -> Optional[RunOptions]:
     if opts is None:
         return None
     save_last_argv(opts.to_argv())
-    widgets.console.print(Text.assemble(("  ▸ ", ACCENT), ("Nächstes Mal direkt: ", MUTED), (opts.to_command(), "bold")))
+    widgets.console.print(Text.assemble(
+        ("  ▸ ", ACCENT), ("Nächstes Mal direkt: ", MUTED), (opts.to_command(), "bold"),
+    ))
     return opts
 
 

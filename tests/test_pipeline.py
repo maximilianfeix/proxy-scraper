@@ -147,3 +147,15 @@ def test_console_is_swappable_everywhere(monkeypatch):
         assert getattr(module, "console", None) is None, module.__name__
     widgets.info("Test", "läuft")
     assert "läuft" in recorder.file.getvalue()
+
+
+def test_card_subtitle_stays_on_one_line():
+    import io
+
+    from rich.console import Console
+
+    from proxyscraper.ui.widgets import card
+
+    console = Console(width=24, file=io.StringIO(), color_system=None)
+    console.print(card("Gespeichert", "12", "nur HTTPS · mind. anonymous · ≤ 3000 ms"))
+    assert len(console.file.getvalue().splitlines()) == 5  # Rahmen, 3 Zeilen, Rahmen

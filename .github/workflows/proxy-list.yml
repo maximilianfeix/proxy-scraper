@@ -1,0 +1,70 @@
+name: proxy list
+
+on:
+  schedule:
+    - cron: "17 */6 * * *"   # alle 6 Stunden
+  workflow_dispatch:
+
+permissions:
+  contents: write            # zum Pushen auf den Branch proxy-list
+
+concurrency:
+  group: proxy-list
+  cancel-in-progress: false
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    env:
+      COLUMNS: "110"
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+          cache: pip
+      - run: pip install -r requirements.txt
+
+      # Gelernte Quellen-Statistik und Verlauf vom letzten Lauf – das Tool lernt auch hier weiter
+      - uses: actions/cache/restore@v6
+        with:
+          path: data
+          key: proxy-data-${{ github.run_id }}
+          restore-keys: proxy-data-
+
+      - name: Proxys sammeln und prüfen
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # für die GitHub-Discovery
+        run: python proxy_scraper.py -y --limit 150000 --timeout 6 --connect-timeout 3
+
+      - uses: actions/cache/save@v6
+        if: always()
+        with:
+          path: data
+          key: proxy-data-${{ github.run_id }}
+
+      - name: Liste aufbereiten
+        id: prepare
+        run: |
+          if python -m proxyscraper.publish "results/$(cat results/latest.txt)" public --min 20; then
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+          else
+            rc=$?
+            [ "$rc" -eq 78 ] || exit "$rc"   # 78 = zu wenige Treffer, alte Liste bleibt
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Auf Branch proxy-list veröffentlichen
+        if: steps.prepare.outputs.publish == 'true'
+        working-directory: public
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          git init -q -b proxy-list
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "Proxy-Liste vom $(date -u +'%d.%m.%Y %H:%M UTC')"
+          # Ein einzelner Commit, der jedes Mal ersetzt wird – die Historie wächst nicht an
+          git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" proxy-list

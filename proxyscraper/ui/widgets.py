@@ -165,11 +165,10 @@ def note(message: str, style: str = WARN, icon: str = "⚠") -> None:
 
 
 def card(label: str, value: str, sub, style: str = "bold") -> Panel:
-    body = Group(
-        Text(label, style=MUTED),
-        Text(value, style=style),
-        sub if isinstance(sub, Text) else Text(sub, style=MUTED),
-    )
+    # Alle Karten einer Reihe sollen gleich hoch bleiben – lange Untertitel werden gekürzt statt umbrochen
+    sub = sub if isinstance(sub, Text) else Text(sub, style=MUTED)
+    sub.no_wrap, sub.overflow = True, "ellipsis"
+    body = Group(Text(label, style=MUTED), Text(value, style=style), sub)
     return Panel(body, box=box.ROUNDED, border_style=MUTED, padding=(0, 1))
 
 

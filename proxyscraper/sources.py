@@ -339,7 +339,7 @@ class SourceStats:
                 self.records = {url: SourceRecord(**rec) for url, rec in raw.items()}
             except (OSError, ValueError, TypeError) as e:
                 # Kaputte Statistik ist kein Grund abzubrechen – dann wird eben neu gelernt
-                warnings.warn(f"{path.name} unlesbar ({e}), starte ohne Quellen-Statistik")
+                warnings.warn(f"{path.name} unlesbar ({e}), starte ohne Quellen-Statistik", stacklevel=2)
 
     def get(self, url: str) -> SourceRecord:
         return self.records.get(url) or SourceRecord()

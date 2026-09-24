@@ -101,3 +101,37 @@ def test_resolver_asks_offline_first_then_falls_back_to_the_api():
     assert resolver.request("8.8.8.8") == "US" and resolver.pending == []
     assert resolver.request("5.5.5.5") == "" and resolver.pending == ["5.5.5.5"]  # nicht in der Datenbank
     assert resolver.offline_hits == 1
+
+
+def test_huge_count_in_a_broken_file_does_not_allocate(tmp_path):
+    import struct
+    (tmp_path / "geo.bin").write_bytes(b"PSGEO1" + b"2026-09" + struct.pack("!I", 0xFFFFFFFF) + b"\0" * 20)
+    assert CountryDB.load(tmp_path / "geo.bin") is None
+
+
+def test_one_bad_row_does_not_throw_away_the_database():
+    db = CountryDB.from_csv(CSV + "1.2.3.999,1.2.4.0,DE\n9.9.9.0,9.9.9.255,CH\n", "2026-09")
+    assert db.lookup("9.9.9.9") == "CH" and db.lookup("8.8.8.8") == "US"
+
+
+def test_background_refresh_switches_the_resolver_to_offline(monkeypatch):
+    from proxyscraper import app
+
+    async def fake_load():
+        return CountryDB.from_csv(CSV, "2026-09")
+
+    monkeypatch.setattr(app, "load_country_db", fake_load)
+
+    async def go():
+        resolver = GeoResolver()
+        await app.Run.refresh_country_db(resolver)
+        return resolver
+
+    resolver = asyncio.run(go())
+    assert resolver.offline is not None and resolver.offline.lookup("8.8.8.8") == "US"
+
+
+def test_is_current():
+    from proxyscraper.geodb import is_current
+    db = CountryDB.from_csv(CSV, "2026-09")
+    assert is_current(db, date(2026, 9, 25)) and not is_current(db, date(2026, 10, 1)) and not is_current(None)

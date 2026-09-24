@@ -26,6 +26,7 @@ from .paths import DATA_DIR
 DB_FILE = DATA_DIR / "geo" / "dbip-country-ipv4.bin"
 URL = "https://download.db-ip.com/free/dbip-country-lite-{month}.csv.gz"
 MAGIC = b"PSGEO1"
+HEADER = len(MAGIC) + 7 + 4  # Kennung, Monat, Anzahl
 
 
 def _ip_to_int(ip: str) -> int:
@@ -66,7 +67,10 @@ class CountryDB:
             code = code.strip()
             if len(code) != 2:
                 continue
-            s, e = _ip_to_int(start), _ip_to_int(end)
+            try:
+                s, e = _ip_to_int(start), _ip_to_int(end)
+            except OSError:
+                continue  # kaputte Adresse – nur diese Zeile auslassen
             if codes and codes[-2:] == code.encode() and s == ends[-1] + 1:
                 ends[-1] = e  # Nachbarbereich desselben Landes zusammenfassen
                 continue
@@ -88,11 +92,14 @@ class CountryDB:
     @classmethod
     def load(cls, path: Path = DB_FILE) -> Optional["CountryDB"]:
         try:
+            size = path.stat().st_size
             with path.open("rb") as fh:
                 if fh.read(len(MAGIC)) != MAGIC:
                     return None
                 month = fh.read(7).decode("ascii").strip()
                 (count,) = struct.unpack("!I", fh.read(4))
+                if size != HEADER + count * 10:  # 2 × 4 Byte + 2 Byte Land pro Bereich
+                    return None  # abgeschnitten oder kaputt – nicht blind Speicher reservieren
                 starts, ends = array("I"), array("I")
                 starts.fromfile(fh, count)
                 ends.fromfile(fh, count)
@@ -111,8 +118,14 @@ def _months(today: date):
     yield prev.strftime("%Y-%m")
 
 
+def is_current(db: Optional[CountryDB], today: Optional[date] = None) -> bool:
+    return db is not None and db.month == (today or date.today()).strftime("%Y-%m")
+
+
 async def load_country_db(path: Path = DB_FILE, today: Optional[date] = None, fetch=http_get) -> Optional[CountryDB]:
-    """Datenbank aus data/ – einmal im Monat neu von DB-IP. None, wenn es gar keine gibt."""
+    """Datenbank aus data/ – einmal im Monat neu von DB-IP. None, wenn es gar keine gibt.
+
+    Lädt ggf. herunter (bis zu zwei Versuche à 30 s) – deshalb im Hintergrund aufrufen."""
     today = today or date.today()
     current = CountryDB.load(path)
     if current and current.month == today.strftime("%Y-%m"):
@@ -121,7 +134,7 @@ async def load_country_db(path: Path = DB_FILE, today: Optional[date] = None, fe
         if current and current.month >= month:
             return current  # neuere gibt es (noch) nicht
         try:
-            data = await fetch(URL.format(month=month), timeout=60)
+            data = await fetch(URL.format(month=month), timeout=30)
             db = CountryDB.from_csv(gzip.decompress(data).decode("ascii", "replace"), month)
         except Exception:  # nicht erreichbar oder kaputt – nächsten Monat versuchen bzw. alte Datei nehmen
             continue

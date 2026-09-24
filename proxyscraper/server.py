@@ -20,6 +20,7 @@ from .checker import CheckResult, _socks5_reply_ok
 
 MAX_ATTEMPTS = 3            # so viele Proxys pro Anfrage, bevor der Client einen Fehler bekommt
 FIRST_CHUNK_WAIT = 5.0      # so lange auf das erste Paket des Clients im Tunnel warten
+MAX_REPLAY_BODY = 1024 * 1024  # Request-Bodies bis zu dieser Größe werden für einen Proxy-Wechsel gepuffert
 DISABLE_AFTER = 3           # so viele Fehlschläge hintereinander -> aus der Rotation
 HEAD_LIMIT = 64 * 1024
 TLS_HANDSHAKE, TLS_ALERT = b"\x16", b"\x15"  # erstes Byte eines TLS-Records
@@ -132,14 +133,25 @@ def origin_request(method: str, path: bytes, host: str, port: int, headers: List
     return b"\r\n".join(lines) + b"\r\n\r\n"
 
 
-async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float):
-    """Tunnel über den Proxy zu host:port. Wirft UpstreamError, wenn der Proxy nicht mitspielt."""
+def forward_request(method: str, path: bytes, host: str, port: int, headers: List[Tuple[bytes, bytes]]) -> bytes:
+    """Anfrage an einen HTTP-Upstream-Proxy: absolute URL wie vom Client, nur ohne Proxy-Header."""
+    authority = host if port == 80 else f"{host}:{port}"
+    request = origin_request(method, path, host, port, headers)
+    first_line, rest = request.split(b"\r\n", 1)
+    return f"{method} http://{authority}".encode() + path + b" HTTP/1.1\r\n" + rest
+
+
+async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, tunnel: bool = True):
+    """Verbindung über den Proxy zu host:port. tunnel=False heißt: HTTP-Upstream im Weiterleitungsmodus
+    (klassische Proxy-Anfrage ohne CONNECT). Wirft UpstreamError, wenn der Proxy nicht mitspielt."""
     r = entry.result
     proxy_host, proxy_port = r.proxy.rsplit(":", 1)
     try:
         reader, writer = await asyncio.wait_for(asyncio.open_connection(proxy_host, int(proxy_port)), timeout)
     except (OSError, asyncio.TimeoutError) as e:
         raise UpstreamError(f"Proxy nicht erreichbar: {e!r}") from None
+    if r.ptype == "http" and not tunnel:
+        return reader, writer
     try:
         await asyncio.wait_for(_handshake(r.ptype, reader, writer, host, port), timeout)
     except BaseException as e:
@@ -228,57 +240,132 @@ class RotatingServer:
             writer.close()
 
     async def _serve_request(self, reader, writer, client, method, host, port, path, headers) -> None:
-        """Proxy wählen, erstes Paket senden, auf Antwort warten – sonst mit demselben Paket zum nächsten.
-
-        Erst eine Antwort zählt als Erfolg: Manche Proxys nehmen CONNECT an und liefern dann nichts.
-        Weil das erste Paket gepuffert ist (bei HTTPS der Beginn des TLS-Handshakes), merkt der Client
-        vom Wechsel nichts.
-        """
         self.stats.requests += 1
         started = time.perf_counter()
         if method == "CONNECT":
-            writer.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
-            await writer.drain()
-            first_out = await self._first_client_chunk(reader)
+            served = await self._serve_tunnel(reader, writer, client, host, port, started)
         else:
-            first_out = origin_request(method, path, host, port, headers)
+            served = await self._serve_http(reader, writer, client, method, host, port, path, headers, started)
+        if not served:
+            self.stats.failed += 1
 
+    async def _serve_tunnel(self, reader, writer, client, host, port, started) -> bool:
+        """CONNECT: erst einen Tunnel aufbauen, dann "200" an den Client – klappt keiner, gibt es 502.
+
+        Danach zählt ein Proxy erst als erfolgreich, wenn er antwortet. Das erste Client-Paket (bei HTTPS
+        der Beginn des TLS-Handshakes) ist gepuffert und geht bei Bedarf unbemerkt an den nächsten Proxy.
+        """
         tried: Set[str] = set()
+        opened = await self._open_next(tried, host, port, tls=port == 443, tunnel=True)
+        if opened is None:
+            self._log(client, host, port, None, False, started, len(tried))
+            await self._bad_gateway(writer)
+            return False
+        writer.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
+        await writer.drain()
+        first_out = await self._first_client_chunk(reader)
         tls = first_out[:1] == TLS_HANDSHAKE
-        for attempt in range(1, MAX_ATTEMPTS + 1):
+
+        while opened is not None:
+            entry, up_reader, up_writer = opened
+            first_in = await self._exchange(up_reader, up_writer, first_out)
+            if first_in is not None:
+                await self._relay(reader, writer, client, host, port, started, len(tried), entry,
+                                  up_reader, up_writer, first_out, first_in)
+                return True
+            self.pool.report(entry, False)
+            up_writer.close()
+            opened = await self._open_next(tried, host, port, tls=tls, tunnel=True)
+        self._log(client, host, port, None, False, started, len(tried))
+        return False  # nach "200 Connection established" bleibt nur, die Verbindung zu schließen
+
+    async def _serve_http(self, reader, writer, client, method, host, port, path, headers, started) -> bool:
+        """Normale HTTP-Anfrage. HTTP-Upstreams bekommen sie als klassische Proxy-Anfrage (ohne CONNECT),
+        SOCKS-Upstreams in der Form für den Zielserver. Kleine Bodies werden für einen Wechsel gepuffert."""
+        body, replayable = await self._read_body(reader, headers)
+        tried: Set[str] = set()
+        while True:
+            opened = await self._open_next(tried, host, port, tls=False, tunnel=False)
+            if opened is None:
+                break
+            entry, up_reader, up_writer = opened
+            build = forward_request if entry.result.ptype == "http" else origin_request
+            first_out = build(method, path, host, port, headers) + body
+            if not replayable:
+                # Großer oder gestreamter Body: kein Wechsel möglich – Kopf senden, den Rest durchreichen
+                up_writer.write(first_out)
+                await up_writer.drain()
+                await self._relay(reader, writer, client, host, port, started, len(tried), entry,
+                                  up_reader, up_writer, first_out, b"")
+                return True
+            first_in = await self._exchange(up_reader, up_writer, first_out)
+            if first_in is not None:
+                await self._relay(reader, writer, client, host, port, started, len(tried), entry,
+                                  up_reader, up_writer, first_out, first_in)
+                return True
+            self.pool.report(entry, False)
+            up_writer.close()
+        self._log(client, host, port, None, False, started, len(tried))
+        await self._bad_gateway(writer)
+        return False
+
+    async def _open_next(self, tried: Set[str], host: str, port: int, tls: bool, tunnel: bool):
+        """Nächsten Proxy aus dem Pool öffnen (höchstens MAX_ATTEMPTS pro Anfrage). None = keiner mehr."""
+        while len(tried) < MAX_ATTEMPTS:
             entry = self.pool.pick(tried, tls=tls)
             if entry is None:
-                break
+                return None
             tried.add(entry.result.key)
-            opened = await self._try_upstream(entry, host, port, first_out)
-            if opened is None:
+            try:
+                up_reader, up_writer = await open_upstream(entry, host, port, self.timeout, tunnel=tunnel)
+            except UpstreamError:
                 self.pool.report(entry, False)
                 continue
-            up_reader, up_writer, first_in = opened
-            self.pool.report(entry, True)
-            self.stats.ok += 1
-            self._log(client, host, port, entry, True, started, attempt)
-            entry.active += 1
-            try:
-                self.stats.bytes_up += len(first_out)
-                self.stats.bytes_down += len(first_in)
+            return entry, up_reader, up_writer
+        return None
+
+    async def _exchange(self, up_reader, up_writer, first_out: bytes) -> Optional[bytes]:
+        """Erstes Paket senden, erste Antwort abwarten. None = dieser Proxy taugt gerade nicht."""
+        try:
+            if first_out:
+                up_writer.write(first_out)
+                await up_writer.drain()
+            first_in = await asyncio.wait_for(up_reader.read(65536), self.timeout)
+        except (OSError, asyncio.TimeoutError):
+            return None
+        if not first_in or not plausible_answer(first_out, first_in):
+            return None
+        return first_in
+
+    async def _relay(self, reader, writer, client, host, port, started, attempts, entry,
+                     up_reader, up_writer, first_out: bytes, first_in: bytes) -> None:
+        self.pool.report(entry, True)
+        self.stats.ok += 1
+        self._log(client, host, port, entry, True, started, attempts)
+        entry.active += 1
+        try:
+            self.stats.bytes_up += len(first_out)
+            self.stats.bytes_down += len(first_in)
+            if first_in:
                 writer.write(first_in)
                 await writer.drain()
-                await asyncio.gather(
-                    self._pipe(reader, up_writer, up=True),
-                    self._pipe(up_reader, writer, up=False),
-                )
-            finally:
-                entry.active -= 1
-                up_writer.close()
-            return
+            await asyncio.gather(
+                self._pipe(reader, up_writer, up=True),
+                self._pipe(up_reader, writer, up=False),
+            )
+        finally:
+            entry.active -= 1
+            up_writer.close()
 
-        self.stats.failed += 1
-        self._log(client, host, port, None, False, started, len(tried))
-        if method != "CONNECT":  # nach "200 Connection established" bleibt nur, die Verbindung zu schließen
-            writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
-                         b"Connection: close\r\n\r\nKein Proxy aus dem Pool hat geantwortet.\n")
-            await writer.drain()
+    async def _read_body(self, reader, headers) -> Tuple[bytes, bool]:
+        """Request-Body lesen, wenn er klein genug zum Puffern ist -> (Body, wiederholbar?)."""
+        values = {name.lower(): value for name, value in headers}
+        if b"chunked" in values.get(b"transfer-encoding", b"").lower():
+            return b"", False
+        length = values.get(b"content-length", b"0").strip()
+        if not length.isdigit() or int(length) > MAX_REPLAY_BODY:
+            return b"", False
+        return (await reader.readexactly(int(length)) if int(length) else b""), True
 
     async def _first_client_chunk(self, reader) -> bytes:
         """Erstes Paket des Clients im Tunnel (bei HTTPS: TLS ClientHello). Leer, falls der Server zuerst
@@ -288,23 +375,10 @@ class RotatingServer:
         except asyncio.TimeoutError:
             return b""
 
-    async def _try_upstream(self, entry: PoolEntry, host: str, port: int, first_out: bytes):
-        """Tunnel aufbauen, erstes Paket senden, erste Antwort abwarten. None = dieser Proxy taugt gerade nicht."""
-        try:
-            up_reader, up_writer = await open_upstream(entry, host, port, self.timeout)
-        except UpstreamError:
-            return None
-        try:
-            if first_out:
-                up_writer.write(first_out)
-                await up_writer.drain()
-            first_in = await asyncio.wait_for(up_reader.read(65536), self.timeout)
-        except (OSError, asyncio.TimeoutError):
-            first_in = b""
-        if not first_in or not plausible_answer(first_out, first_in):
-            up_writer.close()
-            return None
-        return up_reader, up_writer, first_in
+    async def _bad_gateway(self, writer) -> None:
+        writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
+                     b"Connection: close\r\n\r\nKein Proxy aus dem Pool hat geantwortet.\n")
+        await writer.drain()
 
     async def _pipe(self, reader, writer, up: bool) -> None:
         try:
@@ -319,7 +393,7 @@ class RotatingServer:
                 writer.write(data)
                 await writer.drain()
         except (ConnectionError, OSError):
-            pass
+            pass  # eine Seite hat aufgelegt – das beendet die Weiterleitung ganz normal
         finally:
             try:
                 writer.write_eof()

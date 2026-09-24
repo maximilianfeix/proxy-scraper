@@ -16,8 +16,11 @@ from .fakes import (
     blackhole_proxy,
     echo_server,
     error_page_proxy,
+    forward_only_proxy,
     http_forward_proxy,
     serve,
+    silent_proxy,
+    socks4_forward_proxy,
     socks5_forward_proxy,
     target_server,
     tls_like_server,
@@ -255,3 +258,70 @@ def test_tls_prefers_proxies_that_passed_the_https_test():
 def test_tls_falls_back_to_all_without_https_results():
     pool = ProxyPool([result("http", 1)])  # z. B. nach --fast: HTTPS unbekannt
     assert pool.pick(set(), tls=True) is not None
+
+
+@pytest.mark.parametrize("kind, handler", [("socks4", socks4_forward_proxy)])
+def test_socks4_upstream_plain_and_tunnel(kind, handler):
+    answer, _, _ = run_server([(kind, handler)], plain_get)
+    assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(b"ok")
+    answer, _, _ = run_server([(kind, handler)], connect_then_get)
+    assert b"HTTP/1.1 200 OK" in answer and answer.endswith(b"ok")
+
+
+def test_plain_http_uses_no_connect_on_http_upstreams():
+    """Proxys, die kein CONNECT können, taugen trotzdem für normales HTTP."""
+    answer, pool, _ = run_server([("http", forward_only_proxy)], plain_get)
+    assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(b"ok")
+    assert pool.entries[0].ok == 1
+
+
+def test_connect_without_any_working_proxy_gives_502_not_200():
+    answer, _, stats = run_server([("http", None), ("socks5", None)], connect_then_get_raw)
+    assert answer.startswith(b"HTTP/1.1 502") and b"Connection established" not in answer
+    assert stats.failed == 1
+
+
+async def connect_then_get_raw(server_port, target_port):
+    reader, writer = await asyncio.open_connection("127.0.0.1", server_port)
+    writer.write(f"CONNECT 127.0.0.1:{target_port} HTTP/1.1\r\n\r\n".encode())
+    await writer.drain()
+    answer = await asyncio.wait_for(reader.read(65536), 5)
+    writer.close()
+    return answer
+
+
+def post_echo(body: bytes):
+    async def send(server_port, target_port):
+        head = (f"POST http://127.0.0.1:{target_port}/echo HTTP/1.1\r\nHost: 127.0.0.1:{target_port}\r\n"
+                f"Content-Length: {len(body)}\r\n\r\n").encode()
+        reader, writer = await asyncio.open_connection("127.0.0.1", server_port)
+        writer.write(head + body)
+        await writer.drain()
+        answer = b""
+        while True:
+            chunk = await asyncio.wait_for(reader.read(65536), 5)
+            if not chunk:
+                break
+            answer += chunk
+        writer.close()
+        return answer
+    return send
+
+
+@pytest.mark.parametrize("kind, handler", [("http", http_forward_proxy), ("socks5", socks5_forward_proxy)])
+def test_post_body_reaches_the_target(kind, handler):
+    answer, _, _ = run_server([(kind, handler)], post_echo(b"name=wert&x=1"))
+    assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(b"name=wert&x=1")
+
+
+def test_post_body_is_replayed_after_a_silent_proxy():
+    answer, pool, stats = run_server([("http", silent_proxy), ("http", http_forward_proxy)], post_echo(b"daten"))
+    assert answer.endswith(b"daten")
+    assert (pool.entries[0].fail, pool.entries[1].ok) == (1, 1) and stats.recent[-1].attempts == 2
+
+
+def test_large_body_is_streamed_without_replay():
+    body = b"x" * (2 * 1024 * 1024)  # über MAX_REPLAY_BODY
+    answer, _, _ = run_server([("http", http_forward_proxy)], post_echo(body))
+    assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(body[-100:])
+    assert len(answer) > len(body)

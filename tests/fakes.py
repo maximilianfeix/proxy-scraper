@@ -24,7 +24,12 @@ async def target_server(reader, writer):
     """Zielseite: /ok -> 200, /weiter -> 302, alles andere -> 403 (wie eine Seite, die Proxys sperrt)."""
     head = await reader.readuntil(b"\r\n\r\n")
     path = head.split()[1]
-    if path.endswith(b"/host-mit-port"):
+    if path.endswith(b"/echo"):
+        length = int(next((line.split(b":", 1)[1] for line in head.split(b"\r\n")
+                           if line.lower().startswith(b"content-length:")), b"0"))
+        body = await reader.readexactly(length) if length else b""
+        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body)
+    elif path.endswith(b"/host-mit-port"):
         # 200 nur, wenn der Host-Header den (nicht standardmäßigen) Port enthält
         port = writer.get_extra_info("sockname")[1]
         ok = f"Host: 127.0.0.1:{port}\r\n".encode() in head
@@ -135,4 +140,39 @@ async def tls_like_server(reader, writer):
     if data[:1] == b"\x16":
         writer.write(b"\x16\x03\x03\x00\x04" + b"helo")
         await writer.drain()
+    writer.close()
+
+
+async def socks4_forward_proxy(reader, writer):
+    """SOCKS4-Proxy: nur IPv4-Adressen, User-ID wird ignoriert."""
+    request = await reader.readexactly(8)
+    await reader.readuntil(b"\x00")  # User-ID
+    port = int.from_bytes(request[2:4], "big")
+    ip = socket.inet_ntoa(request[4:8])
+    up_reader, up_writer = await asyncio.open_connection(ip, port)
+    writer.write(b"\x00\x5a" + request[2:8])
+    await writer.drain()
+    await asyncio.gather(pipe(reader, up_writer), pipe(up_reader, writer))
+
+
+async def forward_only_proxy(reader, writer):
+    """HTTP-Proxy ohne CONNECT – nur klassische Anfragen mit absoluter URL (wie manche Port-80-Proxys)."""
+    head = await reader.readuntil(b"\r\n\r\n")
+    if head.startswith(b"CONNECT"):
+        writer.write(b"HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\n\r\n")
+        await writer.drain()
+        writer.close()
+        return
+    method, url, rest = head.split(b" ", 2)
+    hostport, _, path = url.decode().split("://", 1)[1].partition("/")
+    host, _, port = hostport.partition(":")
+    up_reader, up_writer = await asyncio.open_connection(host, int(port or 80))
+    up_writer.write(method + b" /" + path.encode() + b" " + rest)
+    await up_writer.drain()
+    await asyncio.gather(pipe(reader, up_writer), pipe(up_reader, writer))
+
+
+async def silent_proxy(reader, writer):
+    """Nimmt die Anfrage an und legt ohne Antwort auf."""
+    await reader.readuntil(b"\r\n\r\n")
     writer.close()

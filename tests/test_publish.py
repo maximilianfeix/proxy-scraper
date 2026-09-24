@@ -36,7 +36,9 @@ def test_publish_writes_lists_badges_and_readme(tmp_path, monkeypatch):
     assert len(read("elite.txt").splitlines()) == 2
 
     total = json.loads(read("badges/total.json"))
-    assert total == {"schemaVersion": 1, "label": "funktionierende Proxys", "message": "4", "color": "brightgreen"}
+    assert total == {"schemaVersion": 1, "label": "working proxies", "message": "4", "color": "brightgreen"}
+    updated = json.loads(read("badges/updated.json"))
+    assert updated == {"schemaVersion": 1, "label": "updated", "message": "2026-09-24 18:00 UTC", "color": "grey"}
     stats = json.loads(read("stats.json"))
     assert stats["by_type"] == {"http": 3, "socks4": 0, "socks5": 1}
     assert stats["countries"] == {"DE": 3, "US": 1}

@@ -1,0 +1,24 @@
+name: 💡 Feature request
+description: Suggest an idea for proxy-scraper
+labels: [enhancement]
+body:
+  - type: textarea
+    id: problem
+    attributes:
+      label: What problem would it solve?
+      description: What are you trying to do, and what gets in the way today?
+    validations:
+      required: true
+  - type: textarea
+    id: idea
+    attributes:
+      label: How could it look?
+      description: A new option, a different output, a sketch of the UI …
+      placeholder: proxy-scraper --export clash
+    validations:
+      required: true
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives
+      description: Other tools or workarounds you have tried.

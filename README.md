@@ -319,7 +319,7 @@ flowchart LR
 ```
 
 1. **Sources** – the curated list in [`sources.json`](proxyscraper/sources.json), meta sources (other projects that maintain lists of proxy sources) and, every three days, a GitHub search for actively maintained repos.
-2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped.
+2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads 0 MB instead of ~160 MB.
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
 4. **Check** – every proxy has to fetch `checkip.amazonaws.com` and return a valid, *foreign* IP. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here.
 5. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
@@ -441,6 +441,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `-c`, `--concurrency N` | simultaneous checks (default: 2000) |
 | `-t`, `--timeout S` | timeout per proxy (default: 8 s) |
 | `--discover` | search GitHub for new sources right now |
+| `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
 | `--list-sources [N]` | show the source ranking |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
 | `-o FILE` | also write all hits to this file |
@@ -549,6 +550,7 @@ proxyscraper/
 ├── checker.py          HTTP/SOCKS handshakes, honeypot confirmation, HTTPS test
 ├── sources.py          source lists, meta sources, GitHub discovery, statistics
 ├── sources.json        curated sources
+├── fetchcache.py       ETag cache for unchanged lists
 ├── parsing.py          find proxies in text, HTML and JSON
 ├── history.py          history of working proxies
 ├── geo.py              countries via ip-api.com (batched, cached)

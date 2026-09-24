@@ -344,9 +344,12 @@ Für HTTPS einen Proxy mit `"https": true` aus `proxies.json` nehmen – wie im 
 
 ```python
 import json
+from pathlib import Path
+
 import requests
 
-proxies = json.load(open("results/latest/proxies.json"))   # schnellste zuerst
+run = Path("results") / Path("results/latest.txt").read_text().strip()   # works on every OS
+proxies = json.loads((run / "proxies.json").read_text())   # schnellste zuerst
 
 for p in proxies:
     if not p["https"]:
@@ -382,7 +385,12 @@ pip download requests   # git, pip, npm & Co. laufen jetzt über den Pool
 curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/https.txt | head -5
 ```
 
-Unter Windows ist `results/latest` kein Symlink – dort steht der Ordnername in `results/latest.txt`.
+Die Shell-Beispiele sind für macOS und Linux, wo `results/latest` auf den neuesten Lauf zeigt. Unter Windows steht der Ordnername stattdessen in `results/latest.txt` – in PowerShell:
+
+```powershell
+$run = "results\$(Get-Content results\latest.txt)"
+curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
+```
 
 <a id="optionen"></a>
 

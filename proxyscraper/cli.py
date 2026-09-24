@@ -8,9 +8,12 @@ import sys
 from collections import Counter
 from typing import List, Optional
 
+from rich.text import Text
+
 from . import sources as srcs
 from .app import Run
 from .compat import ensure_utf8_output
+from .history import ProxyHistory
 from .options import (
     DEFAULT_CONCURRENCY,
     DEFAULT_CONNECT_TIMEOUT,
@@ -18,8 +21,12 @@ from .options import (
     DEFAULT_TIMEOUT,
     RunOptions,
 )
+from .output import has_latest_results
 from .parsing import PROXY_TYPES
-from .ui import banner, note, render_source_ranking, widgets
+from .preferences import load_last_argv, save_last_argv
+from .ui import ACCENT, MUTED, banner, note, render_source_ranking, widgets
+from .ui.keys import is_interactive
+from .ui.wizard import run_wizard
 
 
 def list_sources(limit: int) -> int:
@@ -60,7 +67,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Beispiele:\n"
-            "  proxy_scraper.py                              alles sammeln und prüfen\n"
+            "  proxy_scraper.py                              Einrichtungsassistent (im Terminal)\n"
+            "  proxy_scraper.py -y                           sofort alles sammeln und prüfen\n"
             "  proxy_scraper.py --want 50 --https-only       stoppt nach 50 HTTPS-fähigen Proxys\n"
             "  proxy_scraper.py --country DE,AT,CH -l 20000  nur DACH, die 20.000 besten Kandidaten\n"
             "  proxy_scraper.py --types socks5 --anonymity elite --max-latency 1500\n"
@@ -68,6 +76,12 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
             "  proxy_scraper.py --list-sources               Quellen-Rangliste\n"
         ),
     )
+    m = p.add_argument_group("Start")
+    m.add_argument("-i", "--interactive", action="store_true",
+                   help="Einrichtungsassistent: per Pfeiltasten auswählen, was gesucht wird "
+                        "(kommt ohne Argumente automatisch; übrige Argumente dienen als Startwerte)")
+    m.add_argument("-y", "--yes", action="store_true", help="ohne Assistent sofort mit den Standardwerten starten")
+
     g = p.add_argument_group("Prüfung")
     g.add_argument("-c", "--concurrency", type=positive_int, default=DEFAULT_CONCURRENCY,
                    help=f"gleichzeitige Prüfungen (Standard: {DEFAULT_CONCURRENCY})")
@@ -106,13 +120,53 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     return p.parse_args(argv)
 
 
+def last_options() -> Optional[RunOptions]:
+    argv = load_last_argv()
+    if argv is None:
+        return None
+    try:
+        return RunOptions.from_args(parse_args(argv))
+    except SystemExit:  # gespeicherte Auswahl passt nicht mehr zu den aktuellen Optionen
+        return None
+
+
+def choose_interactively(initial: RunOptions) -> Optional[RunOptions]:
+    widgets.console.print(banner())
+    can_recheck = has_latest_results() or ProxyHistory.exists()
+    opts = run_wizard(initial, last_options(), can_recheck, widgets.console)
+    if opts is None:
+        return None
+    save_last_argv(opts.to_argv())
+    widgets.console.print(Text.assemble(("  ▸ ", ACCENT), ("Nächstes Mal direkt: ", MUTED), (opts.to_command(), "bold")))
+    return opts
+
+
+def wants_wizard(args: argparse.Namespace, argv: List[str]) -> bool:
+    """-i erzwingt den Assistenten; ohne Argumente kommt er nur im Terminal. -y überspringt ihn."""
+    if args.interactive:
+        return True
+    return not argv and not args.yes and is_interactive()
+
+
 def run(argv: Optional[List[str]] = None) -> int:
     ensure_utf8_output()
+    argv = sys.argv[1:] if argv is None else argv
     args = parse_args(argv)
     if args.list_sources is not None:
         return list_sources(args.list_sources)
+    opts = RunOptions.from_args(args)
+    use_wizard = wants_wizard(args, argv)
+    if use_wizard:
+        if not is_interactive():
+            note("Der Einrichtungsassistent (-i) braucht ein Terminal.", "red", "✘")
+            return 2
+        opts = choose_interactively(opts)
+        if opts is None:
+            note("Abgebrochen – es wurde nichts gestartet.", MUTED, "ℹ")
+            return 0
     try:
-        return asyncio.run(Run(RunOptions.from_args(args)).execute())
+        # Nach dem Assistenten steht das Banner schon da
+        return asyncio.run(Run(opts, show_banner=not use_wizard).execute())
     except KeyboardInterrupt:
         note("Abgebrochen.")
         return 130

@@ -77,8 +77,9 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
 
 
 class Run:
-    def __init__(self, opts: RunOptions):
+    def __init__(self, opts: RunOptions, show_banner: bool = True):
         self.opts = opts
+        self.show_banner = show_banner
         self.started = time.perf_counter()
         self.quality = srcs.SourceStats()
         self.history = ProxyHistory()
@@ -87,7 +88,8 @@ class Run:
         self.own_ips: List[str] = []
 
     async def execute(self) -> int:
-        widgets.console.print(banner())
+        if self.show_banner:
+            widgets.console.print(banner())
         if not await self.prepare_network():
             return 1
         self.show_mode()

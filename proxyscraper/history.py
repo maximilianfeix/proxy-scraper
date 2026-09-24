@@ -51,6 +51,14 @@ class ProxyHistory:
             except (OSError, ValueError, TypeError) as e:
                 warnings.warn(f"{path.name} unlesbar ({e}), starte ohne Proxy-Verlauf")
 
+    @staticmethod
+    def exists(path: Path = HISTORY_FILE) -> bool:
+        """Gibt es einen nicht leeren Verlauf? Ohne ihn komplett zu laden."""
+        try:
+            return path.stat().st_size > 2  # "{}" = leer
+        except OSError:
+            return False
+
     def __len__(self) -> int:
         return len(self.records)
 

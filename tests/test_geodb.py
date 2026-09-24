@@ -157,3 +157,27 @@ def test_switching_to_offline_resolves_waiting_ips_consistently():
     resolver, resolved = asyncio.run(go())
     assert resolved == {"8.8.8.8": "US"}           # sofort aus der Datenbank gemeldet
     assert resolver.pending == ["5.5.5.5"]          # nur was die Datenbank nicht kennt, bleibt für ip-api
+
+
+
+def test_one_country_per_exit_ip_even_when_sources_disagree():
+    async def go():
+        resolver = GeoResolver()
+        resolver.cache = {}
+        first = resolver.request("8.8.8.8")          # noch keine Datenbank -> ip-api
+        resolver.cache["8.8.8.8"] = ["NL", 9e9]       # ip-api sagt NL ...
+        resolver._assign("8.8.8.8", "NL")
+        resolver.use_offline(CountryDB.from_csv(CSV, "2026-09"))  # ... die Datenbank sagt US
+        return first, resolver.request("8.8.8.8")
+
+    first, later = asyncio.run(go())
+    assert first == "" and later == "NL"  # innerhalb des Laufs bleibt es bei der ersten Einordnung
+
+
+def test_non_letter_country_codes_invalidate_the_file(tmp_path):
+    db = CountryDB.from_csv(CSV, "2026-09")
+    db.save(tmp_path / "geo.bin")
+    data = bytearray((tmp_path / "geo.bin").read_bytes())
+    data[-1] = 0xFF  # letzter Ländercode kaputt, Größe unverändert
+    (tmp_path / "geo.bin").write_bytes(bytes(data))
+    assert CountryDB.load(tmp_path / "geo.bin") is None

@@ -38,6 +38,9 @@ class GeoResolver:
         self.enabled = enabled
         self.offline = offline
         self.offline_hits = 0
+        # Pro Lauf bekommt jede Exit-IP genau ein Land – egal ob es aus der Datenbank, dem Cache oder
+        # von ip-api kommt und ob die Datenbank erst mittendrin dazukommt
+        self.assigned: Dict[str, str] = {}
         self.on_resolved = on_resolved
         self.cache: Dict[str, List] = {}  # ip -> [land, zeitpunkt]
         self.pending: List[str] = []
@@ -65,18 +68,28 @@ class GeoResolver:
                 self.pending.append(ip)
                 continue
             self.offline_hits += 1
-            if self.on_resolved:
-                self.on_resolved(ip, country)
+            self._assign(ip, country)
+
+    def _assign(self, ip: str, country: str) -> None:
+        if ip in self.assigned:
+            return
+        self.assigned[ip] = country
+        if self.on_resolved:
+            self.on_resolved(ip, country)
 
     def request(self, ip: str) -> str:
         """Land sofort (offline oder aus dem Cache), sonst für die nächste Batch-Anfrage vormerken."""
+        if ip in self.assigned:
+            return self.assigned[ip]
+        country = ""
         if self.enabled and self.offline:
             country = self.offline.lookup(ip)
             if country:
                 self.offline_hits += 1
-                return country
-        country = self.lookup(ip)
-        if not country and self.enabled and ip not in self._queued:
+        country = country or self.lookup(ip)
+        if country:
+            self.assigned[ip] = country
+        elif self.enabled and ip not in self._queued:
             self._queued.add(ip)
             self.pending.append(ip)
         return country
@@ -124,10 +137,7 @@ class GeoResolver:
             if row.get("status") == "success":
                 ip, country = row["query"], row["countryCode"]
                 self.cache[ip] = [country, now]
-                if self.offline and self.offline.lookup(ip):
-                    continue  # inzwischen kennt die Datenbank sie – use_offline hat sie schon gemeldet
-                if self.on_resolved:
-                    self.on_resolved(ip, country)
+                self._assign(ip, country)  # schon anders eingeordnet (z. B. per Datenbank)? dann bleibt es so
         # Wenn ip-api das Limit fast erreicht meldet, bis zum Reset warten
         if headers.get(b"x-rl", b"1") == b"0":
             return float(headers.get(b"x-ttl", b"60") or 60)

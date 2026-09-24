@@ -105,8 +105,8 @@ class CountryDB:
                 codes = fh.read(2 * count)
         except (OSError, EOFError, ValueError, struct.error, UnicodeDecodeError):
             return None
-        if len(codes) != 2 * count:
-            return None
+        if len(codes) != 2 * count or not (codes.isascii() and codes.isalpha()):
+            return None  # kaputte Ländercodes würden erst beim Lookup auffallen
         return cls(starts, ends, codes, month)
 
 

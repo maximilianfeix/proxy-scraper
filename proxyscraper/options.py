@@ -15,6 +15,7 @@ DEFAULT_CONCURRENCY = 2000
 DEFAULT_TIMEOUT = 8.0
 DEFAULT_CONNECT_TIMEOUT = 4.0
 DEFAULT_DISCOVER_REPOS = 400
+DEFAULT_SERVE_PORT = 8899
 
 
 def parse_countries(value: Optional[str]) -> Set[str]:
@@ -97,6 +98,7 @@ class RunOptions:
     no_discover: bool = False
     discover_repos: int = DEFAULT_DISCOVER_REPOS
     all_sources: bool = False
+    serve: int = 0  # Port des rotierenden Proxy-Servers nach dem Lauf, 0 = aus
 
     def __post_init__(self) -> None:
         unknown = set(self.types) - set(PROXY_TYPES)
@@ -113,6 +115,8 @@ class RunOptions:
             raise ValueError("Timeouts müssen größer als 0 sein")
         if min(self.want, self.limit, self.discover_repos, self.filters.max_latency) < 0:
             raise ValueError("Mengen und Latenz dürfen nicht negativ sein")
+        if not 0 <= self.serve <= 65535:
+            raise ValueError("Port muss zwischen 1 und 65535 liegen")
 
     @property
     def details(self) -> bool:
@@ -159,6 +163,7 @@ class RunOptions:
             no_discover=args.no_discover,
             discover_repos=args.discover_repos,
             all_sources=args.all_sources,
+            serve=args.serve,
         )
 
     def to_argv(self) -> List[str]:
@@ -192,6 +197,8 @@ class RunOptions:
         _flag(argv, "--no-discover", self.no_discover)
         _opt(argv, "--discover-repos", self.discover_repos, DEFAULT_DISCOVER_REPOS)
         _flag(argv, "--all-sources", self.all_sources)
+        if self.serve:
+            argv += ["--serve"] if self.serve == DEFAULT_SERVE_PORT else ["--serve", str(self.serve)]
         return argv
 
     def to_command(self, program: str = "python3 proxy_scraper.py") -> str:

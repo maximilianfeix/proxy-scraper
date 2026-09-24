@@ -15,8 +15,8 @@ from rich.live import Live
 from rich.text import Text
 
 from . import sources as srcs
-from .checker import CONFIRM_HOST, CONFIRM_PORT, JUDGE_HOST, JUDGE_PORT, Checker, probe_confirm_target
-from .compat import raise_fd_limit
+from .checker import CONFIRM_HOST, CONFIRM_PORT, JUDGE_HOST, JUDGE_PORT, Checker, CheckResult, probe_confirm_target
+from .compat import on_interrupt, raise_fd_limit
 from .geo import GeoResolver
 from .history import ProxyHistory
 from .netio import INSECURE_HOSTS, http_get
@@ -33,6 +33,7 @@ from .pipeline import (
     run_checks,
     scrape,
 )
+from .server import ProxyPool, RotatingServer
 from .targets import Target, parse_target
 from .ui import (
     ACCENT,
@@ -50,6 +51,7 @@ from .ui import (
     render_summary,
     widgets,
 )
+from .ui.serve import ServeDashboard
 
 OWN_IP_URLS = (
     f"https://{JUDGE_HOST}/",       # HTTPS zuerst: wird nicht von Relays/Firmenproxys umgeleitet
@@ -266,6 +268,31 @@ class Run:
         render_summary(stats, run.results, kept, best_sources(per_source), files, opts.details,
                        opts.filters.describe())
         self.final_notes(run, stats, kept, geo, network_blocked)
+        if opts.serve:
+            await self.serve(kept)
+
+    async def serve(self, proxies: List[CheckResult]) -> None:
+        """Die gefundenen Proxys als lokalen rotierenden Proxy-Server bereitstellen, bis Strg+C."""
+        if not proxies:
+            note("Kein passender Proxy gefunden – der Proxy-Server startet nicht.", "red", "✘")
+            return
+        server = RotatingServer(ProxyPool(proxies), port=self.opts.serve, timeout=self.opts.timeout)
+        try:
+            await server.start()
+        except OSError as e:
+            note(f"Port {self.opts.serve} ist nicht verfügbar ({e.strerror or e}) – anderen mit --serve PORT wählen.",
+                 "red", "✘")
+            return
+        stop = asyncio.Event()
+        widgets.console.print()
+        try:
+            with on_interrupt(asyncio.get_running_loop(), stop.set), \
+                    Live(ServeDashboard(server), console=widgets.console, refresh_per_second=4):
+                await stop.wait()
+        finally:
+            await server.close()
+        st = server.stats
+        note(f"Proxy-Server beendet – {fmt(st.requests)} Anfragen, {fmt(st.ok)} erfolgreich.", GOOD, "✔")
 
     def learn(self, run: CheckRun, network_blocked: bool):
         """Quellen-Statistik und Verlauf aktualisieren – bei blockiertem Netz nur die Treffer."""

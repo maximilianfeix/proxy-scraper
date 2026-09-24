@@ -99,8 +99,8 @@ Durchsucht GitHub nach aktiv gepflegten Proxy-Listen und liest fremd gepflegte Q
 </td>
 <td valign="top">
 
-**🎯 Filter & Ziel**<br>
-Nach Land, HTTPS, Anonymität und Latenz filtern – und mit `--want 50` aufhören, sobald genug passende Proxys gefunden sind. Filter machen die Suche sogar schneller: Mit `--max-latency 1000` gibt das Tool langsame Proxys nach 1 s auf statt nach 8 s.
+**🎯 Filter & Zielseiten**<br>
+Mit `--target google.com` zählt ein Proxy nur, wenn er die Seite wirklich erreicht – viele öffentliche Proxys sind bei Google, Discord & Co. gesperrt. Dazu nach Land, HTTPS, Anonymität und Latenz filtern – und mit `--want 50` aufhören, sobald genug passende Proxys gefunden sind. Filter machen die Suche sogar schneller: Mit `--max-latency 1000` gibt das Tool langsame Proxys nach 1 s auf statt nach 8 s.
 
 </td>
 </tr>
@@ -147,7 +147,7 @@ Das war's. Der Assistent fragt, was du brauchst:
 | **Sofort ein paar** | stoppt nach 25 Treffern |
 | **Letzte Treffer neu prüfen** | ohne Sammeln, dauert Sekunden |
 | **Wie letztes Mal** | deine letzte Auswahl |
-| **Eigene Auswahl …** | Protokolle, Länder, Anonymität, HTTPS, Latenz, Menge, Prüfmodus |
+| **Eigene Auswahl …** | Protokolle, Länder, Anonymität, HTTPS, Zielseite, Latenz, Menge, Prüfmodus |
 
 Bedienung: <kbd>↑</kbd><kbd>↓</kbd> auswählen · <kbd>Leertaste</kbd> an/aus · <kbd>1</kbd>–<kbd>9</kbd> direkt · <kbd>Enter</kbd> weiter · <kbd>Esc</kbd> zurück · <kbd>q</kbd> beenden. In Skripten und Cronjobs kommt der Assistent nie – dort einfach Optionen angeben oder `-y`.
 
@@ -162,6 +162,9 @@ python3 proxy_scraper.py --country DE,AT,CH -l 20000
 
 # schnelle Elite-SOCKS5-Proxys
 python3 proxy_scraper.py --types socks5 --anonymity elite --max-latency 1500
+
+# 20 Proxys, die Google UND Discord wirklich erreichen
+python3 proxy_scraper.py --target google.com --target discord.com --want 20
 
 # nur die Treffer vom letzten Mal (plus Verlauf) neu prüfen – dauert Sekunden
 python3 proxy_scraper.py --recheck
@@ -237,6 +240,7 @@ results/2026-09-24_18-42-07/
 | `--https-only` | nur Proxys, die HTTPS tunneln können |
 | `--anonymity elite` | Mindest-Anonymität (`anonymous` oder `elite`) |
 | `--max-latency MS` | maximale Latenz |
+| `--target URL` | nur Proxys, die diese Seite erreichen (mehrfach möglich) |
 | `--recheck [DATEI]` | nur Proxys aus einer Datei bzw. vom letzten Lauf prüfen |
 | `--fast` | ohne HTTPS-Test (Bestätigung und Anonymität laufen trotzdem) |
 | `--no-geo` | ohne Länder-Lookup |
@@ -272,7 +276,6 @@ Das Repo arbeitet selbst mit:
 Was als Nächstes kommt, steht im Meilenstein [**v1.2**](../../milestone/2) – Ideen und Wünsche gerne als [Issue](../../issues/new/choose).
 
 - [ ] [Schneller prüfen, wenn Filter gesetzt sind](../../issues/13)
-- [ ] [Proxys gegen eine bestimmte Zielseite prüfen (`--target`)](../../issues/14)
 - [ ] [Lokaler rotierender Proxy-Server (`--serve`)](../../issues/15)
 - [ ] [Proxys mit Zugangsdaten](../../issues/7) · [Zweites Prüfziel](../../issues/8) · [ETag-Cache](../../issues/9)
 
@@ -306,6 +309,7 @@ proxyscraper/
 ├── parsing.py          Proxys in Text, HTML und JSON finden
 ├── history.py          Verlauf funktionierender Proxys
 ├── geo.py              Länder über ip-api.com (Batch, mit Cache)
+├── targets.py          Zielseiten für --target
 ├── output.py           Ergebnisdateien
 ├── publish.py          Live-Liste für GitHub Actions aufbereiten
 ├── compat.py           Unterschiede zwischen Unix und Windows

@@ -218,6 +218,7 @@ async def run_checks(
     filters, details, want = opts.filters, opts.details, opts.want
     run = CheckRun()
     written: Set[str] = set()
+    enriched: Set[str] = set()  # Treffer mit abgeschlossener Detailprüfung (HTTPS kann dabei offen bleiben)
     by_exit_ip: Dict[str, List[CheckResult]] = {}
     pending = iter(jobs)  # alle Worker ziehen aus demselben Iterator – in asyncio ohne Lock sicher
     loop = asyncio.get_running_loop()
@@ -225,7 +226,7 @@ async def run_checks(
 
     def consider(r: CheckResult) -> None:
         """Live-Datei & Zielzähler, sobald alle für die Filter nötigen Infos da sind."""
-        if r.key in written or (details and r.https is None):
+        if r.key in written or (details and r.key not in enriched):
             return
         if filters.countries and not r.country:
             return  # Land kommt noch – on_country ruft erneut auf
@@ -270,6 +271,7 @@ async def run_checks(
                 # HTTPS-Test nur, wenn der Proxy die Filter überhaupt noch erfüllen kann
                 if filters.may_pass(r):
                     await checker.enrich(r)
+                    enriched.add(r.key)
                     stats.add_details(r)
                 else:
                     stats.details_saved += 1

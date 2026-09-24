@@ -21,6 +21,7 @@ from typing import Dict, Iterable, List, Optional
 from .checker import CheckResult
 from .parsing import PROXY_TYPES
 from .paths import RESULTS_DIR, atomic_write
+from .targets import target_label
 
 
 class ResultWriter:
@@ -56,9 +57,9 @@ class ResultWriter:
 
         csv_path = self.run_dir / "proxies.csv"
         with csv_path.open("w", newline="", encoding="utf-8") as fh:
-            writer = csv.DictWriter(fh, fieldnames=list(_row(rows[0]).keys()) if rows else ["proxy"])
+            writer = csv.DictWriter(fh, fieldnames=list(_csv_row(rows[0]).keys()) if rows else ["proxy"])
             writer.writeheader()
-            writer.writerows(_row(r) for r in rows)
+            writer.writerows(_csv_row(r) for r in rows)
         files["Details (CSV)"] = csv_path
 
         if self.extra_file:
@@ -74,6 +75,13 @@ def _row(r: CheckResult) -> dict:
     d = asdict(r)
     d.pop("key")
     d["url"] = f"{r.ptype}://{r.proxy}"
+    return d
+
+
+def _csv_row(r: CheckResult) -> dict:
+    """Wie _row, aber flach: Zielseiten als "google.com:ok;discord.com:nein"."""
+    d = _row(r)
+    d["targets"] = ";".join(f"{target_label(u, r.targets)}:{'ok' if ok else 'nein'}" for u, ok in r.targets.items())
     return d
 
 

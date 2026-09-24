@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from collections import Counter, deque
 from pathlib import Path
-from typing import Deque, Dict, Optional
+from typing import Deque, Dict, Optional, Sequence
 
 from rich import box
 from rich.align import Align
@@ -25,6 +25,7 @@ from rich.text import Text
 
 from ..checker import CheckResult
 from ..parsing import PROXY_TYPES
+from ..targets import target_label
 from . import widgets
 from .widgets import (
     ACCENT,
@@ -113,6 +114,7 @@ class LiveStats:
         self.passing = 0
         self.fakes = 0  # bestanden die Basisprüfung, aber nicht die Bestätigung
         self.details_saved = 0  # HTTPS-Tests, die dank Filter entfallen konnten
+        self.targets_ok: Counter = Counter()  # Zielseiten-URL -> Anzahl Proxys, die sie erreichen
         self.recent: Deque[CheckResult] = deque(maxlen=8)
         self.start = time.perf_counter()
         self.speed: Deque[float] = deque(maxlen=60)
@@ -140,6 +142,9 @@ class LiveStats:
     def add_details(self, r: CheckResult) -> None:
         if r.https:
             self.https_ok += 1
+        for url, ok in r.targets.items():
+            # auch 0 zählen: eine Zielseite, die kein Proxy erreicht, soll im Bericht sichtbar bleiben
+            self.targets_ok[url] += int(ok)
 
     def sample_speed(self) -> float:
         now = time.perf_counter()
@@ -158,8 +163,9 @@ def hit_line(found: int, checked: int, fakes: int) -> Text:
 
 class CheckDashboard:
     def __init__(self, stats: LiveStats, outfile: Path, concurrency: int, details: bool,
-                 filters_text: str = "", want: int = 0):
+                 filters_text: str = "", want: int = 0, targets: Sequence[str] = ()):
         self.s = stats
+        self.targets = list(targets)
         self.outfile = outfile
         self.concurrency = concurrency
         self.details = details
@@ -227,6 +233,9 @@ class CheckDashboard:
         side.add_column(justify="right")
         if self.details:
             side.add_row(Text("✔ HTTPS", style=GOOD), fmt(s.https_ok))
+        for url in self.targets:
+            side.add_row(Text(f"🎯 {target_label(url, self.targets)}", style=ACCENT, overflow="ellipsis", no_wrap=True),
+                         fmt(s.targets_ok[url]))
         for level in ("elite", "anonymous", "transparent"):
             letter, style = ANON_STYLE[level]
             side.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(s.anonymity[level]))
@@ -253,6 +262,8 @@ class CheckDashboard:
         recent.add_column("Land", width=5)
         if self.details:
             recent.add_column("TLS", width=3, justify="center")
+        if self.targets:
+            recent.add_column("Ziel", width=4, justify="center")
         recent.add_column("Anon", width=4, justify="center")
         if wide:
             recent.add_column("Exit-IP", ratio=2, style=MUTED, no_wrap=True)
@@ -261,6 +272,8 @@ class CheckDashboard:
             cells = [type_badge(r.ptype), r.proxy, country_cell(r.country)]
             if self.details:
                 cells.append(https_cell(r.https))
+            if self.targets:
+                cells.append(https_cell(all(r.targets.get(u) for u in self.targets) if r.targets else None))
             cells.append(anon_cell(r.anonymity))
             if wide:
                 cells.append(r.exit_ip)

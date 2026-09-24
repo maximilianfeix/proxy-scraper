@@ -9,13 +9,21 @@ import time
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
-from typing import List, Optional
+from typing import List, Optional, Tuple
 
 from rich.live import Live
 from rich.text import Text
 
 from . import sources as srcs
-from .checker import CONFIRM_HOST, CONFIRM_PORT, JUDGE_HOST, JUDGE_PORT, Checker, probe_confirm_target
+from .checker import (
+    CONFIRM_HOST,
+    CONFIRM_PORT,
+    DETAIL_CONNECTIONS,
+    JUDGE_HOST,
+    JUDGE_PORT,
+    Checker,
+    probe_confirm_target,
+)
 from .compat import raise_fd_limit
 from .geo import GeoResolver
 from .history import ProxyHistory
@@ -33,6 +41,7 @@ from .pipeline import (
     run_checks,
     scrape,
 )
+from .targets import Target, parse_target
 from .ui import (
     ACCENT,
     BLOCKED_HIT_RATE,
@@ -115,6 +124,7 @@ class Run:
         self.scraped: Optional[ScrapeResult] = None
         self.judge_ip = ""
         self.confirm_ip: Optional[str] = None
+        self.targets: List[Tuple[Target, str]] = []
         self.own_ips: List[str] = []
 
     async def execute(self) -> int:
@@ -145,6 +155,8 @@ class Run:
             (ips[0], "bold") if ips else ("unbekannt", "yellow"),
             (f"  (auf Port 80 zusätzlich {', '.join(ips[1:])})" if len(ips) > 1 else "", MUTED),
         ))
+        if not await self.resolve_targets():
+            return False
         self.confirm_ip = await confirm_target()
         info("Prüfziel", Text.assemble(
             (f"{JUDGE_HOST} ({self.judge_ip})", MUTED),
@@ -155,6 +167,21 @@ class Run:
                  "(Honeypots) durchrutschen, und die Anonymität bleibt unbekannt.")
         if not ips:
             note("Eigene IP unbekannt – transparente Proxys (verraten deine IP) werden nicht aussortiert.")
+        return True
+
+    async def resolve_targets(self) -> bool:
+        """Zielseiten einmal auflösen – SOCKS4 braucht IPs, und ein Tippfehler soll sofort auffallen."""
+        loop = asyncio.get_running_loop()
+        for url in self.opts.filters.targets:
+            target = parse_target(url)
+            try:
+                infos = await loop.getaddrinfo(target.host, target.port, family=socket.AF_INET)
+            except OSError:
+                note(f"Zielseite {target.host} lässt sich nicht auflösen – Tippfehler?", "red", "✘")
+                return False
+            self.targets.append((target, infos[0][4][0]))
+        if self.targets:
+            info("Zielseiten", ", ".join(t.label for t, _ in self.targets))
         return True
 
     def show_mode(self) -> None:
@@ -221,16 +248,18 @@ class Run:
     # ------------------------------------------------------------------ Phase 3+4: Prüfen, Lernen, Bericht
 
     async def check_and_report(self, jobs: List[str]) -> None:
-        fd = raise_fd_limit(self.opts.concurrency + 512)
-        opts = replace(self.opts, concurrency=min(self.opts.concurrency, max(fd - 256, 64)))
+        # Worker + gedeckelte Detailverbindungen + Reserve für Quellen, Geo und Co.
+        fd = raise_fd_limit(self.opts.concurrency + DETAIL_CONNECTIONS + 512)
+        opts = replace(self.opts, concurrency=min(self.opts.concurrency, max(fd - DETAIL_CONNECTIONS - 256, 64)))
 
         writer = ResultWriter(extra_file=Path(opts.output) if opts.output else None)
         stats = LiveStats(Counter(split_key(k)[0] for k in jobs))
         dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
-                                   opts.filters.describe(), opts.want)
+                                   opts.filters.describe(), opts.want, opts.filters.targets)
         checker = Checker(self.judge_ip, self.own_ips, opts.check_timeout, opts.check_connect_timeout,
                           self.confirm_ip, detail_timeout=opts.timeout,
-                          detail_connect_timeout=opts.connect_timeout)
+                          detail_connect_timeout=opts.connect_timeout, targets=self.targets,
+                          https_test=not opts.fast or opts.filters.https_only)
         geo = GeoResolver(enabled=opts.geo)
         widgets.console.print()
         run = await run_checks(

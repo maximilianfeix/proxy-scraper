@@ -143,5 +143,30 @@ def test_targets_without_any_success_stay_visible():
     r = CheckResult("x", "http", "1.1.1.1:80", 100, "9.9.9.9")
     r.targets = {"https://www.google.com/": False}
     stats.add_details(r)
-    assert stats.targets_ok == {"https://www.google.com/": 0}
-    assert "https://www.google.com/" in stats.targets_ok
+    assert list(stats.targets_ok.items()) == [("https://www.google.com/", 0)]
+
+
+def test_detail_connections_are_bounded(monkeypatch):
+    """Viele gleichzeitige Treffer dürfen nicht unbegrenzt viele Verbindungen öffnen (EMFILE)."""
+    monkeypatch.setattr(ck, "DETAIL_CONNECTIONS", 4)
+    active = peak = 0
+
+    async def slow_check(self, ptype, proxy):
+        nonlocal active, peak
+        active += 1
+        peak = max(peak, active)
+        await asyncio.sleep(0.02)
+        active -= 1
+        return True
+
+    monkeypatch.setattr(ck.Checker, "check_https", slow_check)
+
+    async def go():
+        c = ck.Checker("3.3.3.3", set(), timeout=3, connect_timeout=2)
+        results = [CheckResult(f"http 1.1.1.{i}:80", "http", f"1.1.1.{i}:80", 100, "9.9.9.9") for i in range(40)]
+        await asyncio.gather(*(c.enrich(r) for r in results))
+        return results
+
+    results = asyncio.run(go())
+    assert all(r.https for r in results)
+    assert peak == 4

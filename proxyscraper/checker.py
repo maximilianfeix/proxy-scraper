@@ -40,6 +40,9 @@ CONFIRM_REQUEST = f"GET /get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 HTTP_PROXY_CONFIRM_REQUEST = f"GET http://{CONFIRM_HOST}/get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 
 CONTENT_LENGTH_RE = re.compile(rb"(?im)^content-length:\s*(\d+)")
+# Höchstens so viele HTTPS-/Zielseiten-Verbindungen gleichzeitig. Jeder Treffer öffnet 1 + Zielseiten
+# Verbindungen parallel – ohne Grenze wären das bei 2000 Workern schnell Tausende (EMFILE).
+DETAIL_CONNECTIONS = 256
 UNREACHABLE_ERRNOS = {errno.ECONNREFUSED, errno.EHOSTUNREACH, errno.ENETUNREACH, errno.ETIMEDOUT}
 # Header, mit denen Proxys sich (oder den Client) verraten
 PROXY_HEADERS = {
@@ -93,6 +96,7 @@ class Checker:
         # Mehrere möglich: z. B. echte IP per HTTPS, aber iCloud Private Relay/Firmenproxy auf Port 80
         self.own_ips = set(own_ips)
         self.timeout = timeout
+        self._detail_slots: Optional[asyncio.Semaphore] = None
         # Zielseiten mit vorab aufgelöster IP (SOCKS4 kann keine Hostnamen)
         self.targets = [(target, socket.inet_aton(ip)) for target, ip in targets]
         # Bestätigung und HTTPS-Test dürfen länger dauern als die (evtl. latenzbegrenzte) Basisprüfung
@@ -230,8 +234,11 @@ class Checker:
         result.targets = {t.url: bool(ok) for (t, _), ok in zip(self.targets, outcomes[1:])}
 
     async def _safe(self, coro):
+        if self._detail_slots is None:  # erst hier: vor Python 3.10 hängt ein Semaphor an der Event-Loop
+            self._detail_slots = asyncio.Semaphore(DETAIL_CONNECTIONS)
         try:
-            return await wait_for(coro, self.detail_timeout)
+            async with self._detail_slots:
+                return await wait_for(coro, self.detail_timeout)
         except Exception:  # Detailprüfung fehlgeschlagen -> "nein"/"unbekannt", Basisergebnis bleibt
             return None
 

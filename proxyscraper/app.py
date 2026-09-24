@@ -15,7 +15,15 @@ from rich.live import Live
 from rich.text import Text
 
 from . import sources as srcs
-from .checker import CONFIRM_HOST, CONFIRM_PORT, JUDGE_HOST, JUDGE_PORT, Checker, probe_confirm_target
+from .checker import (
+    CONFIRM_HOST,
+    CONFIRM_PORT,
+    DETAIL_CONNECTIONS,
+    JUDGE_HOST,
+    JUDGE_PORT,
+    Checker,
+    probe_confirm_target,
+)
 from .compat import raise_fd_limit
 from .geo import GeoResolver
 from .history import ProxyHistory
@@ -240,8 +248,9 @@ class Run:
     # ------------------------------------------------------------------ Phase 3+4: Prüfen, Lernen, Bericht
 
     async def check_and_report(self, jobs: List[str]) -> None:
-        fd = raise_fd_limit(self.opts.concurrency + 512)
-        opts = replace(self.opts, concurrency=min(self.opts.concurrency, max(fd - 256, 64)))
+        # Worker + gedeckelte Detailverbindungen + Reserve für Quellen, Geo und Co.
+        fd = raise_fd_limit(self.opts.concurrency + DETAIL_CONNECTIONS + 512)
+        opts = replace(self.opts, concurrency=min(self.opts.concurrency, max(fd - DETAIL_CONNECTIONS - 256, 64)))
 
         writer = ResultWriter(extra_file=Path(opts.output) if opts.output else None)
         stats = LiveStats(Counter(split_key(k)[0] for k in jobs))

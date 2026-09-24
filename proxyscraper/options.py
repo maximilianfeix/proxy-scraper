@@ -9,6 +9,7 @@ from typing import List, Optional, Set
 
 from .checker import ANONYMITY_RANK, CheckResult
 from .parsing import PROXY_TYPES
+from .paths import is_checkout
 from .targets import target_label
 
 DEFAULT_CONCURRENCY = 2000
@@ -201,7 +202,9 @@ class RunOptions:
             argv += ["--serve"] if self.serve == DEFAULT_SERVE_PORT else ["--serve", str(self.serve)]
         return argv
 
-    def to_command(self, program: str = "python3 proxy_scraper.py") -> str:
+    def to_command(self, program: Optional[str] = None) -> str:
+        if program is None:  # aus dem Repo gestartet oder installiert?
+            program = "python3 proxy_scraper.py" if is_checkout() else "proxy-scraper"
         return " ".join([program, *map(shlex.quote, self.to_argv())])
 
 

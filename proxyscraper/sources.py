@@ -26,9 +26,9 @@ from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import quote, urlencode
 
 from .parsing import PROXY_TYPES, TYPE_ALIASES
-from .paths import DATA_DIR, PROJECT_DIR, atomic_write
+from .paths import DATA_DIR, PACKAGE_DIR, atomic_write
 
-SOURCES_FILE = PROJECT_DIR / "sources.json"
+SOURCES_FILE = PACKAGE_DIR / "sources.json"
 DISCOVERED_FILE = DATA_DIR / "sources_discovered.json"
 STATS_FILE = DATA_DIR / "source_stats.json"
 

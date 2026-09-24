@@ -13,3 +13,8 @@ working_proxies_*.txt
 
 # System
 .DS_Store
+
+# Paket-Bau
+build/
+dist/
+*.egg-info/

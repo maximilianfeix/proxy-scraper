@@ -120,7 +120,10 @@ def test_wait_for_leaves_no_unretrieved_exception_on_cancel():
         for _ in range(3):
             await asyncio.sleep(0)
         outer.cancel()
-        connect.set_exception(ConnectionRefusedError())
+        # Ab Python 3.12 bricht wait_for den inneren Connect sofort mit ab – dann gibt es das
+        # Zeitfenster nicht, und der Test prüft nur noch, dass nichts liegen bleibt.
+        if not connect.done():
+            connect.set_exception(ConnectionRefusedError())
         with suppress(BaseException):
             await outer
         for _ in range(3):

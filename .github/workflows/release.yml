@@ -19,7 +19,7 @@ jobs:
         run: |
           version=$(python -c "import proxyscraper; print(proxyscraper.__version__)")
           test "v$version" = "${GITHUB_REF_NAME}" || { echo "Tag ${GITHUB_REF_NAME} != v$version"; exit 1; }
-      - run: pip install build pytest
+      - run: pip install -r requirements.txt build pytest
       - run: python -m pytest -q
       - run: python -m build
       - name: Smoke-test the wheel

@@ -39,6 +39,8 @@ def test_defaults_match_argparse():
     ["--recheck"],
     ["--recheck", "meine liste.txt", "--limit", "200", "--timeout", "5.5"],
     ["--concurrency", "500", "--connect-timeout", "2", "--no-discover", "--all-sources", "-o", "out.txt"],
+    ["--recheck", "--serve"],
+    ["--serve", "9000"],
 ])
 def test_argv_roundtrip(argv):
     opts = RunOptions.from_args(parse_args(argv))
@@ -58,13 +60,13 @@ def test_invalid_types_are_rejected(types):
 
 @pytest.mark.parametrize("argv", [
     ["-c", "0"], ["--timeout", "0"], ["--connect-timeout", "-1"], ["--want", "-5"],
-    ["--limit", "x"], ["--max-latency", "-100"], ["--list-sources", "0"],
+    ["--limit", "x"], ["--max-latency", "-100"], ["--list-sources", "0"], ["--serve", "0"], ["--serve", "70000"],
 ])
 def test_invalid_numbers_are_rejected_by_argparse(argv, capsys):
     with pytest.raises(SystemExit):
         parse_args(argv)
     err = capsys.readouterr().err
-    assert "muss" in err or "keine Zahl" in err
+    assert "muss" in err or "keine Zahl" in err or "höchstens" in err
 
 
 @pytest.mark.parametrize("changes", [
@@ -105,3 +107,12 @@ def test_check_timeout_follows_latency_limit():
 ])
 def test_may_pass(filters, r, expected):
     assert filters.may_pass(r) == expected
+
+
+def test_serve_defaults():
+    assert parse_args(["--serve"]).serve == 8899
+    assert parse_args([]).serve == 0
+    assert RunOptions(serve=8899).to_argv() == ["--serve"]
+    assert RunOptions(serve=9000).to_argv() == ["--serve", "9000"]
+    with pytest.raises(ValueError):
+        RunOptions(serve=70000)

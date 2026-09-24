@@ -18,6 +18,7 @@ from .options import (
     DEFAULT_CONCURRENCY,
     DEFAULT_CONNECT_TIMEOUT,
     DEFAULT_DISCOVER_REPOS,
+    DEFAULT_SERVE_PORT,
     DEFAULT_TIMEOUT,
     RunOptions,
 )
@@ -43,8 +44,8 @@ def list_sources(limit: int) -> int:
     return 0
 
 
-def _number(kind, minimum, strict=False):
-    """argparse-Typ für Zahlen mit Untergrenze – mit verständlicher Fehlermeldung."""
+def _number(kind, minimum, strict=False, maximum=None):
+    """argparse-Typ für Zahlen mit Grenzen – mit verständlicher Fehlermeldung."""
     def parse(text: str):
         try:
             value = kind(text)
@@ -52,6 +53,8 @@ def _number(kind, minimum, strict=False):
             raise argparse.ArgumentTypeError(f"keine Zahl: {text!r}") from None
         if value < minimum or (strict and value == minimum):
             raise argparse.ArgumentTypeError(f"muss {'größer als' if strict else 'mindestens'} {minimum} sein")
+        if maximum is not None and value > maximum:
+            raise argparse.ArgumentTypeError(f"darf höchstens {maximum} sein")
         return value
     return parse
 
@@ -65,6 +68,7 @@ def target_url(text: str) -> str:
 
 
 positive_int = _number(int, 1)
+port_number = _number(int, 1, maximum=65535)
 non_negative_int = _number(int, 0)
 positive_float = _number(float, 0, strict=True)
 
@@ -83,6 +87,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
             "  proxy_scraper.py --types socks5 --anonymity elite --max-latency 1500\n"
             "  proxy_scraper.py --target google.com --target discord.com --want 20\n"
             "  proxy_scraper.py --recheck                    letzte Treffer + Verlauf neu prüfen\n"
+            "  proxy_scraper.py --recheck --serve            daraus sofort einen rotierenden Proxy machen\n"
             "  proxy_scraper.py --list-sources               Quellen-Rangliste\n"
         ),
     )
@@ -119,6 +124,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="nur Proxys bis zu dieser Latenz")
     f.add_argument("--target", action="append", type=target_url, metavar="URL",
                    help="nur Proxys, die diese Seite erreichen (mehrfach möglich), z. B. --target google.com")
+
+    v = p.add_argument_group("Proxy-Server")
+    v.add_argument("--serve", nargs="?", const=DEFAULT_SERVE_PORT, default=0, type=port_number, metavar="PORT",
+                   help=f"nach dem Lauf als rotierender Proxy auf 127.0.0.1:PORT bereitstellen "
+                        f"(Standard-Port: {DEFAULT_SERVE_PORT}); schnell startklar mit --recheck")
 
     o = p.add_argument_group("Ausgabe")
     o.add_argument("-o", "--output", help="zusätzlich alle Treffer als typ://ip:port in diese Datei")

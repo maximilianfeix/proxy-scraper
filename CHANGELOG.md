@@ -4,15 +4,13 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
-### Changed
-- Countries are looked up offline in the DB-IP Lite database (downloaded once a month, 2 µs per lookup) instead of waiting for ip-api.com, which is now only a fallback. On 943 IPs it agreed with ip-api on 96 % ([#2](https://github.com/maximilianfeix/proxy-scraper/issues/2))
-
 ### Added
 - Fallback check targets: before a run all targets are probed (Cloudflare-hosted ones are rejected), during the run a watchdog switches when the current one goes down. Proxies checked during the outage are re-checked and don't count for the source statistics ([#8](https://github.com/maximilianfeix/proxy-scraper/issues/8))
 - Docker image (`ghcr.io/maximilianfeix/proxy-scraper`, amd64 + arm64) with volumes for learned state and results; CI runs a real scan inside the container ([#5](https://github.com/maximilianfeix/proxy-scraper/issues/5))
 - `--export proxychains,clash,curl` (or `all`) writes ready-made configs next to the results ([#4](https://github.com/maximilianfeix/proxy-scraper/issues/4))
 
 ### Changed
+- Countries are looked up offline in the DB-IP Lite database (downloaded once a month, 2 µs per lookup) instead of waiting for ip-api.com, which is now only a fallback. On 943 IPs it agreed with ip-api on 96 % ([#2](https://github.com/maximilianfeix/proxy-scraper/issues/2))
 - Unchanged lists are no longer downloaded again: ETag / Last-Modified with a local cache of the parsed proxies. A second run right after the first went from 161 MB in 22 s to 0 MB in 9 s. `--no-cache` forces a full download ([#9](https://github.com/maximilianfeix/proxy-scraper/issues/9))
 
 ## [1.3.0] – 2026-09-24

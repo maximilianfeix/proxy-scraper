@@ -238,7 +238,7 @@ results/2026-09-24_18-42-07/
 | `--anonymity elite` | Mindest-Anonymität (`anonymous` oder `elite`) |
 | `--max-latency MS` | maximale Latenz |
 | `--recheck [DATEI]` | nur Proxys aus einer Datei bzw. vom letzten Lauf prüfen |
-| `--fast` | ohne HTTPS- und Anonymitätstest |
+| `--fast` | ohne HTTPS-Test (Bestätigung und Anonymität laufen trotzdem) |
 | `--no-geo` | ohne Länder-Lookup |
 | `-c`, `--concurrency N` | gleichzeitige Prüfungen (Standard: 2000) |
 | `-t`, `--timeout S` | Timeout pro Proxy (Standard: 8 s) |
@@ -301,7 +301,7 @@ proxyscraper/
 ├── app.py              ein Lauf in Phasen: Netz → Jobs → Prüfen → Lernen & Bericht
 ├── options.py          RunOptions + Filters – alle Einstellungen an einer Stelle
 ├── pipeline.py         Quellen sammeln, priorisieren, Prüfschleife
-├── checker.py          HTTP/SOCKS-Handshakes, HTTPS- und Anonymitätstest
+├── checker.py          HTTP/SOCKS-Handshakes, Bestätigung gegen Honeypots, HTTPS-Test
 ├── sources.py          Quellenlisten, Meta-Quellen, GitHub-Discovery, Statistik
 ├── parsing.py          Proxys in Text, HTML und JSON finden
 ├── history.py          Verlauf funktionierender Proxys

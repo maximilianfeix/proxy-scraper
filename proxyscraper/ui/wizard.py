@@ -285,8 +285,8 @@ def describe(opts: RunOptions) -> List[tuple]:
     rows.append(("HTTPS", Text("nur HTTPS-fähige", style=GOOD) if f.https_only else Text("egal")))
     rows.append(("Latenz", Text(f"unter {fmt_seconds(f.max_latency)}") if f.max_latency else Text("egal")))
     rows.append(("Menge", Text(f"stoppt bei {fmt(opts.want)}") if opts.want else Text("so viele wie möglich")))
-    rows.append(("Prüfung", Text("gründlich – HTTPS, Anonymität, Land") if opts.details
-                 else Text("schnell – nur Basistest")))
+    rows.append(("Prüfung", Text("gründlich – mit HTTPS-Test") if opts.details
+                 else Text("schnell – ohne HTTPS-Test")))
     return rows
 
 
@@ -294,7 +294,7 @@ def warnings_for(opts: RunOptions) -> List[str]:
     out = []
     f = opts.filters
     if opts.fast and f.needs_details:
-        out.append("HTTPS-/Anonymitätsfilter brauchen die gründliche Prüfung – sie bleibt an.")
+        out.append("Der HTTPS-Filter braucht den HTTPS-Test – die gründliche Prüfung bleibt an.")
     if "socks4" in opts.types and len(opts.types) == 1 and f.https_only:
         out.append("SOCKS4 kann HTTPS tunneln, findet aber meist nur wenige passende Proxys.")
     return out
@@ -378,9 +378,9 @@ def custom_steps() -> List[Step]:
             read=lambda o: o.want, write=lambda o, v: setattr(o, "want", v),
         ),
         SelectStep(
-            "Wie gründlich prüfen?", "Die gründliche Prüfung kostet pro Treffer zwei zusätzliche Verbindungen.",
-            [Option("Gründlich", "HTTPS-Fähigkeit, Anonymität und Land für jeden Treffer", False),
-             Option("Schnell", "nur Basistest (--fast)", True)],
+            "Wie gründlich prüfen?", "Anonymität und Land gibt es immer – der HTTPS-Test kostet eine TLS-Verbindung.",
+            [Option("Gründlich", "mit HTTPS-Test für jeden Treffer", False),
+             Option("Schnell", "ohne HTTPS-Test (--fast)", True)],
             read=lambda o: o.fast, write=lambda o, v: setattr(o, "fast", v),
         ),
     ]

@@ -82,9 +82,10 @@ def render_summary(
         if stats.total_by_type.get(t):
             proto.add_row(type_badge(t), fmt(stats.working_by_type[t]), fmt(stats.checked_by_type[t]),
                           pct(stats.working_by_type[t], stats.checked_by_type[t]))
-    if details and found:
+    if found:
         proto.add_row("", "", "", "")
-        proto.add_row(Text("✔ HTTPS", style=GOOD), fmt(stats.https_ok), "", pct(stats.https_ok, found))
+        if details:
+            proto.add_row(Text("✔ HTTPS", style=GOOD), fmt(stats.https_ok), "", pct(stats.https_ok, found))
         for level in ("elite", "anonymous", "transparent"):
             letter, style = ANON_STYLE[level]
             proto.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(stats.anonymity[level]), "",

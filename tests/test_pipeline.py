@@ -194,3 +194,11 @@ def test_run_checks_drops_unconfirmed_proxies(tmp_path):
     assert run.working == {"http 1.1.1.1:80"}
     assert stats.fakes == 1 and stats.found == 1
     assert writer.live_path.read_text(encoding="utf-8") == "http://1.1.1.1:80\n"
+
+
+def test_anonymity_is_counted_without_https_test():
+    from proxyscraper.ui import LiveStats
+
+    stats = LiveStats({"http": 1})
+    stats.add_working(result(anonymity="elite"))  # kommt aus der Bestätigung, auch mit --fast
+    assert stats.anonymity["elite"] == 1 and stats.https_ok == 0

@@ -127,6 +127,9 @@ class LiveStats:
         self.checked_by_type[ptype] += 1
 
     def add_working(self, r: CheckResult) -> None:
+        """Bestätigter Treffer – die Anonymität ist ab hier bekannt."""
+        if r.anonymity:
+            self.anonymity[r.anonymity] += 1
         self.working_by_type[r.ptype] += 1
         self.latency_sum += r.latency
         self.fastest = r.latency if self.fastest is None else min(self.fastest, r.latency)
@@ -136,8 +139,6 @@ class LiveStats:
     def add_details(self, r: CheckResult) -> None:
         if r.https:
             self.https_ok += 1
-        if r.anonymity:
-            self.anonymity[r.anonymity] += 1
 
     def sample_speed(self) -> float:
         now = time.perf_counter()
@@ -225,10 +226,10 @@ class CheckDashboard:
         side.add_column(justify="right")
         if self.details:
             side.add_row(Text("✔ HTTPS", style=GOOD), fmt(s.https_ok))
-            for level in ("elite", "anonymous", "transparent"):
-                letter, style = ANON_STYLE[level]
-                side.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(s.anonymity[level]))
-        for cc, n in s.countries.most_common(6 if not self.details else 2):
+        for level in ("elite", "anonymous", "transparent"):
+            letter, style = ANON_STYLE[level]
+            side.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(s.anonymity[level]))
+        for cc, n in s.countries.most_common(max(len(LATENCY_LABELS) - side.row_count, 0)):
             side.add_row(country_cell(cc), fmt(n))
         if not side.row_count:
             side.add_row(Text("–", style=MUTED), "")
@@ -238,7 +239,7 @@ class CheckDashboard:
             Panel(proto, title="Protokolle", title_align="left", subtitle="Balken = geprüft",
                   subtitle_align="left", box=box.ROUNDED, border_style=MUTED, height=height),
             Panel(hist, title="Latenz", title_align="left", box=box.ROUNDED, border_style=MUTED, height=height),
-            Panel(side, title=("Details & Länder" if wide else "Details") if self.details else "Länder",
+            Panel(side, title="Details & Länder" if wide else "Details",
                   title_align="left", box=box.ROUNDED, border_style=MUTED, height=height),
             ratios=(4, 4, 3),
         )
@@ -249,14 +250,15 @@ class CheckDashboard:
         recent.add_column("Land", width=5)
         if self.details:
             recent.add_column("TLS", width=3, justify="center")
-            recent.add_column("Anon", width=4, justify="center")
+        recent.add_column("Anon", width=4, justify="center")
         if wide:
             recent.add_column("Exit-IP", ratio=2, style=MUTED, no_wrap=True)
         recent.add_column("Latenz", justify="right", width=8)
         for r in reversed(s.recent):
             cells = [type_badge(r.ptype), r.proxy, country_cell(r.country)]
             if self.details:
-                cells += [https_cell(r.https), anon_cell(r.anonymity)]
+                cells.append(https_cell(r.https))
+            cells.append(anon_cell(r.anonymity))
             if wide:
                 cells.append(r.exit_ip)
             cells.append(Text(f"{fmt(r.latency)} ms", style=latency_style(r.latency)))
@@ -270,7 +272,7 @@ class CheckDashboard:
             footer.append(f"\n  Filter: {self.filters_text}", style=WARN)
             footer.append(f"  ·  {fmt(s.passing)} passend", style=MUTED)
         footer.append(f"\n  → {self.outfile}", style=MUTED)
-        if s.checked >= 2000 and found < s.checked * BLOCKED_HIT_RATE:
+        if s.checked >= 2000 and found + s.fakes < s.checked * BLOCKED_HIT_RATE:
             footer.append("\n  ⚠ Kaum Treffer – blockiert dein Netz (Firewall) Proxy-Verbindungen?",
                           style=f"bold {WARN}")
 

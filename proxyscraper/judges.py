@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass
 from typing import Awaitable, Callable, List, Optional
 
-from .netio import http_request
+from .netio import read_response
 
 
 @dataclass(frozen=True)
@@ -64,6 +64,7 @@ class JudgeProbe:
     judge: Judge
     ip: str
     latency: int  # ms
+    seen_ip: str = ""  # was das Ziel als unsere IP gesehen hat (Reserve, falls get_own_ips scheitert)
 
 
 async def probe_judge(judge: Judge, timeout: float = 5.0) -> Optional[JudgeProbe]:
@@ -71,20 +72,38 @@ async def probe_judge(judge: Judge, timeout: float = 5.0) -> Optional[JudgeProbe
     loop = asyncio.get_running_loop()
     try:
         infos = await asyncio.wait_for(loop.getaddrinfo(judge.host, judge.port, family=socket.AF_INET), timeout)
-        ip = infos[0][4][0]
-        if behind_cloudflare(ip):
-            return None
+    except Exception:
+        return None
+    addresses = list(dict.fromkeys(info[4][0] for info in infos))
+    if any(behind_cloudflare(ip) for ip in addresses):
+        return None  # auch nur teilweise hinter Cloudflare reicht, um es auszuschließen
+    for ip in addresses:  # erste funktionierende Adresse – genau die nutzt später auch der Checker
         start = time.perf_counter()
-        status, _, body = await http_request(f"http://{judge.authority}{judge.path}", timeout=timeout,
-                                             max_redirects=0)
+        seen = await _ask(ip, judge, timeout)
+        if seen:
+            return JudgeProbe(judge, ip, round((time.perf_counter() - start) * 1000), seen)
+    return None
+
+
+async def _ask(ip: str, judge: Judge, timeout: float) -> str:
+    """Das Ziel über genau diese Adresse fragen -> die IP, die es sieht ('' bei Fehler)."""
+    request = (f"GET {judge.path} HTTP/1.1\r\nHost: {judge.authority}\r\nUser-Agent: Mozilla/5.0\r\n"
+               f"Connection: close\r\n\r\n").encode()
+    try:
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(ip, judge.port), timeout)
+        try:
+            writer.write(request)
+            await writer.drain()
+            status, _, body = await asyncio.wait_for(read_response(reader), timeout)
+        finally:
+            writer.close()
+        seen = body.strip().decode("ascii", "ignore")
         # Direkt kann hier auch IPv6 zurückkommen (z. B. iCloud Private Relay) – über Proxys sprechen wir
         # das Ziel per IPv4-Adresse an und bekommen dann die IPv4-Exit-IP
-        ipaddress.ip_address(body.strip().decode("ascii", "ignore"))
-    except Exception:  # DNS, Timeout, Verbindungsfehler, keine IP im Body – alles heißt "gerade unbrauchbar"
-        return None
-    if status != 200:
-        return None
-    return JudgeProbe(judge, ip, round((time.perf_counter() - start) * 1000))
+        ipaddress.ip_address(seen)
+    except Exception:  # Timeout, Verbindungsfehler, keine IP im Body – alles heißt "gerade unbrauchbar"
+        return ""
+    return seen if status == 200 else ""
 
 
 async def rank_judges(judges=JUDGES, timeout: float = 5.0, probe=probe_judge) -> List[JudgeProbe]:

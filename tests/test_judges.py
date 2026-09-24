@@ -44,7 +44,7 @@ def test_probe_accepts_only_a_bare_ip():
             srv.close()
 
     good, html, dead = asyncio.run(go())
-    assert good is not None and good.ip == "127.0.0.1"
+    assert good is not None and good.ip == "127.0.0.1" and good.seen_ip == "203.0.113.7"
     assert html is None and dead is None
 
 
@@ -303,3 +303,32 @@ def test_second_switch_only_rechecks_failures_under_the_new_target(tmp_path):
     # 1, 2 (Ausfall a) + 3 (lief noch mit a, endete nach dem Wechsel) + 4, 5 (Ausfall b); danach ist die
     # Basislinie neu – die Wiederholungen unter c zählen normal
     assert sorted(set(run.checked)) == sorted(jobs) and len(run.checked) == len(jobs)
+
+
+
+def test_a_single_cloudflare_address_rules_out_the_target(monkeypatch):
+    async def fake_getaddrinfo(self, host, port, family=0, **kw):
+        return [(2, 1, 6, "", ("34.251.184.218", port)), (2, 1, 6, "", ("104.16.184.241", port))]
+
+    monkeypatch.setattr(asyncio.BaseEventLoop, "getaddrinfo", fake_getaddrinfo)
+    assert asyncio.run(probe_judge(Judge("gemischt.example"), timeout=1)) is None
+
+
+def test_own_ip_falls_back_to_what_the_judges_saw(monkeypatch):
+    from proxyscraper import app
+    from proxyscraper.judges import Judge as J
+
+    async def no_own_ips():
+        return []
+
+    async def ranked():
+        return [JudgeProbe(J("a"), "1.1.1.1", 10, "87.150.19.11"), JudgeProbe(J("b"), "2.2.2.2", 10, "87.150.19.11")]
+
+    async def no_confirm():
+        return None
+
+    monkeypatch.setattr(app, "get_own_ips", no_own_ips)
+    monkeypatch.setattr(app, "rank_judges", ranked)
+    monkeypatch.setattr(app, "confirm_target", no_confirm)
+    run = app.Run(RunOptions(no_geo=True), show_banner=False)
+    assert asyncio.run(run.prepare_network()) and run.own_ips == ["87.150.19.11"]

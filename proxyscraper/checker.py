@@ -81,7 +81,7 @@ class CheckResult:
 
 class Checker:
     def __init__(self, judge_ip: str, own_ips: Iterable[str], timeout: float, connect_timeout: float,
-                 confirm_ip: Optional[str] = None):
+                 confirm_ip: Optional[str] = None, detail_timeout: Optional[float] = None):
         self.judge_ip = judge_ip
         self.judge_ip_bytes = socket.inet_aton(judge_ip)
         # Ohne erreichbares Bestätigungsziel wird nicht bestätigt (sonst fiele jeder Proxy durch)
@@ -89,6 +89,8 @@ class Checker:
         # Mehrere möglich: z. B. echte IP per HTTPS, aber iCloud Private Relay/Firmenproxy auf Port 80
         self.own_ips = set(own_ips)
         self.timeout = timeout
+        # Bestätigung und HTTPS-Test dürfen länger dauern als die (evtl. latenzbegrenzte) Basisprüfung
+        self.detail_timeout = detail_timeout or timeout
         # Die allermeisten toten Proxys scheitern schon am TCP-Connect – die sollen
         # keinen Slot für den vollen Timeout blockieren.
         self.connect_timeout = min(connect_timeout, timeout)
@@ -183,7 +185,7 @@ class Checker:
         if not self.confirms:
             return True
         try:
-            body = await wait_for(self._confirm(result.ptype, result.proxy), self.timeout)
+            body = await wait_for(self._confirm(result.ptype, result.proxy), self.detail_timeout)
         except Exception:  # Fehler bei der zweiten Anfrage heißt: nicht verlässlich
             return False
         anonymity = classify_confirmation(body, self.own_ips, result.exit_ip) if body is not None else None
@@ -212,7 +214,7 @@ class Checker:
 
     async def _safe(self, coro):
         try:
-            return await wait_for(coro, self.timeout)
+            return await wait_for(coro, self.detail_timeout)
         except Exception:  # Detailprüfung fehlgeschlagen -> "nein"/"unbekannt", Basisergebnis bleibt
             return None
 

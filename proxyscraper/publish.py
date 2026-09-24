@@ -122,11 +122,11 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     badges = out / "badges"
     badges.mkdir(exist_ok=True)
     colors = {"total": "brightgreen", "http": "blue", "socks4": "blueviolet", "socks5": "green"}
-    write_json(badges / "total.json", badge("funktionierende Proxys", stats["total"], colors["total"]))
+    write_json(badges / "total.json", badge("working proxies", stats["total"], colors["total"]))
     for t in PROXY_TYPES:
         write_json(badges / f"{t}.json", badge(t, stats["by_type"][t], colors[t]))
-    write_json(badges / "updated.json", {"schemaVersion": 1, "label": "aktualisiert",
-                                         "message": now.strftime("%d.%m. %H:%M UTC"), "color": "grey"})
+    write_json(badges / "updated.json", {"schemaVersion": 1, "label": "updated",
+                                         "message": now.strftime("%Y-%m-%d %H:%M UTC"), "color": "grey"})
     (out / "README.md").write_text(readme(stats, counts), encoding="utf-8")
 
     summary_file = os.environ.get("GITHUB_STEP_SUMMARY")

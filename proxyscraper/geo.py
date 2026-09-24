@@ -1,7 +1,9 @@
-"""Länder der Exit-IPs über die kostenlose Batch-API von ip-api.com (100 IPs pro Anfrage).
+"""Länder der Exit-IPs.
 
-Läuft im Hintergrund, während geprüft wird, und hält sich an das Limit von 15 Anfragen/Minute.
-Ergebnisse werden zwischengespeichert, damit bekannte IPs nie erneut abgefragt werden.
+Zuerst offline aus der DB-IP-Datenbank (geodb.py) – sofort und ohne Limit. Nur was dort fehlt
+(oder wenn die Datenbank nicht geladen werden konnte), geht an die Batch-API von ip-api.com
+(100 IPs pro Anfrage, 15 Anfragen/Minute, läuft im Hintergrund). API-Ergebnisse werden
+zwischengespeichert, damit bekannte IPs nie erneut abgefragt werden.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ import time
 import warnings
 from typing import Callable, Dict, List, Optional
 
+from .geodb import CountryDB
 from .netio import http_request
 from .paths import DATA_DIR, atomic_write
 
@@ -30,8 +33,11 @@ def flag(country: str) -> str:
 
 
 class GeoResolver:
-    def __init__(self, enabled: bool = True, on_resolved: Optional[Callable[[str, str], None]] = None):
+    def __init__(self, enabled: bool = True, on_resolved: Optional[Callable[[str, str], None]] = None,
+                 offline: Optional[CountryDB] = None):
         self.enabled = enabled
+        self.offline = offline
+        self.offline_hits = 0
         self.on_resolved = on_resolved
         self.cache: Dict[str, List] = {}  # ip -> [land, zeitpunkt]
         self.pending: List[str] = []
@@ -49,7 +55,12 @@ class GeoResolver:
         return hit[0] if hit and time.time() - hit[1] < CACHE_TTL else ""
 
     def request(self, ip: str) -> str:
-        """Land sofort aus dem Cache, sonst für die nächste Batch-Anfrage vormerken."""
+        """Land sofort (offline oder aus dem Cache), sonst für die nächste Batch-Anfrage vormerken."""
+        if self.enabled and self.offline:
+            country = self.offline.lookup(ip)
+            if country:
+                self.offline_hits += 1
+                return country
         country = self.lookup(ip)
         if not country and self.enabled and ip not in self._queued:
             self._queued.add(ip)

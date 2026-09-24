@@ -27,6 +27,7 @@ from .checker import (
 from .compat import on_interrupt, raise_fd_limit
 from .fetchcache import FetchCache
 from .geo import GeoResolver
+from .geodb import load_country_db
 from .history import ProxyHistory
 from .judges import JudgeProbe, JudgeWatch, rank_judges
 from .netio import INSECURE_HOSTS, http_get
@@ -302,7 +303,11 @@ class Run:
                           https_test=not opts.fast or opts.filters.https_only, judge=judge.judge)
         watch = JudgeWatch(self.judges, lambda new: checker.use_judge(new.judge, new.ip))
         dashboard.judge = judge.judge.host
-        geo = GeoResolver(enabled=opts.geo)
+        country_db = None
+        if opts.geo:
+            with widgets.console.status("Länder-Datenbank (DB-IP) …", spinner="dots"):
+                country_db = await load_country_db()  # aus data/, einmal im Monat neu
+        geo = GeoResolver(enabled=opts.geo, offline=country_db)
         widgets.console.print()
         run = await run_checks(
             jobs, checker, opts, dashboard, writer, geo,
@@ -371,8 +376,8 @@ class Run:
                 f"in einem anderen Netz, z. B. über einen Handy-Hotspot. [{MUTED}]Statistik & Verlauf wurden dafür "
                 "nicht abgewertet.[/]"
             )
-        if opts.geo and geo.failed:
-            note("Länder-API (ip-api.com) nicht erreichbar – Länder fehlen.", MUTED, "ℹ")
+        if opts.geo and geo.failed and not geo.offline:
+            note("Länder-Datenbank und ip-api.com nicht erreichbar – Länder fehlen.", MUTED, "ℹ")
         if opts.filters.countries and not kept and run.results:
             note("Kein Treffer im gewünschten Land – Filter lockern oder länger laufen lassen.", MUTED, "ℹ")
         if run.judge_switches:

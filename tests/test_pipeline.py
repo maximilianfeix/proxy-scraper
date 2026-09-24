@@ -1,5 +1,7 @@
 import json
 
+import pytest
+
 from proxyscraper import output, pipeline
 from proxyscraper import sources as srcs
 from proxyscraper.checker import CheckResult
@@ -87,6 +89,13 @@ def test_latest_pointer_works_without_symlinks(tmp_path, monkeypatch):
         w.finalize([result(f"http 1.1.1.{len(name)}:80")])
     assert not (tmp_path / "latest").exists()
     assert output.latest_run_dir(tmp_path) == tmp_path / "run2"
+
+
+@pytest.mark.parametrize("content", ["", "\n", "..", "../elsewhere", "run1/../..", "does-not-exist"])
+def test_invalid_latest_pointer_is_ignored(tmp_path, content):
+    (tmp_path / "run1").mkdir()
+    (tmp_path / output.LATEST_POINTER).write_text(content)
+    assert output.latest_run_dir(tmp_path) is None
 
 
 def test_latest_results_empty_without_runs(tmp_path):

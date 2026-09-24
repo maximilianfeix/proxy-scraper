@@ -20,7 +20,7 @@ from typing import Dict, Iterable, List, Optional, Set
 
 from .checker import ANONYMITY_RANK, CheckResult
 from .parsing import PROXY_TYPES
-from .paths import RESULTS_DIR
+from .paths import RESULTS_DIR, atomic_write
 
 
 @dataclass
@@ -125,7 +125,7 @@ def _point_latest(run_dir: Path) -> None:
     Der Symlink ist bequem zum Reinschauen, braucht unter Windows aber Admin- oder
     Entwicklerrechte – die Zeigerdatei funktioniert überall.
     """
-    (run_dir.parent / LATEST_POINTER).write_text(run_dir.name + "\n", encoding="utf-8")
+    atomic_write(run_dir.parent / LATEST_POINTER, run_dir.name + "\n")
     latest = run_dir.parent / "latest"
     try:
         if latest.is_symlink():
@@ -139,9 +139,13 @@ def _point_latest(run_dir: Path) -> None:
 def latest_run_dir(results_dir: Path = RESULTS_DIR) -> Optional[Path]:
     pointer = results_dir / LATEST_POINTER
     if pointer.exists():
-        run_dir = results_dir / pointer.read_text(encoding="utf-8").strip()
-        if run_dir.is_dir():
-            return run_dir
+        name = pointer.read_text(encoding="utf-8").strip()
+        # Nur ein Ordnername direkt unter results/ – leer, "..", oder Pfade wie "a/../.." würden
+        # sonst auf results/ selbst oder außerhalb zeigen
+        if name and name not in (".", "..") and Path(name).name == name:
+            run_dir = results_dir / name
+            if run_dir.is_dir():
+                return run_dir
     link = results_dir / "latest"
     return link if link.is_dir() else None  # Läufe aus älteren Versionen ohne latest.txt
 

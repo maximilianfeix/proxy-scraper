@@ -16,9 +16,10 @@ from .compat import on_interrupt
 from .geo import GeoResolver
 from .history import ProxyHistory
 from .netio import http_get
-from .output import Filters, ResultWriter
+from .options import RunOptions
+from .output import ResultWriter
 from .parsing import parse_blob, split_key
-from .ui import CheckDashboard, CollectView, LiveStats, console, fmt
+from .ui import CheckDashboard, CollectView, fmt, widgets
 
 AUTO_DISCOVER_AFTER_DAYS = 3.0
 # Kleine Listen direkt parsen – der Umweg über einen anderen Prozess kostet mehr, als er spart
@@ -43,19 +44,19 @@ class SourcePlan:
     discovery_token: bool = False
 
 
-async def collect_sources(args, quality: srcs.SourceStats) -> SourcePlan:
+async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> SourcePlan:
     """Kuratierte + Meta- + entdeckte Quellen, abzüglich der gelernt schlechten."""
     sources, meta = srcs.load_source_file()
     n_curated = len(sources)
 
     age = srcs.discovered_age_days()
-    token = srcs.github_token() if (args.discover or not args.no_discover) else None
-    run_discovery = args.discover or (
-        not args.no_discover and token is not None and (age is None or age > AUTO_DISCOVER_AFTER_DAYS)
+    token = srcs.github_token() if (opts.discover or not opts.no_discover) else None
+    run_discovery = opts.discover or (
+        not opts.no_discover and token is not None and (age is None or age > AUTO_DISCOVER_AFTER_DAYS)
     )
     if run_discovery:
-        max_repos = args.discover_repos if token else min(args.discover_repos, 40)
-        with console.status("[bold bright_cyan]Suche neue Proxy-Listen auf GitHub …", spinner="dots") as status:
+        max_repos = opts.discover_repos if token else min(opts.discover_repos, 40)
+        with widgets.console.status("[bold bright_cyan]Suche neue Proxy-Listen auf GitHub …", spinner="dots") as status:
             found = await srcs.discover_github(
                 http_get, token, max_repos,
                 on_progress=lambda msg: status.update(f"[bold bright_cyan]GitHub-Discovery:[/] {msg}"),
@@ -64,16 +65,16 @@ async def collect_sources(args, quality: srcs.SourceStats) -> SourcePlan:
             srcs.save_discovered(found)
     discovered = srcs.load_discovered()
 
-    with console.status("[bold bright_cyan]Lade Meta-Quellen …", spinner="dots"):
+    with widgets.console.status("[bold bright_cyan]Lade Meta-Quellen …", spinner="dots"):
         meta_found, meta_ok = await srcs.resolve_meta(meta, http_get)
     for extra in (meta_found, discovered):
         for url, ptype in extra.items():
             sources.setdefault(url, ptype)
 
-    wanted = set(args.types)
+    wanted = set(opts.types)
     sources = {u: t for u, t in sources.items() if t == "auto" or t in wanted}
     skipped: Counter = Counter()
-    if not args.all_sources:
+    if not opts.all_sources:
         active = {}
         for url, ptype in sources.items():
             reason = quality.skip_reason(url)
@@ -205,16 +206,16 @@ class CheckRun:
 async def run_checks(
     jobs: List[str],
     checker: Checker,
-    stats: LiveStats,
+    opts: RunOptions,
     dashboard: CheckDashboard,
     writer: ResultWriter,
-    filters: Filters,
     geo: GeoResolver,
-    details: bool,
-    want: int,
-    concurrency: int,
     live_factory: Callable,
 ) -> CheckRun:
+    """Prüft `jobs` mit `opts.concurrency` parallelen Workern bis alles durch, das Ziel erreicht
+    oder Strg+C gedrückt ist."""
+    stats = dashboard.s
+    filters, details, want = opts.filters, opts.details, opts.want
     run = CheckRun()
     written: Set[str] = set()
     by_exit_ip: Dict[str, List[CheckResult]] = {}
@@ -267,7 +268,7 @@ async def run_checks(
             consider(r)
 
     with live_factory(dashboard):
-        workers = [asyncio.ensure_future(worker()) for _ in range(min(concurrency, len(jobs)))]
+        workers = [asyncio.ensure_future(worker()) for _ in range(min(opts.concurrency, len(jobs)))]
         all_workers = asyncio.gather(*workers)
         # Strg+C bricht sauber ab, damit die Ergebnisse trotzdem gespeichert werden (auch unter Windows)
         with on_interrupt(loop, all_workers.cancel):
@@ -279,7 +280,7 @@ async def run_checks(
     # Offene Länder-Abfragen noch abwarten (höchstens kurz)
     geo.stop()
     if geo.pending and not geo.failed:
-        with console.status(f"[bold bright_cyan]Ermittle Länder für {fmt(len(geo.pending))} Exit-IPs …", spinner="dots"):
+        with widgets.console.status(f"[bold bright_cyan]Ermittle Länder für {fmt(len(geo.pending))} Exit-IPs …", spinner="dots"):
             try:
                 await asyncio.wait_for(asyncio.shield(geo_task), 30)
             except asyncio.TimeoutError:

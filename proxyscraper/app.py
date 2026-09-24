@@ -127,9 +127,12 @@ def next_steps(opts: RunOptions, kept: List[CheckResult]) -> List[Tuple[str, str
     program = "python3 proxy_scraper.py" if is_checkout() else "proxy-scraper"
     steps: List[Tuple[str, str]] = []
     if kept:
-        best = min(kept, key=lambda r: r.latency)
+        # HTTPS nur vorschlagen, wenn der Proxy den HTTPS-Test bestanden hat – sonst scheitert der Befehl
+        secure = [r for r in kept if r.https]
+        best = min(secure or kept, key=lambda r: r.latency)
         scheme = "socks5h" if best.ptype == "socks5" else best.ptype
-        steps.append(("Schnellsten testen", f"curl -x {scheme}://{best.proxy} https://api.ipify.org"))
+        target = "https://api.ipify.org" if best.https else "http://api.ipify.org"
+        steps.append(("Schnellsten testen", f"curl -x {scheme}://{best.proxy} {target}"))
         if not opts.serve:
             steps.append(("Als Proxy-Server", f"{program} --recheck --serve"))
     steps.append(("Später neu prüfen", f"{program} --recheck"))

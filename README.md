@@ -1,30 +1,22 @@
 <div align="center">
 
-# ⚡ proxy-scraper
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/banner-light.svg">
+  <img src="docs/banner-dark.svg" alt="proxy-scraper – free proxies that actually work" width="100%">
+</picture>
 
-### Free proxies that actually work.
-**700+ sources · ~1M candidates in 25 seconds · every hit really verified · smarter with every run**
+[![tests](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml)
+[![codeql](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/maximilianfeix/proxy-scraper?color=38BDF8)](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
+![Python](https://img.shields.io/badge/python-3.9%20–%203.13-3776AB?logo=python&logoColor=white)
+![Platform](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-lightgrey)
+[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
+[![Live proxies](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json)](#live-list)
 
 **English** · [Deutsch](README.de.md)
 
-[![tests](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml)
-[![lint](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/lint.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/lint.yml)
-[![codeql](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml)
-[![proxy list](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/proxy-list.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/proxy-list.yml)
-<br>
-[![Release](https://img.shields.io/github/v/release/maximilianfeix/proxy-scraper?color=38BDF8)](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
-![Python](https://img.shields.io/badge/python-3.9%20–%203.13-3776AB?logo=python&logoColor=white)
-![Platform](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-lightgrey?logo=gnometerminal&logoColor=white)
-![Dependencies](https://img.shields.io/badge/dependencies-rich%20%2B%20certifi-informational)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-
-<br>
-
-<img src="docs/demo.svg" alt="Animated demo: setup wizard, collecting, live dashboard and final report" width="880">
-
-<br>
-
-[**Install**](#install) · [**Live list**](#live-list) · [**Proxy server**](#proxy-server) · [**Features**](#features) · [**How it works**](#how-it-works) · [**Options**](#options) · [**FAQ**](#faq)
+[Install](#install) · [Live list](#live-list) · [Recipes](#recipes) · [Proxy server](#proxy-server) · [How it works](#how-it-works) · [Options](#options) · [FAQ](#faq)
 
 </div>
 
@@ -34,6 +26,51 @@ Most free proxy lists are 95 % dead. **proxy-scraper** doesn't blindly try every
 
 > [!NOTE]
 > The terminal interface is in German. Commands, options and output files are the same in every language.
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+**🔐 Verified, not pinged**<br>
+Every hit fetches two independent sites through the proxy. That filters out honeypots, which can be most of the “working” proxies in a run.
+
+</td>
+<td width="33%" valign="top">
+
+**🧠 Gets better every run**<br>
+Hit rates per source and a history of working proxies decide what gets checked first. Dead lists drop out, new ones are found on GitHub.
+
+</td>
+<td width="33%" valign="top">
+
+**🔁 One proxy that always works**<br>
+`--serve` turns the results into a local rotating proxy with automatic failover – point any tool at `127.0.0.1:8899`.
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+<img src="docs/demo.svg" alt="Animated demo: setup wizard, collecting, live dashboard and final report" width="880">
+</div>
+
+<details>
+<summary><b>Table of contents</b></summary>
+
+- [Install](#install)
+- [Live proxy list](#live-list)
+- [Features](#features) · [Why not just download a list?](#why-not-just-download-a-list)
+- [Examples](#examples)
+- [Recipes](#recipes)
+- [Rotating proxy server](#proxy-server)
+- [How it works](#how-it-works)
+- [Output](#output)
+- [Options](#options)
+- [GitHub Actions](#github-actions)
+- [FAQ](#faq)
+- [Roadmap](#roadmap) · [Contributing](#contributing) · [Acknowledgements](#acknowledgements)
+
+</details>
 
 <a id="install"></a>
 
@@ -194,6 +231,8 @@ macOS, Linux and Windows, Python 3.9 to 3.13. Only two dependencies: `rich` and 
 </tr>
 </table>
 
+<a id="why-not-just-download-a-list"></a>
+
 ### Why not just download a list?
 
 | | Typical proxy list repo | **proxy-scraper** |
@@ -206,6 +245,8 @@ macOS, Linux and Windows, Python 3.9 to 3.13. Only two dependencies: `rich` and 
 | Learns which sources are worth it | ❌ | ✅ |
 | Usable as a single rotating proxy | ❌ | ✅ `--serve` |
 | Ready-made list without running anything | ✅ | ✅ [live list](#live-list) |
+
+<a id="examples"></a>
 
 ## 💡 Examples
 
@@ -288,6 +329,8 @@ flowchart LR
 </div>
 </details>
 
+<a id="output"></a>
+
 ## 📦 Output
 
 Every run gets its own folder; `results/latest.txt` always names the newest one (on macOS/Linux there is also the symlink `results/latest`):
@@ -300,6 +343,71 @@ results/2026-09-24_18-42-07/
 ├── socks5.txt
 ├── proxies.json   latency, country, HTTPS, anonymity, exit IP
 └── proxies.csv
+```
+
+<a id="recipes"></a>
+
+## 🧪 Recipes
+
+**Use the fastest proxy from the last run** – free proxies die quickly, so `--recheck` first if the run is older than a few minutes
+
+```bash
+proxy-scraper --recheck -y
+curl -x "$(head -1 results/latest/all.txt)" http://api.ipify.org
+```
+
+For HTTPS, pick a proxy with `"https": true` from `proxies.json` – like the Python example below does.
+
+**Python `requests`** (`pip install "requests[socks]"` for SOCKS)
+
+```python
+import json
+from pathlib import Path
+
+import requests
+
+run = Path("results") / Path("results/latest.txt").read_text().strip()   # works on every OS
+proxies = json.loads((run / "proxies.json").read_text())   # fastest first
+
+for p in proxies:
+    if not p["https"]:
+        continue
+    try:
+        r = requests.get("https://api.ipify.org", proxies={"http": p["url"], "https": p["url"]}, timeout=8)
+        print(p["url"], "→", r.text)
+        break
+    except requests.RequestException:
+        continue  # free proxies come and go – just take the next one
+```
+
+**proxychains** – turn the results into `[ProxyList]` entries
+
+```bash
+proxy-scraper --types socks5 --want 20 -y
+awk -F'[:/]+' '{print $1, $2, $3}' results/latest/all.txt   # socks5 203.0.113.10 1080
+```
+
+Paste the lines under `[ProxyList]` in your `proxychains.conf` (with `random_chain` for rotation).
+
+**Any tool, through the rotating server**
+
+```bash
+proxy-scraper --recheck --serve &
+export HTTPS_PROXY=http://127.0.0.1:8899 HTTP_PROXY=http://127.0.0.1:8899
+pip download requests   # git, pip, npm & co. now go through the pool
+```
+
+**Without installing anything** – straight from the live list
+
+```bash
+curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/https.txt | head -5
+```
+
+The shell snippets are for macOS and Linux, where `results/latest` points to the newest run. On Windows, `results/latest.txt` holds the folder name instead – in PowerShell:
+
+```powershell
+$run = "results\$(Get-Content results\latest.txt)"
+curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 ```
 
 <a id="options"></a>
@@ -339,6 +447,8 @@ Everything else: `proxy-scraper --help`
 
 > [!TIP]
 > For the GitHub search a logged-in [`gh`](https://cli.github.com/) or the `GITHUB_TOKEN` environment variable is enough. Without a token the API limit is 60 requests per hour, and only 40 repos are searched.
+
+<a id="github-actions"></a>
 
 ## 🤖 GitHub Actions
 
@@ -397,12 +507,16 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 </details>
 
+<a id="roadmap"></a>
+
 ## 🗺️ Roadmap
 
 What's next is tracked in the milestones [**v1.3**](../../milestone/3) and [**v1.1**](../../milestone/1) – ideas and wishes are welcome as an [issue](../../issues/new/choose).
 
 - [ ] [Proxies with credentials](../../issues/7) · [Second check target](../../issues/8) · [ETag cache](../../issues/9)
 - [ ] [Export for proxychains, Clash & co.](../../issues/4) · [Docker image](../../issues/5) · [IPv6 proxies](../../issues/1)
+
+<a id="contributing"></a>
 
 ## 🤝 Contributing
 
@@ -443,6 +557,16 @@ proxyscraper/
 
 </details>
 
+<a id="acknowledgements"></a>
+
+## 🙏 Acknowledgements
+
+proxy-scraper stands on the work of the people who publish free proxy lists. Thanks to everyone listed in [`sources.json`](proxyscraper/sources.json), and especially to
+
+- [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list), whose curated source collections are read as meta sources
+- [Textualize/rich](https://github.com/Textualize/rich), which draws the whole terminal UI
+- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com) and [ip-api.com](https://ip-api.com), used as check targets and for country lookups
+
 ## ⚠️ Disclaimer
 
 This tool only collects publicly listed proxies and checks whether they work. You are responsible for how you use them – respect the terms of the sites you visit and the laws where you live.
@@ -451,8 +575,8 @@ This tool only collects publicly listed proxies and checks whether they work. Yo
 
 ---
 
-[MIT License](LICENSE) · [Changelog](CHANGELOG.md) · [Security](SECURITY.md)
+<sub>Made in Germany by <a href="https://github.com/maximilianfeix">@maximilianfeix</a> · <a href="LICENSE">MIT License</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="SECURITY.md">Security</a> · <a href="CONTRIBUTING.md">Contributing</a></sub>
 
-If the tool helps you, a ⭐ helps the project.
+<sub>If proxy-scraper saves you time, a ⭐ helps others find it.</sub>
 
 </div>

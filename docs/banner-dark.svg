@@ -1,0 +1,59 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="proxy-scraper – free proxies that actually work. 700+ sources, about a million candidates, checked and confirmed, verified proxies.">
+  <style>
+    .grow, .fade { animation: fade .7s ease-out both; }
+    .bolt { animation: glow 3s ease-in-out infinite; }
+    @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
+    @keyframes glow { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
+    @media (prefers-reduced-motion: reduce) { .grow, .fade, .bolt { animation: none; } }
+  </style>
+  <defs>
+    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#0B1622"/><stop offset="1" stop-color="#0F2233"/>
+    </linearGradient>
+    <radialGradient id="glow" cx="0.8" cy="0.5" r="0.55">
+      <stop offset="0" stop-color="#38BDF8" stop-opacity=".14"/><stop offset="1" stop-color="#38BDF8" stop-opacity="0"/>
+    </radialGradient>
+    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#38BDF8"/><stop offset="1" stop-color="#34D399"/>
+    </linearGradient>
+    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
+      <path d="M32 0H0V32" fill="none" stroke="#16293B"/>
+    </pattern>
+    <clipPath id="frame"><rect width="1280" height="360" rx="20"/></clipPath>
+  </defs>
+  <g clip-path="url(#frame)">
+    <rect width="1280" height="360" fill="url(#bg)"/>
+    <rect width="1280" height="360" fill="url(#grid)" opacity=".5"/>
+    <rect width="1280" height="360" fill="url(#glow)"/>
+  </g>
+
+  <g class="fade">
+    <rect x="72" y="92" width="76" height="76" rx="20" fill="url(#accent)"/>
+    <path class="bolt" d="M116 104 L94 138 H110 L104 158 L128 122 H112 Z" fill="#FFFFFF"/>
+    <text x="168" y="148" fill="#E6EDF3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="54" font-weight="800" letter-spacing="-1">proxy-scraper</text>
+    <text x="74" y="222" fill="#E6EDF3" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="600">Free proxies that actually work.</text>
+    <text x="74" y="258" fill="#8BA3B8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18">Scraped from hundreds of sources, verified for real, smarter with every run.</text>
+    <text x="74" y="300" fill="#5E7B94" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">$ pipx install git+https://github.com/maximilianfeix/proxy-scraper.git</text>
+  </g>
+  
+    <g class="grow" style="animation-delay:0.20s">
+      <rect x="760" y="70" width="440" height="44" rx="10" fill="#132638" stroke="#24405A"/>
+      <text x="980" y="90" text-anchor="middle" fill="#E6EDF3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700">700+ sources</text>
+      <text x="980" y="106" text-anchor="middle" fill="#5E7B94" fill-opacity="1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">lists · APIs · GitHub discovery</text>
+    </g>
+    <g class="grow" style="animation-delay:0.35s">
+      <rect x="800" y="128" width="360" height="44" rx="10" fill="#132638" stroke="#24405A"/>
+      <text x="980" y="148" text-anchor="middle" fill="#E6EDF3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700">~1M candidates</text>
+      <text x="980" y="164" text-anchor="middle" fill="#5E7B94" fill-opacity="1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">parsed on all cores</text>
+    </g>
+    <g class="grow" style="animation-delay:0.50s">
+      <rect x="840" y="186" width="280" height="44" rx="10" fill="#132638" stroke="#24405A"/>
+      <text x="980" y="206" text-anchor="middle" fill="#E6EDF3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700">checked &amp; confirmed</text>
+      <text x="980" y="222" text-anchor="middle" fill="#5E7B94" fill-opacity="1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">two sites · same exit IP</text>
+    </g>
+    <g class="grow" style="animation-delay:0.65s">
+      <rect x="880" y="244" width="200" height="44" rx="10" fill="url(#accent)" stroke="none"/>
+      <text x="980" y="264" text-anchor="middle" fill="#FFFFFF" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700">verified proxies</text>
+      <text x="980" y="280" text-anchor="middle" fill="#FFFFFF" fill-opacity="0.85" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">HTTPS · anonymity · country</text>
+    </g>
+</svg>

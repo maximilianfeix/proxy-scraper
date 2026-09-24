@@ -26,10 +26,14 @@ from rich.console import Console, Group  # noqa: E402
 from rich.terminal_theme import MONOKAI  # noqa: E402
 from rich.text import Text  # noqa: E402
 
+from proxyscraper import options as options_module  # noqa: E402
 from proxyscraper.checker import CheckResult  # noqa: E402
 from proxyscraper.options import RunOptions  # noqa: E402
 from proxyscraper.ui import dashboard, report, widgets  # noqa: E402
 from proxyscraper.ui import wizard as wizard_module  # noqa: E402
+
+# Die Bilder zeigen den Befehl, wie ihn Nutzer nach der Installation eintippen
+options_module.is_checkout = lambda: False
 
 DOCS = ROOT / "docs"
 WIDTH = 104

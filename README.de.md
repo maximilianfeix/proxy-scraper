@@ -1,36 +1,127 @@
 <div align="center">
 
-# ⚡ proxy-scraper
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/banner-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/banner-light.svg">
+  <img src="docs/banner-dark.svg" alt="proxy-scraper – freie Proxys, die wirklich funktionieren" width="100%">
+</picture>
 
-### Freie Proxys, die wirklich funktionieren.
-**700+ Quellen · ~1 Mio. Kandidaten in 25 Sekunden · jeder Treffer echt geprüft · mit jedem Lauf klüger**
+[![tests](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml)
+[![codeql](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml)
+[![Release](https://img.shields.io/github/v/release/maximilianfeix/proxy-scraper?color=38BDF8)](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
+![Python](https://img.shields.io/badge/python-3.9%20–%203.13-3776AB?logo=python&logoColor=white)
+![Plattform](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-lightgrey)
+[![Lizenz: MIT](https://img.shields.io/badge/lizenz-MIT-green)](LICENSE)
+[![Live-Proxys](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json)](#live-liste)
 
 [English](README.md) · **Deutsch**
 
-[![tests](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml)
-[![lint](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/lint.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/lint.yml)
-[![codeql](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml)
-[![proxy list](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/proxy-list.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/proxy-list.yml)
-<br>
-[![Release](https://img.shields.io/github/v/release/maximilianfeix/proxy-scraper?color=38BDF8)](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
-![Python](https://img.shields.io/badge/python-3.9%20–%203.13-3776AB?logo=python&logoColor=white)
-![Plattform](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-lightgrey?logo=gnometerminal&logoColor=white)
-![Abhängigkeiten](https://img.shields.io/badge/abhängigkeiten-rich%20%2B%20certifi-informational)
-[![Lizenz: MIT](https://img.shields.io/badge/lizenz-MIT-green)](LICENSE)
-
-<br>
-
-<img src="docs/demo.svg" alt="Animierte Demo: Einrichtungsassistent, Sammeln, Live-Dashboard und Abschlussbericht" width="880">
-
-<br>
-
-[**Installation**](#schnellstart) · [**Live-Liste**](#live-liste) · [**Proxy-Server**](#proxy-server) · [**Features**](#features) · [**So funktioniert's**](#so-funktionierts) · [**Optionen**](#optionen) · [**FAQ**](#faq)
+[Installation](#schnellstart) · [Live-Liste](#live-liste) · [Rezepte](#rezepte) · [Proxy-Server](#proxy-server) · [So funktioniert's](#so-funktionierts) · [Optionen](#optionen) · [FAQ](#faq)
 
 </div>
 
 ---
 
 Die meisten freien Proxy-Listen sind zu 95 % tot. **proxy-scraper** probiert nicht stumpf alles durch, sondern lernt dazu: Proxys, die schon einmal funktioniert haben, kommen zuerst dran, danach die aus Quellen mit guter Trefferquote. Tote und nicht mehr gepflegte Listen fliegen automatisch raus, neue findet das Tool selbst auf GitHub – und jeder Treffer wird nicht nur angepingt, sondern muss eine echte Seite abrufen, HTTPS tunneln und zeigen, wie anonym er ist.
+
+<table>
+<tr>
+<td width="33%" valign="top">
+
+**🔐 Geprüft, nicht angepingt**<br>
+Jeder Treffer muss über den Proxy zwei unabhängige Seiten abrufen. Das sortiert Honeypots aus – in manchen Läufen der Großteil der „funktionierenden“ Proxys.
+
+</td>
+<td width="33%" valign="top">
+
+**🧠 Mit jedem Lauf besser**<br>
+Trefferquoten pro Quelle und der Verlauf funktionierender Proxys bestimmen, was zuerst geprüft wird. Tote Listen fliegen raus, neue findet das Tool auf GitHub.
+
+</td>
+<td width="33%" valign="top">
+
+**🔁 Ein Proxy, der immer geht**<br>
+`--serve` macht aus den Treffern einen lokalen rotierenden Proxy mit automatischem Wechsel – einfach `127.0.0.1:8899` eintragen.
+
+</td>
+</tr>
+</table>
+
+<div align="center">
+<img src="docs/demo.svg" alt="Animierte Demo: Einrichtungsassistent, Sammeln, Live-Dashboard und Abschlussbericht" width="880">
+</div>
+
+<details>
+<summary><b>Inhalt</b></summary>
+
+- [Installation](#schnellstart)
+- [Live-Proxyliste](#live-liste)
+- [Features](#features)
+- [Beispiele](#beispiele)
+- [Rezepte](#rezepte)
+- [Rotierender Proxy-Server](#proxy-server)
+- [So funktioniert's](#so-funktionierts)
+- [Ausgabe](#ausgabe)
+- [Optionen](#optionen)
+- [GitHub Actions](#github-actions)
+- [FAQ](#faq)
+- [Roadmap](#roadmap) · [Mitmachen](#mitmachen) · [Danke](#danke)
+
+</details>
+
+<a id="schnellstart"></a>
+
+## 🚀 Installation
+
+**Mit [pipx](https://pipx.pypa.io/)** (empfohlen – ergibt den Befehl `proxy-scraper` in einer eigenen Umgebung):
+
+```bash
+pipx install git+https://github.com/maximilianfeix/proxy-scraper.git
+proxy-scraper
+```
+
+<details>
+<summary><b>Andere Wege: pip, schnellere Event-Loop oder direkt aus dem Repo</b></summary>
+<br>
+
+```bash
+# mit pip in die aktuelle Umgebung
+pip install git+https://github.com/maximilianfeix/proxy-scraper.git
+
+# optional: schnellere Event-Loop unter macOS/Linux
+pipx install "proxy-scraper[fast] @ git+https://github.com/maximilianfeix/proxy-scraper.git"
+
+# ganz ohne Installation
+git clone https://github.com/maximilianfeix/proxy-scraper.git
+cd proxy-scraper
+pip install -r requirements.txt
+python3 proxy_scraper.py
+```
+
+Zu jedem [Release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) gibt es außerdem ein Wheel für `pip install <datei>.whl`.
+
+Installiert liegt der gelernte Zustand im Benutzerordner (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` bzw. `~/.local/share/proxy-scraper`; änderbar mit `PROXY_SCRAPER_HOME`), Ergebnisse landen in `./results`. Aus einem Klon gestartet bleibt beides im Projekt.
+
+</details>
+
+Ohne Argumente gestartet fragt ein Assistent, was du brauchst:
+
+<div align="center">
+<img src="docs/wizard.svg" alt="Einrichtungsassistent" width="760">
+</div>
+
+| Schnellauswahl | Was passiert |
+|---|---|
+| **Alles finden** | alle Protokolle, maximale Ausbeute |
+| **Surfen & Web** | HTTP + SOCKS5, HTTPS-fähig, mindestens anonym, unter 3 s |
+| **Maximal anonym** | nur Elite-SOCKS5 mit HTTPS |
+| **Schnell & stabil** | nur Proxys unter 1 s |
+| **Sofort ein paar** | stoppt nach 25 Treffern |
+| **Letzte Treffer neu prüfen** | ohne Sammeln, dauert Sekunden |
+| **Wie letztes Mal** | deine letzte Auswahl |
+| **Eigene Auswahl …** | Protokolle, Länder, Anonymität, HTTPS, Zielseite, Latenz, Menge, Prüfmodus |
+
+Bedienung: <kbd>↑</kbd><kbd>↓</kbd> auswählen · <kbd>Leertaste</kbd> an/aus · <kbd>1</kbd>–<kbd>9</kbd> direkt · <kbd>Enter</kbd> weiter · <kbd>Esc</kbd> zurück · <kbd>q</kbd> beenden. In Skripten und Cronjobs kommt der Assistent nie – dort einfach Optionen angeben oder `-y`.
 
 <a id="live-liste"></a>
 
@@ -137,59 +228,7 @@ macOS, Linux und Windows, Python 3.9 bis 3.13. Einzige Abhängigkeiten: `rich` u
 </tr>
 </table>
 
-<a id="schnellstart"></a>
-
-## 🚀 Installation
-
-**Mit [pipx](https://pipx.pypa.io/)** (empfohlen – ergibt den Befehl `proxy-scraper` in einer eigenen Umgebung):
-
-```bash
-pipx install git+https://github.com/maximilianfeix/proxy-scraper.git
-proxy-scraper
-```
-
-<details>
-<summary><b>Andere Wege: pip, schnellere Event-Loop oder direkt aus dem Repo</b></summary>
-<br>
-
-```bash
-# mit pip in die aktuelle Umgebung
-pip install git+https://github.com/maximilianfeix/proxy-scraper.git
-
-# optional: schnellere Event-Loop unter macOS/Linux
-pipx install "proxy-scraper[fast] @ git+https://github.com/maximilianfeix/proxy-scraper.git"
-
-# ganz ohne Installation
-git clone https://github.com/maximilianfeix/proxy-scraper.git
-cd proxy-scraper
-pip install -r requirements.txt
-python3 proxy_scraper.py
-```
-
-Zu jedem [Release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) gibt es außerdem ein Wheel für `pip install <datei>.whl`.
-
-Installiert liegt der gelernte Zustand im Benutzerordner (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` bzw. `~/.local/share/proxy-scraper`; änderbar mit `PROXY_SCRAPER_HOME`), Ergebnisse landen in `./results`. Aus einem Klon gestartet bleibt beides im Projekt.
-
-</details>
-
-Ohne Argumente gestartet fragt ein Assistent, was du brauchst:
-
-<div align="center">
-<img src="docs/wizard.svg" alt="Einrichtungsassistent" width="760">
-</div>
-
-| Schnellauswahl | Was passiert |
-|---|---|
-| **Alles finden** | alle Protokolle, maximale Ausbeute |
-| **Surfen & Web** | HTTP + SOCKS5, HTTPS-fähig, mindestens anonym, unter 3 s |
-| **Maximal anonym** | nur Elite-SOCKS5 mit HTTPS |
-| **Schnell & stabil** | nur Proxys unter 1 s |
-| **Sofort ein paar** | stoppt nach 25 Treffern |
-| **Letzte Treffer neu prüfen** | ohne Sammeln, dauert Sekunden |
-| **Wie letztes Mal** | deine letzte Auswahl |
-| **Eigene Auswahl …** | Protokolle, Länder, Anonymität, HTTPS, Zielseite, Latenz, Menge, Prüfmodus |
-
-Bedienung: <kbd>↑</kbd><kbd>↓</kbd> auswählen · <kbd>Leertaste</kbd> an/aus · <kbd>1</kbd>–<kbd>9</kbd> direkt · <kbd>Enter</kbd> weiter · <kbd>Esc</kbd> zurück · <kbd>q</kbd> beenden. In Skripten und Cronjobs kommt der Assistent nie – dort einfach Optionen angeben oder `-y`.
+<a id="beispiele"></a>
 
 ## 💡 Beispiele
 
@@ -272,6 +311,8 @@ flowchart LR
 </div>
 </details>
 
+<a id="ausgabe"></a>
+
 ## 📦 Ausgabe
 
 Jeder Lauf bekommt einen eigenen Ordner, `results/latest.txt` nennt immer den neuesten (unter macOS/Linux zusätzlich der Symlink `results/latest`):
@@ -284,6 +325,71 @@ results/2026-09-24_18-42-07/
 ├── socks5.txt
 ├── proxies.json   Latenz, Land, HTTPS, Anonymität, Exit-IP
 └── proxies.csv
+```
+
+<a id="rezepte"></a>
+
+## 🧪 Rezepte
+
+**Den schnellsten Proxy des letzten Laufs nutzen** – freie Proxys sterben schnell, bei älteren Läufen vorher `--recheck`
+
+```bash
+proxy-scraper --recheck -y
+curl -x "$(head -1 results/latest/all.txt)" http://api.ipify.org
+```
+
+Für HTTPS einen Proxy mit `"https": true` aus `proxies.json` nehmen – wie im Python-Beispiel.
+
+**Python `requests`** (für SOCKS: `pip install "requests[socks]"`)
+
+```python
+import json
+from pathlib import Path
+
+import requests
+
+run = Path("results") / Path("results/latest.txt").read_text().strip()   # works on every OS
+proxies = json.loads((run / "proxies.json").read_text())   # schnellste zuerst
+
+for p in proxies:
+    if not p["https"]:
+        continue
+    try:
+        r = requests.get("https://api.ipify.org", proxies={"http": p["url"], "https": p["url"]}, timeout=8)
+        print(p["url"], "→", r.text)
+        break
+    except requests.RequestException:
+        continue  # freie Proxys kommen und gehen – einfach den nächsten nehmen
+```
+
+**proxychains** – Treffer als `[ProxyList]`-Einträge
+
+```bash
+proxy-scraper --types socks5 --want 20 -y
+awk -F'[:/]+' '{print $1, $2, $3}' results/latest/all.txt   # socks5 203.0.113.10 1080
+```
+
+Die Zeilen unter `[ProxyList]` in die `proxychains.conf` einfügen (mit `random_chain` für Rotation).
+
+**Beliebige Tools über den rotierenden Server**
+
+```bash
+proxy-scraper --recheck --serve &
+export HTTPS_PROXY=http://127.0.0.1:8899 HTTP_PROXY=http://127.0.0.1:8899
+pip download requests   # git, pip, npm & Co. laufen jetzt über den Pool
+```
+
+**Ganz ohne Installation** – direkt aus der Live-Liste
+
+```bash
+curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/https.txt | head -5
+```
+
+Die Shell-Beispiele sind für macOS und Linux, wo `results/latest` auf den neuesten Lauf zeigt. Unter Windows steht der Ordnername stattdessen in `results/latest.txt` – in PowerShell:
+
+```powershell
+$run = "results\$(Get-Content results\latest.txt)"
+curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 ```
 
 <a id="optionen"></a>
@@ -323,6 +429,8 @@ Alles Weitere: `proxy-scraper --help`
 
 > [!TIP]
 > Für die GitHub-Suche reicht ein eingeloggtes [`gh`](https://cli.github.com/) oder die Umgebungsvariable `GITHUB_TOKEN`. Ohne Token gilt das API-Limit von 60 Anfragen pro Stunde, dann werden nur 40 Repos durchsucht.
+
+<a id="github-actions"></a>
 
 ## 🤖 GitHub Actions
 
@@ -373,12 +481,16 @@ Sie wird alle 6 Stunden neu gebaut, das Badge „Stand“ zeigt den letzten Lauf
 
 </details>
 
+<a id="roadmap"></a>
+
 ## 🗺️ Roadmap
 
 Was als Nächstes kommt, steht in den Meilensteinen [**v1.3**](../../milestone/3) und [**v1.1**](../../milestone/1) – Ideen und Wünsche gerne als [Issue](../../issues/new/choose).
 
 - [ ] [Proxys mit Zugangsdaten](../../issues/7) · [Zweites Prüfziel](../../issues/8) · [ETag-Cache](../../issues/9)
 - [ ] [Export für proxychains, Clash & Co.](../../issues/4) · [Docker-Image](../../issues/5) · [IPv6-Proxys](../../issues/1)
+
+<a id="mitmachen"></a>
 
 ## 🤝 Mitmachen
 
@@ -419,6 +531,16 @@ proxyscraper/
 
 </details>
 
+<a id="danke"></a>
+
+## 🙏 Danke
+
+proxy-scraper baut auf der Arbeit der Leute auf, die freie Proxy-Listen veröffentlichen. Danke an alle in [`sources.json`](proxyscraper/sources.json), besonders an
+
+- [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) und [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list), deren gepflegte Quellensammlungen als Meta-Quellen eingelesen werden
+- [Textualize/rich](https://github.com/Textualize/rich), das die komplette Oberfläche zeichnet
+- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com) und [ip-api.com](https://ip-api.com) als Prüfziele und für die Länder
+
 ## ⚠️ Hinweis
 
 Öffentliche Proxys werden von Unbekannten betrieben, die alles mitlesen können, was unverschlüsselt durchgeht. Keine Passwörter oder persönlichen Daten darüber schicken und nur für legale Zwecke nutzen.
@@ -427,8 +549,8 @@ proxyscraper/
 
 ---
 
-[MIT-Lizenz](LICENSE) · [Changelog](CHANGELOG.md) · [Sicherheit](SECURITY.md)
+<sub>Gebaut in Deutschland von <a href="https://github.com/maximilianfeix">@maximilianfeix</a> · <a href="LICENSE">MIT-Lizenz</a> · <a href="CHANGELOG.md">Changelog</a> · <a href="SECURITY.md">Sicherheit</a> · <a href="CONTRIBUTING.md">Mitmachen</a></sub>
 
-Wenn dir das Tool hilft, freut sich das Repo über einen ⭐
+<sub>Wenn dir proxy-scraper Zeit spart, hilft ein ⭐ anderen, es zu finden.</sub>
 
 </div>

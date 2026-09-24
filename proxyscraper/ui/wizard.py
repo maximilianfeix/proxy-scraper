@@ -259,6 +259,26 @@ class TargetStep(SelectStep):
         super().load(opts)
 
 
+class ServeStep(SelectStep):
+    """Proxy-Server danach? Ein eigener Port von der Kommandozeile (-i --serve 9000) bleibt wählbar."""
+
+    def __init__(self):
+        super().__init__(
+            "Danach als Proxy-Server bereitstellen?",
+            "Ein lokaler Proxy, der jede Verbindung über einen anderen gefundenen Proxy schickt.",
+            [Option("Nein", "nur die Ergebnisdateien", 0),
+             Option(f"Ja, auf Port {DEFAULT_SERVE_PORT}", f"http://127.0.0.1:{DEFAULT_SERVE_PORT} – läuft bis Strg+C",
+                    DEFAULT_SERVE_PORT)],
+            read=lambda o: o.serve, write=lambda o, v: setattr(o, "serve", v),
+        )
+
+    def load(self, opts: RunOptions) -> None:
+        del self.options[2:]
+        if opts.serve not in (0, DEFAULT_SERVE_PORT):
+            self.options.append(Option(f"Ja, auf Port {opts.serve}", "wie angegeben", opts.serve))
+        super().load(opts)
+
+
 class SummaryStep(SelectStep):
     START, ADJUST, CANCEL = "start", "adjust", "cancel"
 
@@ -406,14 +426,7 @@ def custom_steps() -> List[Step]:
              Option("50", "", 50), Option("100", "", 100), Option("500", "", 500)],
             read=lambda o: o.want, write=lambda o, v: setattr(o, "want", v),
         ),
-        SelectStep(
-            "Danach als Proxy-Server bereitstellen?",
-            "Ein lokaler Proxy, der jede Verbindung über einen anderen gefundenen Proxy schickt.",
-            [Option("Nein", "nur die Ergebnisdateien", 0),
-             Option(f"Ja, auf Port {DEFAULT_SERVE_PORT}", f"http://127.0.0.1:{DEFAULT_SERVE_PORT} – läuft bis Strg+C",
-                    DEFAULT_SERVE_PORT)],
-            read=lambda o: o.serve, write=lambda o, v: setattr(o, "serve", v),
-        ),
+        ServeStep(),
         SelectStep(
             "Wie gründlich prüfen?", "Anonymität und Land gibt es immer – der HTTPS-Test kostet eine TLS-Verbindung.",
             [Option("Gründlich", "mit HTTPS-Test für jeden Treffer", False),

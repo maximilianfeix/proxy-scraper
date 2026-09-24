@@ -179,3 +179,15 @@ def test_quick_server_preset():
     press(w, preset_index(w, "Sofort als Proxy-Server"), "enter")
     assert (w.result.recheck, w.result.serve) == ("", 8899)
     assert "Sofort als Proxy-Server" not in [o.label for o in Wizard(RunOptions()).start.options]
+
+
+def test_serve_step_keeps_custom_port_from_command_line():
+    from proxyscraper.ui.wizard import ServeStep
+
+    w = Wizard(RunOptions(serve=9000))
+    press(w, preset_index(w, "Eigene"))
+    while not isinstance(w.step, ServeStep):
+        press(w, "enter")
+    assert w.step.options[w.step.cursor].value == 9000   # vorausgewählt statt still "Nein"
+    press(w, "enter")
+    assert w.opts.serve == 9000

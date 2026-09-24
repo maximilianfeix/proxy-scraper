@@ -5,7 +5,7 @@ from __future__ import annotations
 import time
 from collections import Counter
 from pathlib import Path
-from typing import Dict, Iterable, List, Tuple
+from typing import Dict, Iterable, List, Sequence, Tuple
 
 from rich.table import Table
 from rich.text import Text
@@ -55,6 +55,7 @@ def render_summary(
     files: Dict[str, Path],
     details: bool,
     filters_text: str,
+    next_steps: Sequence[Tuple[str, str]] = (),
 ) -> None:
     width = widgets.console.size.width
     wide = width >= 110
@@ -158,6 +159,14 @@ def render_summary(
         for label, path in files.items():
             grid.add_row(label, Text(_display_path(path), style=ACCENT))
         widgets.console.print(panel(grid, "Dateien", ACCENT))
+
+    if next_steps:
+        grid = Table.grid(padding=(0, 2))
+        grid.add_column(style=MUTED, no_wrap=True)
+        grid.add_column(overflow="fold")
+        for label, command in next_steps:
+            grid.add_row(label, Text("$ ", style=MUTED) + Text(command, style="bold"))
+        widgets.console.print(panel(grid, "Nächste Schritte", GOOD))
 
 
 def _display_path(path: Path) -> str:

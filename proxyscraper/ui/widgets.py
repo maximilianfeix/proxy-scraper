@@ -14,17 +14,21 @@ from rich.progress import ProgressColumn
 from rich.table import Table
 from rich.text import Text
 
+from .. import __version__
 from ..geo import flag
 
 console = Console(highlight=False)
 
-ACCENT = "bright_cyan"
-GOOD = "green"
-WARN = "yellow"
-BAD = "red"
-MUTED = "grey50"
-TYPE_STYLE = {"http": "cyan", "socks4": "magenta", "socks5": "bright_green"}
-ANON_STYLE = {"elite": ("E", "green"), "anonymous": ("A", "yellow"), "transparent": ("T", "red")}
+# Eine Palette für alles (auch im Profil/README verwendet). rich rechnet sie auf Terminals mit
+# weniger Farben automatisch herunter.
+ACCENT = "#38BDF8"
+GOOD = "#34D399"
+WARN = "#FBBF24"
+BAD = "#F87171"
+MUTED = "#8B949E"
+BORDER = "#30363D"
+TYPE_STYLE = {"http": "#60A5FA", "socks4": "#C084FC", "socks5": "#34D399"}
+ANON_STYLE = {"elite": ("E", GOOD), "anonymous": ("A", WARN), "transparent": ("T", BAD)}
 ANON_LABEL = {"elite": "Elite", "anonymous": "Anonym", "transparent": "Transp."}
 PHASES = ("Quellen", "Sammeln", "Prüfen", "Fertig")
 SPARK = "▁▂▃▄▅▆▇█"
@@ -122,25 +126,28 @@ class CountColumn(ProgressColumn):
 # --------------------------------------------------------------------------- #
 
 def banner() -> Panel:
-    title = Text.assemble(("⚡ PROXY SCRAPER", f"bold {ACCENT}"), ("  ·  sammeln · prüfen · lernen", MUTED))
     grid = Table.grid(expand=True)
     grid.add_column()
     grid.add_column(justify="right")
-    grid.add_row(title, Text(datetime.now().strftime("%d.%m.%Y  %H:%M"), style=MUTED))
-    return Panel(grid, box=box.HEAVY, border_style=ACCENT, padding=(0, 1))
+    grid.add_row(
+        Text.assemble(("⚡ proxy-scraper", f"bold {ACCENT}"), (f"  v{__version__}", MUTED)),
+        Text(datetime.now().strftime("%d.%m.%Y  %H:%M"), style=MUTED),
+    )
+    grid.add_row(Text("Freie Proxys, die wirklich funktionieren – gesammelt, geprüft, gelernt.", style=MUTED), "")
+    return Panel(grid, box=box.ROUNDED, border_style=ACCENT, padding=(0, 2))
 
 
 def phase_bar(current: int) -> Text:
     text = Text()
     for i, name in enumerate(PHASES):
         if i:
-            text.append(" ── ", style=GOOD if i <= current else MUTED)
+            text.append("  ─  ", style=GOOD if i <= current else BORDER)
         if i < current:
             text.append(f"✔ {name}", style=GOOD)
         elif i == current:
-            text.append(f"◉ {name}", style=f"bold {ACCENT}")
+            text.append(f"● {i + 1} {name}", style=f"bold {ACCENT}")
         else:
-            text.append(f"○ {name}", style=MUTED)
+            text.append(f"○ {i + 1} {name}", style=MUTED)
     return text
 
 
@@ -152,24 +159,55 @@ def header(current: int, started: float) -> Table:
     return grid
 
 
+_section_open = False
+
+
+def section(title: str) -> None:
+    """Beginnt einen Abschnitt; folgende info()/note()-Zeilen hängen an seiner linken Rahmenlinie."""
+    global _section_open
+    if _section_open:
+        section_end()
+    line = Text()
+    line.append("  ╭─ ", style=BORDER)
+    line.append(title, style=f"bold {ACCENT}")
+    line.append(" ", style=BORDER)
+    line.append("─" * max(console.size.width - line.cell_len - 2, 4), style=BORDER)
+    console.print(line)
+    _section_open = True
+
+
+def section_end() -> None:
+    global _section_open
+    if _section_open:
+        console.print(Text("  ╰─", style=BORDER))
+        _section_open = False
+
+
+def _gutter() -> Text:
+    # Farbe nur für das Rahmenzeichen – nicht als Grundstil, der sonst auf die ganze Zeile abfärbt
+    gutter = Text()
+    gutter.append("  │  " if _section_open else "  ", style=BORDER)
+    return gutter
+
+
 def info(label: str, value, style: str = "") -> None:
-    """Einheitliche Info-Zeile vor/zwischen den Phasen."""
-    line = Text("  ▸ ", style=ACCENT)
-    line.append(f"{label:<14}", style="bold")
-    line.append_text(value if isinstance(value, Text) else Text(str(value), style=style))
+    """Einheitliche Info-Zeile – im Abschnitt mit Rahmenlinie, sonst eingerückt."""
+    line = _gutter()
+    line.append(f"{label:<14}", style=MUTED)
+    line.append_text(value if isinstance(value, Text) else Text(str(value), style=style or "bold"))
     console.print(line)
 
 
 def note(message: str, style: str = WARN, icon: str = "⚠") -> None:
-    console.print(Text(f"  {icon} ", style=style) + Text.from_markup(message))
+    console.print(_gutter() + Text(f"{icon} ", style=style) + Text.from_markup(message))
 
 
 def card(label: str, value: str, sub, style: str = "bold") -> Panel:
     # Alle Karten einer Reihe sollen gleich hoch bleiben – lange Untertitel werden gekürzt statt umbrochen
     sub = sub if isinstance(sub, Text) else Text(sub, style=MUTED)
     sub.no_wrap, sub.overflow = True, "ellipsis"
-    body = Group(Text(label, style=MUTED), Text(value, style=style), sub)
-    return Panel(body, box=box.ROUNDED, border_style=MUTED, padding=(0, 1))
+    body = Group(Text(label.upper(), style=f"bold {MUTED}"), Text(value, style=style), sub)
+    return Panel(body, box=box.ROUNDED, border_style=BORDER, padding=(0, 1))
 
 
 def table(**kwargs) -> Table:
@@ -178,8 +216,14 @@ def table(**kwargs) -> Table:
     return Table(box=None, header_style=f"bold {MUTED}", pad_edge=False, **kwargs)
 
 
-def panel(renderable, title: str, style: str = MUTED, **kwargs) -> Panel:
-    return Panel(renderable, title=title, title_align="left", box=box.ROUNDED, border_style=style, **kwargs)
+def panel_title(title: str, style: str = BORDER) -> Text:
+    """Titel lesbar halten: bei dezentem Rahmen gedämpft-hell statt in der dunklen Rahmenfarbe."""
+    return Text(f" {title} ", style=f"bold {MUTED if style == BORDER else style}")
+
+
+def panel(renderable, title: str, style: str = BORDER, **kwargs) -> Panel:
+    return Panel(renderable, title=panel_title(title, style), title_align="left", box=box.ROUNDED,
+                 border_style=style, **kwargs)
 
 
 def row(*renderables, ratios: Optional[Sequence[int]] = None) -> Table:

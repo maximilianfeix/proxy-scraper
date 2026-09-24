@@ -11,6 +11,7 @@ from .widgets import (
     ACCENT,
     BAD,
     BLOCKED_HIT_RATE,
+    BORDER,
     GOOD,
     MUTED,
     WARN,
@@ -21,12 +22,14 @@ from .widgets import (
     info,
     note,
     pct,
+    section,
+    section_end,
     short_url,
 )
 
 __all__ = [
-    "ACCENT", "BAD", "BLOCKED_HIT_RATE", "GOOD", "MUTED", "WARN",
+    "ACCENT", "BAD", "BORDER", "BLOCKED_HIT_RATE", "GOOD", "MUTED", "WARN",
     "CheckDashboard", "CollectView", "LiveStats",
-    "banner", "bar", "fmt", "fmt_duration", "info", "note", "pct", "short_url",
+    "banner", "bar", "fmt", "fmt_duration", "info", "note", "pct", "section", "section_end", "short_url",
     "render_source_ranking", "render_summary", "widgets",
 ]

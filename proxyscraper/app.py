@@ -32,6 +32,7 @@ from .netio import INSECURE_HOSTS, http_get
 from .options import RunOptions
 from .output import ResultWriter, latest_results
 from .parsing import PROXY_TYPES, parse_keys, split_key
+from .paths import is_checkout
 from .pipeline import (
     CheckRun,
     ScrapeResult,
@@ -46,6 +47,7 @@ from .server import ProxyPool, RotatingServer
 from .targets import Target, parse_target
 from .ui import (
     ACCENT,
+    BAD,
     BLOCKED_HIT_RATE,
     GOOD,
     MUTED,
@@ -58,6 +60,8 @@ from .ui import (
     info,
     note,
     render_summary,
+    section,
+    section_end,
     widgets,
 )
 from .ui.serve import ServeDashboard
@@ -117,6 +121,20 @@ def is_network_blocked(stats: LiveStats) -> bool:
     return stats.checked >= 1000 and reached < stats.checked * BLOCKED_HIT_RATE
 
 
+def next_steps(opts: RunOptions, kept: List[CheckResult]) -> List[Tuple[str, str]]:
+    """Fertige Befehle für das, was man nach einem Lauf meistens als Nächstes tut."""
+    program = "python3 proxy_scraper.py" if is_checkout() else "proxy-scraper"
+    steps: List[Tuple[str, str]] = []
+    if kept:
+        best = min(kept, key=lambda r: r.latency)
+        scheme = "socks5h" if best.ptype == "socks5" else best.ptype
+        steps.append(("Schnellsten testen", f"curl -x {scheme}://{best.proxy} https://api.ipify.org"))
+        if not opts.serve:
+            steps.append(("Als Proxy-Server", f"{program} --recheck --serve"))
+    steps.append(("Später neu prüfen", f"{program} --recheck"))
+    return steps
+
+
 class Run:
     def __init__(self, opts: RunOptions, show_banner: bool = True):
         self.opts = opts
@@ -133,13 +151,19 @@ class Run:
     async def execute(self) -> int:
         if self.show_banner:
             widgets.console.print(banner())
-        if not await self.prepare_network():
-            return 1
-        self.show_mode()
-        jobs = await self.gather_jobs()
-        if not jobs:
-            note("Keine Proxys zum Prüfen gefunden.", "red", "✘")
-            return 1
+        section("Vorbereitung")
+        try:
+            with widgets.console.status("Prüfe Netzwerk …", spinner="dots", spinner_style=ACCENT):
+                ready = await self.prepare_network()
+            if not ready:
+                return 1
+            self.show_mode()
+            jobs = await self.gather_jobs()
+            if not jobs:
+                note("Keine Proxys zum Prüfen gefunden.", BAD, "✘")
+                return 1
+        finally:
+            section_end()
         await self.check_and_report(jobs)
         return 0
 
@@ -277,7 +301,7 @@ class Run:
         geo.save()
 
         render_summary(stats, run.results, kept, best_sources(per_source), files, opts.details,
-                       opts.filters.describe())
+                       opts.filters.describe(), next_steps(opts, kept))
         self.final_notes(run, stats, kept, geo, network_blocked)
         if opts.serve:
             await self.serve(kept)

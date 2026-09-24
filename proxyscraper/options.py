@@ -87,6 +87,12 @@ class RunOptions:
         self.types = [t for t in PROXY_TYPES if t in self.types]
         if not self.types:
             raise ValueError("mindestens ein Proxy-Typ nötig")  # sonst wäre to_argv() "--types" ohne Wert
+        if self.concurrency < 1:
+            raise ValueError("concurrency muss mindestens 1 sein")
+        if self.timeout <= 0 or self.connect_timeout <= 0:
+            raise ValueError("Timeouts müssen größer als 0 sein")
+        if min(self.want, self.limit, self.discover_repos, self.filters.max_latency) < 0:
+            raise ValueError("Mengen und Latenz dürfen nicht negativ sein")
 
     @property
     def details(self) -> bool:

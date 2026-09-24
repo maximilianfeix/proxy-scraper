@@ -35,6 +35,24 @@ def list_sources(limit: int) -> int:
     return 0
 
 
+def _number(kind, minimum, strict=False):
+    """argparse-Typ für Zahlen mit Untergrenze – mit verständlicher Fehlermeldung."""
+    def parse(text: str):
+        try:
+            value = kind(text)
+        except ValueError:
+            raise argparse.ArgumentTypeError(f"keine Zahl: {text!r}")
+        if value < minimum or (strict and value == minimum):
+            raise argparse.ArgumentTypeError(f"muss {'größer als' if strict else 'mindestens'} {minimum} sein")
+        return value
+    return parse
+
+
+positive_int = _number(int, 1)
+non_negative_int = _number(int, 0)
+positive_float = _number(float, 0, strict=True)
+
+
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
         prog="proxy_scraper.py",
@@ -51,17 +69,17 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         ),
     )
     g = p.add_argument_group("Prüfung")
-    g.add_argument("-c", "--concurrency", type=int, default=DEFAULT_CONCURRENCY,
+    g.add_argument("-c", "--concurrency", type=positive_int, default=DEFAULT_CONCURRENCY,
                    help=f"gleichzeitige Prüfungen (Standard: {DEFAULT_CONCURRENCY})")
-    g.add_argument("-t", "--timeout", type=float, default=DEFAULT_TIMEOUT,
+    g.add_argument("-t", "--timeout", type=positive_float, default=DEFAULT_TIMEOUT,
                    help=f"Timeout pro Proxy in Sekunden (Standard: {DEFAULT_TIMEOUT:g})")
-    g.add_argument("--connect-timeout", type=float, default=DEFAULT_CONNECT_TIMEOUT,
+    g.add_argument("--connect-timeout", type=positive_float, default=DEFAULT_CONNECT_TIMEOUT,
                    help=f"max. Zeit für den TCP-Verbindungsaufbau in Sekunden (Standard: {DEFAULT_CONNECT_TIMEOUT:g})")
     g.add_argument("--types", nargs="+", choices=list(PROXY_TYPES), default=list(PROXY_TYPES),
                    help="welche Protokolle (Standard: alle)")
-    g.add_argument("-l", "--limit", type=int, default=0,
+    g.add_argument("-l", "--limit", type=non_negative_int, default=0,
                    help="nur die N vielversprechendsten Proxys prüfen (nach Verlauf & Quellenqualität)")
-    g.add_argument("--want", type=int, default=0, metavar="N", help="beenden, sobald N passende Proxys gefunden sind")
+    g.add_argument("--want", type=non_negative_int, default=0, metavar="N", help="beenden, sobald N passende Proxys gefunden sind")
     g.add_argument("--fast", action="store_true", help="ohne HTTPS- und Anonymitätstest (schneller)")
     g.add_argument("--no-geo", action="store_true", help="keine Länder ermitteln")
     g.add_argument("--recheck", nargs="?", const="", metavar="DATEI",
@@ -71,7 +89,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     f.add_argument("--country", metavar="CC", help="nur diese Länder, z. B. DE,AT,CH")
     f.add_argument("--https-only", action="store_true", help="nur Proxys, die HTTPS-Seiten tunneln können")
     f.add_argument("--anonymity", choices=["anonymous", "elite"], help="Mindest-Anonymität")
-    f.add_argument("--max-latency", type=int, default=0, metavar="MS", help="nur Proxys bis zu dieser Latenz")
+    f.add_argument("--max-latency", type=non_negative_int, default=0, metavar="MS", help="nur Proxys bis zu dieser Latenz")
 
     o = p.add_argument_group("Ausgabe")
     o.add_argument("-o", "--output", help="zusätzlich alle Treffer als typ://ip:port in diese Datei")
@@ -80,10 +98,10 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     s.add_argument("--discover", action="store_true",
                    help="jetzt neue Proxy-Listen auf GitHub suchen (mit GitHub-Token sonst automatisch alle 3 Tage)")
     s.add_argument("--no-discover", action="store_true", help="keine automatische GitHub-Suche")
-    s.add_argument("--discover-repos", type=int, default=DEFAULT_DISCOVER_REPOS,
+    s.add_argument("--discover-repos", type=non_negative_int, default=DEFAULT_DISCOVER_REPOS,
                    help=f"max. Repos bei der Discovery (Standard: {DEFAULT_DISCOVER_REPOS}, ohne Token 40)")
     s.add_argument("--all-sources", action="store_true", help="auch tote, veraltete und unerreichbare Quellen laden")
-    s.add_argument("--list-sources", nargs="?", const=50, type=int, metavar="N",
+    s.add_argument("--list-sources", nargs="?", const=50, type=positive_int, metavar="N",
                    help="Rangliste der Quellen nach Trefferquote anzeigen (Standard: Top 50) und beenden")
     return p.parse_args(argv)
 

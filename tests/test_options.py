@@ -56,6 +56,26 @@ def test_invalid_types_are_rejected(types):
         RunOptions(types=types)
 
 
+@pytest.mark.parametrize("argv", [
+    ["-c", "0"], ["--timeout", "0"], ["--connect-timeout", "-1"], ["--want", "-5"],
+    ["--limit", "x"], ["--max-latency", "-100"], ["--list-sources", "0"],
+])
+def test_invalid_numbers_are_rejected_by_argparse(argv, capsys):
+    with pytest.raises(SystemExit):
+        parse_args(argv)
+    err = capsys.readouterr().err
+    assert "muss" in err or "keine Zahl" in err
+
+
+@pytest.mark.parametrize("changes", [
+    {"concurrency": 0}, {"timeout": 0}, {"connect_timeout": -1}, {"want": -1},
+    {"filters": Filters(max_latency=-1)},
+])
+def test_invalid_numbers_are_rejected_by_run_options(changes):
+    with pytest.raises(ValueError):
+        RunOptions(**changes)
+
+
 def test_to_command_quotes_arguments():
     opts = RunOptions(recheck="meine liste.txt", types=["socks5"])
     assert opts.to_command() == "python3 proxy_scraper.py --types socks5 --recheck 'meine liste.txt'"

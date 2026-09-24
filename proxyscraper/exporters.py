@@ -103,9 +103,9 @@ EXPORTERS: Dict[str, Tuple[str, Exporter]] = {
 def parse_exports(value: str) -> List[str]:
     """"clash,curl" -> ["clash", "curl"]; "all" -> alle. Unbekannte Namen -> ValueError."""
     names = [n.strip().lower() for n in value.split(",") if n.strip()]
+    unknown = [n for n in names if n not in EXPORTERS and n != "all"]
+    if unknown:  # vor "all" prüfen – sonst ginge ein Tippfehler in "all,clsh" still unter
+        raise ValueError(f"unbekanntes Format: {', '.join(unknown)} (möglich: {', '.join(EXPORTERS)}, all)")
     if "all" in names:
         return list(EXPORTERS)
-    unknown = [n for n in names if n not in EXPORTERS]
-    if unknown:
-        raise ValueError(f"unbekanntes Format: {', '.join(unknown)} (möglich: {', '.join(EXPORTERS)}, all)")
     return [n for n in EXPORTERS if n in names]  # feste Reihenfolge, keine Duplikate

@@ -69,7 +69,6 @@ def target_url(text: str) -> str:
         raise argparse.ArgumentTypeError(str(e)) from None
 
 
-
 def export_list(text: str) -> List[str]:
     """argparse-Typ für --export: "proxychains,clash" oder "all"."""
     try:

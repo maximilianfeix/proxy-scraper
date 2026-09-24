@@ -73,6 +73,8 @@ def test_unknown_format_is_rejected(capsys):
     assert "v2ray" in capsys.readouterr().err
     with pytest.raises(ValueError):
         RunOptions(exports=["v2ray"])
+    with pytest.raises(ValueError, match="v2ray"):
+        parse_exports("all,v2ray")  # "all" darf keinen Tippfehler verdecken
 
 
 def test_writer_writes_requested_formats(tmp_path):

@@ -60,12 +60,11 @@ class CountryDB:
         """DB-IP-CSV ("start,end,land" für IPv4 und IPv6) -> nur die IPv4-Bereiche."""
         starts, ends, codes = array("I"), array("I"), bytearray()
         for line in io.StringIO(text):
-            start, _, rest = line.partition(",")
-            if ":" in start or not rest:
+            fields = line.rstrip("\r\n").split(",")
+            if len(fields) < 3 or ":" in fields[0]:
                 continue  # IPv6 oder kaputte Zeile
-            end, _, code = rest.partition(",")
-            code = code.strip()
-            if len(code) != 2:
+            start, end, code = fields[0], fields[1], fields[2].strip()  # evtl. weitere Spalten ignorieren
+            if len(code) != 2 or not (code.isascii() and code.isalpha()):
                 continue
             try:
                 s, e = _ip_to_int(start), _ip_to_int(end)

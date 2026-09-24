@@ -362,7 +362,7 @@ class Run:
         except Exception:
             return
         if db is not None:
-            geo.offline = db
+            geo.use_offline(db)
 
     def learn(self, run: CheckRun, network_blocked: bool):
         """Quellen-Statistik und Verlauf aktualisieren – bei blockiertem Netz nur die Treffer."""

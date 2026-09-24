@@ -135,3 +135,25 @@ def test_is_current():
     from proxyscraper.geodb import is_current
     db = CountryDB.from_csv(CSV, "2026-09")
     assert is_current(db, date(2026, 9, 25)) and not is_current(db, date(2026, 10, 1)) and not is_current(None)
+
+
+
+def test_extra_columns_and_odd_codes_are_handled():
+    csv = "1.0.0.0,1.0.0.255,AU,Australia\n1.0.1.0,1.0.1.255,Ä1\n8.8.8.0,8.8.8.255,US\n"
+    db = CountryDB.from_csv(csv, "2026-09")
+    assert db.lookup("1.0.0.1") == "AU" and db.lookup("1.0.1.1") == "" and db.lookup("8.8.8.8") == "US"
+
+
+def test_switching_to_offline_resolves_waiting_ips_consistently():
+    async def go():
+        resolved = {}
+        resolver = GeoResolver(on_resolved=lambda ip, cc: resolved.setdefault(ip, cc))
+        resolver.cache = {}
+        resolver.request("8.8.8.8")   # noch keine Datenbank -> wartet auf ip-api
+        resolver.request("5.5.5.5")
+        resolver.use_offline(CountryDB.from_csv(CSV, "2026-09"))
+        return resolver, resolved
+
+    resolver, resolved = asyncio.run(go())
+    assert resolved == {"8.8.8.8": "US"}           # sofort aus der Datenbank gemeldet
+    assert resolver.pending == ["5.5.5.5"]          # nur was die Datenbank nicht kennt, bleibt für ip-api

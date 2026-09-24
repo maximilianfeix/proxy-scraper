@@ -54,6 +54,20 @@ class GeoResolver:
         hit = self.cache.get(ip)
         return hit[0] if hit and time.time() - hit[1] < CACHE_TTL else ""
 
+    def use_offline(self, db: CountryDB) -> None:
+        """Neue Datenbank mitten im Lauf übernehmen – auch für IPs, die schon auf ip-api warten,
+        damit dieselbe Exit-IP nicht einmal so und einmal anders eingeordnet wird."""
+        self.offline = db
+        waiting, self.pending = self.pending, []
+        for ip in waiting:
+            country = db.lookup(ip)
+            if not country:
+                self.pending.append(ip)
+                continue
+            self.offline_hits += 1
+            if self.on_resolved:
+                self.on_resolved(ip, country)
+
     def request(self, ip: str) -> str:
         """Land sofort (offline oder aus dem Cache), sonst für die nächste Batch-Anfrage vormerken."""
         if self.enabled and self.offline:
@@ -108,9 +122,12 @@ class GeoResolver:
             return 0.0
         for row in rows:
             if row.get("status") == "success":
-                self.cache[row["query"]] = [row["countryCode"], now]
+                ip, country = row["query"], row["countryCode"]
+                self.cache[ip] = [country, now]
+                if self.offline and self.offline.lookup(ip):
+                    continue  # inzwischen kennt die Datenbank sie – use_offline hat sie schon gemeldet
                 if self.on_resolved:
-                    self.on_resolved(row["query"], row["countryCode"])
+                    self.on_resolved(ip, country)
         # Wenn ip-api das Limit fast erreicht meldet, bis zum Reset warten
         if headers.get(b"x-rl", b"1") == b"0":
             return float(headers.get(b"x-ttl", b"60") or 60)

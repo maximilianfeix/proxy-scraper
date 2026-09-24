@@ -86,3 +86,22 @@ def test_details_and_geo_are_forced_by_filters():
     assert RunOptions(fast=True, filters=Filters(https_only=True)).details
     assert not RunOptions(no_geo=True).geo
     assert RunOptions(no_geo=True, filters=Filters(countries={"DE"})).geo
+
+
+def test_check_timeout_follows_latency_limit():
+    opts = RunOptions(timeout=8, connect_timeout=4, filters=Filters(max_latency=1500))
+    assert (opts.check_timeout, opts.check_connect_timeout) == (1.5, 1.5)
+    assert RunOptions(timeout=8, filters=Filters(max_latency=20000)).check_timeout == 8  # Limit über Timeout
+    assert (RunOptions().check_timeout, RunOptions().check_connect_timeout) == (8.0, 4.0)
+
+
+@pytest.mark.parametrize("filters, r, expected", [
+    (Filters(min_anonymity="elite"), result(anonymity="anonymous"), False),
+    (Filters(min_anonymity="anonymous"), result(anonymity="elite"), True),
+    (Filters(countries={"AT"}), result(country="DE"), False),
+    (Filters(countries={"AT"}), result(country=""), True),       # Land noch unbekannt -> könnte passen
+    (Filters(https_only=True), result(https=None), True),         # HTTPS wird ja erst geprüft
+    (Filters(max_latency=400), result(latency=500), False),
+])
+def test_may_pass(filters, r, expected):
+    assert filters.may_pass(r) == expected

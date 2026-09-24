@@ -100,7 +100,7 @@ Durchsucht GitHub nach aktiv gepflegten Proxy-Listen und liest fremd gepflegte Q
 <td valign="top">
 
 **🎯 Filter & Ziel**<br>
-Nach Land, HTTPS, Anonymität und Latenz filtern – und mit `--want 50` aufhören, sobald genug passende Proxys gefunden sind.
+Nach Land, HTTPS, Anonymität und Latenz filtern – und mit `--want 50` aufhören, sobald genug passende Proxys gefunden sind. Filter machen die Suche sogar schneller: Mit `--max-latency 1000` gibt das Tool langsame Proxys nach 1 s auf statt nach 8 s.
 
 </td>
 </tr>

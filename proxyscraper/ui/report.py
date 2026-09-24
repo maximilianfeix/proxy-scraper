@@ -90,6 +90,8 @@ def render_summary(
             letter, style = ANON_STYLE[level]
             proto.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(stats.anonymity[level]), "",
                           pct(stats.anonymity[level], found))
+        if stats.details_saved:
+            proto.add_row(Text("⏭ HTTPS-Tests gespart", style=MUTED), fmt(stats.details_saved), "", "")
 
     # In breiten Terminals drei Spalten, sonst Protokolle oben und Länder/Latenz darunter
     bar_w = max((width // 3 if wide else width // 2) - 24, 4)

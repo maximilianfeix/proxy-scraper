@@ -234,3 +234,20 @@ def test_probe_confirm_target(reply, expected):
             return await ck.probe_confirm_target("127.0.0.1", timeout=3, port=port)
 
     assert asyncio.run(go()) is expected
+
+
+def test_confirmation_keeps_normal_connect_timeout():
+    """Mit --max-latency schrumpft nur der Timeout der Basisprüfung, nicht der der Bestätigung."""
+    c = ck.Checker("3.3.3.3", set(), timeout=1.0, connect_timeout=1.0, detail_timeout=8.0, detail_connect_timeout=4.0)
+    assert (c.connect_timeout, c.detail_connect_timeout) == (1.0, 4.0)
+
+
+def test_detail_connection_failures_dont_mark_proxy_unreachable():
+    async def go():
+        c = ck.Checker("3.3.3.3", set(), timeout=2, connect_timeout=1)
+        # Linux/macOS lehnen sofort ab, Windows wartet bis zum Timeout – beides ist "nicht erreichbar"
+        with pytest.raises((OSError, asyncio.TimeoutError)):
+            await c._connect("127.0.0.1:1", detail=True)
+        return c.unreachable
+
+    assert asyncio.run(go()) == set()

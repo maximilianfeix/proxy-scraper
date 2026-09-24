@@ -165,6 +165,8 @@ class Run:
             modes.append(f"Filter: {opts.filters.describe()}")
         if opts.want:
             modes.append(f"stoppt bei {fmt(opts.want)} Treffern")
+        if opts.check_timeout < opts.timeout:
+            modes.append(f"Timeout {opts.check_timeout:g} s dank Latenzlimit".replace(".", ","))
         info("Modus", " · ".join(modes))
 
     # ------------------------------------------------------------------ Phase 1+2: Jobs
@@ -226,7 +228,9 @@ class Run:
         stats = LiveStats(Counter(split_key(k)[0] for k in jobs))
         dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
                                    opts.filters.describe(), opts.want)
-        checker = Checker(self.judge_ip, self.own_ips, opts.timeout, opts.connect_timeout, self.confirm_ip)
+        checker = Checker(self.judge_ip, self.own_ips, opts.check_timeout, opts.check_connect_timeout,
+                          self.confirm_ip, detail_timeout=opts.timeout,
+                          detail_connect_timeout=opts.connect_timeout)
         geo = GeoResolver(enabled=opts.geo)
         widgets.console.print()
         run = await run_checks(

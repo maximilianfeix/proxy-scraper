@@ -112,6 +112,7 @@ class LiveStats:
         self.anonymity: Counter = Counter()
         self.passing = 0
         self.fakes = 0  # bestanden die Basisprüfung, aber nicht die Bestätigung
+        self.details_saved = 0  # HTTPS-Tests, die dank Filter entfallen konnten
         self.recent: Deque[CheckResult] = deque(maxlen=8)
         self.start = time.perf_counter()
         self.speed: Deque[float] = deque(maxlen=60)
@@ -229,6 +230,8 @@ class CheckDashboard:
         for level in ("elite", "anonymous", "transparent"):
             letter, style = ANON_STYLE[level]
             side.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(s.anonymity[level]))
+        if s.details_saved:
+            side.add_row(Text("⏭ gespart", style=MUTED), fmt(s.details_saved))
         for cc, n in s.countries.most_common(max(len(LATENCY_LABELS) - side.row_count, 0)):
             side.add_row(country_cell(cc), fmt(n))
         if not side.row_count:

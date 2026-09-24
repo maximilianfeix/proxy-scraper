@@ -279,17 +279,20 @@ async def run_checks(
     by_exit_ip: Dict[str, List[CheckResult]] = {}
     pending = JobQueue(jobs)  # alle Worker ziehen aus derselben Queue – in asyncio ohne Lock sicher
 
-    # Prüfziel-Ausfälle: Jede Prüfung merkt sich, mit welchem Ziel ("Generation") und wann sie begann.
+    # Prüfziel-Ausfälle: Jede Prüfung merkt sich, mit welchem Ziel ("Generation") und als wievielte sie begann.
     # Beim Wechsel wird die alte Generation ab der letzten guten Kontrolle verdächtig – Fehlschläge
     # daraus werden wiederholt, auch solche, die erst nach dem Wechsel fertig werden. Treffer sind
     # nie verdächtig (der Proxy hat ja funktioniert), so wird jede Prüfung genau einmal gewertet.
     generation = 0
-    last_ok = loop.time()  # letzte gute Kontrolle – die Prüfziele wurden direkt vor dem Lauf getestet
-    suspect_since: Dict[int, float] = {}     # abgelöste Generation -> ab hier verdächtig
-    recent_failures: List[Tuple[int, float, str]] = []  # Fehlschläge seit der letzten guten Kontrolle
+    # Reihenfolge statt Uhrzeit: jede Prüfung bekommt beim Start eine laufende Nummer. Die Uhr der Event-Loop
+    # ist unter Windows nur auf ~15 ms genau – zwei Ereignisse bekämen dort leicht denselben Zeitstempel.
+    started_count = 0
+    last_ok = 0  # so viele Prüfungen hatten bei der letzten guten Kontrolle begonnen (0 = Lauf-Start)
+    suspect_since: Dict[int, int] = {}       # abgelöste Generation -> Prüfungen ab dieser Nummer verdächtig
+    recent_failures: List[Tuple[int, int, str]] = []  # Fehlschläge seit der letzten guten Kontrolle
 
-    def is_suspect(gen: int, started: float) -> bool:
-        return gen in suspect_since and started >= suspect_since[gen]
+    def is_suspect(gen: int, started: int) -> bool:
+        return gen in suspect_since and started > suspect_since[gen]
 
     def requeue(keys: List[str]) -> None:
         pending.retry.extend(keys)
@@ -298,14 +301,14 @@ async def run_checks(
 
     def judge_ok() -> None:
         nonlocal last_ok
-        last_ok = loop.time()
+        last_ok = started_count
         recent_failures.clear()
 
     def judge_switched(old, new) -> None:
         nonlocal generation, last_ok
         suspect_since[generation] = last_ok
         generation += 1
-        last_ok = loop.time()  # das neue Ziel wurde gerade erfolgreich geprüft – ab hier die Basislinie
+        last_ok = started_count  # das neue Ziel wurde gerade erfolgreich geprüft – ab hier die Basislinie
         failed = {key for gen, started, key in recent_failures if is_suspect(gen, started)}
         recent_failures.clear()
         if failed:
@@ -344,8 +347,10 @@ async def run_checks(
     watch_task = asyncio.ensure_future(watch.run()) if watch else None
 
     async def worker() -> None:
+        nonlocal started_count
         for key in pending:
-            gen, started = generation, loop.time()
+            started_count += 1
+            gen, started = generation, started_count
             r = await checker.check(key)
             stats.add_checked(key.split(" ", 1)[0])
             dashboard.advance()

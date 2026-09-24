@@ -229,7 +229,8 @@ class Run:
         dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
                                    opts.filters.describe(), opts.want)
         checker = Checker(self.judge_ip, self.own_ips, opts.check_timeout, opts.check_connect_timeout,
-                          self.confirm_ip, detail_timeout=opts.timeout)
+                          self.confirm_ip, detail_timeout=opts.timeout,
+                          detail_connect_timeout=opts.connect_timeout)
         geo = GeoResolver(enabled=opts.geo)
         widgets.console.print()
         run = await run_checks(

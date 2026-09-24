@@ -25,6 +25,13 @@ CACHE_DIR = DATA_DIR / "fetch-cache"
 FORGET_AFTER = 14 * 86400  # Listen, die so lange nicht mehr geladen wurden, fliegen raus
 
 
+def _valid_entry(entry) -> bool:
+    return (isinstance(entry, dict) and isinstance(entry.get("file"), str) and entry["file"].endswith(".txt.gz")
+            and "/" not in entry["file"] and "\\" not in entry["file"]
+            and isinstance(entry.get("etag", ""), str) and isinstance(entry.get("modified", ""), str)
+            and isinstance(entry.get("used", 0), (int, float)))
+
+
 class FetchCache:
     def __init__(self, directory: Path = CACHE_DIR, enabled: bool = True):
         self.dir = directory
@@ -33,9 +40,12 @@ class FetchCache:
         self.hits = 0
         if enabled:
             try:
-                self.entries = json.loads((directory / "index.json").read_text(encoding="utf-8"))
+                raw = json.loads((directory / "index.json").read_text(encoding="utf-8"))
             except (OSError, ValueError):
-                self.entries = {}
+                raw = {}
+            # nur Einträge mit der erwarteten Form – eine kaputte index.json heißt einfach "leerer Cache"
+            if isinstance(raw, dict):
+                self.entries = {url: e for url, e in raw.items() if _valid_entry(e)}
 
     def conditional_headers(self, url: str, ptype: str) -> Dict[str, str]:
         """Header für eine bedingte Anfrage – leer, wenn nichts (Brauchbares) im Cache liegt.

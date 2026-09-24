@@ -189,3 +189,14 @@ def test_dropping_validators_removes_the_payload(tmp_path):
     cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
     cache.store("http://x/list", {}, "http 1.1.1.1:80", "http")
     assert list((tmp_path / "cache").glob("*.gz")) == []
+
+
+
+@pytest.mark.parametrize("index", ['[1, 2, 3]', '{"http://x/l": {"etag": "a"}}', '{"http://x/l": "kaputt"}',
+                                   '{"http://x/l": {"file": "../../etc/passwd", "etag": "a"}}'])
+def test_malformed_index_is_an_empty_cache(tmp_path, index):
+    (tmp_path / "cache").mkdir()
+    (tmp_path / "cache" / "index.json").write_text(index)
+    cache = FetchCache(tmp_path / "cache")
+    assert cache.entries == {} and cache.conditional_headers("http://x/l", "http") == {}
+    cache.save()  # darf auch nicht stolpern

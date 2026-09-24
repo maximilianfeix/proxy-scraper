@@ -322,7 +322,8 @@ def test_own_ip_falls_back_to_what_the_judges_saw(monkeypatch):
         return []
 
     async def ranked():
-        return [JudgeProbe(J("a"), "1.1.1.1", 10, "87.150.19.11"), JudgeProbe(J("b"), "2.2.2.2", 10, "87.150.19.11")]
+        return [JudgeProbe(J("a"), "1.1.1.1", 10, "87.150.19.11"), JudgeProbe(J("b"), "2.2.2.2", 10, "87.150.19.11"),
+                JudgeProbe(J("c"), "3.3.3.3", 10, "2003:d6::1")]  # IPv6 hilft dem Checker nicht
 
     async def no_confirm():
         return None

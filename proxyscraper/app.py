@@ -181,7 +181,9 @@ class Run:
                  BAD, "✘")
             return False
         if not self.own_ips:  # die üblichen Dienste für die eigene IP sind weg – die Prüfziele haben sie gesehen
-            self.own_ips = list(dict.fromkeys(j.seen_ip for j in self.judges if j.seen_ip))
+            # nur IPv4 – der Checker vergleicht mit IPv4-Exit-IPs; eine IPv6 (z. B. iCloud Private Relay) passt
+            # nie und würde nur die Warnung "Eigene IP unbekannt" verschlucken
+            self.own_ips = list(dict.fromkeys(j.seen_ip for j in self.judges if j.seen_ip and "." in j.seen_ip))
         ips = self.own_ips
         info("Deine IP", Text.assemble(
             (ips[0], "bold") if ips else ("unbekannt", WARN),

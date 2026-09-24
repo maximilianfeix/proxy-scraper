@@ -178,3 +178,21 @@ def test_next_steps_never_print_a_password():
         "curl -x http://5.6.7.8:80 https://api.ipify.org"  # lieber ohne Login
     command = dict(app.next_steps(RunOptions(), [with_login]))["Schnellsten testen"]
     assert PASSWORD not in command and "alice:•••@1.2.3.4:80" in command
+
+
+
+async def split_407_proxy(reader, writer):
+    """Schickt das 407 in zwei TCP-Stücken – "HTTP/1.1 4" und den Rest."""
+    await reader.readuntil(b"\r\n\r\n")
+    writer.write(b"HTTP/1.1 4")
+    await writer.drain()
+    await asyncio.sleep(0.05)
+    writer.write(b"07 Proxy Authentication Required\r\nContent-Length: 0\r\n\r\n")
+    await writer.drain()
+    writer.close()
+
+
+@pytest.mark.parametrize("request_", [plain, chunked_post])
+def test_407_split_across_reads_is_still_caught(request_):
+    reply = through_server("http", split_407_proxy, AUTH, request_)
+    assert b"407" not in reply and b"502" in reply

@@ -194,6 +194,19 @@ async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: in
 
 
 PROXY_AUTH_REQUIRED = re.compile(rb"HTTP/1\.[01] 407\b")
+STATUS_LEN = len(b"HTTP/1.1 407 ")
+
+
+async def complete_status(reader, data: bytes, timeout: float) -> bytes:
+    """Sieht der Anfang nach einer HTTP-Statuszeile aus, so lange nachlesen, bis der Status komplett ist.
+
+    Ein TCP-Read kann mitten in "HTTP/1.1 407" enden – dann ließe sich ein 407 nicht erkennen."""
+    while len(data) < STATUS_LEN and b"\n" not in data and data[:5] == b"HTTP/"[:len(data[:5])]:
+        more = await asyncio.wait_for(reader.read(STATUS_LEN), timeout)
+        if not more:
+            break
+        data += more
+    return data
 
 
 def plausible_answer(first_out: bytes, first_in: bytes) -> bool:
@@ -344,6 +357,7 @@ class RotatingServer:
                 up_writer.write(first_out)
                 await up_writer.drain()
             first_in = await asyncio.wait_for(up_reader.read(65536), self.timeout)
+            first_in = await complete_status(up_reader, first_in, self.timeout)
         except (OSError, asyncio.TimeoutError):
             return None
         if not first_in or not plausible_answer(first_out, first_in):
@@ -433,9 +447,11 @@ class RotatingServer:
                 data = await reader.read(65536)
                 if not data:
                     break
-                if reject_proxy_auth and not total and PROXY_AUTH_REQUIRED.match(data):
-                    await self._bad_gateway(writer)
-                    return -1
+                if reject_proxy_auth and not total:
+                    data = await complete_status(reader, data, self.timeout)
+                    if PROXY_AUTH_REQUIRED.match(data):
+                        await self._bad_gateway(writer)
+                        return -1
                 total += len(data)
                 if up:
                     self.stats.bytes_up += len(data)
@@ -443,7 +459,7 @@ class RotatingServer:
                     self.stats.bytes_down += len(data)
                 writer.write(data)
                 await writer.drain()
-        except (ConnectionError, OSError):
+        except (ConnectionError, OSError, asyncio.TimeoutError):
             pass  # eine Seite hat aufgelegt – das beendet die Weiterleitung ganz normal
         finally:
             try:

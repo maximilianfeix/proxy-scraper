@@ -195,6 +195,48 @@ async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: in
 
 PROXY_AUTH_REQUIRED = re.compile(rb"HTTP/1\.[01] 407\b")
 STATUS_LEN = len(b"HTTP/1.1 407 ")
+STATUS_RE = re.compile(rb"HTTP/1\.[01] (\d{3})")
+SCREEN_LIMIT = 16384
+
+
+class ResponseScreen:
+    """Prüft den Anfang einer Upstream-Antwort, bis die endgültige Statuszeile da ist.
+
+    Zwischenantworten (100 Continue & Co.) gehen sofort an den Client weiter; kommt danach ein 407,
+    soll der Client das nie sehen. feed() gibt zurück, was schon weiter darf, und die Entscheidung:
+    None = noch offen, "ok" = alles Weitere einfach durchreichen, "407" = Proxy will einen Login."""
+
+    def __init__(self):
+        self.buf = b""
+
+    def feed(self, data: bytes):
+        self.buf += data
+        out = b""
+        while True:
+            head = self.buf
+            if len(head) < STATUS_LEN and b"\n" not in head and head[:5] == b"HTTP/"[:len(head[:5])]:
+                return out, None  # Statuszeile noch unvollständig
+            m = STATUS_RE.match(head)
+            if not m:
+                return out + self._flush(), "ok"  # keine HTTP-Antwort (z. B. Tunnel) – nichts zu prüfen
+            code = m.group(1)
+            if code == b"407":
+                return out, "407"
+            if not code.startswith(b"1"):
+                return out + self._flush(), "ok"
+            end = head.find(b"\r\n\r\n")
+            if end < 0:
+                if len(head) > SCREEN_LIMIT:
+                    return out + self._flush(), "ok"
+                return out, None  # Zwischenantwort noch nicht vollständig
+            out += head[:end + 4]
+            self.buf = head[end + 4:]
+            if not self.buf:
+                return out, None
+
+    def _flush(self) -> bytes:
+        data, self.buf = self.buf, b""
+        return data
 
 
 async def complete_status(reader, data: bytes, timeout: float) -> bytes:
@@ -439,19 +481,27 @@ class RotatingServer:
     async def _pipe(self, reader, writer, up: bool, reject_proxy_auth: bool = False) -> int:
         """Daten weiterreichen, bis eine Seite aufhört; gibt die Anzahl der Bytes zurück.
 
-        reject_proxy_auth: beginnt die Antwort mit 407, bekommt der Client stattdessen 502 und
-        es wird -1 zurückgegeben (Proxy gilt als gescheitert)."""
+        reject_proxy_auth: ist die endgültige Antwort ein 407 (auch nach 100 Continue), bekommt der
+        Client stattdessen 502 und es wird -1 zurückgegeben (Proxy gilt als gescheitert)."""
         total = 0
+        screen = ResponseScreen() if reject_proxy_auth else None
         try:
             while True:
                 data = await reader.read(65536)
                 if not data:
+                    if screen and screen.buf:  # Antwort endet mitten im Prüfen – Rest trotzdem weiterreichen
+                        writer.write(screen.buf)
+                        total += len(screen.buf)
                     break
-                if reject_proxy_auth and not total:
-                    data = await complete_status(reader, data, self.timeout)
-                    if PROXY_AUTH_REQUIRED.match(data):
+                if screen:
+                    data, verdict = screen.feed(data)
+                    if verdict == "407":
                         await self._bad_gateway(writer)
                         return -1
+                    if verdict == "ok":
+                        screen = None
+                    if not data:
+                        continue
                 total += len(data)
                 if up:
                     self.stats.bytes_up += len(data)

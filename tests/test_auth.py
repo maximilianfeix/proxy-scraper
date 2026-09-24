@@ -196,3 +196,41 @@ async def split_407_proxy(reader, writer):
 def test_407_split_across_reads_is_still_caught(request_):
     reply = through_server("http", split_407_proxy, AUTH, request_)
     assert b"407" not in reply and b"502" in reply
+
+
+
+@pytest.mark.parametrize("chunks, forwarded, verdict", [
+    ([b"HTTP/1.1 200 OK\r\n\r\nhi"], b"HTTP/1.1 200 OK\r\n\r\nhi", "ok"),
+    ([b"HTTP/1.1 407 Proxy Auth\r\n\r\n"], b"", "407"),
+    ([b"HTTP/1.1 4", b"07 x\r\n\r\n"], b"", "407"),                                    # zerteilt
+    ([b"HTTP/1.1 100 Continue\r\n\r\n", b"HTTP/1.1 407 x\r\n\r\n"], b"HTTP/1.1 100 Continue\r\n\r\n", "407"),
+    ([b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\n\r\n"],
+     b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\n\r\n", "ok"),
+    ([b"HTTP/1.1 100 Cont", b"inue\r\n\r\n", b"HTTP/1.1 200 OK\r\n\r\n"],
+     b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\n\r\n", "ok"),
+    ([b"\x16\x03\x03 tls"], b"\x16\x03\x03 tls", "ok"),                                # kein HTTP
+])
+def test_response_screen(chunks, forwarded, verdict):
+    from proxyscraper.server import ResponseScreen
+    screen, out, last = ResponseScreen(), b"", None
+    for chunk in chunks:
+        data, last = screen.feed(chunk)
+        out += data
+        if last:
+            break
+    assert (out, last) == (forwarded, verdict)
+
+
+async def continue_then_407_proxy(reader, writer):
+    await reader.readuntil(b"\r\n\r\n")
+    writer.write(b"HTTP/1.1 100 Continue\r\n\r\n")
+    await writer.drain()
+    await asyncio.sleep(0.05)
+    writer.write(b"HTTP/1.1 407 Proxy Authentication Required\r\nContent-Length: 0\r\n\r\n")
+    await writer.drain()
+    writer.close()
+
+
+def test_407_after_100_continue_does_not_reach_the_client():
+    reply = through_server("http", continue_then_407_proxy, AUTH, chunked_post)
+    assert b"407" not in reply and b"502" in reply

@@ -10,6 +10,7 @@ from typing import List, Optional
 
 from rich.text import Text
 
+from . import __version__
 from . import sources as srcs
 from .app import Run
 from .compat import ensure_utf8_output
@@ -75,22 +76,23 @@ positive_float = _number(float, 0, strict=True)
 
 def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     p = argparse.ArgumentParser(
-        prog="proxy_scraper.py",
+        prog="proxy-scraper",
         description="Schneller asynchroner Proxy-Scraper & -Checker mit lernender Quellenauswahl",
         formatter_class=argparse.RawDescriptionHelpFormatter,
         epilog=(
             "Beispiele:\n"
-            "  proxy_scraper.py                              Einrichtungsassistent (im Terminal)\n"
-            "  proxy_scraper.py -y                           sofort alles sammeln und prüfen\n"
-            "  proxy_scraper.py --want 50 --https-only       stoppt nach 50 HTTPS-fähigen Proxys\n"
-            "  proxy_scraper.py --country DE,AT,CH -l 20000  nur DACH, die 20.000 besten Kandidaten\n"
-            "  proxy_scraper.py --types socks5 --anonymity elite --max-latency 1500\n"
-            "  proxy_scraper.py --target google.com --target discord.com --want 20\n"
-            "  proxy_scraper.py --recheck                    letzte Treffer + Verlauf neu prüfen\n"
-            "  proxy_scraper.py --recheck --serve            daraus sofort einen rotierenden Proxy machen\n"
-            "  proxy_scraper.py --list-sources               Quellen-Rangliste\n"
+            "  proxy-scraper                                Einrichtungsassistent (im Terminal)\n"
+            "  proxy-scraper -y                             sofort alles sammeln und prüfen\n"
+            "  proxy-scraper --want 50 --https-only         stoppt nach 50 HTTPS-fähigen Proxys\n"
+            "  proxy-scraper --country DE,AT,CH -l 20000    nur DACH, die 20.000 besten Kandidaten\n"
+            "  proxy-scraper --types socks5 --anonymity elite --max-latency 1500\n"
+            "  proxy-scraper --target google.com --target discord.com --want 20\n"
+            "  proxy-scraper --recheck                      letzte Treffer + Verlauf neu prüfen\n"
+            "  proxy-scraper --recheck --serve              daraus sofort einen rotierenden Proxy machen\n"
+            "  proxy-scraper --list-sources                 Quellen-Rangliste\n"
         ),
     )
+    p.add_argument("-V", "--version", action="version", version=f"proxy-scraper {__version__}")
     m = p.add_argument_group("Start")
     m.add_argument("-i", "--interactive", action="store_true",
                    help="Einrichtungsassistent: per Pfeiltasten auswählen, was gesucht wird "
@@ -175,8 +177,17 @@ def wants_wizard(args: argparse.Namespace, argv: List[str]) -> bool:
     return not argv and not args.yes and is_interactive()
 
 
+def install_uvloop() -> None:
+    try:
+        import uvloop  # optional (pip install "proxy-scraper[fast]"), macht asyncio nochmal schneller
+    except ImportError:
+        return
+    uvloop.install()
+
+
 def run(argv: Optional[List[str]] = None) -> int:
     ensure_utf8_output()
+    install_uvloop()
     argv = sys.argv[1:] if argv is None else argv
     args = parse_args(argv)
     if args.list_sources is not None:

@@ -23,3 +23,24 @@ jobs:
       # Startet das Programm einmal richtig – fängt Import-Fehler ab, die Tests nicht sehen
       - run: python proxy_scraper.py --help
       - run: python proxy_scraper.py --list-sources 5
+
+  package:
+    # Baut Wheel + sdist und installiert das Wheel frisch – so wie Nutzer es mit pipx bekommen
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - run: pip install build
+      - run: python -m build
+      - name: Install the wheel into a clean environment
+        run: |
+          python -m venv /tmp/clean
+          /tmp/clean/bin/pip install dist/*.whl
+      - name: Run the installed command outside the repo
+        working-directory: /tmp
+        run: |
+          /tmp/clean/bin/proxy-scraper --version
+          /tmp/clean/bin/proxy-scraper --help > /dev/null
+          /tmp/clean/bin/proxy-scraper --list-sources 3

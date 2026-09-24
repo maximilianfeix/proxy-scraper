@@ -322,7 +322,8 @@ flowchart LR
 2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads 0 MB instead of ~160 MB.
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
 4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here.
-5. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
+5. **Countries** – looked up offline in the free DB-IP database (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
+6. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
 
 <details>
 <summary><b>📸 See the live dashboard and final report</b></summary>
@@ -554,7 +555,8 @@ proxyscraper/
 ├── fetchcache.py       ETag cache for unchanged lists
 ├── parsing.py          find proxies in text, HTML and JSON
 ├── history.py          history of working proxies
-├── geo.py              countries via ip-api.com (batched, cached)
+├── geo.py              countries: offline first, ip-api.com as fallback
+├── geodb.py            DB-IP country database (monthly, binary search)
 ├── targets.py          target sites for --target
 ├── output.py           result files
 ├── exporters.py        proxychains, Clash and curl formats (--export)
@@ -576,6 +578,7 @@ proxy-scraper stands on the work of the people who publish free proxy lists. Tha
 
 - [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list), whose curated source collections are read as meta sources
 - [Textualize/rich](https://github.com/Textualize/rich), which draws the whole terminal UI
+- [IP Geolocation by DB-IP](https://db-ip.com) – the free country database (CC BY 4.0) used for offline country lookups
 - [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) and [ip-api.com](https://ip-api.com), used as check targets and for country lookups
 
 ## ⚠️ Disclaimer

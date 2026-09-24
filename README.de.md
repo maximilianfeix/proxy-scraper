@@ -304,7 +304,8 @@ flowchart LR
 2. **Sammeln** – Text, HTML-Tabellen, JSON-APIs und `typ://ip:port`-Zeilen werden erkannt, private und reservierte Adressbereiche verworfen. Listen, die sich seit dem letzten Lauf nicht geändert haben, antworten mit `304` und kommen aus einem lokalen Cache – ein zweiter Lauf direkt danach lädt 0 MB statt ~160 MB.
 3. **Priorisieren** – bekannte funktionierende Proxys zuerst, dann nach gelernter Trefferquote ihrer Quellen.
 4. **Prüfen** – jeder Proxy muss seine Exit-IP von einem Prüfziel abrufen (`checkip.amazonaws.com`, als Reserve `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` und `ident.me` – keins davon hinter Cloudflare) und eine gültige, *fremde* IP zurückliefern. Fällt das Ziel mitten im Lauf aus, wechselt das Tool und prüft die betroffenen Proxys erneut – die Statistik lernt so nicht aus einem Ausfall. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier.
-5. **Lernen** – Trefferquoten und Verlauf landen in `data/`. Quellen ohne Treffer, mit seit einer Woche unverändertem Inhalt oder dauerhaft unerreichbar werden übersprungen.
+5. **Länder** – offline aus der freien DB-IP-Datenbank (einmal im Monat geladen, ~2 µs pro Abfrage); ip-api.com wird nur noch für die wenigen Adressen gefragt, die dort fehlen.
+6. **Lernen** – Trefferquoten und Verlauf landen in `data/`. Quellen ohne Treffer, mit seit einer Woche unverändertem Inhalt oder dauerhaft unerreichbar werden übersprungen.
 
 <details>
 <summary><b>📸 Live-Dashboard und Abschlussbericht ansehen</b></summary>
@@ -528,7 +529,8 @@ proxyscraper/
 ├── fetchcache.py       ETag-Cache für unveränderte Listen
 ├── parsing.py          Proxys in Text, HTML und JSON finden
 ├── history.py          Verlauf funktionierender Proxys
-├── geo.py              Länder über ip-api.com (Batch, mit Cache)
+├── geo.py              Länder: erst offline, ip-api.com als Reserve
+├── geodb.py            DB-IP-Länderdatenbank (monatlich, Binärsuche)
 ├── targets.py          Zielseiten für --target
 ├── output.py           Ergebnisdateien
 ├── exporters.py        Formate für proxychains, Clash und curl (--export)
@@ -549,6 +551,7 @@ proxyscraper/
 proxy-scraper baut auf der Arbeit der Leute auf, die freie Proxy-Listen veröffentlichen. Danke an alle in [`sources.json`](proxyscraper/sources.json), besonders an
 
 - [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) und [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list), deren gepflegte Quellensammlungen als Meta-Quellen eingelesen werden
+- [IP Geolocation by DB-IP](https://db-ip.com) – die freie Länder-Datenbank (CC BY 4.0) für die Länder ohne Internet-Dienst
 - [Textualize/rich](https://github.com/Textualize/rich), das die komplette Oberfläche zeichnet
 - [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) und [ip-api.com](https://ip-api.com) als Prüfziele und für die Länder
 

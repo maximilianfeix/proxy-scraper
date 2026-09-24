@@ -8,7 +8,7 @@ import random
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from . import sources as srcs
 from .checker import Checker, CheckResult
@@ -234,6 +234,27 @@ class CheckRun:
     rechecked: int = 0  # Prüfungen, die wegen eines ausgefallenen Prüfziels wiederholt wurden
 
 
+class JobQueue:
+    """Iterator über die Jobs, der auch nach dem Leerlaufen noch Nachzügler annimmt.
+
+    Ein Generator wäre nach dem ersten StopIteration für immer erschöpft – dann würde ein Proxy,
+    den ein noch laufender Worker nach einem Prüfziel-Wechsel zurücklegt, nie mehr geprüft."""
+
+    def __init__(self, jobs: Iterable[str]):
+        self.jobs = iter(jobs)
+        self.retry: List[str] = []
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> str:
+        for key in self.jobs:
+            return key
+        if self.retry:
+            return self.retry.pop()
+        raise StopIteration
+
+
 async def run_checks(
     jobs: List[str],
     checker: Checker,
@@ -255,32 +276,41 @@ async def run_checks(
     written: Set[str] = set()
     enriched: Set[str] = set()  # Treffer mit abgeschlossener Detailprüfung (HTTPS kann dabei offen bleiben)
     by_exit_ip: Dict[str, List[CheckResult]] = {}
-    retry: List[str] = []  # nach einem Prüfziel-Ausfall erneut zu prüfen
+    pending = JobQueue(jobs)  # alle Worker ziehen aus derselben Queue – in asyncio ohne Lock sicher
 
-    def job_stream():
-        yield from jobs
-        while retry:
-            yield retry.pop()
+    # Prüfziel-Ausfälle: Jede Prüfung merkt sich, mit welchem Ziel ("Generation") und wann sie begann.
+    # Beim Wechsel wird die alte Generation ab der letzten guten Kontrolle verdächtig – Fehlschläge
+    # daraus werden wiederholt, auch solche, die erst nach dem Wechsel fertig werden. Treffer sind
+    # nie verdächtig (der Proxy hat ja funktioniert), so wird jede Prüfung genau einmal gewertet.
+    generation = 0
+    last_ok = 0.0                            # Zeitpunkt der letzten guten Kontrolle
+    suspect_since: Dict[int, float] = {}     # abgelöste Generation -> ab hier verdächtig
+    recent_failures: List[Tuple[int, float, str]] = []  # Fehlschläge seit der letzten guten Kontrolle
 
-    pending = job_stream()  # alle Worker ziehen aus demselben Iterator – in asyncio ohne Lock sicher
-    trusted_until = 0  # bis zu diesem Index in run.checked war das Prüfziel nachweislich erreichbar
+    def is_suspect(gen: int, started: float) -> bool:
+        return gen in suspect_since and started >= suspect_since[gen]
+
+    def requeue(keys: List[str]) -> None:
+        pending.retry.extend(keys)
+        run.rechecked += len(keys)
+        dashboard.add_rechecks(keys)
 
     def judge_ok() -> None:
-        nonlocal trusted_until
-        trusted_until = len(run.checked)
+        nonlocal last_ok
+        last_ok = loop.time()
+        recent_failures.clear()
 
     def judge_switched(old, new) -> None:
-        """Alles seit der letzten guten Kontrolle ist verdächtig: Fehlschläge nochmal prüfen,
-        und nichts davon fließt in die Statistik (Treffer bleiben, die haben ja funktioniert)."""
-        nonlocal trusted_until
-        suspect = run.checked[trusted_until:]
-        failed = [k for k in suspect if k not in run.working]
-        run.checked[trusted_until:] = [k for k in suspect if k in run.working]
-        retry.extend(failed)
-        run.rechecked += len(failed)
+        nonlocal generation
+        suspect_since[generation] = last_ok
+        generation += 1
+        failed = {key for gen, started, key in recent_failures if is_suspect(gen, started)}
+        recent_failures.clear()
+        if failed:
+            run.checked[:] = [k for k in run.checked if k not in failed]
+        requeue(sorted(failed))
         run.judge_switches.append(f"{old.judge.host} → {new.judge.host}")
-        dashboard.judge_changed(new.judge.host, failed)
-        trusted_until = len(run.checked)
+        dashboard.judge_changed(new.judge.host)
 
     if watch:
         watch.on_ok, watch.on_switch = judge_ok, judge_switched
@@ -314,11 +344,17 @@ async def run_checks(
 
     async def worker() -> None:
         for key in pending:
+            gen, started = generation, loop.time()
             r = await checker.check(key)
             stats.add_checked(key.split(" ", 1)[0])
-            run.checked.append(key)
             dashboard.advance()
+            if r is None and is_suspect(gen, started):
+                requeue([key])  # erst nach dem Wechsel fertig geworden – trotzdem ein Opfer des Ausfalls
+                continue
+            run.checked.append(key)
             if r is None:
+                if watch:
+                    recent_failures.append((gen, started, key))
                 continue
             # Zweite, unabhängige Anfrage – Honeypots bestehen die erste Prüfung oft zufällig
             if not await checker.confirm(r):

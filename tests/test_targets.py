@@ -6,6 +6,7 @@ import pytest
 from proxyscraper import checker as ck
 from proxyscraper.checker import CheckResult
 from proxyscraper.cli import parse_args
+from proxyscraper.judges import Judge
 from proxyscraper.options import Filters, RunOptions
 from proxyscraper.targets import parse_target, target_label
 
@@ -68,8 +69,7 @@ def test_check_target_through_real_forwarding_proxy(proxy_handler, ptype, path, 
     assert asyncio.run(go()) is expected
 
 
-def test_enrich_fills_every_target(monkeypatch):
-    monkeypatch.setattr(ck, "JUDGE_HOST", "127.0.0.1")  # HTTPS-Test bleibt lokal (und scheitert schnell)
+def test_enrich_fills_every_target():
 
     async def go():
         target_srv, target_port = await serve(target_server)
@@ -77,7 +77,8 @@ def test_enrich_fills_every_target(monkeypatch):
         async with target_srv, proxy_srv:
             ok = parse_target(f"http://127.0.0.1:{target_port}/ok")
             blocked = parse_target(f"http://127.0.0.1:{target_port}/nein")
-            c = ck.Checker("3.3.3.3", set(), timeout=3, connect_timeout=2,
+            # lokales Prüfziel: der HTTPS-Test bleibt auf localhost (und scheitert schnell)
+            c = ck.Checker("3.3.3.3", set(), timeout=3, connect_timeout=2, judge=Judge("127.0.0.1"),
                            targets=[(ok, "127.0.0.1"), (blocked, "127.0.0.1")])
             r = CheckResult("x", "http", f"127.0.0.1:{proxy_port}", 100, "9.9.9.9")
             await c.enrich(r)

@@ -119,6 +119,7 @@ def test_outage_mid_run_rechecks_and_keeps_stats_clean(tmp_path):
         on_ok = on_switch = None
 
         async def run(self):
+            self.on_ok()  # erste Kontrolle vor den Prüfungen war gut
             await asyncio.sleep(3600)
 
     watch = StubWatch()
@@ -130,8 +131,6 @@ def test_outage_mid_run_rechecks_and_keeps_stats_clean(tmp_path):
 
         async def check(self, key):
             self.calls += 1
-            if self.calls == 1:
-                watch.on_ok()                  # Kontrolle vor dem Ausfall war noch gut
             if self.down and self.calls > 3:  # Watchdog bemerkt den Ausfall und wechselt
                 self.down = False
                 watch.on_switch(JudgeProbe(Judge("a"), "1.1.1.1", 1), JudgeProbe(Judge("b"), "2.2.2.2", 1))
@@ -161,3 +160,59 @@ def test_outage_mid_run_rechecks_and_keeps_stats_clean(tmp_path):
     assert run.rechecked == 3 and run.judge_switches == ["a → b"]
     assert stats.total == 9 and stats.total_by_type["http"] == 9
     assert "b" in dashboard.judge_note
+
+
+def test_check_that_fails_after_the_switch_is_rechecked_not_counted(tmp_path):
+    """Copilot-Fund: Eine Prüfung läuft noch mit dem alten Ziel, während gewechselt wird, und scheitert
+    erst danach. Sie darf nicht als echter Fehlschlag in die Statistik – sie wird wiederholt."""
+    jobs = ["http 1.1.1.1:80", "http 2.2.2.2:80"]
+    switched = None  # asyncio.Event erst in der Loop anlegen (Python 3.9)
+
+    class StubWatch:
+        on_ok = on_switch = None
+
+        async def run(self):
+            self.on_ok()
+            await asyncio.sleep(3600)
+
+    watch = StubWatch()
+
+    class SlowChecker:
+        def __init__(self):
+            self.seen = []
+
+        async def check(self, key):
+            self.seen.append(key)
+            if key == "http 1.1.1.1:80" and not switched.is_set():
+                await asyncio.sleep(0.05)      # noch unterwegs mit dem alten Ziel ...
+                await switched.wait()
+                return None                    # ... und scheitert erst nach dem Wechsel
+            if key == "http 2.2.2.2:80" and not switched.is_set():
+                watch.on_switch(JudgeProbe(Judge("a"), "1.1.1.1", 1), JudgeProbe(Judge("b"), "2.2.2.2", 1))
+                switched.set()
+            ptype, proxy = key.split(" ")
+            return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
+
+        async def confirm(self, r):
+            return True
+
+        async def enrich(self, r):
+            r.https = True
+
+    checker = SlowChecker()
+
+    async def go():
+        nonlocal switched
+        switched = asyncio.Event()
+        stats = LiveStats({"http": len(jobs)})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, 2, True)
+        return await pipeline.run_checks(jobs, checker, RunOptions(no_geo=True, concurrency=2), dashboard, writer,
+                                         GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext(),
+                                         watch=watch)
+
+    run = asyncio.run(go())
+    assert checker.seen.count("http 1.1.1.1:80") == 2   # nach dem Wechsel erneut geprüft
+    assert run.working == set(jobs) and sorted(run.checked) == sorted(jobs)
+    assert run.rechecked == 1
+    assert len(run.results) == 2                        # kein doppelter Treffer

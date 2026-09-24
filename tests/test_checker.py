@@ -245,7 +245,8 @@ def test_confirmation_keeps_normal_connect_timeout():
 def test_detail_connection_failures_dont_mark_proxy_unreachable():
     async def go():
         c = ck.Checker("3.3.3.3", set(), timeout=2, connect_timeout=1)
-        with pytest.raises(OSError):
+        # Linux/macOS lehnen sofort ab, Windows wartet bis zum Timeout – beides ist "nicht erreichbar"
+        with pytest.raises((OSError, asyncio.TimeoutError)):
             await c._connect("127.0.0.1:1", detail=True)
         return c.unreachable
 

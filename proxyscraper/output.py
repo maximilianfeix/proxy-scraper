@@ -1,4 +1,4 @@
-"""Filter und Ergebnisdateien.
+"""Ergebnisdateien.
 
 Jeder Lauf bekommt einen eigenen Ordner results/<datum>/ mit
   all.txt         typ://ip:port, schnellste zuerst (auch live während des Laufs)
@@ -13,53 +13,14 @@ from __future__ import annotations
 import csv
 import json
 import os
-from dataclasses import asdict, dataclass, field
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Set
+from typing import Dict, Iterable, List, Optional
 
-from .checker import ANONYMITY_RANK, CheckResult
+from .checker import CheckResult
 from .parsing import PROXY_TYPES
 from .paths import RESULTS_DIR, atomic_write
-
-
-@dataclass
-class Filters:
-    countries: Set[str] = field(default_factory=set)
-    https_only: bool = False
-    min_anonymity: str = ""
-    max_latency: int = 0
-
-    @property
-    def needs_details(self) -> bool:
-        return self.https_only or bool(self.min_anonymity)
-
-    @property
-    def active(self) -> bool:
-        return bool(self.countries or self.https_only or self.min_anonymity or self.max_latency)
-
-    def accepts(self, r: CheckResult) -> bool:
-        if self.max_latency and r.latency > self.max_latency:
-            return False
-        if self.https_only and r.https is not True:
-            return False
-        if self.min_anonymity and ANONYMITY_RANK.get(r.anonymity, -1) < ANONYMITY_RANK[self.min_anonymity]:
-            return False
-        if self.countries and r.country not in self.countries:
-            return False
-        return True
-
-    def describe(self) -> str:
-        parts = []
-        if self.countries:
-            parts.append("Land " + ",".join(sorted(self.countries)))
-        if self.https_only:
-            parts.append("nur HTTPS")
-        if self.min_anonymity:
-            parts.append(f"mind. {self.min_anonymity}")
-        if self.max_latency:
-            parts.append(f"≤ {self.max_latency} ms")
-        return " · ".join(parts)
 
 
 class ResultWriter:

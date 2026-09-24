@@ -52,17 +52,6 @@ def test_history_reliability_and_pruning(tmp_path):
     assert again.get("http 1.1.1.1:80").country == "DE"
 
 
-def test_filters():
-    f = output.Filters(countries={"DE"}, https_only=True, min_anonymity="anonymous", max_latency=1000)
-    assert f.accepts(result())
-    assert not f.accepts(result(country="US"))
-    assert not f.accepts(result(https=False))
-    assert not f.accepts(result(anonymity="transparent"))
-    assert not f.accepts(result(latency=1500))
-    assert f.needs_details and f.active
-    assert not output.Filters().active
-
-
 def test_result_writer_creates_all_formats(tmp_path):
     w = output.ResultWriter(run_dir=tmp_path / "run1", extra_file=tmp_path / "extra.txt")
     rows = [result("socks5 2.2.2.2:1080", 900), result("http 1.1.1.1:80", 200)]

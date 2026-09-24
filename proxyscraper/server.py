@@ -223,7 +223,7 @@ class ResponseScreen:
             code = m.group(1)
             if code == b"407":
                 return out, "407"
-            if not code.startswith(b"1"):
+            if not code.startswith(b"1") or code == b"101":  # 101 Switching Protocols ist endgültig
                 return out + self._flush(), "ok"
             end = head.find(b"\r\n\r\n")
             if end < 0:

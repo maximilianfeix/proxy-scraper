@@ -210,6 +210,7 @@ def test_407_split_across_reads_is_still_caught(request_):
      b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\n\r\n", "ok"),
     ([b"\x16\x03\x03 tls"], b"\x16\x03\x03 tls", "ok"),                                # kein HTTP
     ([b"HTTP/1.1 4070 Seltsam\r\n\r\n"], b"HTTP/1.1 4070 Seltsam\r\n\r\n", "ok"),          # kein 407
+    ([b"HTTP/1.1 101 Switching Protocols\r\n\r\n"], b"HTTP/1.1 101 Switching Protocols\r\n\r\n", "ok"),
 ])
 def test_response_screen(chunks, forwarded, verdict):
     from proxyscraper.server import ResponseScreen

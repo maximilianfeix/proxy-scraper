@@ -21,7 +21,7 @@ from .options import (
     DEFAULT_TIMEOUT,
     RunOptions,
 )
-from .output import latest_results
+from .output import has_latest_results
 from .parsing import PROXY_TYPES
 from .preferences import load_last_argv, save_last_argv
 from .ui import ACCENT, MUTED, banner, note, render_source_ranking, widgets
@@ -132,7 +132,7 @@ def last_options() -> Optional[RunOptions]:
 
 def choose_interactively(initial: RunOptions) -> Optional[RunOptions]:
     widgets.console.print(banner())
-    can_recheck = bool(latest_results()) or len(ProxyHistory()) > 0
+    can_recheck = has_latest_results() or ProxyHistory.exists()
     opts = run_wizard(initial, last_options(), can_recheck, widgets.console)
     if opts is None:
         return None

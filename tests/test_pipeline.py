@@ -101,6 +101,27 @@ def test_unreadable_latest_pointer_falls_back_to_symlink(tmp_path):
 def test_latest_results_empty_without_runs(tmp_path):
     assert output.latest_run_dir(tmp_path) is None
     assert output.latest_results(tmp_path) == []
+    assert not output.has_latest_results(tmp_path)
+
+
+def test_has_latest_results(tmp_path):
+    w = output.ResultWriter(run_dir=tmp_path / "run1")
+    w.finalize([])
+    assert not output.has_latest_results(tmp_path)  # Lauf ohne Treffer
+    w = output.ResultWriter(run_dir=tmp_path / "run2")
+    w.finalize([result()])
+    assert output.has_latest_results(tmp_path)
+
+
+def test_history_exists(tmp_path):
+    path = tmp_path / "h.json"
+    assert not ProxyHistory.exists(path)
+    path.write_text("{}")
+    assert not ProxyHistory.exists(path)
+    h = ProxyHistory(path)
+    h.record_ok("http 1.1.1.1:80", 100, "1.1.1.1")
+    h.save()
+    assert ProxyHistory.exists(path)
 
 
 def test_ui_helpers():

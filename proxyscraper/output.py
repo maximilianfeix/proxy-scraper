@@ -114,6 +114,15 @@ def latest_run_dir(results_dir: Path = RESULTS_DIR) -> Optional[Path]:
     return link if link.is_dir() else None  # Läufe aus älteren Versionen ohne latest.txt
 
 
+def has_latest_results(results_dir: Path = RESULTS_DIR) -> bool:
+    """Gibt es einen letzten Lauf mit Treffern? Liest dafür nicht die ganze Datei."""
+    run_dir = latest_run_dir(results_dir)
+    try:
+        return run_dir is not None and (run_dir / "all.txt").stat().st_size > 0
+    except OSError:
+        return False
+
+
 def latest_results(results_dir: Path = RESULTS_DIR) -> List[str]:
     """Proxys des letzten Laufs für --recheck ohne Datei."""
     run_dir = latest_run_dir(results_dir)

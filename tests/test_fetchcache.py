@@ -3,7 +3,9 @@
 import asyncio
 import time
 
-from proxyscraper import pipeline
+import pytest
+
+from proxyscraper import netio, pipeline
 from proxyscraper import sources as srcs
 from proxyscraper.fetchcache import FORGET_AFTER, FetchCache
 from proxyscraper.ui import CollectView
@@ -148,3 +150,23 @@ def test_changed_source_type_invalidates_the_entry(tmp_path):
     cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
     assert cache.conditional_headers("http://x/list", "http") == {"If-None-Match": '"a"'}
     assert cache.conditional_headers("http://x/list", "socks5") == {}
+
+
+@pytest.mark.parametrize("method, headers, body, allowed", [
+    ("GET", None, None, True),                                  # öffentliche Liste
+    ("GET", {"If-None-Match": '"a"'}, None, True),              # bedingter Abruf für den Cache
+    ("GET", {"Authorization": "token x"}, None, False),         # GitHub-Token
+    ("POST", {"If-None-Match": '"a"'}, b"secret", False),       # Daten nie ungeprüft
+    ("GET", {"If-None-Match": '"a"', "Authorization": "x"}, None, False),
+])
+def test_unverified_tls_only_for_requests_without_secrets(monkeypatch, method, headers, body, allowed):
+    seen = []
+
+    async def fake_connect(host, port, https, allow_insecure, timeout):
+        seen.append(allow_insecure)
+        raise ConnectionError("nur der Aufruf interessiert")
+
+    monkeypatch.setattr(netio, "_connect", fake_connect)
+    with pytest.raises(ConnectionError):
+        asyncio.run(netio.http_request("https://example.com/list.txt", headers=headers, method=method, body=body))
+    assert seen == [allowed]

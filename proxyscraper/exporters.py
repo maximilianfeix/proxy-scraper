@@ -56,12 +56,16 @@ def clash(rows: Sequence[CheckResult], now: datetime) -> str:
     q = json.dumps
     usable = [r for r in rows if r.ptype in CLASH_TYPES and tunnels(r)]
     names: List[str] = []
+    taken = set()
     lines = [f"# proxy-scraper, {now:%Y-%m-%d %H:%M}, {len(usable)} Proxys (SOCKS4 kann Clash nicht)", "proxies:"]
     for r in usable:
         ep = parse_endpoint(r.proxy)
-        name = f"{r.country or '??'} {r.ptype} {ep.address}"
-        if name in names:  # derselbe Proxy mit verschiedenen Zugangsdaten
-            name += f" ({ep.user})"
+        base = name = f"{r.country or '??'} {r.ptype} {ep.address}"
+        n = 1
+        while name in taken:  # derselbe Proxy mit verschiedenen Zugangsdaten
+            n += 1
+            name = f"{base} #{n}"
+        taken.add(name)
         names.append(name)
         lines += [
             f"  - name: {q(name)}",

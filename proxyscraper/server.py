@@ -365,7 +365,8 @@ class RotatingServer:
                 await writer.drain()
             _, received = await asyncio.gather(
                 self._pipe(reader, up_writer, up=True),
-                self._pipe(up_reader, writer, up=False),
+                # ohne erste Antwort vorab (gestreamter Body) hier auf ein 407 des Proxys achten
+                self._pipe(up_reader, writer, up=False, reject_proxy_auth=not first_in),
             )
         finally:
             entry.active -= 1
@@ -421,14 +422,20 @@ class RotatingServer:
                      b"Connection: close\r\n\r\nKein Proxy aus dem Pool hat geantwortet.\n")
         await writer.drain()
 
-    async def _pipe(self, reader, writer, up: bool) -> int:
-        """Daten weiterreichen, bis eine Seite aufhört; gibt die Anzahl der Bytes zurück."""
+    async def _pipe(self, reader, writer, up: bool, reject_proxy_auth: bool = False) -> int:
+        """Daten weiterreichen, bis eine Seite aufhört; gibt die Anzahl der Bytes zurück.
+
+        reject_proxy_auth: beginnt die Antwort mit 407, bekommt der Client stattdessen 502 und
+        es wird -1 zurückgegeben (Proxy gilt als gescheitert)."""
         total = 0
         try:
             while True:
                 data = await reader.read(65536)
                 if not data:
                     break
+                if reject_proxy_auth and not total and PROXY_AUTH_REQUIRED.match(data):
+                    await self._bad_gateway(writer)
+                    return -1
                 total += len(data)
                 if up:
                     self.stats.bytes_up += len(data)

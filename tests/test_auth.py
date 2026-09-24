@@ -141,3 +141,40 @@ def test_terminal_masks_passwords():
     from proxyscraper.ui.widgets import shown_proxy
     assert shown_proxy(f"{AUTH}@1.2.3.4:1080") == "alice:•••@1.2.3.4:1080"
     assert shown_proxy("1.2.3.4:1080") == "1.2.3.4:1080"
+
+
+def chunked_post(port):
+    return (f"POST http://127.0.0.1:{port}/echo HTTP/1.1\r\nHost: 127.0.0.1:{port}\r\n"
+            f"Transfer-Encoding: chunked\r\n\r\n2\r\nhi\r\n0\r\n\r\n").encode()
+
+
+def test_streamed_request_never_shows_the_upstream_407():
+    # gestreamter Body -> kein Wechsel möglich, aber das 407 des Proxys darf trotzdem nicht durch
+    reply = through_server("http", auth_http_forward_proxy, "", chunked_post)
+    assert b"407" not in reply and b"502" in reply
+
+
+def test_server_view_masks_passwords_in_connections():
+    from proxyscraper.ui.serve import shown_via
+    assert shown_via(f"socks5://{AUTH}@1.2.3.4:1080") == "socks5://alice:•••@1.2.3.4:1080"
+    assert shown_via("–") == "–"
+
+
+def test_clash_names_stay_unique_for_the_same_address():
+    rows = [CheckResult(f"socks5 alice:{pw}@1.2.3.4:1080", "socks5", f"alice:{pw}@1.2.3.4:1080", 90, "9.9.9.9",
+                        https=True, country="DE") for pw in ("a", "b", "c")]
+    text = clash(rows, datetime(2026, 9, 24))
+    proxies = text.split("proxy-groups:", 1)[0]
+    names = [line.split(": ", 1)[1] for line in proxies.splitlines() if line.startswith("  - name: ")]
+    assert len(names) == len(set(names)) == 3
+
+
+def test_next_steps_never_print_a_password():
+    from proxyscraper import app
+    from proxyscraper.options import RunOptions
+    with_login = CheckResult(f"http {AUTH}@1.2.3.4:80", "http", f"{AUTH}@1.2.3.4:80", 50, "9.9.9.9", https=True)
+    plain = CheckResult("http 5.6.7.8:80", "http", "5.6.7.8:80", 400, "9.9.9.9", https=True)
+    assert dict(app.next_steps(RunOptions(), [with_login, plain]))["Schnellsten testen"] == \
+        "curl -x http://5.6.7.8:80 https://api.ipify.org"  # lieber ohne Login
+    command = dict(app.next_steps(RunOptions(), [with_login]))["Schnellsten testen"]
+    assert PASSWORD not in command and "alice:•••@1.2.3.4:80" in command

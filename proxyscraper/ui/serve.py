@@ -83,7 +83,7 @@ class ServeDashboard:
             cells = [
                 Text("✔", style=GOOD) if log.ok else Text("✘", style=BAD),
                 log.target,
-                Text(log.via, style=TYPE_STYLE.get(ptype, MUTED)),
+                Text(shown_via(log.via), style=TYPE_STYLE.get(ptype, MUTED)),
             ]
             if width >= 100:
                 cells.append(log.client)
@@ -112,3 +112,9 @@ class ServeDashboard:
             ),
             Text("  Strg+C beendet den Server · nur von diesem Rechner erreichbar", style=MUTED),
         )
+
+
+def shown_via(via: str) -> str:
+    """'socks5://user:pass@1.2.3.4:1080' -> Passwort maskiert; '–' (kein Proxy) bleibt."""
+    scheme, sep, proxy = via.partition("://")
+    return f"{scheme}://{shown_proxy(proxy)}" if sep else via

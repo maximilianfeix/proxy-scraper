@@ -68,6 +68,7 @@ from .ui import (
     widgets,
 )
 from .ui.serve import ServeDashboard
+from .ui.widgets import shown_proxy
 
 OWN_IP_URLS = (
     f"https://{JUDGE_HOST}/",       # HTTPS zuerst: wird nicht von Relays/Firmenproxys umgeleitet
@@ -131,10 +132,12 @@ def next_steps(opts: RunOptions, kept: List[CheckResult]) -> List[Tuple[str, str
     if kept:
         # HTTPS nur vorschlagen, wenn der Proxy den HTTPS-Test bestanden hat – sonst scheitert der Befehl
         secure = [r for r in kept if r.https]
-        best = min(secure or kept, key=lambda r: r.latency)
+        pool = secure or kept
+        # Proxys ohne Login bevorzugen – der Befehl steht im Terminal, da gehört kein Passwort hin
+        best = min([r for r in pool if "@" not in r.proxy] or pool, key=lambda r: r.latency)
         scheme = "socks5h" if best.ptype == "socks5" else best.ptype
         target = "https://api.ipify.org" if best.https else "http://api.ipify.org"
-        steps.append(("Schnellsten testen", f"curl -x {scheme}://{best.proxy} {target}"))
+        steps.append(("Schnellsten testen", f"curl -x {scheme}://{shown_proxy(best.proxy)} {target}"))
         if not opts.serve:
             steps.append(("Als Proxy-Server", f"{program} --recheck --serve"))
     steps.append(("Später neu prüfen", f"{program} --recheck"))

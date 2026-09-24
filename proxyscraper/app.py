@@ -95,6 +95,16 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
     return [k for k in keys if split_key(k)[0] in types]
 
 
+def is_network_blocked(stats: LiveStats) -> bool:
+    """Kommt (fast) gar nichts durch, blockiert vermutlich eine Firewall Proxy-Verbindungen.
+
+    Fake-Proxys zählen mit: Sie bestehen die Basisprüfung, die Verbindung klappt also – ein Netz
+    voller Honeypots ist kein blockiertes Netz, und aus dem Lauf soll trotzdem gelernt werden.
+    """
+    reached = stats.found + stats.fakes
+    return stats.checked >= 1000 and reached < stats.checked * BLOCKED_HIT_RATE
+
+
 class Run:
     def __init__(self, opts: RunOptions, show_banner: bool = True):
         self.opts = opts
@@ -149,7 +159,7 @@ class Run:
 
     def show_mode(self) -> None:
         opts = self.opts
-        modes = ["HTTPS- & Anonymitätstest" if opts.details else "nur Basistest (--fast)"]
+        modes = ["mit HTTPS-Test" if opts.details else "ohne HTTPS-Test (--fast)"]
         modes.append("Länder" if opts.geo else "ohne Länder")
         if opts.filters.active:
             modes.append(f"Filter: {opts.filters.describe()}")
@@ -226,7 +236,7 @@ class Run:
 
         kept = [r for r in run.results if opts.filters.accepts(r)]
         files = writer.finalize(kept)
-        network_blocked = stats.checked >= 1000 and stats.found < stats.checked * BLOCKED_HIT_RATE
+        network_blocked = is_network_blocked(stats)
         per_source = self.learn(run, network_blocked)
         geo.save()
 

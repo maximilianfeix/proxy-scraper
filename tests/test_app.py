@@ -38,3 +38,19 @@ def test_confirm_target_unresolvable(monkeypatch):
         return await app.confirm_target()
 
     assert asyncio.run(go()) is None
+
+
+@pytest.mark.parametrize("found, fakes, expected", [
+    (0, 0, True),      # nichts kommt durch -> Firewall
+    (1, 0, True),
+    (0, 50, False),    # Honeypots bestehen die Basisprüfung -> Verbindungen klappen
+    (30, 0, False),
+])
+def test_network_blocked_counts_fakes_as_reachable(found, fakes, expected):
+    from proxyscraper.ui import LiveStats
+
+    stats = LiveStats({"http": 10000})
+    stats.checked = 10000
+    stats.working_by_type["http"] = found
+    stats.fakes = fakes
+    assert app.is_network_blocked(stats) is expected

@@ -83,6 +83,18 @@ def test_adjust_from_summary_prefills_steps():
     assert {w.step.options[i].value for i in w.step.checked} == {"socks5"}
 
 
+def test_presets_keep_filters_from_command_line():
+    w = Wizard(RunOptions(filters=Filters(countries={"DE"})))
+    press(w, preset_index(w, "Surfen"), "enter")
+    assert w.result.filters.countries == {"DE"}   # nicht still verworfen
+    assert w.result.filters.https_only            # Voreinstellung wirkt trotzdem
+
+
+def test_last_preset_hidden_when_identical_to_default():
+    labels = [o.label for o in Wizard(RunOptions(), last=RunOptions()).start.options]
+    assert "Wie letztes Mal" not in labels
+
+
 def test_last_preset_and_recheck_only_when_available():
     labels = [o.label for o in Wizard(RunOptions()).start.options]
     assert "Wie letztes Mal" not in labels and "Letzte Treffer neu prüfen" not in labels

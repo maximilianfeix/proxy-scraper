@@ -21,7 +21,7 @@ from rich.table import Table
 from rich.text import Text
 
 from ..geo import flag
-from ..options import Filters, RunOptions
+from ..options import RunOptions
 from ..parsing import PROXY_TYPES
 from .widgets import ACCENT, GOOD, MUTED, TYPE_STYLE, WARN, fmt
 
@@ -408,26 +408,38 @@ class Wizard:
     def done(self) -> bool:
         return self.result is not None or self.cancelled
 
-    def _base(self, **changes) -> RunOptions:
-        """Voreinstellung auf Basis der Startwerte – Dinge wie -c oder -t bleiben erhalten."""
-        fields = dict(types=list(PROXY_TYPES), filters=Filters(), want=0, fast=False, recheck=None)
-        fields.update(changes)
-        return replace(copy.deepcopy(self.initial), **fields)
+    def _preset(self, types: Optional[Sequence[str]] = None, want: Optional[int] = None,
+                recheck: Optional[str] = None, **filters) -> RunOptions:
+        """Voreinstellung = Startwerte + nur das, was die Voreinstellung selbst festlegt.
+
+        So bleiben Angaben von der Kommandozeile (z. B. -i --country DE -c 500) erhalten,
+        solange die Voreinstellung sie nicht ausdrücklich ändert.
+        """
+        opts = replace(copy.deepcopy(self.initial), recheck=recheck)
+        if types is not None:
+            opts.types = list(types)
+        if want is not None:
+            opts.want = want
+        for name, value in filters.items():
+            setattr(opts.filters, name, value)
+        return opts
 
     def _presets(self, can_recheck: bool) -> List[Option]:
+        everything = self._preset(types=PROXY_TYPES)
         presets = [
-            Option("Alles finden", "alle Protokolle, keine Filter – maximale Ausbeute", self._base()),
-            Option("Surfen & Web", "HTTP + SOCKS5, HTTPS-fähig, mindestens anonym, unter 3 s", self._base(
-                types=["http", "socks5"], filters=Filters(https_only=True, min_anonymity="anonymous", max_latency=3000))),
-            Option("Maximal anonym", "nur Elite-SOCKS5 mit HTTPS – sonst liest der Betreiber mit", self._base(
-                types=["socks5"], filters=Filters(https_only=True, min_anonymity="elite"))),
-            Option("Schnell & stabil", "nur Proxys unter 1 s Latenz", self._base(filters=Filters(max_latency=1000))),
-            Option("Sofort ein paar", "stoppt nach 25 Treffern", self._base(want=25)),
+            Option("Alles finden", "alle Protokolle – maximale Ausbeute", everything),
+            Option("Surfen & Web", "HTTP + SOCKS5, HTTPS-fähig, mindestens anonym, unter 3 s", self._preset(
+                types=["http", "socks5"], https_only=True, min_anonymity="anonymous", max_latency=3000)),
+            Option("Maximal anonym", "nur Elite-SOCKS5 mit HTTPS – sonst liest der Betreiber mit", self._preset(
+                types=["socks5"], https_only=True, min_anonymity="elite")),
+            Option("Schnell & stabil", "nur Proxys unter 1 s Latenz", self._preset(max_latency=1000)),
+            Option("Sofort ein paar", "stoppt nach 25 Treffern", self._preset(want=25)),
         ]
         if can_recheck:
             presets.append(Option("Letzte Treffer neu prüfen", "ohne Sammeln – dauert nur Sekunden",
-                                  self._base(recheck="")))
-        if self.last is not None:
+                                  self._preset(recheck="")))
+        # Nur anbieten, wenn es sich von "Alles finden" unterscheidet – sonst steht dasselbe zweimal da
+        if self.last is not None and self.last != everything:
             presets.append(Option("Wie letztes Mal", short_description(self.last), self.LAST))
         presets.append(Option("Eigene Auswahl …", "Schritt für Schritt alles einstellen", self.CUSTOM))
         return presets

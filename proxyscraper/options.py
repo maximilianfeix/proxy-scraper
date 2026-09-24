@@ -78,6 +78,11 @@ class RunOptions:
     discover_repos: int = DEFAULT_DISCOVER_REPOS
     all_sources: bool = False
 
+    def __post_init__(self) -> None:
+        # Die Typen sind fachlich eine Menge: feste Reihenfolge, keine Duplikate.
+        # Sonst ergäben "--types socks5 http" und "--types http socks5" verschiedene Einstellungen.
+        self.types = [t for t in PROXY_TYPES if t in self.types]
+
     @property
     def details(self) -> bool:
         """HTTPS- und Anonymitätstest – abschaltbar, außer ein Filter braucht sie."""
@@ -115,8 +120,8 @@ class RunOptions:
     def to_argv(self) -> List[str]:
         """Kommandozeilen-Argumente, die genau diese Einstellungen ergeben (nur Abweichungen vom Standard)."""
         argv: List[str] = []
-        if sorted(self.types) != sorted(PROXY_TYPES):
-            argv += ["--types", *[t for t in PROXY_TYPES if t in self.types]]
+        if self.types != list(PROXY_TYPES):
+            argv += ["--types", *self.types]
         f = self.filters
         if f.countries:
             argv += ["--country", ",".join(sorted(f.countries))]

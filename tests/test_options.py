@@ -32,6 +32,8 @@ def test_defaults_match_argparse():
 
 @pytest.mark.parametrize("argv", [
     ["--types", "socks5"],
+    ["--types", "socks5", "socks4", "http"],
+    ["--types", "socks5", "http", "http"],
     ["--types", "http", "socks5", "--country", "AT,DE", "--https-only", "--want", "50"],
     ["--anonymity", "elite", "--max-latency", "1500", "--fast", "--no-geo"],
     ["--recheck"],
@@ -41,6 +43,11 @@ def test_defaults_match_argparse():
 def test_argv_roundtrip(argv):
     opts = RunOptions.from_args(parse_args(argv))
     assert RunOptions.from_args(parse_args(opts.to_argv())) == opts
+
+
+def test_types_are_normalized():
+    assert RunOptions(types=["socks5", "http", "http"]).types == ["http", "socks5"]
+    assert RunOptions.from_args(parse_args(["--types", "socks5", "socks4", "http"])) == RunOptions()
 
 
 def test_to_command_quotes_arguments():

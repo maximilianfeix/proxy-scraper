@@ -136,7 +136,7 @@ Die kuratierte Liste enthält gut 300 Listen, die alle in den letzten Tagen aktu
 
 **Es kommt (fast) nichts durch.** Viele Firmen-, Schul- und Uni-Netze blockieren Proxy-Verbindungen. Das Tool erkennt das an einer Trefferquote unter 0,2 % und warnt dann – in dem Fall hilft ein anderes Netz, z. B. ein Handy-Hotspot. Die gelernten Statistiken werden bei so einem Lauf nicht abgewertet.
 
-**Windows** wird aktuell nicht unterstützt (das `resource`-Modul fehlt dort), siehe Issues.
+**Windows** wird aktuell nicht unterstützt (das `resource`-Modul fehlt dort), siehe [#6](../../issues/6).
 
 ## Entwicklung
 

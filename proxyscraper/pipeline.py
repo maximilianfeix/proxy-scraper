@@ -270,6 +270,7 @@ async def run_checks(
 
     Mit `watch` wird das Prüfziel überwacht: Fällt es aus, werden die Prüfungen seit der letzten
     erfolgreichen Kontrolle wiederholt und zählen nicht für die Quellen-Statistik."""
+    loop = asyncio.get_running_loop()
     stats = dashboard.s
     filters, details, want = opts.filters, opts.details, opts.want
     run = CheckRun()
@@ -283,7 +284,7 @@ async def run_checks(
     # daraus werden wiederholt, auch solche, die erst nach dem Wechsel fertig werden. Treffer sind
     # nie verdächtig (der Proxy hat ja funktioniert), so wird jede Prüfung genau einmal gewertet.
     generation = 0
-    last_ok = 0.0                            # Zeitpunkt der letzten guten Kontrolle
+    last_ok = loop.time()  # letzte gute Kontrolle – die Prüfziele wurden direkt vor dem Lauf getestet
     suspect_since: Dict[int, float] = {}     # abgelöste Generation -> ab hier verdächtig
     recent_failures: List[Tuple[int, float, str]] = []  # Fehlschläge seit der letzten guten Kontrolle
 
@@ -314,7 +315,6 @@ async def run_checks(
 
     if watch:
         watch.on_ok, watch.on_switch = judge_ok, judge_switched
-    loop = asyncio.get_running_loop()
     all_workers: Optional[asyncio.Future] = None
 
     def consider(r: CheckResult) -> None:

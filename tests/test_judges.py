@@ -216,3 +216,45 @@ def test_check_that_fails_after_the_switch_is_rechecked_not_counted(tmp_path):
     assert run.working == set(jobs) and sorted(run.checked) == sorted(jobs)
     assert run.rechecked == 1
     assert len(run.results) == 2                        # kein doppelter Treffer
+
+
+def test_failures_before_the_last_good_probe_stay_counted(tmp_path):
+    """Kontrolle ok -> ein paar echte Fehlschläge -> erneut ok -> Ausfall: nur was nach der zweiten
+    guten Kontrolle scheiterte, wird wiederholt."""
+    jobs = [f"http 1.1.1.{i}:80" for i in range(1, 7)]
+
+    class StubWatch:
+        on_ok = on_switch = None
+
+        async def run(self):
+            await asyncio.sleep(3600)
+
+    watch = StubWatch()
+
+    class Checker:
+        calls = 0
+
+        async def check(self, key):
+            self.calls += 1
+            if self.calls == 3:
+                await asyncio.sleep(0.01)
+                watch.on_ok()       # Prüfziel nach zwei echten Fehlschlägen noch erreichbar
+                await asyncio.sleep(0.01)
+            if self.calls == 5:
+                watch.on_switch(JudgeProbe(Judge("a"), "1.1.1.1", 1), JudgeProbe(Judge("b"), "2.2.2.2", 1))
+            return None             # alles scheitert – die ersten zwei aber vor der guten Kontrolle
+
+        async def confirm(self, r):
+            return True
+
+    async def go():
+        stats = LiveStats({"http": len(jobs)})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, 1, True)
+        return await pipeline.run_checks(jobs, Checker(), RunOptions(no_geo=True, concurrency=1), dashboard, writer,
+                                         GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext(),
+                                         watch=watch)
+
+    run = asyncio.run(go())
+    assert "http 1.1.1.1:80" in run.checked and "http 1.1.1.2:80" in run.checked  # echte Fehlschläge
+    assert run.rechecked == 2  # 3 und 4 fielen in den Ausfall

@@ -170,3 +170,21 @@ def test_unverified_tls_only_for_requests_without_secrets(monkeypatch, method, h
     with pytest.raises(ConnectionError):
         asyncio.run(netio.http_request("https://example.com/list.txt", headers=headers, method=method, body=body))
     assert seen == [allowed]
+
+
+def test_corrupt_deflate_data_is_a_cache_miss(tmp_path):
+    import gzip
+    cache = FetchCache(tmp_path / "cache")
+    cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
+    path = tmp_path / "cache" / cache.entries["http://x/list"]["file"]
+    data = bytearray(gzip.compress(b"http 1.1.1.1:80\n" * 200))
+    data[20:40] = b"\xff" * 20  # gültiger gzip-Kopf, kaputte Daten -> zlib.error
+    path.write_bytes(bytes(data))
+    assert cache.load("http://x/list") is None
+
+
+def test_dropping_validators_removes_the_payload(tmp_path):
+    cache = FetchCache(tmp_path / "cache")
+    cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
+    cache.store("http://x/list", {}, "http 1.1.1.1:80", "http")
+    assert list((tmp_path / "cache").glob("*.gz")) == []

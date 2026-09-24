@@ -15,6 +15,7 @@ import gzip
 import hashlib
 import json
 import time
+import zlib
 from pathlib import Path
 from typing import Dict, Optional
 
@@ -58,7 +59,7 @@ class FetchCache:
             return None
         try:
             keys = gzip.decompress((self.dir / entry["file"]).read_bytes()).decode("utf-8")
-        except (OSError, EOFError, UnicodeDecodeError):
+        except (OSError, EOFError, UnicodeDecodeError, zlib.error):  # kaputte Datei = Cache-Miss
             return None
         entry["used"] = time.time()
         self.hits += 1
@@ -71,7 +72,9 @@ class FetchCache:
         etag = headers.get(b"etag", b"").decode("latin-1").strip()
         modified = headers.get(b"last-modified", b"").decode("latin-1").strip()
         if not etag and not modified:
-            self.entries.pop(url, None)
+            old = self.entries.pop(url, None)
+            if old:  # Datei gleich mit entfernen, sonst bliebe sie für immer liegen
+                (self.dir / old["file"]).unlink(missing_ok=True)
             return
         name = hashlib.sha1(url.encode()).hexdigest() + ".txt.gz"
         self.dir.mkdir(parents=True, exist_ok=True)

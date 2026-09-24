@@ -48,6 +48,19 @@ class Filters:
             return False
         return True
 
+    def may_pass(self, r: CheckResult) -> bool:
+        """Kann `r` die Filter noch erfüllen? HTTPS ist an dieser Stelle noch unbekannt, das Land evtl. auch.
+
+        Wer schon jetzt sicher durchfällt, braucht keinen teuren HTTPS-Test mehr.
+        """
+        if self.max_latency and r.latency > self.max_latency:
+            return False
+        if self.min_anonymity and ANONYMITY_RANK.get(r.anonymity, -1) < ANONYMITY_RANK[self.min_anonymity]:
+            return False
+        if self.countries and r.country and r.country not in self.countries:
+            return False
+        return True
+
     def describe(self) -> str:
         parts = []
         if self.countries:
@@ -99,6 +112,18 @@ class RunOptions:
     def details(self) -> bool:
         """HTTPS-Test – abschaltbar (--fast), außer der HTTPS-Filter braucht ihn."""
         return not self.fast or self.filters.needs_details
+
+    @property
+    def check_timeout(self) -> float:
+        """Timeout der Basisprüfung: Wer das Latenzlimit überschreitet, fliegt ohnehin raus –
+        so lange muss niemand warten. Bei 2000 parallelen Slots ist das deutlich mehr Durchsatz."""
+        if self.filters.max_latency:
+            return min(self.timeout, self.filters.max_latency / 1000)
+        return self.timeout
+
+    @property
+    def check_connect_timeout(self) -> float:
+        return min(self.connect_timeout, self.check_timeout)
 
     @property
     def geo(self) -> bool:

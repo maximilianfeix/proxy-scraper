@@ -419,7 +419,7 @@ class Wizard:
             Option("Alles finden", "alle Protokolle, keine Filter – maximale Ausbeute", self._base()),
             Option("Surfen & Web", "HTTP + SOCKS5, HTTPS-fähig, mindestens anonym, unter 3 s", self._base(
                 types=["http", "socks5"], filters=Filters(https_only=True, min_anonymity="anonymous", max_latency=3000))),
-            Option("Maximal anonym", "nur Elite-SOCKS5, HTTPS-fähig", self._base(
+            Option("Maximal anonym", "nur Elite-SOCKS5 mit HTTPS – sonst liest der Betreiber mit", self._base(
                 types=["socks5"], filters=Filters(https_only=True, min_anonymity="elite"))),
             Option("Schnell & stabil", "nur Proxys unter 1 s Latenz", self._base(filters=Filters(max_latency=1000))),
             Option("Sofort ein paar", "stoppt nach 25 Treffern", self._base(want=25)),

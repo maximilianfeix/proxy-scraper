@@ -13,6 +13,7 @@ import argparse
 import json
 import os
 import shutil
+import statistics
 import sys
 from collections import Counter
 from datetime import datetime, timezone
@@ -48,7 +49,7 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         "https": sum(1 for r in rows if r.get("https")),
         "elite": sum(1 for r in rows if r.get("anonymity") == "elite"),
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
-        "median_latency": rows[len(rows) // 2]["latency"] if rows else 0,
+        "median_latency": round(statistics.median(r["latency"] for r in rows)) if rows else 0,
     }
 
 
@@ -102,6 +103,10 @@ def step_summary(stats: dict) -> str:
             f"{stats['https']} HTTPS-fähig, {stats['elite']} Elite, Median-Latenz {stats['median_latency']} ms\n")
 
 
+def write_json(path: Path, data, indent: Optional[int] = None) -> None:
+    path.write_text(json.dumps(data, indent=indent, ensure_ascii=False), encoding="utf-8")
+
+
 def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None) -> int:
     rows = load_rows(run_dir)
     if len(rows) < minimum:
@@ -113,15 +118,15 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     for name in ("proxies.json", "proxies.csv"):
         shutil.copyfile(run_dir / name, out / name)
     stats = stats_for(rows, now)
-    (out / "stats.json").write_text(json.dumps(stats, indent=1), encoding="utf-8")
+    write_json(out / "stats.json", stats, indent=1)
     badges = out / "badges"
     badges.mkdir(exist_ok=True)
     colors = {"total": "brightgreen", "http": "blue", "socks4": "blueviolet", "socks5": "green"}
-    (badges / "total.json").write_text(json.dumps(badge("funktionierende Proxys", stats["total"], colors["total"])))
+    write_json(badges / "total.json", badge("funktionierende Proxys", stats["total"], colors["total"]))
     for t in PROXY_TYPES:
-        (badges / f"{t}.json").write_text(json.dumps(badge(t, stats["by_type"][t], colors[t])))
-    (badges / "updated.json").write_text(json.dumps(
-        {"schemaVersion": 1, "label": "aktualisiert", "message": now.strftime("%d.%m. %H:%M UTC"), "color": "grey"}))
+        write_json(badges / f"{t}.json", badge(t, stats["by_type"][t], colors[t]))
+    write_json(badges / "updated.json", {"schemaVersion": 1, "label": "aktualisiert",
+                                         "message": now.strftime("%d.%m. %H:%M UTC"), "color": "grey"})
     (out / "README.md").write_text(readme(stats, counts), encoding="utf-8")
 
     summary_file = os.environ.get("GITHUB_STEP_SUMMARY")

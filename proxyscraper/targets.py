@@ -52,11 +52,15 @@ def parse_target(text: str) -> Target:
     return Target(url=f"{u.scheme}://{netloc}{path}", host=u.hostname, port=port, path=path, tls=tls)
 
 
-def target_label(url: str) -> str:
+def target_label(url: str, others=()) -> str:
+    """Kurzname; bei Verwechslungsgefahr (http:// und https:// derselben Seite) mit Schema."""
     try:
-        return parse_target(url).label
+        label = parse_target(url).label
     except ValueError:
         return url
+    if any(o != url and target_label(o) == label for o in others):
+        return url.split("/", 3)[0] + "//" + label
+    return label
 
 
 # Vorschläge für den Einrichtungsassistenten

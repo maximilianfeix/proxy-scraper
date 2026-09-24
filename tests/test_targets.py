@@ -170,3 +170,53 @@ def test_detail_connections_are_bounded(monkeypatch):
     results = asyncio.run(go())
     assert all(r.https for r in results)
     assert peak == 4
+
+
+def test_labels_distinguish_http_and_https_of_the_same_site():
+    urls = ["http://example.org/", "https://example.org/"]
+    assert [target_label(u, urls) for u in urls] == ["http://example.org", "https://example.org"]
+    assert target_label("https://example.org/", ["https://other.org/"]) == "example.org"
+
+
+def test_failing_socks_handshake_closes_the_socket(monkeypatch):
+    """Scheitert der Handshake mit einer Exception, darf der Socket nicht offen bleiben."""
+    closed = []
+
+    class FakeWriter:
+        def close(self):
+            closed.append(True)
+
+    async def fake_connect(self, proxy, detail=False):
+        return object(), FakeWriter()
+
+    async def broken_handshake(self, *args):
+        raise asyncio.IncompleteReadError(b"", 2)
+
+    monkeypatch.setattr(ck.Checker, "_connect", fake_connect)
+    monkeypatch.setattr(ck.Checker, "_handshake", broken_handshake)
+    c = ck.Checker("3.3.3.3", set(), timeout=2, connect_timeout=1)
+    with pytest.raises(asyncio.IncompleteReadError):
+        asyncio.run(c.check_target("socks5", "1.1.1.1:1080", parse_target("http://example.org/"), b"\x01" * 4))
+    assert closed == [True]
+
+
+@pytest.mark.parametrize("resolvable, expected", [(True, True), (False, False)])
+def test_startup_resolves_targets(monkeypatch, resolvable, expected):
+    from proxyscraper import app
+
+    async def go():
+        loop = asyncio.get_running_loop()
+
+        async def fake_getaddrinfo(host, port, family=0):
+            if not resolvable:
+                raise OSError("unbekannt")
+            return [(None, None, None, "", ("93.184.216.34", port))]
+
+        monkeypatch.setattr(loop, "getaddrinfo", fake_getaddrinfo)
+        run = app.Run(RunOptions(filters=Filters(targets=["https://example.org/"])), show_banner=False)
+        ok = await run.resolve_targets()
+        return ok, run.targets
+
+    ok, targets = asyncio.run(go())
+    assert ok is expected
+    assert [(t.host, ip) for t, ip in targets] == ([("example.org", "93.184.216.34")] if expected else [])

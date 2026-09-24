@@ -278,12 +278,12 @@ class Checker:
             path = target.path
         else:
             reader, writer = await self._connect(proxy, detail=True)
-            if not await self._handshake(ptype, reader, writer, ip_bytes, target.port):
-                writer.close()
-                return False
             # HTTP-Proxys wollen für unverschlüsseltes HTTP die absolute URL
             path = target.url if ptype == "http" else target.path
         try:
+            # Handshake mit im try: scheitert er mit einer Exception, wird der Socket trotzdem geschlossen
+            if not target.tls and not await self._handshake(ptype, reader, writer, ip_bytes, target.port):
+                return False
             writer.write(request.format(path=path).encode())
             await writer.drain()
             status = await _read_status(reader)

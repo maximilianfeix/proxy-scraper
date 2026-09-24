@@ -88,7 +88,8 @@ def render_summary(
         if details:
             proto.add_row(Text("✔ HTTPS", style=GOOD), fmt(stats.https_ok), "", pct(stats.https_ok, found))
         for url, ok in sorted(stats.targets_ok.items(), key=lambda kv: -kv[1]):
-            proto.add_row(Text(f"🎯 {target_label(url)}", style=ACCENT), fmt(ok), "", pct(ok, found))
+            label = target_label(url, stats.targets_ok)
+            proto.add_row(Text(f"🎯 {label}", style=ACCENT), fmt(ok), "", pct(ok, found))
         for level in ("elite", "anonymous", "transparent"):
             letter, style = ANON_STYLE[level]
             proto.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(stats.anonymity[level]), "",

@@ -76,7 +76,7 @@ class Filters:
         if self.max_latency:
             parts.append(f"≤ {self.max_latency} ms")
         if self.targets:
-            parts.append("Ziel " + ", ".join(target_label(u) for u in self.targets))
+            parts.append("Ziel " + ", ".join(target_label(u, self.targets) for u in self.targets))
         return " · ".join(parts)
 
 

@@ -234,7 +234,7 @@ class CheckDashboard:
         if self.details:
             side.add_row(Text("✔ HTTPS", style=GOOD), fmt(s.https_ok))
         for url in self.targets:
-            side.add_row(Text(f"🎯 {target_label(url)}", style=ACCENT, overflow="ellipsis", no_wrap=True),
+            side.add_row(Text(f"🎯 {target_label(url, self.targets)}", style=ACCENT, overflow="ellipsis", no_wrap=True),
                          fmt(s.targets_ok[url]))
         for level in ("elite", "anonymous", "transparent"):
             letter, style = ANON_STYLE[level]

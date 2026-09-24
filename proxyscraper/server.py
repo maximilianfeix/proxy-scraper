@@ -195,7 +195,7 @@ async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: in
 
 PROXY_AUTH_REQUIRED = re.compile(rb"HTTP/1\.[01] 407\b")
 STATUS_LEN = len(b"HTTP/1.1 407 ")
-STATUS_RE = re.compile(rb"HTTP/1\.[01] (\d{3})")
+STATUS_RE = re.compile(rb"HTTP/1\.[01] (\d{3})[ \r\n]")  # genau drei Ziffern – "4070" ist kein 407
 SCREEN_LIMIT = 16384
 
 
@@ -237,18 +237,6 @@ class ResponseScreen:
     def _flush(self) -> bytes:
         data, self.buf = self.buf, b""
         return data
-
-
-async def complete_status(reader, data: bytes, timeout: float) -> bytes:
-    """Sieht der Anfang nach einer HTTP-Statuszeile aus, so lange nachlesen, bis der Status komplett ist.
-
-    Ein TCP-Read kann mitten in "HTTP/1.1 407" enden – dann ließe sich ein 407 nicht erkennen."""
-    while len(data) < STATUS_LEN and b"\n" not in data and data[:5] == b"HTTP/"[:len(data[:5])]:
-        more = await asyncio.wait_for(reader.read(STATUS_LEN), timeout)
-        if not more:
-            break
-        data += more
-    return data
 
 
 def plausible_answer(first_out: bytes, first_in: bytes) -> bool:
@@ -399,12 +387,25 @@ class RotatingServer:
                 up_writer.write(first_out)
                 await up_writer.drain()
             first_in = await asyncio.wait_for(up_reader.read(65536), self.timeout)
-            first_in = await complete_status(up_reader, first_in, self.timeout)
+            if first_in and first_out[:1] != TLS_HANDSHAKE:
+                first_in = await self._screen_first_answer(up_reader, first_in)
         except (OSError, asyncio.TimeoutError):
             return None
         if not first_in or not plausible_answer(first_out, first_in):
             return None
         return first_in
+
+    async def _screen_first_answer(self, up_reader, first_in: bytes) -> bytes:
+        """Bis zur endgültigen Statuszeile lesen (über 100 Continue & Co. hinweg). b"" = Proxy will Login."""
+        screen = ResponseScreen()
+        out, verdict = screen.feed(first_in)
+        while verdict is None:
+            more = await asyncio.wait_for(up_reader.read(65536), self.timeout)
+            if not more:
+                return out + screen.buf
+            data, verdict = screen.feed(more)
+            out += data
+        return b"" if verdict == "407" else out
 
     async def _relay(self, reader, writer, client, host, port, started, attempts, entry,
                      up_reader, up_writer, first_out: bytes, first_in: bytes) -> bool:

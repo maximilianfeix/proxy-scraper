@@ -19,7 +19,7 @@ from .options import (
     RunOptions,
 )
 from .parsing import PROXY_TYPES
-from .ui import banner, console, note, render_source_ranking
+from .ui import banner, note, render_source_ranking, widgets
 
 
 def list_sources(limit: int) -> int:
@@ -30,7 +30,7 @@ def list_sources(limit: int) -> int:
     ranking = quality.ranking(urls)
     rows = [(u, r, quality.skip_reason(u) or "aktiv") for u, r in ranking if r.runs][:limit]
     reasons = Counter(quality.skip_reason(u) or "aktiv" for u, _ in ranking)
-    console.print(banner())
+    widgets.console.print(banner())
     render_source_ranking(rows, len(urls), reasons)
     return 0
 

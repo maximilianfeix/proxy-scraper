@@ -19,7 +19,7 @@ from .netio import http_get
 from .options import RunOptions
 from .output import ResultWriter
 from .parsing import parse_blob, split_key
-from .ui import CheckDashboard, CollectView, console, fmt
+from .ui import CheckDashboard, CollectView, fmt, widgets
 
 AUTO_DISCOVER_AFTER_DAYS = 3.0
 # Kleine Listen direkt parsen – der Umweg über einen anderen Prozess kostet mehr, als er spart
@@ -56,7 +56,7 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
     )
     if run_discovery:
         max_repos = opts.discover_repos if token else min(opts.discover_repos, 40)
-        with console.status("[bold bright_cyan]Suche neue Proxy-Listen auf GitHub …", spinner="dots") as status:
+        with widgets.console.status("[bold bright_cyan]Suche neue Proxy-Listen auf GitHub …", spinner="dots") as status:
             found = await srcs.discover_github(
                 http_get, token, max_repos,
                 on_progress=lambda msg: status.update(f"[bold bright_cyan]GitHub-Discovery:[/] {msg}"),
@@ -65,7 +65,7 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
             srcs.save_discovered(found)
     discovered = srcs.load_discovered()
 
-    with console.status("[bold bright_cyan]Lade Meta-Quellen …", spinner="dots"):
+    with widgets.console.status("[bold bright_cyan]Lade Meta-Quellen …", spinner="dots"):
         meta_found, meta_ok = await srcs.resolve_meta(meta, http_get)
     for extra in (meta_found, discovered):
         for url, ptype in extra.items():
@@ -280,7 +280,7 @@ async def run_checks(
     # Offene Länder-Abfragen noch abwarten (höchstens kurz)
     geo.stop()
     if geo.pending and not geo.failed:
-        with console.status(f"[bold bright_cyan]Ermittle Länder für {fmt(len(geo.pending))} Exit-IPs …", spinner="dots"):
+        with widgets.console.status(f"[bold bright_cyan]Ermittle Länder für {fmt(len(geo.pending))} Exit-IPs …", spinner="dots"):
             try:
                 await asyncio.wait_for(asyncio.shield(geo_task), 30)
             except asyncio.TimeoutError:

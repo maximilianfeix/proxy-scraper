@@ -1,4 +1,8 @@
-"""Terminal-Oberfläche: Bausteine (widgets), Live-Ansichten (dashboard) und Abschlussbericht (report)."""
+"""Terminal-Oberfläche: Bausteine (widgets), Live-Ansichten (dashboard) und Abschlussbericht (report).
+
+Die Konsole wird bewusst nicht re-exportiert: Wer ausgibt, nutzt `widgets.console` zur Laufzeit,
+damit sie sich austauschen lässt (z. B. zum Aufzeichnen von Screenshots oder in Tests).
+"""
 
 from . import widgets
 from .dashboard import CheckDashboard, CollectView, LiveStats
@@ -12,7 +16,6 @@ from .widgets import (
     WARN,
     banner,
     bar,
-    console,
     fmt,
     fmt_duration,
     info,
@@ -24,6 +27,6 @@ from .widgets import (
 __all__ = [
     "ACCENT", "BAD", "BLOCKED_HIT_RATE", "GOOD", "MUTED", "WARN",
     "CheckDashboard", "CollectView", "LiveStats",
-    "banner", "bar", "console", "fmt", "fmt_duration", "info", "note", "pct", "short_url",
+    "banner", "bar", "fmt", "fmt_duration", "info", "note", "pct", "short_url",
     "render_source_ranking", "render_summary", "widgets",
 ]

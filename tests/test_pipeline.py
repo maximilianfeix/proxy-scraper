@@ -108,3 +108,21 @@ def test_ui_helpers():
     assert pct(1, 3) == "33,3 %" and pct(1, 0) == "–"
     assert bar(5, 10, 4, "green").plain == "██··"
     assert flag("DE") == "🇩🇪" and flag("") == "  "
+
+
+def test_console_is_swappable_everywhere(monkeypatch):
+    """Alle Ausgaben laufen über widgets.console – keine eingefrorene Kopie per Import."""
+    import io
+
+    from rich.console import Console
+
+    from proxyscraper import app, cli
+    from proxyscraper import pipeline as pipeline_module
+    from proxyscraper.ui import widgets
+
+    recorder = Console(file=io.StringIO(), width=80)
+    monkeypatch.setattr(widgets, "console", recorder)
+    for module in (app, cli, pipeline_module):
+        assert getattr(module, "console", None) is None, module.__name__
+    widgets.info("Test", "läuft")
+    assert "läuft" in recorder.file.getvalue()

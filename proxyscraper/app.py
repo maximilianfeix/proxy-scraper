@@ -33,12 +33,12 @@ from .ui import (
     CollectView,
     LiveStats,
     banner,
-    console,
     fmt,
     fmt_duration,
     info,
     note,
     render_summary,
+    widgets,
 )
 
 OWN_IP_URLS = (
@@ -87,7 +87,7 @@ class Run:
         self.own_ips: List[str] = []
 
     async def execute(self) -> int:
-        console.print(banner())
+        widgets.console.print(banner())
         if not await self.prepare_network():
             return 1
         self.show_mode()
@@ -161,7 +161,7 @@ class Run:
 
         t0 = time.perf_counter()
         view = CollectView(len(plan.sources), self.started)
-        with Live(view, console=console, refresh_per_second=10, transient=True):
+        with Live(view, console=widgets.console, refresh_per_second=10, transient=True):
             self.scraped = await scrape(plan.sources, self.opts.types, self.quality, view)
         self.quality.save()
         res = self.scraped
@@ -188,10 +188,10 @@ class Run:
                                    opts.filters.describe(), opts.want)
         checker = Checker(self.judge_ip, self.own_ips, opts.timeout, opts.connect_timeout)
         geo = GeoResolver(enabled=opts.geo)
-        console.print()
+        widgets.console.print()
         run = await run_checks(
             jobs, checker, opts, dashboard, writer, geo,
-            live_factory=lambda renderable: Live(renderable, console=console, refresh_per_second=6),
+            live_factory=lambda renderable: Live(renderable, console=widgets.console, refresh_per_second=6),
         )
 
         kept = [r for r in run.results if opts.filters.accepts(r)]

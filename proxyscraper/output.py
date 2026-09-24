@@ -16,19 +16,22 @@ import os
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional
+from typing import Dict, Iterable, List, Optional, Sequence
 
 from .checker import CheckResult
+from .exporters import EXPORTERS
 from .parsing import PROXY_TYPES
 from .paths import RESULTS_DIR, atomic_write
 from .targets import target_label
 
 
 class ResultWriter:
-    def __init__(self, run_dir: Optional[Path] = None, extra_file: Optional[Path] = None):
+    def __init__(self, run_dir: Optional[Path] = None, extra_file: Optional[Path] = None,
+                 exports: Sequence[str] = ()):
         self.run_dir = run_dir or RESULTS_DIR / f"{datetime.now():%Y-%m-%d_%H-%M-%S}"
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.extra_file = extra_file
+        self.exports = list(exports)
         self.live_path = self.run_dir / "all.txt"
         self._live = self.live_path.open("w", encoding="utf-8")
 
@@ -61,6 +64,13 @@ class ResultWriter:
             writer.writeheader()
             writer.writerows(_csv_row(r) for r in rows)
         files["Details (CSV)"] = csv_path
+
+        now = datetime.now()
+        for name in self.exports:
+            filename, render = EXPORTERS[name]
+            path = self.run_dir / filename
+            path.write_text(render(rows, now), encoding="utf-8")
+            files[f"{name} ({filename})"] = path
 
         if self.extra_file:
             self.extra_file.parent.mkdir(parents=True, exist_ok=True)

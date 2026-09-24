@@ -14,6 +14,7 @@ from . import __version__
 from . import sources as srcs
 from .app import Run
 from .compat import ensure_utf8_output
+from .exporters import EXPORTERS, parse_exports
 from .history import ProxyHistory
 from .options import (
     DEFAULT_CONCURRENCY,
@@ -64,6 +65,14 @@ def target_url(text: str) -> str:
     """argparse-Typ für --target: normalisierte URL oder verständliche Fehlermeldung."""
     try:
         return parse_target(text).url
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from None
+
+
+def export_list(text: str) -> List[str]:
+    """argparse-Typ für --export: "proxychains,clash" oder "all"."""
+    try:
+        return parse_exports(text)
     except ValueError as e:
         raise argparse.ArgumentTypeError(str(e)) from None
 
@@ -134,6 +143,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     o = p.add_argument_group("Ausgabe")
     o.add_argument("-o", "--output", help="zusätzlich alle Treffer als typ://ip:port in diese Datei")
+    o.add_argument("--export", type=export_list, metavar="FORMATE",
+                   help=f"zusätzliche Formate im Ergebnisordner: {', '.join(EXPORTERS)} oder all "
+                        "(z. B. --export proxychains,clash)")
 
     s = p.add_argument_group("Quellen")
     s.add_argument("--discover", action="store_true",

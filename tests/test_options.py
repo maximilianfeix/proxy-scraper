@@ -41,6 +41,8 @@ def test_defaults_match_argparse():
     ["--concurrency", "500", "--connect-timeout", "2", "--no-discover", "--all-sources", "-o", "out.txt"],
     ["--recheck", "--serve"],
     ["--serve", "9000"],
+    ["--export", "clash,proxychains"],
+    ["--export", "all", "-o", "x.txt"],
 ])
 def test_argv_roundtrip(argv):
     opts = RunOptions.from_args(parse_args(argv))

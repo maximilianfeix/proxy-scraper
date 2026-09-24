@@ -380,14 +380,14 @@ for p in proxies:
         continue  # free proxies come and go – just take the next one
 ```
 
-**proxychains** – turn the results into `[ProxyList]` entries
+**proxychains, Clash / Mihomo** – ready-made configs with `--export`
 
 ```bash
-proxy-scraper --types socks5 --want 20 -y
-awk -F'[:/]+' '{print $1, $2, $3}' results/latest/all.txt   # socks5 203.0.113.10 1080
+proxy-scraper --want 30 -y --export proxychains,clash
+proxychains4 -f results/latest/proxychains.conf curl https://api.ipify.org
 ```
 
-Paste the lines under `[ProxyList]` in your `proxychains.conf` (with `random_chain` for rotation).
+`clash.yaml` has all HTTP and SOCKS5 proxies plus a `url-test` group that always picks the fastest. Both configs leave out HTTP proxies that can't tunnel (`CONNECT`), because these tools tunnel everything.
 
 **Any tool, through the rotating server**
 
@@ -439,6 +439,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--list-sources [N]` | show the source ranking |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
 | `-o FILE` | also write all hits to this file |
+| `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `curl` or `all` |
 | `-V`, `--version` | print the version |
 
 Everything else: `proxy-scraper --help`
@@ -547,6 +548,7 @@ proxyscraper/
 ├── geo.py              countries via ip-api.com (batched, cached)
 ├── targets.py          target sites for --target
 ├── output.py           result files
+├── exporters.py        proxychains, Clash and curl formats (--export)
 ├── server.py           rotating proxy server (--serve)
 ├── publish.py          live list for GitHub Actions
 ├── paths.py            where state and results are stored

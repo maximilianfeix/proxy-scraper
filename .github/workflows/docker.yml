@@ -32,16 +32,16 @@ jobs:
         run: |
           docker run --rm proxy-scraper:test --version
           docker run --rm proxy-scraper:test --list-sources 3
-      - name: Real run inside the container
+      - name: Real run inside the container (same command as in the README)
         run: |
-          mkdir -p results data && sudo chown 1000 results data
-          timeout 600 docker run --rm --ulimit nofile=65535:65535 \
-            -v "$PWD/data:/data" -v "$PWD/results:/work/results" \
+          mkdir -p proxy-data results
+          timeout 600 docker run --rm --user "$(id -u):$(id -g)" --ulimit nofile=65535:65535 \
+            -v "$PWD/proxy-data:/data" -v "$PWD/results:/work/results" \
             proxy-scraper:test --want 5 --limit 5000 --no-discover
           run=$(cat results/latest.txt)
           echo "found $(wc -l < "results/$run/all.txt") proxies"
           test -s "results/$run/all.txt"
-          test -f data/source_stats.json
+          test -f proxy-data/source_stats.json
 
   publish:
     needs: test

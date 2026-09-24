@@ -88,8 +88,9 @@ proxy-scraper
 <br>
 
 ```bash
-# Docker – learned state and results survive in two volumes
-docker run --rm -v proxy-data:/data -v "$PWD/results:/work/results" \
+# Docker – learned state and results stay in two folders next to you
+mkdir -p proxy-data results
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/proxy-data:/data" -v "$PWD/results:/work/results" \
   ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
 
 # pip into the current environment

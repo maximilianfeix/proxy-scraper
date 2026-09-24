@@ -24,6 +24,8 @@ from .fakes import (
     socks5_forward_proxy,
     target_server,
     tls_like_server,
+    tls_record_server,
+    weird_status_proxy,
 )
 
 
@@ -295,11 +297,17 @@ def post_echo(body: bytes):
         head = (f"POST http://127.0.0.1:{target_port}/echo HTTP/1.1\r\nHost: 127.0.0.1:{target_port}\r\n"
                 f"Content-Length: {len(body)}\r\n\r\n").encode()
         reader, writer = await asyncio.open_connection("127.0.0.1", server_port)
-        writer.write(head + body)
-        await writer.drain()
+        try:
+            writer.write(head + body)
+            await writer.drain()
+        except ConnectionError:
+            pass  # Server hat abgebrochen, bevor alles gesendet war – die Antwort zählt trotzdem
         answer = b""
         while True:
-            chunk = await asyncio.wait_for(reader.read(65536), 5)
+            try:
+                chunk = await asyncio.wait_for(reader.read(65536), 5)
+            except ConnectionError:
+                break
             if not chunk:
                 break
             answer += chunk
@@ -325,3 +333,83 @@ def test_large_body_is_streamed_without_replay():
     answer, _, _ = run_server([("http", http_forward_proxy)], post_echo(body))
     assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(body[-100:])
     assert len(answer) > len(body)
+
+
+def test_connect_on_other_ports_prefers_https_verified_proxies():
+    seen = []
+
+    class RecordingPool(OrderedPool):
+        def pick(self, exclude, tls=False):
+            seen.append(tls)
+            return super().pick(exclude, tls)
+
+    run_server([("http", http_forward_proxy)], connect_then_get, pool_cls=RecordingPool)
+    assert seen and seen[0] is True   # Zielport ist hier beliebig, nicht 443
+
+
+@pytest.mark.parametrize("raw", [b"CONNECT example.org:70000 HTTP/1.1\r\n\r\n",
+                                 b"GET http://example.org:0/ HTTP/1.1\r\n\r\n"])
+def test_invalid_ports_give_400(raw):
+    async def send(server_port, target_port):
+        return await request_via(server_port, raw)
+
+    answer, _, _ = run_server([("socks5", socks5_forward_proxy)], send)
+    assert answer.startswith(b"HTTP/1.1 400")
+
+
+def test_status_2000_is_not_an_established_tunnel():
+    answer, pool, _ = run_server([("http", weird_status_proxy)], connect_then_get_raw)
+    assert answer.startswith(b"HTTP/1.1 502")
+    assert pool.entries[0].fail == 1
+
+
+def test_streamed_body_through_silent_proxy_counts_as_failure():
+    body = b"y" * (2 * 1024 * 1024)
+    answer, pool, stats = run_server([("http", silent_proxy)], post_echo(body))
+    assert (stats.ok, stats.failed, pool.entries[0].fail) == (0, 1, 1)
+    assert not stats.recent[-1].ok
+
+
+def test_expect_100_continue_does_not_deadlock():
+    async def send(server_port, target_port):
+        reader, writer = await asyncio.open_connection("127.0.0.1", server_port)
+        writer.write((f"POST http://127.0.0.1:{target_port}/echo HTTP/1.1\r\nHost: 127.0.0.1:{target_port}\r\n"
+                      f"Content-Length: 5\r\nExpect: 100-continue\r\n\r\n").encode())
+        await writer.drain()
+        interim = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 3)  # wartet auf 100 Continue
+        writer.write(b"hallo")
+        await writer.drain()
+        rest = await asyncio.wait_for(reader.read(65536), 3)
+        writer.close()
+        return interim + rest
+
+    answer, _, _ = run_server([("http", http_forward_proxy)], send)
+    assert answer.startswith(b"HTTP/1.1 100 Continue") and answer.endswith(b"hallo")
+
+
+def test_split_tls_client_hello_is_collected_completely():
+    async def go():
+        tls_srv, tls_port = await serve(tls_record_server)
+        proxy_srv, proxy_port = await serve(http_forward_proxy)
+        rotating = RotatingServer(OrderedPool([result("http", proxy_port)]), port=0, timeout=3)
+        await rotating.start()
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", rotating.port)
+            writer.write(f"CONNECT 127.0.0.1:{tls_port} HTTP/1.1\r\n\r\n".encode())
+            await writer.drain()
+            await reader.readuntil(b"\r\n\r\n")
+            record = b"\x16\x03\x01\x00\x0a" + b"0123456789"
+            writer.write(record[:4])          # Record über zwei TCP-Pakete verteilt
+            await writer.drain()
+            await asyncio.sleep(0.2)
+            writer.write(record[4:])
+            await writer.drain()
+            answer = await asyncio.wait_for(reader.read(100), 3)
+            writer.close()
+            return answer
+        finally:
+            await rotating.close()
+            tls_srv.close()
+            proxy_srv.close()
+
+    assert asyncio.run(go()) == b"\x16\x03\x03\x00\x02ok"

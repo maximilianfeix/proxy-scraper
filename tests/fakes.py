@@ -27,6 +27,9 @@ async def target_server(reader, writer):
     if path.endswith(b"/echo"):
         length = int(next((line.split(b":", 1)[1] for line in head.split(b"\r\n")
                            if line.lower().startswith(b"content-length:")), b"0"))
+        if b"expect: 100-continue" in head.lower():
+            writer.write(b"HTTP/1.1 100 Continue\r\n\r\n")  # wie ein echter Server: erst dann kommt der Body
+            await writer.drain()
         body = await reader.readexactly(length) if length else b""
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body)
     elif path.endswith(b"/host-mit-port"):
@@ -175,4 +178,22 @@ async def forward_only_proxy(reader, writer):
 async def silent_proxy(reader, writer):
     """Nimmt die Anfrage an und legt ohne Antwort auf."""
     await reader.readuntil(b"\r\n\r\n")
+    writer.close()
+
+
+async def weird_status_proxy(reader, writer):
+    """Antwortet auf CONNECT mit "HTTP/1.1 2000" – enthält " 200", ist aber kein Erfolg."""
+    await reader.readuntil(b"\r\n\r\n")
+    writer.write(b"HTTP/1.1 2000 Irgendwas\r\n\r\n")
+    await writer.drain()
+    await reader.read(65536)
+    writer.close()
+
+
+async def tls_record_server(reader, writer):
+    """Antwortet erst, wenn ein TLS-Record vollständig angekommen ist (wie ein echter TLS-Server)."""
+    header = await reader.readexactly(5)
+    await reader.readexactly(int.from_bytes(header[3:5], "big"))
+    writer.write(b"\x16\x03\x03\x00\x02ok")
+    await writer.drain()
     writer.close()

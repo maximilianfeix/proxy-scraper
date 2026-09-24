@@ -114,13 +114,20 @@ def parse_request_head(head: bytes) -> Tuple[str, str, int, bytes, List[Tuple[by
             headers.append((name.strip(), value.strip()))
     if method == b"CONNECT":
         host, _, port = target.decode("ascii").rpartition(":")
-        return "CONNECT", host.strip("[]"), int(port), b"", headers
+        return "CONNECT", host.strip("[]"), _valid_port(port), b"", headers
     if not target.lower().startswith(b"http://"):
         raise ValueError("nur absolute http://-URLs oder CONNECT")
     rest = target[7:]
     hostport, slash, path = rest.partition(b"/")
     host, _, port = hostport.decode("ascii").partition(":")
-    return method.decode("ascii"), host, int(port or 80), b"/" + path if slash else b"/", headers
+    return method.decode("ascii"), host, _valid_port(port or "80"), b"/" + path if slash else b"/", headers
+
+
+def _valid_port(text: str) -> int:
+    port = int(text)
+    if not 0 < port < 65536:
+        raise ValueError(f"ungültiger Port {port}")
+    return port
 
 
 def origin_request(method: str, path: bytes, host: str, port: int, headers: List[Tuple[bytes, bytes]]) -> bytes:
@@ -168,7 +175,9 @@ async def _handshake(ptype: str, reader, writer, host: str, port: int) -> None:
         await writer.drain()
         head = await reader.readuntil(b"\r\n\r\n")
         first = head.split(b"\r\n", 1)[0]
-        if not (first.startswith(b"HTTP/") and b" 200" in first):
+        parts = first.split()
+        # exakt 200 – "HTTP/1.1 2000" o. ä. ist kein aufgebauter Tunnel
+        if len(parts) < 2 or not parts[0].startswith(b"HTTP/") or parts[1] != b"200":
             raise UpstreamError(first.decode("latin-1"))
     elif ptype == "socks4":
         ip = await _resolve(host, port)  # SOCKS4 kennt nur IPv4-Adressen
@@ -256,7 +265,9 @@ class RotatingServer:
         der Beginn des TLS-Handshakes) ist gepuffert und geht bei Bedarf unbemerkt an den nächsten Proxy.
         """
         tried: Set[str] = set()
-        opened = await self._open_next(tried, host, port, tls=port == 443, tunnel=True)
+        # CONNECT ist fast immer TLS (auch auf Ports wie 8443) – das erste ClientHello soll nur über Proxys
+        # gehen, die den HTTPS-Test bestanden haben; ohne solche greift pick() auf alle zurück
+        opened = await self._open_next(tried, host, port, tls=True, tunnel=True)
         if opened is None:
             self._log(client, host, port, None, False, started, len(tried))
             await self._bad_gateway(writer)
@@ -295,9 +306,8 @@ class RotatingServer:
                 # Großer oder gestreamter Body: kein Wechsel möglich – Kopf senden, den Rest durchreichen
                 up_writer.write(first_out)
                 await up_writer.drain()
-                await self._relay(reader, writer, client, host, port, started, len(tried), entry,
-                                  up_reader, up_writer, first_out, b"")
-                return True
+                return await self._relay(reader, writer, client, host, port, started, len(tried), entry,
+                                         up_reader, up_writer, first_out, b"")
             first_in = await self._exchange(up_reader, up_writer, first_out)
             if first_in is not None:
                 await self._relay(reader, writer, client, host, port, started, len(tried), entry,
@@ -338,10 +348,11 @@ class RotatingServer:
         return first_in
 
     async def _relay(self, reader, writer, client, host, port, started, attempts, entry,
-                     up_reader, up_writer, first_out: bytes, first_in: bytes) -> None:
-        self.pool.report(entry, True)
-        self.stats.ok += 1
-        self._log(client, host, port, entry, True, started, attempts)
+                     up_reader, up_writer, first_out: bytes, first_in: bytes) -> bool:
+        """Beide Richtungen durchreichen. Erfolg zählt erst, wenn der Upstream geantwortet hat – bei
+        gestreamten Bodies (first_in leer) also erst, wenn überhaupt Daten zurückkommen."""
+        if first_in:
+            self._account(client, host, port, entry, True, started, attempts)
         entry.active += 1
         try:
             self.stats.bytes_up += len(first_out)
@@ -349,19 +360,30 @@ class RotatingServer:
             if first_in:
                 writer.write(first_in)
                 await writer.drain()
-            await asyncio.gather(
+            _, received = await asyncio.gather(
                 self._pipe(reader, up_writer, up=True),
                 self._pipe(up_reader, writer, up=False),
             )
         finally:
             entry.active -= 1
             up_writer.close()
+        if not first_in:
+            self._account(client, host, port, entry, received > 0, started, attempts)
+        return bool(first_in) or received > 0
+
+    def _account(self, client, host, port, entry, ok: bool, started, attempts) -> None:
+        self.pool.report(entry, ok)
+        if ok:
+            self.stats.ok += 1
+        self._log(client, host, port, entry, ok, started, attempts)
 
     async def _read_body(self, reader, headers) -> Tuple[bytes, bool]:
         """Request-Body lesen, wenn er klein genug zum Puffern ist -> (Body, wiederholbar?)."""
         values = {name.lower(): value for name, value in headers}
         if b"chunked" in values.get(b"transfer-encoding", b"").lower():
             return b"", False
+        if b"100-continue" in values.get(b"expect", b"").lower():
+            return b"", False  # der Client schickt den Body erst nach "100 Continue" vom Ziel
         length = values.get(b"content-length", b"0").strip()
         if not length.isdigit() or int(length) > MAX_REPLAY_BODY:
             return b"", False
@@ -371,21 +393,40 @@ class RotatingServer:
         """Erstes Paket des Clients im Tunnel (bei HTTPS: TLS ClientHello). Leer, falls der Server zuerst
         sprechen soll (z. B. SSH) – dann wird direkt auf die Gegenseite gewartet."""
         try:
-            return await asyncio.wait_for(reader.read(65536), FIRST_CHUNK_WAIT)
+            data = await asyncio.wait_for(reader.read(65536), FIRST_CHUNK_WAIT)
+            if data[:1] == TLS_HANDSHAKE:
+                data = await self._complete_tls_record(reader, data)
+            return data
         except asyncio.TimeoutError:
             return b""
+
+    async def _complete_tls_record(self, reader, data: bytes) -> bytes:
+        """Ersten TLS-Record vollständig sammeln – er kann über mehrere TCP-Pakete verteilt sein, und bei
+        einem Proxy-Wechsel soll nicht nur ein Bruchstück des ClientHello weitergehen."""
+        while True:
+            # erst den 5-Byte-Kopf, dann steht die Länge fest (höchstens ein Puffer voll)
+            needed = 5 if len(data) < 5 else min(5 + int.from_bytes(data[3:5], "big"), 65536)
+            if len(data) >= needed:
+                return data
+            more = await asyncio.wait_for(reader.read(needed - len(data)), FIRST_CHUNK_WAIT)
+            if not more:
+                return data
+            data += more
 
     async def _bad_gateway(self, writer) -> None:
         writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
                      b"Connection: close\r\n\r\nKein Proxy aus dem Pool hat geantwortet.\n")
         await writer.drain()
 
-    async def _pipe(self, reader, writer, up: bool) -> None:
+    async def _pipe(self, reader, writer, up: bool) -> int:
+        """Daten weiterreichen, bis eine Seite aufhört; gibt die Anzahl der Bytes zurück."""
+        total = 0
         try:
             while True:
                 data = await reader.read(65536)
                 if not data:
                     break
+                total += len(data)
                 if up:
                     self.stats.bytes_up += len(data)
                 else:
@@ -399,6 +440,7 @@ class RotatingServer:
                 writer.write_eof()
             except (OSError, RuntimeError, AttributeError):
                 writer.close()
+        return total
 
     def _log(self, client, host, port, entry, ok, started, attempts) -> None:
         via = f"{entry.result.ptype}://{entry.result.proxy}" if entry else "–"

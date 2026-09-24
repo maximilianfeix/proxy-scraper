@@ -321,7 +321,7 @@ flowchart LR
 1. **Sources** – the curated list in [`sources.json`](proxyscraper/sources.json), meta sources (other projects that maintain lists of proxy sources) and, every three days, a GitHub search for actively maintained repos.
 2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads 0 MB instead of ~160 MB.
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
-4. **Check** – every proxy has to fetch `checkip.amazonaws.com` and return a valid, *foreign* IP. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here.
+4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here.
 5. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
 
 <details>
@@ -548,6 +548,7 @@ proxyscraper/
 ├── options.py          RunOptions + Filters – all settings in one place
 ├── pipeline.py         collect sources, prioritize, check loop
 ├── checker.py          HTTP/SOCKS handshakes, honeypot confirmation, HTTPS test
+├── judges.py           check targets, Cloudflare filter, failover
 ├── sources.py          source lists, meta sources, GitHub discovery, statistics
 ├── sources.json        curated sources
 ├── fetchcache.py       ETag cache for unchanged lists
@@ -575,7 +576,7 @@ proxy-scraper stands on the work of the people who publish free proxy lists. Tha
 
 - [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list), whose curated source collections are read as meta sources
 - [Textualize/rich](https://github.com/Textualize/rich), which draws the whole terminal UI
-- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com) and [ip-api.com](https://ip-api.com), used as check targets and for country lookups
+- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) and [ip-api.com](https://ip-api.com), used as check targets and for country lookups
 
 ## ⚠️ Disclaimer
 

@@ -8,7 +8,7 @@ import random
 from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
-from typing import Callable, Dict, List, Optional, Set, Tuple
+from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from . import sources as srcs
 from .checker import Checker, CheckResult
@@ -16,6 +16,7 @@ from .compat import on_interrupt
 from .fetchcache import FetchCache
 from .geo import GeoResolver
 from .history import ProxyHistory
+from .judges import JudgeWatch
 from .netio import http_get, http_request
 from .options import RunOptions
 from .output import ResultWriter
@@ -229,6 +230,29 @@ class CheckRun:
     working: Set[str] = field(default_factory=set)
     interrupted: bool = False
     reached_goal: bool = False
+    judge_switches: List[str] = field(default_factory=list)  # "alt → neu"
+    rechecked: int = 0  # Prüfungen, die wegen eines ausgefallenen Prüfziels wiederholt wurden
+
+
+class JobQueue:
+    """Iterator über die Jobs, der auch nach dem Leerlaufen noch Nachzügler annimmt.
+
+    Ein Generator wäre nach dem ersten StopIteration für immer erschöpft – dann würde ein Proxy,
+    den ein noch laufender Worker nach einem Prüfziel-Wechsel zurücklegt, nie mehr geprüft."""
+
+    def __init__(self, jobs: Iterable[str]):
+        self.jobs = iter(jobs)
+        self.retry: List[str] = []
+
+    def __iter__(self):
+        return self
+
+    def __next__(self) -> str:
+        for key in self.jobs:
+            return key
+        if self.retry:
+            return self.retry.pop()
+        raise StopIteration
 
 
 async def run_checks(
@@ -239,17 +263,62 @@ async def run_checks(
     writer: ResultWriter,
     geo: GeoResolver,
     live_factory: Callable,
+    watch: Optional[JudgeWatch] = None,
 ) -> CheckRun:
     """Prüft `jobs` mit `opts.concurrency` parallelen Workern bis alles durch, das Ziel erreicht
-    oder Strg+C gedrückt ist."""
+    oder Strg+C gedrückt ist.
+
+    Mit `watch` wird das Prüfziel überwacht: Fällt es aus, werden die Prüfungen seit der letzten
+    erfolgreichen Kontrolle wiederholt und zählen nicht für die Quellen-Statistik."""
+    loop = asyncio.get_running_loop()
     stats = dashboard.s
     filters, details, want = opts.filters, opts.details, opts.want
     run = CheckRun()
     written: Set[str] = set()
     enriched: Set[str] = set()  # Treffer mit abgeschlossener Detailprüfung (HTTPS kann dabei offen bleiben)
     by_exit_ip: Dict[str, List[CheckResult]] = {}
-    pending = iter(jobs)  # alle Worker ziehen aus demselben Iterator – in asyncio ohne Lock sicher
-    loop = asyncio.get_running_loop()
+    pending = JobQueue(jobs)  # alle Worker ziehen aus derselben Queue – in asyncio ohne Lock sicher
+
+    # Prüfziel-Ausfälle: Jede Prüfung merkt sich, mit welchem Ziel ("Generation") und als wievielte sie begann.
+    # Beim Wechsel wird die alte Generation ab der letzten guten Kontrolle verdächtig – Fehlschläge
+    # daraus werden wiederholt, auch solche, die erst nach dem Wechsel fertig werden. Treffer sind
+    # nie verdächtig (der Proxy hat ja funktioniert), so wird jede Prüfung genau einmal gewertet.
+    generation = 0
+    # Reihenfolge statt Uhrzeit: jede Prüfung bekommt beim Start eine laufende Nummer. Die Uhr der Event-Loop
+    # ist unter Windows nur auf ~15 ms genau – zwei Ereignisse bekämen dort leicht denselben Zeitstempel.
+    started_count = 0
+    last_ok = 0  # so viele Prüfungen hatten bei der letzten guten Kontrolle begonnen (0 = Lauf-Start)
+    suspect_since: Dict[int, int] = {}       # abgelöste Generation -> Prüfungen ab dieser Nummer verdächtig
+    recent_failures: List[Tuple[int, int, str]] = []  # Fehlschläge seit der letzten guten Kontrolle
+
+    def is_suspect(gen: int, started: int) -> bool:
+        return gen in suspect_since and started > suspect_since[gen]
+
+    def requeue(keys: List[str]) -> None:
+        pending.retry.extend(keys)
+        run.rechecked += len(keys)
+        dashboard.add_rechecks(keys)
+
+    def judge_ok() -> None:
+        nonlocal last_ok
+        last_ok = started_count
+        recent_failures.clear()
+
+    def judge_switched(old, new) -> None:
+        nonlocal generation, last_ok
+        suspect_since[generation] = last_ok
+        generation += 1
+        last_ok = started_count  # das neue Ziel wurde gerade erfolgreich geprüft – ab hier die Basislinie
+        failed = {key for gen, started, key in recent_failures if is_suspect(gen, started)}
+        recent_failures.clear()
+        if failed:
+            run.checked[:] = [k for k in run.checked if k not in failed]
+        requeue(sorted(failed))
+        run.judge_switches.append(f"{old.judge.host} → {new.judge.host}")
+        dashboard.judge_changed(new.judge.host)
+
+    if watch:
+        watch.on_ok, watch.on_switch = judge_ok, judge_switched
     all_workers: Optional[asyncio.Future] = None
 
     def consider(r: CheckResult) -> None:
@@ -275,14 +344,23 @@ async def run_checks(
 
     geo.on_resolved = on_country
     geo_task = asyncio.ensure_future(geo.run())
+    watch_task = asyncio.ensure_future(watch.run()) if watch else None
 
     async def worker() -> None:
+        nonlocal started_count
         for key in pending:
+            started_count += 1
+            gen, started = generation, started_count
             r = await checker.check(key)
             stats.add_checked(key.split(" ", 1)[0])
-            run.checked.append(key)
             dashboard.advance()
+            if r is None and is_suspect(gen, started):
+                requeue([key])  # erst nach dem Wechsel fertig geworden – trotzdem ein Opfer des Ausfalls
+                continue
+            run.checked.append(key)
             if r is None:
+                if watch:
+                    recent_failures.append((gen, started, key))
                 continue
             # Zweite, unabhängige Anfrage – Honeypots bestehen die erste Prüfung oft zufällig
             if not await checker.confirm(r):
@@ -315,6 +393,8 @@ async def run_checks(
             except asyncio.CancelledError:
                 run.interrupted = not run.reached_goal
 
+    if watch_task:
+        watch_task.cancel()
     # Offene Länder-Abfragen noch abwarten (höchstens kurz)
     geo.stop()
     if geo.pending and not geo.failed:

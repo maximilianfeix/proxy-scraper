@@ -175,6 +175,9 @@ class CheckDashboard:
         self.details = details
         self.filters_text = filters_text
         self.want = want
+        self.judge = ""
+        self.judge_note = ""
+        self.rechecks = 0
         self.progress = Progress(
             TextColumn("[bold]Fortschritt"),
             BarColumn(bar_width=None, complete_style=ACCENT, finished_style=GOOD),
@@ -188,6 +191,19 @@ class CheckDashboard:
 
     def advance(self) -> None:
         self.progress.advance(self.task)
+
+    def judge_changed(self, host: str) -> None:
+        """Prüfziel ist ausgefallen und wurde gewechselt."""
+        self.judge = host
+        self.judge_note = f"Prüfziel gewechselt → {host}"
+
+    def add_rechecks(self, keys: Sequence[str]) -> None:
+        """Proxys, die wegen eines Ausfalls nochmal drankommen – zählen zur Gesamtmenge dazu."""
+        for key in keys:
+            self.s.total_by_type[key.split(" ", 1)[0]] += 1
+        self.rechecks += len(keys)
+        self.s.total += len(keys)
+        self.progress.update(self.task, total=self.s.total)
 
     def __rich__(self):
         s = self.s
@@ -288,6 +304,10 @@ class CheckDashboard:
 
         footer = Text("  Strg+C beendet und speichert", style=MUTED)
         footer.append(f"  ·  {fmt(self.concurrency)} parallel", style=MUTED)
+        if self.judge:
+            footer.append(f"  ·  Ziel {self.judge}", style=MUTED)
+        if self.judge_note:
+            footer.append(f"\n  ⚠ {self.judge_note}, {fmt(self.rechecks)} Proxys werden erneut geprüft", style=WARN)
         if self.want:
             footer.append(f"  ·  Ziel {fmt(min(s.passing, self.want))} / {fmt(self.want)}", style=f"bold {ACCENT}")
         if self.filters_text:

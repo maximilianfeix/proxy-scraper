@@ -1,7 +1,9 @@
-"""Länder der Exit-IPs über die kostenlose Batch-API von ip-api.com (100 IPs pro Anfrage).
+"""Länder der Exit-IPs.
 
-Läuft im Hintergrund, während geprüft wird, und hält sich an das Limit von 15 Anfragen/Minute.
-Ergebnisse werden zwischengespeichert, damit bekannte IPs nie erneut abgefragt werden.
+Zuerst offline aus der DB-IP-Datenbank (geodb.py) – sofort und ohne Limit. Nur was dort fehlt
+(oder wenn die Datenbank nicht geladen werden konnte), geht an die Batch-API von ip-api.com
+(100 IPs pro Anfrage, 15 Anfragen/Minute, läuft im Hintergrund). API-Ergebnisse werden
+zwischengespeichert, damit bekannte IPs nie erneut abgefragt werden.
 """
 
 from __future__ import annotations
@@ -12,6 +14,7 @@ import time
 import warnings
 from typing import Callable, Dict, List, Optional
 
+from .geodb import CountryDB
 from .netio import http_request
 from .paths import DATA_DIR, atomic_write
 
@@ -30,8 +33,14 @@ def flag(country: str) -> str:
 
 
 class GeoResolver:
-    def __init__(self, enabled: bool = True, on_resolved: Optional[Callable[[str, str], None]] = None):
+    def __init__(self, enabled: bool = True, on_resolved: Optional[Callable[[str, str], None]] = None,
+                 offline: Optional[CountryDB] = None):
         self.enabled = enabled
+        self.offline = offline
+        self.offline_hits = 0
+        # Pro Lauf bekommt jede Exit-IP genau ein Land – egal ob es aus der Datenbank, dem Cache oder
+        # von ip-api kommt und ob die Datenbank erst mittendrin dazukommt
+        self.assigned: Dict[str, str] = {}
         self.on_resolved = on_resolved
         self.cache: Dict[str, List] = {}  # ip -> [land, zeitpunkt]
         self.pending: List[str] = []
@@ -48,10 +57,39 @@ class GeoResolver:
         hit = self.cache.get(ip)
         return hit[0] if hit and time.time() - hit[1] < CACHE_TTL else ""
 
+    def use_offline(self, db: CountryDB) -> None:
+        """Neue Datenbank mitten im Lauf übernehmen – auch für IPs, die schon auf ip-api warten,
+        damit dieselbe Exit-IP nicht einmal so und einmal anders eingeordnet wird."""
+        self.offline = db
+        waiting, self.pending = self.pending, []
+        for ip in waiting:
+            country = db.lookup(ip)
+            if not country:
+                self.pending.append(ip)
+                continue
+            self.offline_hits += 1
+            self._assign(ip, country)
+
+    def _assign(self, ip: str, country: str) -> None:
+        if ip in self.assigned:
+            return
+        self.assigned[ip] = country
+        if self.on_resolved:
+            self.on_resolved(ip, country)
+
     def request(self, ip: str) -> str:
-        """Land sofort aus dem Cache, sonst für die nächste Batch-Anfrage vormerken."""
-        country = self.lookup(ip)
-        if not country and self.enabled and ip not in self._queued:
+        """Land sofort (offline oder aus dem Cache), sonst für die nächste Batch-Anfrage vormerken."""
+        if ip in self.assigned:
+            return self.assigned[ip]
+        country = ""
+        if self.enabled and self.offline:
+            country = self.offline.lookup(ip)
+            if country:
+                self.offline_hits += 1
+        country = country or self.lookup(ip)
+        if country:
+            self.assigned[ip] = country
+        elif self.enabled and ip not in self._queued:
             self._queued.add(ip)
             self.pending.append(ip)
         return country
@@ -97,9 +135,9 @@ class GeoResolver:
             return 0.0
         for row in rows:
             if row.get("status") == "success":
-                self.cache[row["query"]] = [row["countryCode"], now]
-                if self.on_resolved:
-                    self.on_resolved(row["query"], row["countryCode"])
+                ip, country = row["query"], row["countryCode"]
+                self.cache[ip] = [country, now]
+                self._assign(ip, country)  # schon anders eingeordnet (z. B. per Datenbank)? dann bleibt es so
         # Wenn ip-api das Limit fast erreicht meldet, bis zum Reset warten
         if headers.get(b"x-rl", b"1") == b"0":
             return float(headers.get(b"x-ttl", b"60") or 60)

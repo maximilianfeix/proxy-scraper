@@ -27,6 +27,7 @@ from .checker import (
 from .compat import on_interrupt, raise_fd_limit
 from .fetchcache import FetchCache
 from .geo import GeoResolver
+from .geodb import CountryDB, is_current, load_country_db
 from .history import ProxyHistory
 from .judges import JudgeProbe, JudgeWatch, rank_judges
 from .netio import INSECURE_HOSTS, http_get
@@ -302,7 +303,13 @@ class Run:
                           https_test=not opts.fast or opts.filters.https_only, judge=judge.judge)
         watch = JudgeWatch(self.judges, lambda new: checker.use_judge(new.judge, new.ip))
         dashboard.judge = judge.judge.host
-        geo = GeoResolver(enabled=opts.geo)
+        # Länder-Datenbank sofort aus data/ (2 ms); ist sie alt oder fehlt, im Hintergrund neu laden –
+        # bis dahin übernimmt ip-api.com, niemand wartet auf den Download
+        country_db = CountryDB.load() if opts.geo else None
+        geo = GeoResolver(enabled=opts.geo, offline=country_db)
+        refresh = None
+        if opts.geo and not is_current(country_db):
+            refresh = asyncio.ensure_future(self.refresh_country_db(geo))
         widgets.console.print()
         run = await run_checks(
             jobs, checker, opts, dashboard, writer, geo,
@@ -310,6 +317,8 @@ class Run:
             watch=watch,
         )
 
+        if refresh and not refresh.done():
+            refresh.cancel()  # Download läuft noch – beim nächsten Lauf wieder
         kept = [r for r in run.results if opts.filters.accepts(r)]
         files = writer.finalize(kept)
         network_blocked = is_network_blocked(stats)
@@ -345,6 +354,16 @@ class Run:
         st = server.stats
         note(f"Proxy-Server beendet – {fmt(st.requests)} Anfragen, {fmt(st.ok)} erfolgreich.", GOOD, "✔")
 
+    @staticmethod
+    async def refresh_country_db(geo: GeoResolver) -> None:
+        """Neue Länder-Datenbank laden und sofort nutzen – Fehler sind egal, dann bleibt es bei ip-api."""
+        try:
+            db = await load_country_db()
+        except Exception:
+            return
+        if db is not None:
+            geo.use_offline(db)
+
     def learn(self, run: CheckRun, network_blocked: bool):
         """Quellen-Statistik und Verlauf aktualisieren – bei blockiertem Netz nur die Treffer."""
         per_source = attribute_results(self.scraped, run.checked, run.working) if self.scraped else {}
@@ -372,7 +391,11 @@ class Run:
                 "nicht abgewertet.[/]"
             )
         if opts.geo and geo.failed:
-            note("Länder-API (ip-api.com) nicht erreichbar – Länder fehlen.", MUTED, "ℹ")
+            if geo.offline:
+                note("ip-api.com nicht erreichbar – Adressen, die nicht in der DB-IP-Datenbank stehen, "
+                     "bleiben ohne Land.", MUTED, "ℹ")
+            else:
+                note("Länder-Datenbank und ip-api.com nicht erreichbar – Länder fehlen.", MUTED, "ℹ")
         if opts.filters.countries and not kept and run.results:
             note("Kein Treffer im gewünschten Land – Filter lockern oder länger laufen lassen.", MUTED, "ℹ")
         if run.judge_switches:

@@ -10,6 +10,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - `--export proxychains,clash,curl` (or `all`) writes ready-made configs next to the results ([#4](https://github.com/maximilianfeix/proxy-scraper/issues/4))
 
 ### Changed
+- Countries are looked up offline in the DB-IP Lite database (downloaded once a month, 2 µs per lookup) instead of waiting for ip-api.com, which is now only a fallback. On 943 IPs it agreed with ip-api on 96 % ([#2](https://github.com/maximilianfeix/proxy-scraper/issues/2))
 - Unchanged lists are no longer downloaded again: ETag / Last-Modified with a local cache of the parsed proxies. A second run right after the first went from 161 MB in 22 s to 0 MB in 9 s. `--no-cache` forces a full download ([#9](https://github.com/maximilianfeix/proxy-scraper/issues/9))
 
 ## [1.3.0] – 2026-09-24

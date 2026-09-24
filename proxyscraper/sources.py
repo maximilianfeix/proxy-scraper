@@ -360,10 +360,17 @@ class SourceStats:
             return "tot"
         return None
 
-    def record_fetch(self, url: str, data: Optional[bytes], count: int, now: Optional[float] = None) -> None:
+    def record_fetch(self, url: str, data: Optional[bytes], count: int, now: Optional[float] = None,
+                     unchanged: bool = False) -> None:
+        """unchanged=True: Server hat mit 304 geantwortet – erreichbar, Inhalt wie beim letzten Mal.
+        Dann bleiben Hash und last_change stehen, die Veraltet-Erkennung läuft also normal weiter."""
         now = time.time() if now is None else now
         rec = self.records.setdefault(url, SourceRecord(first_seen=now))
         rec.last_fetch = now
+        if unchanged and count:
+            rec.fail_streak = 0
+            rec.count = count
+            return
         if data is None or count == 0:
             rec.fail_streak += 1
             return

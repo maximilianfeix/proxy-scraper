@@ -13,12 +13,13 @@ from typing import Callable, Dict, List, Optional, Set, Tuple
 from . import sources as srcs
 from .checker import Checker, CheckResult
 from .compat import on_interrupt
+from .fetchcache import FetchCache
 from .geo import GeoResolver
 from .history import ProxyHistory
-from .netio import http_get
+from .netio import http_get, http_request
 from .options import RunOptions
 from .output import ResultWriter
-from .parsing import parse_blob, split_key
+from .parsing import PROXY_TYPES, parse_blob, split_key
 from .ui import ACCENT, CheckDashboard, CollectView, fmt, widgets
 
 AUTO_DISCOVER_AFTER_DAYS = 3.0
@@ -97,42 +98,69 @@ class ScrapeResult:
     ok_sources: int = 0
 
 
-async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view: CollectView) -> ScrapeResult:
+async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view: CollectView,
+                 cache: Optional[FetchCache] = None) -> ScrapeResult:
     """Lädt alle Quellen und parst große Listen parallel auf allen CPU-Kernen.
 
     Die Event-Loop bleibt dadurch frei für weitere Downloads, statt minutenlang Regexe abzuarbeiten.
+    Mit Cache werden unveränderte Listen per ETag übersprungen (siehe fetchcache.py).
     """
     res = ScrapeResult(list(sources))
-    wanted = tuple(types)
+    cache = cache or FetchCache(enabled=False)
+    # Für den Cache immer alle Typen parsen, gefiltert wird erst beim Einsortieren
+    parse_types = PROXY_TYPES if cache.enabled else tuple(types)
+    prefixes = tuple(f"{t} " for t in types)
     loop = asyncio.get_running_loop()
     sem = asyncio.Semaphore(DOWNLOAD_CONCURRENCY)
     index = res.index
 
     with ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1)) as pool:
 
+        async def download(url: str):
+            """-> (Daten, Schlüssel aus dem Cache). Genau eins von beiden ist gesetzt."""
+            conditional = cache.conditional_headers(url)
+            async with sem:
+                status, headers, body = await http_request(url, timeout=30, headers=conditional or None)
+            if status == 304 and conditional:
+                cached = cache.load(url)
+                if cached is not None:
+                    return None, headers, cached
+                async with sem:  # Cache-Datei kaputt -> normal neu laden
+                    status, headers, body = await http_request(url, timeout=30)
+            if status != 200:
+                raise ConnectionError(f"HTTP {status}")
+            return body, headers, None
+
         async def fetch(i: int, url: str) -> None:
             data: Optional[bytes] = None
             keys = ""
+            unchanged = False
             try:
-                async with sem:
-                    data = await http_get(url, timeout=30)
-                view.bytes += len(data)
-                if len(data) <= INLINE_PARSE_BYTES:
-                    keys = parse_blob(data, sources[url], wanted)
+                data, headers, cached = await download(url)
+                if cached is not None:
+                    keys, unchanged = cached, True
+                    view.cached += 1
                 else:
-                    keys = await loop.run_in_executor(pool, parse_blob, data, sources[url], wanted)
+                    view.bytes += len(data)
+                    if len(data) <= INLINE_PARSE_BYTES:
+                        keys = parse_blob(data, sources[url], parse_types)
+                    else:
+                        keys = await loop.run_in_executor(pool, parse_blob, data, sources[url], parse_types)
+                    cache.store(url, headers, keys)
             except Exception:  # Quelle nicht erreichbar/kaputt – zählt in der Statistik als Fehlschlag
                 pass
             n = 0
             if keys:
                 for key in keys.split("\n"):
+                    if not key.startswith(prefixes):
+                        continue
                     owners = index.get(key)
                     if owners is None:
                         index[key] = [i]
                     else:
                         owners.append(i)
                     n += 1
-            quality.record_fetch(url, data, n)
+            quality.record_fetch(url, data, n, unchanged=unchanged)
             if n:
                 res.ok_sources += 1
                 view.ok += 1

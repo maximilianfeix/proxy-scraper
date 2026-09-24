@@ -101,6 +101,7 @@ class RunOptions:
     no_discover: bool = False
     discover_repos: int = DEFAULT_DISCOVER_REPOS
     all_sources: bool = False
+    no_cache: bool = False  # alle Listen neu laden statt unveränderte aus dem Cache
     serve: int = 0  # Port des rotierenden Proxy-Servers nach dem Lauf, 0 = aus
 
     def __post_init__(self) -> None:
@@ -171,6 +172,7 @@ class RunOptions:
             no_discover=args.no_discover,
             discover_repos=args.discover_repos,
             all_sources=args.all_sources,
+            no_cache=args.no_cache,
             serve=args.serve,
         )
 
@@ -207,6 +209,7 @@ class RunOptions:
         _flag(argv, "--no-discover", self.no_discover)
         _opt(argv, "--discover-repos", self.discover_repos, DEFAULT_DISCOVER_REPOS)
         _flag(argv, "--all-sources", self.all_sources)
+        _flag(argv, "--no-cache", self.no_cache)
         if self.serve:
             argv += ["--serve"] if self.serve == DEFAULT_SERVE_PORT else ["--serve", str(self.serve)]
         return argv

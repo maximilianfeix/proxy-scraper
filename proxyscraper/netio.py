@@ -37,6 +37,9 @@ def _insecure_ssl_context() -> ssl.SSLContext:
     return ctx
 
 
+CONDITIONAL_HEADERS = {"If-None-Match", "If-Modified-Since"}
+
+
 async def http_request(
     url: str,
     timeout: float = 15.0,
@@ -59,7 +62,9 @@ async def http_request(
         https = u.scheme == "https"
         port = u.port or (443 if https else 80)
         path = (u.path or "/") + (f"?{u.query}" if u.query else "")
-        reader, writer = await _connect(u.hostname, port, https, allow_insecure=not headers, timeout=timeout)
+        # Unverifiziert nur ohne eigene Header – bedingte Anfragen (ETag) zählen nicht, die tragen kein Geheimnis
+        insecure_ok = not headers or set(headers) <= CONDITIONAL_HEADERS
+        reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout)
         try:
             writer.write(
                 f"{method} {path} HTTP/1.1\r\nHost: {u.hostname}\r\nUser-Agent: {USER_AGENT}\r\n"

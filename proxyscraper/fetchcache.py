@@ -1,0 +1,86 @@
+"""Unveränderte Listen nicht jedes Mal neu laden.
+
+Pro Liste merkt sich der Cache ETag bzw. Last-Modified und die geparsten Proxy-Schlüssel.
+Beim nächsten Lauf fragt der Download mit If-None-Match / If-Modified-Since; kommt 304 zurück,
+stammen die Schlüssel aus dem Cache. Gespeichert wird ungefiltert (alle Typen), weil sich
+--types zwischen zwei Läufen ändern kann.
+
+  data/fetch-cache/index.json      url -> {etag, modified, file, used}
+  data/fetch-cache/<sha1>.txt.gz   die Schlüssel, einer pro Zeile
+"""
+
+from __future__ import annotations
+
+import gzip
+import hashlib
+import json
+import time
+from pathlib import Path
+from typing import Dict, Optional
+
+from .paths import DATA_DIR, atomic_write
+
+CACHE_DIR = DATA_DIR / "fetch-cache"
+FORGET_AFTER = 14 * 86400  # Listen, die so lange nicht mehr geladen wurden, fliegen raus
+
+
+class FetchCache:
+    def __init__(self, directory: Path = CACHE_DIR, enabled: bool = True):
+        self.dir = directory
+        self.enabled = enabled
+        self.entries: Dict[str, dict] = {}
+        self.hits = 0
+        if enabled:
+            try:
+                self.entries = json.loads((directory / "index.json").read_text(encoding="utf-8"))
+            except (OSError, ValueError):
+                self.entries = {}
+
+    def conditional_headers(self, url: str) -> Dict[str, str]:
+        """Header für eine bedingte Anfrage – leer, wenn nichts (Brauchbares) im Cache liegt."""
+        entry = self.entries.get(url) if self.enabled else None
+        if not entry or not (self.dir / entry["file"]).is_file():
+            return {}
+        headers = {}
+        if entry.get("etag"):
+            headers["If-None-Match"] = entry["etag"]
+        if entry.get("modified"):
+            headers["If-Modified-Since"] = entry["modified"]
+        return headers
+
+    def load(self, url: str) -> Optional[str]:
+        """Schlüssel aus dem Cache nach einer 304-Antwort (None, wenn die Datei kaputt ist)."""
+        entry = self.entries.get(url)
+        if not entry:
+            return None
+        try:
+            keys = gzip.decompress((self.dir / entry["file"]).read_bytes()).decode("utf-8")
+        except (OSError, EOFError, UnicodeDecodeError):
+            return None
+        entry["used"] = time.time()
+        self.hits += 1
+        return keys
+
+    def store(self, url: str, headers: Dict[bytes, bytes], keys: str) -> None:
+        """Nach einem normalen Download: merken, falls der Server ETag oder Last-Modified liefert."""
+        if not self.enabled:
+            return
+        etag = headers.get(b"etag", b"").decode("latin-1").strip()
+        modified = headers.get(b"last-modified", b"").decode("latin-1").strip()
+        if not etag and not modified:
+            self.entries.pop(url, None)
+            return
+        name = hashlib.sha1(url.encode()).hexdigest() + ".txt.gz"
+        self.dir.mkdir(parents=True, exist_ok=True)
+        tmp = self.dir / (name + ".tmp")
+        tmp.write_bytes(gzip.compress(keys.encode("utf-8"), compresslevel=5))
+        tmp.replace(self.dir / name)
+        self.entries[url] = {"etag": etag, "modified": modified, "file": name, "used": time.time()}
+
+    def save(self, now: Optional[float] = None) -> None:
+        if not self.enabled or not self.entries:
+            return
+        now = time.time() if now is None else now
+        for url in [u for u, e in self.entries.items() if now - e.get("used", 0) > FORGET_AFTER]:
+            (self.dir / self.entries.pop(url)["file"]).unlink(missing_ok=True)
+        atomic_write(self.dir / "index.json", json.dumps(self.entries, indent=0, sort_keys=True))

@@ -5,7 +5,6 @@ from __future__ import annotations
 import argparse
 import asyncio
 import ipaddress
-import resource
 import socket
 import sys
 import time
@@ -18,6 +17,7 @@ from rich.text import Text
 
 from . import sources as srcs
 from .checker import JUDGE_HOST, JUDGE_PORT, Checker
+from .compat import ensure_utf8_output, raise_fd_limit
 from .geo import GeoResolver
 from .history import ProxyHistory
 from .netio import INSECURE_HOSTS, http_get
@@ -48,19 +48,6 @@ from .ui import (
     render_source_ranking,
     render_summary,
 )
-
-def raise_fd_limit(wanted: int) -> int:
-    soft, hard = resource.getrlimit(resource.RLIMIT_NOFILE)
-    target = wanted if hard == resource.RLIM_INFINITY else min(wanted, hard)
-    if soft < target:
-        for t in (target, 10240, 4096):
-            try:
-                resource.setrlimit(resource.RLIMIT_NOFILE, (t, hard))
-                return t
-            except (ValueError, OSError):
-                continue
-    return resource.getrlimit(resource.RLIMIT_NOFILE)[0]
-
 
 OWN_IP_URLS = (
     f"https://{JUDGE_HOST}/",       # HTTPS zuerst: wird nicht von Relays/Firmenproxys umgeleitet
@@ -298,6 +285,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
 
 def run(argv: Optional[List[str]] = None) -> int:
+    ensure_utf8_output()
     args = parse_args(argv)
     if args.list_sources is not None:
         return list_sources(args.list_sources)

@@ -81,10 +81,14 @@ proxy-scraper
 ```
 
 <details>
-<summary><b>Andere Wege: pip, schnellere Event-Loop oder direkt aus dem Repo</b></summary>
+<summary><b>Andere Wege: Docker, pip, schnellere Event-Loop oder direkt aus dem Repo</b></summary>
 <br>
 
 ```bash
+# Docker – Gelerntes und Ergebnisse bleiben in zwei Volumes erhalten
+docker run --rm -v proxy-data:/data -v "$PWD/results:/work/results" \
+  ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
+
 # mit pip in die aktuelle Umgebung
 pip install git+https://github.com/maximilianfeix/proxy-scraper.git
 
@@ -98,7 +102,7 @@ pip install -r requirements.txt
 python3 proxy_scraper.py
 ```
 
-Zu jedem [Release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) gibt es außerdem ein Wheel für `pip install <datei>.whl`.
+Zu jedem [Release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) gibt es außerdem ein Wheel für `pip install <datei>.whl` und ein Multi-Arch-Image (amd64/arm64) auf `ghcr.io`. Im Container kommt der Assistent nie, der Lauf startet direkt; `--serve` lauscht nur innerhalb des Containers.
 
 Installiert liegt der gelernte Zustand im Benutzerordner (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` bzw. `~/.local/share/proxy-scraper`; änderbar mit `PROXY_SCRAPER_HOME`), Ergebnisse landen in `./results`. Aus einem Klon gestartet bleibt beides im Projekt.
 
@@ -443,6 +447,7 @@ Das Repo arbeitet selbst mit:
 | [**lint**](../../actions/workflows/lint.yml) | `ruff` mit fest gepinnter Version – lokal und in der CI dieselben Regeln |
 | [**codeql**](../../actions/workflows/codeql.yml) | Sicherheitsanalyse bei jedem Push und einmal pro Woche |
 | [**proxy list**](../../actions/workflows/proxy-list.yml) | alle 6 Stunden: sammeln, prüfen, auf `proxy-list` veröffentlichen. Die gelernte Statistik liegt im Actions-Cache – das Tool wird also auch in der Cloud mit jedem Lauf besser |
+| [**docker**](../../actions/workflows/docker.yml) | baut das Image bei jeder Änderung und lässt darin einen echten Lauf laufen; bei einem Versions-Tag geht `linux/amd64` + `linux/arm64` auf `ghcr.io` |
 | [**release**](../../actions/workflows/release.yml) | bei einem Versions-Tag: testen, bauen, Probestart und GitHub-Release mit Wheel |
 | **Dependabot** | hält die Versionen der Actions aktuell |
 

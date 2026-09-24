@@ -1,0 +1,77 @@
+name: docker
+
+on:
+  push:
+    branches: [main]
+    tags: ["v*"]
+    paths-ignore: ["**.md", "docs/**"]
+  pull_request:
+    paths: ["Dockerfile", ".dockerignore", "pyproject.toml", "proxyscraper/**", ".github/workflows/docker.yml"]
+
+permissions:
+  contents: read
+
+env:
+  IMAGE: ghcr.io/${{ github.repository }}
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-buildx-action@v3
+      - name: Build
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          load: true
+          tags: proxy-scraper:test
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+      - name: Smoke test
+        run: |
+          docker run --rm proxy-scraper:test --version
+          docker run --rm proxy-scraper:test --list-sources 3
+      - name: Real run inside the container
+        run: |
+          mkdir -p results data && sudo chown 1000 results data
+          timeout 600 docker run --rm --ulimit nofile=65535:65535 \
+            -v "$PWD/data:/data" -v "$PWD/results:/work/results" \
+            proxy-scraper:test --want 5 --limit 5000 --no-discover
+          run=$(cat results/latest.txt)
+          echo "found $(wc -l < "results/$run/all.txt") proxies"
+          test -s "results/$run/all.txt"
+          test -f data/source_stats.json
+
+  publish:
+    needs: test
+    if: startsWith(github.ref, 'refs/tags/v')
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: docker/setup-qemu-action@v3
+      - uses: docker/setup-buildx-action@v3
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.IMAGE }}
+          tags: |
+            type=semver,pattern={{version}}
+            type=semver,pattern={{major}}.{{minor}}
+            type=raw,value=latest
+      - uses: docker/build-push-action@v6
+        with:
+          context: .
+          push: true
+          platforms: linux/amd64,linux/arm64
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha

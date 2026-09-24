@@ -51,6 +51,7 @@ from .ui import (
     BLOCKED_HIT_RATE,
     GOOD,
     MUTED,
+    WARN,
     CheckDashboard,
     CollectView,
     LiveStats,
@@ -174,12 +175,12 @@ class Run:
         try:
             self.judge_ip = (await loop.getaddrinfo(JUDGE_HOST, JUDGE_PORT, family=socket.AF_INET))[0][4][0]
         except OSError:
-            note(f"Kann {JUDGE_HOST} nicht auflösen – Internetverbindung prüfen.", "red", "✘")
+            note(f"Kann {JUDGE_HOST} nicht auflösen – Internetverbindung prüfen.", BAD, "✘")
             return False
         self.own_ips = await get_own_ips()
         ips = self.own_ips
         info("Deine IP", Text.assemble(
-            (ips[0], "bold") if ips else ("unbekannt", "yellow"),
+            (ips[0], "bold") if ips else ("unbekannt", WARN),
             (f"  (auf Port 80 zusätzlich {', '.join(ips[1:])})" if len(ips) > 1 else "", MUTED),
         ))
         if not await self.resolve_targets():
@@ -204,7 +205,7 @@ class Run:
             try:
                 infos = await loop.getaddrinfo(target.host, target.port, family=socket.AF_INET)
             except OSError:
-                note(f"Zielseite {target.host} lässt sich nicht auflösen – Tippfehler?", "red", "✘")
+                note(f"Zielseite {target.host} lässt sich nicht auflösen – Tippfehler?", BAD, "✘")
                 return False
             self.targets.append((target, infos[0][4][0]))
         if self.targets:
@@ -309,14 +310,14 @@ class Run:
     async def serve(self, proxies: List[CheckResult]) -> None:
         """Die gefundenen Proxys als lokalen rotierenden Proxy-Server bereitstellen, bis Strg+C."""
         if not proxies:
-            note("Kein passender Proxy gefunden – der Proxy-Server startet nicht.", "red", "✘")
+            note("Kein passender Proxy gefunden – der Proxy-Server startet nicht.", BAD, "✘")
             return
         server = RotatingServer(ProxyPool(proxies), port=self.opts.serve, timeout=self.opts.timeout)
         try:
             await server.start()
         except OSError as e:
             note(f"Port {self.opts.serve} ist nicht verfügbar ({e.strerror or e}) – anderen mit --serve PORT wählen.",
-                 "red", "✘")
+                 BAD, "✘")
             return
         stop = asyncio.Event()
         widgets.console.print()
@@ -352,7 +353,7 @@ class Run:
             note(
                 f"[bold]{fmt(stats.checked)} Proxys geprüft, nur {fmt(stats.found)} funktionieren.[/] "
                 "Dein Netzwerk (Firmen-/Schul-Firewall) blockiert vermutlich Proxy-Verbindungen – probier es "
-                "in einem anderen Netz, z. B. über einen Handy-Hotspot. [grey50]Statistik & Verlauf wurden dafür "
+                f"in einem anderen Netz, z. B. über einen Handy-Hotspot. [{MUTED}]Statistik & Verlauf wurden dafür "
                 "nicht abgewertet.[/]"
             )
         if opts.geo and geo.failed:

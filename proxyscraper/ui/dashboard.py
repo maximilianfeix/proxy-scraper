@@ -178,7 +178,7 @@ class CheckDashboard:
             BarColumn(bar_width=None, complete_style=ACCENT, finished_style=GOOD),
             TaskProgressColumn(text_format=f"[bold {ACCENT}]{{task.percentage:>3.0f}}%"),
             CountColumn(),
-            TextColumn("[grey50]· noch"),
+            TextColumn(f"[{MUTED}]· noch"),
             TimeRemainingColumn(),
             expand=True,
         )

@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import asyncio
 import random
+import re
 import socket
 import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Deque, List, Optional, Set, Tuple
 
-from .checker import CheckResult, _socks5_reply_ok
+from .checker import CheckResult
+from .handshake import parse_endpoint, socks4, socks5, socks5_domain, stream_io, with_proxy_auth
 
 MAX_ATTEMPTS = 3            # so viele Proxys pro Anfrage, bevor der Client einen Fehler bekommt
 FIRST_CHUNK_WAIT = 5.0      # so lange auf das erste Paket des Clients im Tunnel warten
@@ -152,15 +154,15 @@ async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, 
     """Verbindung über den Proxy zu host:port. tunnel=False heißt: HTTP-Upstream im Weiterleitungsmodus
     (klassische Proxy-Anfrage ohne CONNECT). Wirft UpstreamError, wenn der Proxy nicht mitspielt."""
     r = entry.result
-    proxy_host, proxy_port = r.proxy.rsplit(":", 1)
+    ep = parse_endpoint(r.proxy)
     try:
-        reader, writer = await asyncio.wait_for(asyncio.open_connection(proxy_host, int(proxy_port)), timeout)
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(ep.host, ep.port), timeout)
     except (OSError, asyncio.TimeoutError) as e:
         raise UpstreamError(f"Proxy nicht erreichbar: {e!r}") from None
     if r.ptype == "http" and not tunnel:
         return reader, writer
     try:
-        await asyncio.wait_for(_handshake(r.ptype, reader, writer, host, port), timeout)
+        await asyncio.wait_for(_handshake(r.ptype, r.proxy, reader, writer, host, port), timeout)
     except BaseException as e:
         writer.close()
         if isinstance(e, (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, UpstreamError, ValueError)):
@@ -169,9 +171,11 @@ async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, 
     return reader, writer
 
 
-async def _handshake(ptype: str, reader, writer, host: str, port: int) -> None:
+async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: int) -> None:
+    ep = parse_endpoint(proxy)
     if ptype == "http":
-        writer.write(f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode())
+        connect = f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode()
+        writer.write(with_proxy_auth(connect, ep))
         await writer.drain()
         head = await reader.readuntil(b"\r\n\r\n")
         first = head.split(b"\r\n", 1)[0]
@@ -181,29 +185,24 @@ async def _handshake(ptype: str, reader, writer, host: str, port: int) -> None:
             raise UpstreamError(first.decode("latin-1"))
     elif ptype == "socks4":
         ip = await _resolve(host, port)  # SOCKS4 kennt nur IPv4-Adressen
-        writer.write(b"\x04\x01" + port.to_bytes(2, "big") + socket.inet_aton(ip) + b"\x00")
-        await writer.drain()
-        if (await reader.readexactly(8))[1] != 0x5A:
+        if not await socks4(*stream_io(reader, writer), ep, socket.inet_aton(ip), port):
             raise UpstreamError("SOCKS4 abgelehnt")
     else:
-        writer.write(b"\x05\x01\x00")
-        await writer.drain()
-        if await reader.readexactly(2) != b"\x05\x00":
-            raise UpstreamError("SOCKS5-Anmeldung abgelehnt")
-        name = host.encode("idna")
         # Hostname statt IP: die Namensauflösung passiert beim Proxy (kein DNS-Leck)
-        writer.write(b"\x05\x01\x00\x03" + bytes([len(name)]) + name + port.to_bytes(2, "big"))
-        await writer.drain()
-        if not await _socks5_reply_ok(reader.readexactly):
-            raise UpstreamError("SOCKS5-Verbindung abgelehnt")
+        if not await socks5(*stream_io(reader, writer), ep, socks5_domain(host), port):
+            raise UpstreamError("SOCKS5 abgelehnt")
+
+
+PROXY_AUTH_REQUIRED = re.compile(rb"HTTP/1\.[01] 407\b")
 
 
 def plausible_answer(first_out: bytes, first_in: bytes) -> bool:
     """Passt die erste Antwort zur Anfrage? Beginnt der Client mit einem TLS-Handshake (0x16), muss die
-    Gegenseite auch TLS sprechen – manche Proxys schicken im Tunnel stattdessen eine HTTP-Fehlerseite."""
+    Gegenseite auch TLS sprechen – manche Proxys schicken im Tunnel stattdessen eine HTTP-Fehlerseite.
+    Ein 407 kommt immer vom Proxy selbst (Login fehlt oder falsch), nie von der Zielseite."""
     if first_out[:1] == TLS_HANDSHAKE:
         return first_in[:1] in (TLS_HANDSHAKE, TLS_ALERT)
-    return True
+    return not PROXY_AUTH_REQUIRED.match(first_in)
 
 
 async def _resolve(host: str, port: int) -> str:
@@ -300,8 +299,12 @@ class RotatingServer:
             if opened is None:
                 break
             entry, up_reader, up_writer = opened
-            build = forward_request if entry.result.ptype == "http" else origin_request
-            first_out = build(method, path, host, port, headers) + body
+            if entry.result.ptype == "http":
+                head = with_proxy_auth(forward_request(method, path, host, port, headers),
+                                       parse_endpoint(entry.result.proxy))
+            else:
+                head = origin_request(method, path, host, port, headers)
+            first_out = head + body
             if not replayable:
                 # Großer oder gestreamter Body: kein Wechsel möglich – Kopf senden, den Rest durchreichen
                 up_writer.write(first_out)

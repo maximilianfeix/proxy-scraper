@@ -23,6 +23,7 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
+from .handshake import Endpoint, parse_endpoint, socks4, socks5, socks5_ipv4, stream_io, with_proxy_auth
 from .judges import DEFAULT_JUDGE, Judge
 from .netio import USER_AGENT, dechunk, read_response, ssl_context
 from .parsing import split_key
@@ -153,16 +154,17 @@ class Checker:
     async def _check(self, ptype: str, proxy: str):
         # Viele ip:port stehen unter mehreren Typen in den Listen – wer schon beim
         # TCP-Connect scheitert, scheitert bei den anderen Typen genauso.
-        if proxy in self.unreachable:
+        ep = parse_endpoint(proxy)
+        if ep.address in self.unreachable:
             return None
         # Ziel-IP und Anfrage zusammen festhalten – wechselt das Prüfziel mittendrin, passt beides noch
         ip_bytes, port = self.judge_ip_bytes, self.judge.port
         request = self.http_proxy_request if ptype == "http" else self.request
         reader, writer = await self._connect(proxy)
         try:
-            if not await self._handshake(ptype, reader, writer, ip_bytes, port):
+            if not await self._handshake(ptype, ep, reader, writer, ip_bytes, port):
                 return None
-            writer.write(request)
+            writer.write(with_proxy_auth(request, ep) if ptype == "http" else request)
             await writer.drain()
             return await _read_http_200(reader)
         finally:
@@ -171,35 +173,28 @@ class Checker:
     async def _connect(self, proxy: str, detail: bool = False):
         """TCP-Verbindung zum Proxy. Nur die Basisprüfung merkt sich unerreichbare Proxys und nutzt den
         (evtl. latenzbegrenzten) kurzen Timeout – Detailprüfungen bekommen den normalen."""
-        host, port = proxy.rsplit(":", 1)
+        ep = parse_endpoint(proxy)
         timeout = self.detail_connect_timeout if detail else self.connect_timeout
         try:
-            reader, writer = await asyncio.wait_for(asyncio.open_connection(host, int(port)), timeout)
+            reader, writer = await asyncio.wait_for(asyncio.open_connection(ep.host, ep.port), timeout)
         except (asyncio.TimeoutError, ConnectionRefusedError):
             if not detail:
-                self.unreachable.add(proxy)
+                self.unreachable.add(ep.address)
             raise
         except OSError as e:
             # nicht z. B. EMFILE – das ist unser Fehler, nicht der des Proxys
             if not detail and e.errno in UNREACHABLE_ERRNOS:
-                self.unreachable.add(proxy)
+                self.unreachable.add(ep.address)
             raise
         return reader, writer
 
-    async def _handshake(self, ptype: str, reader, writer, ip_bytes: bytes, port: int) -> bool:
+    async def _handshake(self, ptype: str, ep: Endpoint, reader, writer, ip_bytes: bytes, port: int) -> bool:
         """SOCKS-Verbindung zu ip:port aufbauen; HTTP-Proxys brauchen keinen Handshake."""
+        send, recv_exact = stream_io(reader, writer)
         if ptype == "socks4":
-            writer.write(b"\x04\x01" + port.to_bytes(2, "big") + ip_bytes + b"\x00")
-            await writer.drain()
-            return (await reader.readexactly(8))[1] == 0x5A
+            return await socks4(send, recv_exact, ep, ip_bytes, port)
         if ptype == "socks5":
-            writer.write(b"\x05\x01\x00")
-            await writer.drain()
-            if await reader.readexactly(2) != b"\x05\x00":
-                return False
-            writer.write(b"\x05\x01\x00\x01" + ip_bytes + port.to_bytes(2, "big"))
-            await writer.drain()
-            return await _socks5_reply_ok(reader.readexactly)
+            return await socks5(send, recv_exact, ep, socks5_ipv4(ip_bytes), port)
         return True
 
     # ------------------------------------------------------------------ Bestätigung
@@ -222,11 +217,12 @@ class Checker:
         return True
 
     async def _confirm(self, ptype: str, proxy: str) -> Optional[bytes]:
+        ep = parse_endpoint(proxy)
         reader, writer = await self._connect(proxy, detail=True)
         try:
-            if not await self._handshake(ptype, reader, writer, self.confirm_ip_bytes, CONFIRM_PORT):
+            if not await self._handshake(ptype, ep, reader, writer, self.confirm_ip_bytes, CONFIRM_PORT):
                 return None
-            writer.write(HTTP_PROXY_CONFIRM_REQUEST if ptype == "http" else CONFIRM_REQUEST)
+            writer.write(with_proxy_auth(HTTP_PROXY_CONFIRM_REQUEST, ep) if ptype == "http" else CONFIRM_REQUEST)
             await writer.drain()
             # Antwort kommt vom (nicht vertrauenswürdigen) Proxy – nur begrenzt viel lesen
             return await _read_http_200(reader)
@@ -293,11 +289,13 @@ class Checker:
             reader, writer = await self._connect(proxy, detail=True)
             # HTTP-Proxys wollen für unverschlüsseltes HTTP die absolute URL
             path = target.url if ptype == "http" else target.path
+        ep = parse_endpoint(proxy)
         try:
             # Handshake mit im try: scheitert er mit einer Exception, wird der Socket trotzdem geschlossen
-            if not target.tls and not await self._handshake(ptype, reader, writer, ip_bytes, target.port):
+            if not target.tls and not await self._handshake(ptype, ep, reader, writer, ip_bytes, target.port):
                 return False
-            writer.write(request.format(path=path).encode())
+            data = request.format(path=path).encode()
+            writer.write(with_proxy_auth(data, ep) if ptype == "http" and not target.tls else data)
             await writer.drain()
             status = await _read_status(reader)
         finally:
@@ -307,12 +305,12 @@ class Checker:
     async def _tls_tunnel(self, ptype: str, proxy: str, host: str, ip_bytes: bytes, port: int):
         """Tunnel durch den Proxy zu host:port und darin verifiziertes TLS. None = Tunnel abgelehnt oder MITM."""
         loop = asyncio.get_running_loop()
-        proxy_host, proxy_port = proxy.rsplit(":", 1)
+        ep = parse_endpoint(proxy)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         sock.setblocking(False)
         try:
-            await loop.sock_connect(sock, (proxy_host, int(proxy_port)))
-            if not await self._open_tunnel(loop, sock, ptype, host, ip_bytes, port):
+            await loop.sock_connect(sock, (ep.host, ep.port))
+            if not await self._open_tunnel(loop, sock, ptype, ep, host, ip_bytes, port):
                 sock.close()
                 return None
             return await asyncio.open_connection(sock=sock, ssl=ssl_context(), server_hostname=host)
@@ -323,7 +321,8 @@ class Checker:
             sock.close()
             raise
 
-    async def _open_tunnel(self, loop, sock: socket.socket, ptype: str, host: str, ip_bytes: bytes, port: int) -> bool:
+    async def _open_tunnel(self, loop, sock: socket.socket, ptype: str, ep: Endpoint, host: str,
+                           ip_bytes: bytes, port: int) -> bool:
         async def recv_exact(n: int) -> bytes:
             buf = b""
             while len(buf) < n:
@@ -334,7 +333,8 @@ class Checker:
             return buf
 
         if ptype == "http":
-            await loop.sock_sendall(sock, f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode())
+            connect = f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode()
+            await loop.sock_sendall(sock, with_proxy_auth(connect, ep))
             head = b""
             while b"\r\n\r\n" not in head and len(head) < 8192:
                 chunk = await loop.sock_recv(sock, 1)  # byteweise: nichts vom TLS-Strom verschlucken
@@ -343,14 +343,12 @@ class Checker:
                 head += chunk
             first = head.split(b"\r\n", 1)[0]
             return first.startswith(b"HTTP/") and b" 200" in first
+        async def send(data: bytes) -> None:
+            await loop.sock_sendall(sock, data)
+
         if ptype == "socks4":
-            await loop.sock_sendall(sock, b"\x04\x01" + port.to_bytes(2, "big") + ip_bytes + b"\x00")
-            return (await recv_exact(8))[1] == 0x5A
-        await loop.sock_sendall(sock, b"\x05\x01\x00")
-        if await recv_exact(2) != b"\x05\x00":
-            return False
-        await loop.sock_sendall(sock, b"\x05\x01\x00\x01" + ip_bytes + port.to_bytes(2, "big"))
-        return await _socks5_reply_ok(recv_exact)
+            return await socks4(send, recv_exact, ep, ip_bytes, port)
+        return await socks5(send, recv_exact, ep, socks5_ipv4(ip_bytes), port)
 
 
 async def _none() -> None:
@@ -430,23 +428,6 @@ def classify_anonymity(body: bytes, own_ips: Iterable[str]) -> Optional[str]:
         return None  # unerwartete Antwort – nicht abstürzen, nur nicht bestätigen
     names = {str(name).lower() for name in headers}
     return "anonymous" if names & PROXY_HEADERS else "elite"
-
-
-async def _socks5_reply_ok(read_exact) -> bool:
-    resp = await read_exact(4)
-    if resp[1] != 0x00:
-        return False
-    atyp = resp[3]
-    if atyp == 1:
-        await read_exact(4 + 2)
-    elif atyp == 4:
-        await read_exact(16 + 2)
-    elif atyp == 3:
-        ln = (await read_exact(1))[0]
-        await read_exact(ln + 2)
-    else:
-        return False
-    return True
 
 
 async def _read_http_200(reader) -> Optional[bytes]:

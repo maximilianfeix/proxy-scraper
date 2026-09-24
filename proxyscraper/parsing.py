@@ -9,6 +9,9 @@ from __future__ import annotations
 import ipaddress
 import re
 from typing import Iterable, List, Optional, Set, Tuple
+from urllib.parse import unquote
+
+from .handshake import format_auth
 
 PROXY_TYPES = ("http", "socks4", "socks5")
 TYPE_ALIASES = {
@@ -30,11 +33,11 @@ JSON_IP_PORT_RE = re.compile(rb'"ip"\s*:\s*"' + _IP + rb'"[^{}]{0,500}?"port"\s*
 JSON_PORT_IP_RE = re.compile(rb'"port"\s*:\s*"?(\d{2,5})"?[^{}]{0,500}?"ip"\s*:\s*"' + _IP + rb'"')
 # typ://[user:pass@]ip:port – hier steht der Typ in der Zeile selbst
 SCHEME_RE = re.compile(
-    rb"(?i)(?<![a-z0-9])(https?|socks4a?|socks5h?)://(?:[^\s@/]{1,100}@)?" + _IP + rb":(\d{2,5})(?!\d)"
+    rb"(?i)(?<![a-z0-9])(https?|socks4a?|socks5h?)://(?:([^\s@/]{1,100})@)?" + _IP + rb":(\d{2,5})(?!\d)"
 )
 SCHEME_TYPES = {k.encode(): v for k, v in TYPE_ALIASES.items() if v != "auto"}
 
-RawCandidate = Tuple[str, bytes, bytes]
+RawCandidate = Tuple[str, bytes, bytes, bytes]  # typ, ip, port, Zugangsdaten (b"" ohne)
 
 
 _SPACE_SEPARATED_RE = re.compile(rb"\d\.\d{1,3}[ \t]+\d{2,5}(?![\d.])")
@@ -55,10 +58,10 @@ def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
     out: Set[RawCandidate] = set()
     with_scheme = set()
     if b"://" in data:
-        for scheme, ip, port in SCHEME_RE.findall(data):
+        for scheme, auth, ip, port in SCHEME_RE.findall(data):
             ptype = SCHEME_TYPES.get(scheme.lower())
             if ptype:
-                out.add((ptype, ip, port))
+                out.add((ptype, ip, port, auth))
                 with_scheme.add((ip, port))
     if default_type == "auto":
         return out
@@ -67,7 +70,7 @@ def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
     if b'"ip"' in data:
         pairs.update(JSON_IP_PORT_RE.findall(data))
         pairs.update((ip, port) for port, ip in JSON_PORT_IP_RE.findall(data))
-    out.update((default_type, ip, port) for ip, port in pairs - with_scheme)
+    out.update((default_type, ip, port, b"") for ip, port in pairs - with_scheme)
     return out
 
 
@@ -121,13 +124,24 @@ def split_key(key: str) -> Tuple[str, str]:
     return ptype, proxy
 
 
+def normalize_auth(auth: str) -> str:
+    """'user:p%40ss' oder 'user:p@ss' -> einheitlich kodiert ('user:p%40ss'); '' ohne Benutzer."""
+    user, _, password = auth.partition(":")
+    return format_auth(unquote(user), unquote(password))
+
+
 def validate_candidates(candidates: Iterable[RawCandidate]) -> Set[str]:
-    """{(typ, ip, port)} -> {"typ ip:port"} nur für gültige, öffentliche Adressen."""
+    """{(typ, ip, port, auth)} -> {"typ [auth@]ip:port"} nur für gültige, öffentliche Adressen."""
     out = set()
-    for ptype, ip, port in candidates:
+    for ptype, ip, port, auth in candidates:
         proxy = normalize_proxy(ip, port)
-        if proxy:
-            out.add(make_key(ptype, proxy))
+        if not proxy:
+            continue
+        if auth:
+            creds = normalize_auth(auth.decode("utf-8", "replace"))
+            if creds:
+                proxy = f"{creds}@{proxy}"
+        out.add(make_key(ptype, proxy))
     return out
 
 
@@ -142,7 +156,7 @@ def parse_blob(data: bytes, default_type: str, wanted: Tuple[str, ...]) -> str:
 
 
 def parse_proxy_line(line: str, default_type: Optional[str] = None) -> Optional[str]:
-    """Eine Zeile aus einer Ergebnisdatei ('socks5://1.2.3.4:1080' oder '1.2.3.4:80') -> Schlüssel."""
+    """Eine Zeile aus einer Ergebnisdatei ('socks5://user:pass@1.2.3.4:1080' oder '1.2.3.4:80') -> Schlüssel."""
     line = line.strip()
     if not line or line.startswith("#"):
         return None
@@ -150,15 +164,19 @@ def parse_proxy_line(line: str, default_type: Optional[str] = None) -> Optional[
     if "://" in line:
         scheme, _, line = line.partition("://")
         ptype = TYPE_ALIASES.get(scheme.lower())
-        line = line.rsplit("@", 1)[-1]
     if ptype not in PROXY_TYPES:
         return None
+    line = line.split()[0]
+    auth, _, line = line.rpartition("@")
     ip, _, port = line.partition(":")
-    port = port.split()[0] if port else ""
+    port = port.rstrip("/")
     if not port.isdigit() or ip.count(".") != 3 or not all(p.isdigit() for p in ip.split(".")):
         return None
     proxy = normalize_proxy(ip.encode(), port.encode())
-    return make_key(ptype, proxy) if proxy else None
+    if not proxy:
+        return None
+    creds = normalize_auth(auth) if auth else ""
+    return make_key(ptype, f"{creds}@{proxy}" if creds else proxy)
 
 
 def parse_keys(lines: Iterable[str], default_type: Optional[str] = None) -> List[str]:

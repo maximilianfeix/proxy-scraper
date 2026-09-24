@@ -1,5 +1,7 @@
 import asyncio
 
+import pytest
+
 from proxyscraper import netio
 from proxyscraper import parsing as p
 
@@ -28,7 +30,7 @@ def test_json_both_key_orders():
 
 def test_scheme_prefix_overrides_source_type():
     data = b"socks5://5.6.7.8:1080\nhttps://user:pw@4.4.4.4:8080\n1.2.3.4:80\n"
-    assert parse(data, "socks4") == ["http 4.4.4.4:8080", "socks4 1.2.3.4:80", "socks5 5.6.7.8:1080"]
+    assert parse(data, "socks4") == ["http user:pw@4.4.4.4:8080", "socks4 1.2.3.4:80", "socks5 5.6.7.8:1080"]
 
 
 def test_auto_source_only_uses_prefixed_lines():
@@ -51,7 +53,7 @@ def test_parse_blob_filters_types_and_joins():
 
 def test_parse_proxy_lines_from_result_files():
     lines = ["socks5://1.2.3.4:1080", "# Kommentar", "5.6.7.8:3128", "http://u:p@9.9.9.9:80", "kaputt", "10.0.0.1:80"]
-    assert p.parse_keys(lines) == ["socks5 1.2.3.4:1080", "http 9.9.9.9:80"]
+    assert p.parse_keys(lines) == ["socks5 1.2.3.4:1080", "http u:p@9.9.9.9:80"]
     assert p.parse_keys(lines, "socks4")[1] == "socks4 5.6.7.8:3128"
 
 
@@ -75,3 +77,20 @@ def test_response_chunked():
 
     status, _, body = asyncio.run(go())
     assert (status, body) == (200, b"abcde")
+
+
+@pytest.mark.parametrize("line, key", [
+    ("socks5://alice:s3cret@1.2.3.4:1080", "socks5 alice:s3cret@1.2.3.4:1080"),
+    ("http://alice:p%40ss%3Aword@1.2.3.4:80", "http alice:p%40ss%3Aword@1.2.3.4:80"),  # schon kodiert
+    ("socks4://bob@1.2.3.4:1080", "socks4 bob@1.2.3.4:1080"),                         # nur Benutzer
+    ("socks5://:nouser@1.2.3.4:1080", "socks5 1.2.3.4:1080"),                          # ohne Benutzer: weg
+    ("alice:pw@1.2.3.4:3128", "http alice:pw@1.2.3.4:3128"),                           # ohne Schema
+])
+def test_credentials_are_kept_and_normalized(line, key):
+    assert p.parse_proxy_line(line, "http") == key
+
+
+def test_credentials_in_lists():
+    data = b"socks5://alice:pw@1.2.3.4:1080\nsocks5://1.2.3.4:1080\n"
+    # mit und ohne Login sind zwei verschiedene Proxys
+    assert parse(data, "auto") == ["socks5 1.2.3.4:1080", "socks5 alice:pw@1.2.3.4:1080"]

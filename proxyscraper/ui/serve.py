@@ -13,7 +13,21 @@ from rich.text import Text
 
 from ..server import RotatingServer
 from . import widgets
-from .widgets import ACCENT, BAD, GOOD, MUTED, TYPE_STYLE, WARN, card, fmt, fmt_duration, pct, row, table
+from .widgets import (
+    ACCENT,
+    BAD,
+    GOOD,
+    MUTED,
+    TYPE_STYLE,
+    WARN,
+    card,
+    fmt,
+    fmt_duration,
+    pct,
+    row,
+    shown_proxy,
+    table,
+)
 
 
 def _mb(n: int) -> str:
@@ -83,7 +97,8 @@ class ServeDashboard:
         busiest.add_column("Latenz", justify="right")
         for entry in sorted(pool.entries, key=lambda e: (-e.ok, e.result.latency))[:5]:
             r = entry.result
-            name = Text(f"{r.ptype}://{r.proxy}", style=MUTED if entry.disabled else TYPE_STYLE.get(r.ptype, ""))
+            style = MUTED if entry.disabled else TYPE_STYLE.get(r.ptype, "")
+            name = Text(f"{r.ptype}://{shown_proxy(r.proxy)}", style=style)
             busiest.add_row(name, fmt(entry.ok), fmt(entry.fail), f"{fmt(r.latency)} ms")
 
         waiting = Align.center(Text("warte auf die erste Verbindung …", style=MUTED))

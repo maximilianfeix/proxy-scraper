@@ -241,6 +241,8 @@ def test_non_tls_answer_to_tls_is_retried():
     (b"\x16\x03\x01...", b"HTTP/1.1 403 Forbidden", False),
     (b"GET / HTTP/1.1", b"HTTP/1.1 200 OK", True),
     (b"", b"SSH-2.0-OpenSSH", True),                            # Server spricht zuerst
+    (b"GET / HTTP/1.1", b"HTTP/1.1 407 Proxy Authentication Required", False),  # Proxy will Login
+    (b"GET / HTTP/1.1", b"HTTP/1.1 4070", True),
 ])
 def test_plausible_answer(out, answer, expected):
     assert plausible_answer(out, answer) is expected

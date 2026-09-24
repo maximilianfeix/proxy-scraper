@@ -2,6 +2,8 @@
 
 import asyncio
 import socket
+import ssl
+from pathlib import Path
 
 
 async def pipe(reader, writer):
@@ -13,7 +15,7 @@ async def pipe(reader, writer):
             writer.write(data)
             await writer.drain()
     except (ConnectionError, OSError):
-        pass
+        pass  # Gegenseite hat aufgelegt – für einen Test-Proxy kein Fehler
     finally:
         writer.close()
 
@@ -22,7 +24,13 @@ async def target_server(reader, writer):
     """Zielseite: /ok -> 200, /weiter -> 302, alles andere -> 403 (wie eine Seite, die Proxys sperrt)."""
     head = await reader.readuntil(b"\r\n\r\n")
     path = head.split()[1]
-    if path.endswith(b"/ok"):
+    if path.endswith(b"/host-mit-port"):
+        # 200 nur, wenn der Host-Header den (nicht standardmäßigen) Port enthält
+        port = writer.get_extra_info("sockname")[1]
+        ok = f"Host: 127.0.0.1:{port}\r\n".encode() in head
+        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n" if ok else
+                     b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n")
+    elif path.endswith(b"/ok"):
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
     elif path.endswith(b"/weiter"):
         writer.write(b"HTTP/1.1 302 Found\r\nLocation: /ok\r\nContent-Length: 0\r\n\r\n")
@@ -65,4 +73,23 @@ async def socks5_forward_proxy(reader, writer):
 
 async def serve(handler):
     server = await asyncio.start_server(handler, "127.0.0.1", 0)
+    return server, server.sockets[0].getsockname()[1]
+
+
+DATA = Path(__file__).parent / "data"
+
+
+def tls_server_context() -> ssl.SSLContext:
+    ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    ctx.load_cert_chain(DATA / "localhost-cert.pem", DATA / "localhost-key.pem")
+    return ctx
+
+
+def tls_client_context() -> ssl.SSLContext:
+    """Vertraut genau dem Test-Zertifikat – wie certifi einem echten Zertifikat vertrauen würde."""
+    return ssl.create_default_context(cafile=str(DATA / "localhost-cert.pem"))
+
+
+async def serve_tls(handler):
+    server = await asyncio.start_server(handler, "127.0.0.1", 0, ssl=tls_server_context())
     return server, server.sockets[0].getsockname()[1]

@@ -143,8 +143,8 @@ class LiveStats:
         if r.https:
             self.https_ok += 1
         for url, ok in r.targets.items():
-            if ok:
-                self.targets_ok[url] += 1
+            # auch 0 zählen: eine Zielseite, die kein Proxy erreicht, soll im Bericht sichtbar bleiben
+            self.targets_ok[url] += int(ok)
 
     def sample_speed(self) -> float:
         now = time.perf_counter()

@@ -15,6 +15,11 @@ class Target:
     tls: bool
 
     @property
+    def host_header(self) -> str:
+        """Host-Header: mit Port, wenn er vom Standard abweicht – sonst landet man evtl. im falschen vHost."""
+        return self.host if self.port == (443 if self.tls else 80) else f"{self.host}:{self.port}"
+
+    @property
     def label(self) -> str:
         """Kurzname für Anzeigen: https://www.google.com/ -> google.com"""
         host = self.host[4:] if self.host.startswith("www.") else self.host
@@ -34,9 +39,13 @@ def parse_target(text: str) -> Target:
         raise ValueError(f"kein Host in {text!r}")
     tls = u.scheme == "https"
     try:
-        port = u.port or (443 if tls else 80)
+        port = u.port
     except ValueError as e:  # Port außerhalb 0–65535 o. ä.
         raise ValueError(f"ungültiger Port in {text!r}") from e
+    if port is None:
+        port = 443 if tls else 80
+    elif port <= 0:  # ":0" nicht still durch den Standard-Port ersetzen
+        raise ValueError(f"ungültiger Port in {text!r}")
     path = (u.path or "/") + (f"?{u.query}" if u.query else "")
     default = 443 if tls else 80
     netloc = u.hostname if port == default else f"{u.hostname}:{port}"

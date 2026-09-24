@@ -9,7 +9,7 @@ from proxyscraper.cli import parse_args
 from proxyscraper.options import Filters, RunOptions
 from proxyscraper.targets import parse_target, target_label
 
-from .fakes import http_forward_proxy, serve, socks5_forward_proxy, target_server
+from .fakes import http_forward_proxy, serve, serve_tls, socks5_forward_proxy, target_server, tls_client_context
 
 
 @pytest.mark.parametrize("text, url, label", [
@@ -24,7 +24,7 @@ def test_parse_target(text, url, label):
     assert target_label(url) == label
 
 
-@pytest.mark.parametrize("text", ["ftp://example.org", "https://", "http://example.org:99999/"])
+@pytest.mark.parametrize("text", ["ftp://example.org", "https://", "http://example.org:99999/", "http://example.org:0/"])
 def test_parse_target_rejects(text):
     with pytest.raises(ValueError):
         parse_target(text)
@@ -95,3 +95,53 @@ def test_csv_flattens_targets(tmp_path):
     ResultWriter(run_dir=tmp_path / "run").finalize([r])
     csv_text = (tmp_path / "run" / "proxies.csv").read_text(encoding="utf-8")
     assert "google.com:ok;discord.com:nein" in csv_text
+
+
+def test_host_header_keeps_non_default_port():
+    assert parse_target("http://example.org:8080/").host_header == "example.org:8080"
+    assert parse_target("https://example.org/").host_header == "example.org"
+
+    async def go():
+        target_srv, target_port = await serve(target_server)
+        proxy_srv, proxy_port = await serve(http_forward_proxy)
+        async with target_srv, proxy_srv:
+            target = parse_target(f"http://127.0.0.1:{target_port}/host-mit-port")
+            c = ck.Checker("3.3.3.3", set(), timeout=3, connect_timeout=2)
+            return await c.check_target("http", f"127.0.0.1:{proxy_port}", target, socket.inet_aton("127.0.0.1"))
+
+    assert asyncio.run(go()) is True
+
+
+def run_tls_target(proxy_handler, ptype, path="/ok"):
+    async def go():
+        target_srv, target_port = await serve_tls(target_server)
+        proxy_srv, proxy_port = await serve(proxy_handler)
+        async with target_srv, proxy_srv:
+            target = parse_target(f"https://localhost:{target_port}{path}")
+            c = ck.Checker("3.3.3.3", set(), timeout=3, connect_timeout=2)
+            return await c.check_target(ptype, f"127.0.0.1:{proxy_port}", target, socket.inet_aton("127.0.0.1"))
+
+    return asyncio.run(go())
+
+
+@pytest.mark.parametrize("proxy_handler, ptype", [(http_forward_proxy, "http"), (socks5_forward_proxy, "socks5")])
+@pytest.mark.parametrize("path, expected", [("/ok", True), ("/gesperrt", False)])
+def test_https_target_through_tunnel_with_verified_tls(monkeypatch, proxy_handler, ptype, path, expected):
+    monkeypatch.setattr(ck, "ssl_context", tls_client_context)  # dem Test-Zertifikat vertrauen
+    assert run_tls_target(proxy_handler, ptype, path) is expected
+
+
+def test_https_target_with_untrusted_certificate_fails():
+    """Ohne Vertrauen ins Zertifikat (wie bei einem MITM-Proxy) zählt die Seite als nicht erreichbar."""
+    assert run_tls_target(http_forward_proxy, "http") is False
+
+
+def test_targets_without_any_success_stay_visible():
+    from proxyscraper.ui import LiveStats
+
+    stats = LiveStats({"http": 1})
+    r = CheckResult("x", "http", "1.1.1.1:80", 100, "9.9.9.9")
+    r.targets = {"https://www.google.com/": False}
+    stats.add_details(r)
+    assert stats.targets_ok == {"https://www.google.com/": 0}
+    assert "https://www.google.com/" in stats.targets_ok

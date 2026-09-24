@@ -260,7 +260,7 @@ class Checker:
         Gelesen wird nur der Antwortkopf – eine 500-KB-Startseite muss niemand herunterladen.
         """
         request = (
-            f"GET {{path}} HTTP/1.1\r\nHost: {target.host}\r\nUser-Agent: {USER_AGENT}\r\n"
+            f"GET {{path}} HTTP/1.1\r\nHost: {target.host_header}\r\nUser-Agent: {USER_AGENT}\r\n"
             f"Accept: text/html,*/*;q=0.8\r\nAccept-Language: de,en;q=0.8\r\nConnection: close\r\n\r\n"
         )
         if target.tls:

@@ -20,7 +20,6 @@ from .checker import (
     CONFIRM_PORT,
     DETAIL_CONNECTIONS,
     JUDGE_HOST,
-    JUDGE_PORT,
     Checker,
     CheckResult,
     probe_confirm_target,
@@ -29,6 +28,7 @@ from .compat import on_interrupt, raise_fd_limit
 from .fetchcache import FetchCache
 from .geo import GeoResolver
 from .history import ProxyHistory
+from .judges import JudgeProbe, JudgeWatch, rank_judges
 from .netio import INSECURE_HOSTS, http_get
 from .options import RunOptions
 from .output import ResultWriter, latest_results
@@ -148,7 +148,7 @@ class Run:
         self.quality = srcs.SourceStats()
         self.history = ProxyHistory()
         self.scraped: Optional[ScrapeResult] = None
-        self.judge_ip = ""
+        self.judges: List[JudgeProbe] = []  # erreichbare Prüfziele, schnellstes zuerst
         self.confirm_ip: Optional[str] = None
         self.targets: List[Tuple[Target, str]] = []
         self.own_ips: List[str] = []
@@ -175,13 +175,11 @@ class Run:
     # ------------------------------------------------------------------ Phase 0: Netz
 
     async def prepare_network(self) -> bool:
-        loop = asyncio.get_running_loop()
-        try:
-            self.judge_ip = (await loop.getaddrinfo(JUDGE_HOST, JUDGE_PORT, family=socket.AF_INET))[0][4][0]
-        except OSError:
-            note(f"Kann {JUDGE_HOST} nicht auflösen – Internetverbindung prüfen.", BAD, "✘")
+        self.judges, self.own_ips = await asyncio.gather(rank_judges(), get_own_ips())
+        if not self.judges:
+            note("Kein Prüfziel erreichbar (checkip.amazonaws.com, ifconfig.me, …) – Internetverbindung prüfen.",
+                 BAD, "✘")
             return False
-        self.own_ips = await get_own_ips()
         ips = self.own_ips
         info("Deine IP", Text.assemble(
             (ips[0], "bold") if ips else ("unbekannt", WARN),
@@ -190,8 +188,10 @@ class Run:
         if not await self.resolve_targets():
             return False
         self.confirm_ip = await confirm_target()
+        best, reserve = self.judges[0], [j.judge.host for j in self.judges[1:]]
         info("Prüfziel", Text.assemble(
-            (f"{JUDGE_HOST} ({self.judge_ip})", MUTED),
+            (f"{best.judge.host} ({best.ip}, {best.latency} ms)", MUTED),
+            (f"  ·  Reserve: {', '.join(reserve)}", MUTED) if reserve else "",
             (f"  ·  Bestätigung über {CONFIRM_HOST}", MUTED) if self.confirm_ip else "",
         ))
         if not self.confirm_ip:
@@ -291,15 +291,19 @@ class Run:
         stats = LiveStats(Counter(split_key(k)[0] for k in jobs))
         dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
                                    opts.filters.describe(), opts.want, opts.filters.targets)
-        checker = Checker(self.judge_ip, self.own_ips, opts.check_timeout, opts.check_connect_timeout,
+        judge = self.judges[0]
+        checker = Checker(judge.ip, self.own_ips, opts.check_timeout, opts.check_connect_timeout,
                           self.confirm_ip, detail_timeout=opts.timeout,
                           detail_connect_timeout=opts.connect_timeout, targets=self.targets,
-                          https_test=not opts.fast or opts.filters.https_only)
+                          https_test=not opts.fast or opts.filters.https_only, judge=judge.judge)
+        watch = JudgeWatch(self.judges, lambda new: checker.use_judge(new.judge, new.ip))
+        dashboard.judge = judge.judge.host
         geo = GeoResolver(enabled=opts.geo)
         widgets.console.print()
         run = await run_checks(
             jobs, checker, opts, dashboard, writer, geo,
             live_factory=lambda renderable: Live(renderable, console=widgets.console, refresh_per_second=6),
+            watch=watch,
         )
 
         kept = [r for r in run.results if opts.filters.accepts(r)]
@@ -367,6 +371,9 @@ class Run:
             note("Länder-API (ip-api.com) nicht erreichbar – Länder fehlen.", MUTED, "ℹ")
         if opts.filters.countries and not kept and run.results:
             note("Kein Treffer im gewünschten Land – Filter lockern oder länger laufen lassen.", MUTED, "ℹ")
+        if run.judge_switches:
+            note(f"Prüfziel ausgefallen, gewechselt: {', '.join(run.judge_switches)}. {fmt(run.rechecked)} Proxys "
+                 "wurden erneut geprüft und zählen nicht für die Quellen-Statistik.", WARN, "⚠")
         if run.reached_goal:
             note(f"Ziel von {fmt(opts.want)} Treffern erreicht – vorzeitig beendet.", GOOD, "✔")
         elif run.interrupted:

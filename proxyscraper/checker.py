@@ -23,14 +23,14 @@ import time
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
+from .judges import DEFAULT_JUDGE, Judge
 from .netio import USER_AGENT, dechunk, read_response, ssl_context
 from .parsing import split_key
 from .targets import Target
 
 # Prüfziel: liefert die IP zurück, die beim Server ankommt (nur Text, sehr klein).
 # Bewusst NICHT hinter Cloudflare – sonst "funktionieren" beliebige Cloudflare-IPs als Fake-Proxy.
-JUDGE_HOST = "checkip.amazonaws.com"
-JUDGE_PORT = 80
+JUDGE_HOST = DEFAULT_JUDGE.host  # für die eigene IP; geprüft wird über Checker.judge
 # Zweites, unabhängiges Prüfziel: liefert JSON mit Absender-IP ("origin") und empfangenen Headern
 CONFIRM_HOST = "httpbin.org"
 CONFIRM_PORT = 80
@@ -88,9 +88,9 @@ class Checker:
     def __init__(self, judge_ip: str, own_ips: Iterable[str], timeout: float, connect_timeout: float,
                  confirm_ip: Optional[str] = None, detail_timeout: Optional[float] = None,
                  detail_connect_timeout: Optional[float] = None,
-                 targets: Sequence[Tuple[Target, str]] = (), https_test: bool = True):
-        self.judge_ip = judge_ip
-        self.judge_ip_bytes = socket.inet_aton(judge_ip)
+                 targets: Sequence[Tuple[Target, str]] = (), https_test: bool = True,
+                 judge: Judge = DEFAULT_JUDGE):
+        self.use_judge(judge, judge_ip)
         # Ohne erreichbares Bestätigungsziel wird nicht bestätigt (sonst fiele jeder Proxy durch)
         self.confirm_ip_bytes = socket.inet_aton(confirm_ip) if confirm_ip else None
         # Mehrere möglich: z. B. echte IP per HTTPS, aber iCloud Private Relay/Firmenproxy auf Port 80
@@ -107,13 +107,20 @@ class Checker:
         # keinen Slot für den vollen Timeout blockieren.
         self.connect_timeout = min(connect_timeout, timeout)
         self.unreachable: Set[str] = set()
+
+    def use_judge(self, judge: Judge, ip: str) -> None:
+        """Prüfziel setzen oder mitten im Lauf wechseln (laufende Prüfungen nutzen noch das alte)."""
+        self.judge = judge
+        self.judge_ip = ip
+        self.judge_ip_bytes = socket.inet_aton(ip)
         self.request = (
-            f"GET / HTTP/1.1\r\nHost: {JUDGE_HOST}\r\nUser-Agent: Mozilla/5.0\r\n"
+            f"GET {judge.path} HTTP/1.1\r\nHost: {judge.authority}\r\nUser-Agent: Mozilla/5.0\r\n"
             f"Connection: close\r\n\r\n"
         ).encode()
         # HTTP-Proxys brauchen die absolute URL
         self.http_proxy_request = (
-            f"GET http://{JUDGE_HOST}/ HTTP/1.1\r\nHost: {JUDGE_HOST}\r\nUser-Agent: Mozilla/5.0\r\n"
+            f"GET http://{judge.authority}{judge.path} HTTP/1.1\r\nHost: {judge.authority}\r\n"
+            f"User-Agent: Mozilla/5.0\r\n"
             f"Connection: close\r\nProxy-Connection: close\r\n\r\n"
         ).encode()
 
@@ -148,11 +155,14 @@ class Checker:
         # TCP-Connect scheitert, scheitert bei den anderen Typen genauso.
         if proxy in self.unreachable:
             return None
+        # Ziel-IP und Anfrage zusammen festhalten – wechselt das Prüfziel mittendrin, passt beides noch
+        ip_bytes, port = self.judge_ip_bytes, self.judge.port
+        request = self.http_proxy_request if ptype == "http" else self.request
         reader, writer = await self._connect(proxy)
         try:
-            if not await self._handshake(ptype, reader, writer, self.judge_ip_bytes, JUDGE_PORT):
+            if not await self._handshake(ptype, reader, writer, ip_bytes, port):
                 return None
-            writer.write(self.http_proxy_request if ptype == "http" else self.request)
+            writer.write(request)
             await writer.drain()
             return await _read_http_200(reader)
         finally:
@@ -245,13 +255,14 @@ class Checker:
             return None
 
     async def check_https(self, ptype: str, proxy: str) -> bool:
-        """Tunnel zu JUDGE_HOST:443 + verifiziertes TLS + Exit-IP abrufen."""
-        opened = await self._tls_tunnel(ptype, proxy, JUDGE_HOST, self.judge_ip_bytes, 443)
+        """Tunnel zum Prüfziel auf Port 443 + verifiziertes TLS + Exit-IP abrufen."""
+        judge, ip_bytes, request = self.judge, self.judge_ip_bytes, self.request  # falls mittendrin gewechselt wird
+        opened = await self._tls_tunnel(ptype, proxy, judge.host, ip_bytes, 443)
         if opened is None:
             return False
         reader, writer = opened
         try:
-            writer.write(self.request)
+            writer.write(request)
             await writer.drain()
             # Nach verifiziertem TLS spricht hier der echte Server, nicht der Proxy
             status, _, body = await read_response(reader)

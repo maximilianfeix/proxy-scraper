@@ -16,6 +16,7 @@ from .compat import on_interrupt
 from .fetchcache import FetchCache
 from .geo import GeoResolver
 from .history import ProxyHistory
+from .judges import JudgeWatch
 from .netio import http_get, http_request
 from .options import RunOptions
 from .output import ResultWriter
@@ -229,6 +230,8 @@ class CheckRun:
     working: Set[str] = field(default_factory=set)
     interrupted: bool = False
     reached_goal: bool = False
+    judge_switches: List[str] = field(default_factory=list)  # "alt → neu"
+    rechecked: int = 0  # Prüfungen, die wegen eines ausgefallenen Prüfziels wiederholt wurden
 
 
 async def run_checks(
@@ -239,16 +242,48 @@ async def run_checks(
     writer: ResultWriter,
     geo: GeoResolver,
     live_factory: Callable,
+    watch: Optional[JudgeWatch] = None,
 ) -> CheckRun:
     """Prüft `jobs` mit `opts.concurrency` parallelen Workern bis alles durch, das Ziel erreicht
-    oder Strg+C gedrückt ist."""
+    oder Strg+C gedrückt ist.
+
+    Mit `watch` wird das Prüfziel überwacht: Fällt es aus, werden die Prüfungen seit der letzten
+    erfolgreichen Kontrolle wiederholt und zählen nicht für die Quellen-Statistik."""
     stats = dashboard.s
     filters, details, want = opts.filters, opts.details, opts.want
     run = CheckRun()
     written: Set[str] = set()
     enriched: Set[str] = set()  # Treffer mit abgeschlossener Detailprüfung (HTTPS kann dabei offen bleiben)
     by_exit_ip: Dict[str, List[CheckResult]] = {}
-    pending = iter(jobs)  # alle Worker ziehen aus demselben Iterator – in asyncio ohne Lock sicher
+    retry: List[str] = []  # nach einem Prüfziel-Ausfall erneut zu prüfen
+
+    def job_stream():
+        yield from jobs
+        while retry:
+            yield retry.pop()
+
+    pending = job_stream()  # alle Worker ziehen aus demselben Iterator – in asyncio ohne Lock sicher
+    trusted_until = 0  # bis zu diesem Index in run.checked war das Prüfziel nachweislich erreichbar
+
+    def judge_ok() -> None:
+        nonlocal trusted_until
+        trusted_until = len(run.checked)
+
+    def judge_switched(old, new) -> None:
+        """Alles seit der letzten guten Kontrolle ist verdächtig: Fehlschläge nochmal prüfen,
+        und nichts davon fließt in die Statistik (Treffer bleiben, die haben ja funktioniert)."""
+        nonlocal trusted_until
+        suspect = run.checked[trusted_until:]
+        failed = [k for k in suspect if k not in run.working]
+        run.checked[trusted_until:] = [k for k in suspect if k in run.working]
+        retry.extend(failed)
+        run.rechecked += len(failed)
+        run.judge_switches.append(f"{old.judge.host} → {new.judge.host}")
+        dashboard.judge_changed(new.judge.host, failed)
+        trusted_until = len(run.checked)
+
+    if watch:
+        watch.on_ok, watch.on_switch = judge_ok, judge_switched
     loop = asyncio.get_running_loop()
     all_workers: Optional[asyncio.Future] = None
 
@@ -275,6 +310,7 @@ async def run_checks(
 
     geo.on_resolved = on_country
     geo_task = asyncio.ensure_future(geo.run())
+    watch_task = asyncio.ensure_future(watch.run()) if watch else None
 
     async def worker() -> None:
         for key in pending:
@@ -315,6 +351,8 @@ async def run_checks(
             except asyncio.CancelledError:
                 run.interrupted = not run.reached_goal
 
+    if watch_task:
+        watch_task.cancel()
     # Offene Länder-Abfragen noch abwarten (höchstens kurz)
     geo.stop()
     if geo.pending and not geo.failed:

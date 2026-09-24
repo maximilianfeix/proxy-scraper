@@ -1,0 +1,13 @@
+[tool.ruff]
+line-length = 120
+target-version = "py39"
+
+[tool.ruff.lint]
+# Fehler, Warnungen, Bugbear (echte Fallstricke) und sortierte Importe
+select = ["E", "F", "W", "B", "I"]
+
+[tool.ruff.lint.isort]
+known-first-party = ["proxyscraper"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

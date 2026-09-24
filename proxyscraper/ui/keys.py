@@ -18,8 +18,14 @@ _ESCAPES = {
     "OA": "up", "OB": "down", "OC": "right", "OD": "left",
     "[H": "home", "[F": "end", "[5~": "pageup", "[6~": "pagedown",
 }
-_WINDOWS_SPECIAL = {"H": "up", "P": "down", "M": "right", "K": "left", "G": "home", "O": "end", "I": "pageup", "Q": "pagedown"}
-_SIMPLE = {"\r": "enter", "\n": "enter", " ": "space", "\t": "tab", "\x7f": "backspace", "\x08": "backspace", "\x03": "ctrl-c"}
+_WINDOWS_SPECIAL = {
+    "H": "up", "P": "down", "M": "right", "K": "left",
+    "G": "home", "O": "end", "I": "pageup", "Q": "pagedown",
+}
+_SIMPLE = {
+    "\r": "enter", "\n": "enter", " ": "space", "\t": "tab",
+    "\x7f": "backspace", "\x08": "backspace", "\x03": "ctrl-c",
+}
 
 
 def is_interactive() -> bool:

@@ -280,7 +280,8 @@ async def run_checks(
     # Offene Länder-Abfragen noch abwarten (höchstens kurz)
     geo.stop()
     if geo.pending and not geo.failed:
-        with widgets.console.status(f"[bold bright_cyan]Ermittle Länder für {fmt(len(geo.pending))} Exit-IPs …", spinner="dots"):
+        message = f"[bold bright_cyan]Ermittle Länder für {fmt(len(geo.pending))} Exit-IPs …"
+        with widgets.console.status(message, spinner="dots"):
             try:
                 await asyncio.wait_for(asyncio.shield(geo_task), 30)
             except asyncio.TimeoutError:

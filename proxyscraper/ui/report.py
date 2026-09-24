@@ -178,7 +178,8 @@ def render_source_ranking(rows: List[Tuple[str, object, str]], total_known: int,
             fmt(rec.checked), fmt(rec.count),
             Text(status, style=GOOD if status == "aktiv" else BAD),
         )
-    widgets.console.print(panel(ranking, f"Quellen nach Trefferquote · {len(rows)} bewertet, {fmt(total_known)} bekannt", ACCENT))
+    title = f"Quellen nach Trefferquote · {len(rows)} bewertet, {fmt(total_known)} bekannt"
+    widgets.console.print(panel(ranking, title, ACCENT))
     if not rows:
         note("Noch keine Bewertungen – Trefferquoten gibt es erst nach einem Prüflauf.", MUTED, "ℹ")
     widgets.console.print(Text("  Status aller Quellen: ", style=MUTED) + Text(

@@ -23,7 +23,16 @@ from .netio import INSECURE_HOSTS, http_get
 from .options import RunOptions
 from .output import ResultWriter, latest_results
 from .parsing import PROXY_TYPES, parse_keys, split_key
-from .pipeline import CheckRun, ScrapeResult, attribute_results, best_sources, collect_sources, prioritize, run_checks, scrape
+from .pipeline import (
+    CheckRun,
+    ScrapeResult,
+    attribute_results,
+    best_sources,
+    collect_sources,
+    prioritize,
+    run_checks,
+    scrape,
+)
 from .ui import (
     ACCENT,
     BLOCKED_HIT_RATE,
@@ -156,7 +165,8 @@ class Run:
              f"Meta-Listen · {fmt(plan.n_discovered)} entdeckt)", MUTED),
         ))
         if plan.discovery_ran and not plan.discovery_token:
-            note("GitHub-Discovery ohne Token nur eingeschränkt – `gh auth login` oder GITHUB_TOKEN setzen.", MUTED, "ℹ")
+            note("GitHub-Discovery ohne Token nur eingeschränkt – `gh auth login` oder GITHUB_TOKEN setzen.",
+                 MUTED, "ℹ")
         if plan.skipped:
             parts = ", ".join(f"{n} {reason}" for reason, n in plan.skipped.most_common())
             info("Übersprungen", Text.assemble(parts, ("  (alle erzwingen: --all-sources)", MUTED)))

@@ -42,7 +42,7 @@ class GeoResolver:
             try:
                 self.cache = json.loads(GEO_CACHE_FILE.read_text(encoding="utf-8"))
             except (OSError, ValueError) as e:
-                warnings.warn(f"{GEO_CACHE_FILE.name} unlesbar ({e})")
+                warnings.warn(f"{GEO_CACHE_FILE.name} unlesbar ({e})", stacklevel=2)
 
     def lookup(self, ip: str) -> str:
         hit = self.cache.get(ip)

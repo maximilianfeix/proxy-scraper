@@ -82,12 +82,14 @@ class CollectView:
         elapsed = max(time.perf_counter() - self.started, 1e-6)
         stats = row(
             card("Quellen OK", fmt(self.ok), f"{fmt(self.failed)} fehlgeschlagen", f"bold {GOOD}"),
-            card("Geladen", f"{self.bytes / 2**20:,.0f} MB".replace(",", "."), f"{self.bytes / 2**20 / elapsed:.1f} MB/s"),
+            card("Geladen", f"{self.bytes / 2**20:,.0f} MB".replace(",", "."),
+                 f"{self.bytes / 2**20 / elapsed:.1f} MB/s"),
             card("Proxys", fmt(self.unique), "einzigartig", f"bold {ACCENT}"),
         )
         return Group(
             header(1, self.started),
-            Panel(Group(self.progress, stats), box=box.ROUNDED, border_style=ACCENT, title="Sammeln", title_align="left"),
+            Panel(Group(self.progress, stats), box=box.ROUNDED, border_style=ACCENT,
+                  title="Sammeln", title_align="left"),
         )
 
 
@@ -228,8 +230,8 @@ class CheckDashboard:
             Panel(proto, title="Protokolle", title_align="left", subtitle="Balken = geprüft",
                   subtitle_align="left", box=box.ROUNDED, border_style=MUTED, height=height),
             Panel(hist, title="Latenz", title_align="left", box=box.ROUNDED, border_style=MUTED, height=height),
-            Panel(side, title=("Details & Länder" if wide else "Details") if self.details else "Länder", title_align="left",
-                  box=box.ROUNDED, border_style=MUTED, height=height),
+            Panel(side, title=("Details & Länder" if wide else "Details") if self.details else "Länder",
+                  title_align="left", box=box.ROUNDED, border_style=MUTED, height=height),
             ratios=(4, 4, 3),
         )
 
@@ -261,7 +263,8 @@ class CheckDashboard:
             footer.append(f"  ·  {fmt(s.passing)} passend", style=MUTED)
         footer.append(f"\n  → {self.outfile}", style=MUTED)
         if s.checked >= 2000 and found < s.checked * BLOCKED_HIT_RATE:
-            footer.append("\n  ⚠ Kaum Treffer – blockiert dein Netz (Firewall) Proxy-Verbindungen?", style=f"bold {WARN}")
+            footer.append("\n  ⚠ Kaum Treffer – blockiert dein Netz (Firewall) Proxy-Verbindungen?",
+                          style=f"bold {WARN}")
 
         return Group(
             header(2, s.start),

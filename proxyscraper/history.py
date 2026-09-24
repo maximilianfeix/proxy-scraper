@@ -49,7 +49,7 @@ class ProxyHistory:
                 raw = json.loads(path.read_text(encoding="utf-8"))
                 self.records = {k: ProxyRecord(**v) for k, v in raw.items()}
             except (OSError, ValueError, TypeError) as e:
-                warnings.warn(f"{path.name} unlesbar ({e}), starte ohne Proxy-Verlauf")
+                warnings.warn(f"{path.name} unlesbar ({e}), starte ohne Proxy-Verlauf", stacklevel=2)
 
     @staticmethod
     def exists(path: Path = HISTORY_FILE) -> bool:

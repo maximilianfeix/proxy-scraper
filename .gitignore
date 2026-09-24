@@ -6,8 +6,8 @@ venv/
 .pytest_cache/
 
 # Laufzeitdaten (werden lokal gelernt bzw. bei jedem Lauf neu erzeugt)
-data/
-results/
+/data/
+/results/
 working_proxies_*.txt
 *.tmp
 

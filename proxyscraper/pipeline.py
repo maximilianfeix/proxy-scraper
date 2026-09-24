@@ -267,8 +267,12 @@ async def run_checks(
                 stats.countries[r.country] += 1
             stats.add_working(r)
             if details:
-                await checker.enrich(r)
-                stats.add_details(r)
+                # HTTPS-Test nur, wenn der Proxy die Filter überhaupt noch erfüllen kann
+                if filters.may_pass(r):
+                    await checker.enrich(r)
+                    stats.add_details(r)
+                else:
+                    stats.details_saved += 1
             consider(r)
 
     with live_factory(dashboard):

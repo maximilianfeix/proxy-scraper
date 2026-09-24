@@ -202,3 +202,40 @@ def test_anonymity_is_counted_without_https_test():
     stats = LiveStats({"http": 1})
     stats.add_working(result(anonymity="elite"))  # kommt aus der Bestätigung, auch mit --fast
     assert stats.anonymity["elite"] == 1 and stats.https_ok == 0
+
+
+def test_run_checks_skips_https_test_when_filters_already_fail(tmp_path):
+    import asyncio
+    import contextlib
+
+    from proxyscraper.geo import GeoResolver
+    from proxyscraper.options import Filters, RunOptions
+    from proxyscraper.ui import CheckDashboard, LiveStats
+
+    enriched = []
+
+    class StubChecker:
+        async def check(self, key):
+            ptype, proxy = key.split(" ")
+            return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
+
+        async def confirm(self, r):
+            r.anonymity = "elite" if r.proxy.startswith("1.") else "anonymous"
+            return True
+
+        async def enrich(self, r):
+            enriched.append(r.key)
+            r.https = True
+
+    async def go():
+        stats = LiveStats({"http": 2})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        opts = RunOptions(no_geo=True, filters=Filters(min_anonymity="elite"))
+        await pipeline.run_checks(["http 1.1.1.1:80", "http 2.2.2.2:80"], StubChecker(), opts,
+                                  CheckDashboard(stats, writer.live_path, 2, True), writer,
+                                  GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext())
+        return stats
+
+    stats = asyncio.run(go())
+    assert enriched == ["http 1.1.1.1:80"]   # der nur "anonymous" Proxy braucht keinen HTTPS-Test
+    assert stats.details_saved == 1 and stats.found == 2

@@ -41,6 +41,8 @@ pip install -r requirements.txt
 python3 proxy_scraper.py
 ```
 
+Ohne Argumente startet ein kurzer **Einrichtungsassistent**: Mit den Pfeiltasten wählst du aus, welche Proxys du suchst – Schnellauswahl wie *Surfen & Web* oder *Maximal anonym*, oder Schritt für Schritt Protokolle, Länder, Anonymität, HTTPS, Latenz und Menge. Am Ende zeigt er die passende Kommandozeile, und beim nächsten Mal gibt es *Wie letztes Mal*. Wer die Optionen kennt, startet direkt (`-y` für sofort alles).
+
 Braucht nur Python 3.9+ und [`rich`](https://github.com/Textualize/rich). `uvloop` ist optional und macht die Event-Loop noch etwas schneller.
 
 ## Beispiele
@@ -107,6 +109,8 @@ results/2026-09-24_18-42-07/
 
 | Option | Beschreibung |
 |---|---|
+| `-i`, `--interactive` | Einrichtungsassistent (kommt ohne Argumente automatisch) |
+| `-y`, `--yes` | ohne Assistent sofort starten |
 | `--types http socks5` | nur bestimmte Protokolle |
 | `-l`, `--limit N` | nur die *N* vielversprechendsten Proxys prüfen |
 | `--want N` | beenden, sobald *N* passende Proxys gefunden sind |

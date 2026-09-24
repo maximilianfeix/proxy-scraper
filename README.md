@@ -84,10 +84,15 @@ proxy-scraper
 ```
 
 <details>
-<summary><b>Other ways: pip, a faster event loop, or straight from the repo</b></summary>
+<summary><b>Other ways: Docker, pip, a faster event loop, or straight from the repo</b></summary>
 <br>
 
 ```bash
+# Docker – learned state and results stay in two folders next to you
+mkdir -p proxy-data results
+docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/proxy-data:/data" -v "$PWD/results:/work/results" \
+  ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
+
 # pip into the current environment
 pip install git+https://github.com/maximilianfeix/proxy-scraper.git
 
@@ -101,7 +106,7 @@ pip install -r requirements.txt
 python3 proxy_scraper.py
 ```
 
-Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) also ships a wheel you can install with `pip install <file>.whl`.
+Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) also ships a wheel you can install with `pip install <file>.whl`, and a multi-arch image (amd64/arm64) on `ghcr.io`. In the container the wizard never shows up, it runs straight away; `--serve` only listens inside the container.
 
 Installed, the learned state lives in your user data folder (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` or `~/.local/share/proxy-scraper`; override with `PROXY_SCRAPER_HOME`) and results go to `./results`. Run from a clone, both stay inside the project.
 
@@ -461,6 +466,7 @@ The repo does part of the work itself:
 | [**lint**](../../actions/workflows/lint.yml) | `ruff` with a pinned version – same rules locally and in CI |
 | [**codeql**](../../actions/workflows/codeql.yml) | security analysis on every push and once a week |
 | [**proxy list**](../../actions/workflows/proxy-list.yml) | every 6 hours: collect, check, publish to `proxy-list`. The learned statistics live in the Actions cache, so the tool keeps getting better in the cloud too |
+| [**docker**](../../actions/workflows/docker.yml) | builds the image on every change and runs a real scan inside it; on a version tag it publishes `linux/amd64` + `linux/arm64` to `ghcr.io` |
 | [**release**](../../actions/workflows/release.yml) | on a version tag: test, build, smoke-test and publish a GitHub release with the wheel |
 | **Dependabot** | keeps the action versions up to date |
 

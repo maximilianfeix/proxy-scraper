@@ -1,0 +1,14 @@
+.git
+.github
+.venv
+venv
+data
+results
+tests
+docs
+build
+dist
+*.egg-info
+__pycache__
+*.pyc
+working_proxies_*.txt

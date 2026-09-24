@@ -88,7 +88,7 @@ class Checker:
     def __init__(self, judge_ip: str, own_ips: Iterable[str], timeout: float, connect_timeout: float,
                  confirm_ip: Optional[str] = None, detail_timeout: Optional[float] = None,
                  detail_connect_timeout: Optional[float] = None,
-                 targets: Sequence[Tuple[Target, str]] = ()):
+                 targets: Sequence[Tuple[Target, str]] = (), https_test: bool = True):
         self.judge_ip = judge_ip
         self.judge_ip_bytes = socket.inet_aton(judge_ip)
         # Ohne erreichbares Bestätigungsziel wird nicht bestätigt (sonst fiele jeder Proxy durch)
@@ -97,6 +97,7 @@ class Checker:
         self.own_ips = set(own_ips)
         self.timeout = timeout
         self._detail_slots: Optional[asyncio.Semaphore] = None
+        self.https_test = https_test  # --fast: kein HTTPS-Test, Zielseiten aber trotzdem
         # Zielseiten mit vorab aufgelöster IP (SOCKS4 kann keine Hostnamen)
         self.targets = [(target, socket.inet_aton(ip)) for target, ip in targets]
         # Bestätigung und HTTPS-Test dürfen länger dauern als die (evtl. latenzbegrenzte) Basisprüfung
@@ -226,11 +227,12 @@ class Checker:
 
     async def enrich(self, result: CheckResult) -> None:
         """HTTPS-Fähigkeit und Zielseiten ergänzen, alles parallel (die Anonymität kommt aus der Bestätigung)."""
+        https = self._safe(self.check_https(result.ptype, result.proxy)) if self.https_test else _none()
         outcomes = await asyncio.gather(
-            self._safe(self.check_https(result.ptype, result.proxy)),
+            https,
             *(self._safe(self.check_target(result.ptype, result.proxy, t, ip)) for t, ip in self.targets),
         )
-        result.https = bool(outcomes[0])
+        result.https = bool(outcomes[0]) if self.https_test else None
         result.targets = {t.url: bool(ok) for (t, _), ok in zip(self.targets, outcomes[1:])}
 
     async def _safe(self, coro):
@@ -338,6 +340,10 @@ class Checker:
             return False
         await loop.sock_sendall(sock, b"\x05\x01\x00\x01" + ip_bytes + port.to_bytes(2, "big"))
         return await _socks5_reply_ok(recv_exact)
+
+
+async def _none() -> None:
+    return None
 
 
 async def _read_status(reader) -> int:

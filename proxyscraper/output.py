@@ -81,7 +81,7 @@ def _row(r: CheckResult) -> dict:
 def _csv_row(r: CheckResult) -> dict:
     """Wie _row, aber flach: Zielseiten als "google.com:ok;discord.com:nein"."""
     d = _row(r)
-    d["targets"] = ";".join(f"{target_label(u)}:{'ok' if ok else 'nein'}" for u, ok in r.targets.items())
+    d["targets"] = ";".join(f"{target_label(u, r.targets)}:{'ok' if ok else 'nein'}" for u, ok in r.targets.items())
     return d
 
 

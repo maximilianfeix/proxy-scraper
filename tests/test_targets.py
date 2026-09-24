@@ -220,3 +220,51 @@ def test_startup_resolves_targets(monkeypatch, resolvable, expected):
     ok, targets = asyncio.run(go())
     assert ok is expected
     assert [(t.host, ip) for t, ip in targets] == ([("example.org", "93.184.216.34")] if expected else [])
+
+
+def test_fast_mode_skips_https_test_but_checks_targets(tmp_path):
+    """--fast --target: kein HTTPS-Test, Zielseiten ja – und die Treffer werden trotzdem gespeichert."""
+    import contextlib
+
+    from proxyscraper import pipeline
+    from proxyscraper.geo import GeoResolver
+    from proxyscraper.output import ResultWriter
+    from proxyscraper.ui import CheckDashboard, LiveStats
+
+    async def go():
+        target_srv, target_port = await serve(target_server)
+        proxy_srv, proxy_port = await serve(http_forward_proxy)
+        async with target_srv, proxy_srv:
+            target = parse_target(f"http://127.0.0.1:{target_port}/ok")
+            opts = RunOptions(fast=True, no_geo=True, filters=Filters(targets=[target.url]))
+            checker = ck.Checker("3.3.3.3", set(), timeout=3, connect_timeout=2, targets=[(target, "127.0.0.1")],
+                                 https_test=False)
+
+            async def fake_check(key):
+                return CheckResult(key, "http", f"127.0.0.1:{proxy_port}", 100, "9.9.9.9")
+
+            async def always(r):
+                return True
+
+            checker.check, checker.confirm = fake_check, always
+            stats = LiveStats({"http": 1})
+            writer = ResultWriter(run_dir=tmp_path / "run")
+            run = await pipeline.run_checks([f"http 127.0.0.1:{proxy_port}"], checker, opts,
+                                            CheckDashboard(stats, writer.live_path, 1, opts.details), writer,
+                                            GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext())
+            return run, writer, target
+
+    run, writer, target = asyncio.run(go())
+    r = run.results[0]
+    assert r.https is None and r.targets == {target.url: True}
+    assert writer.live_path.read_text(encoding="utf-8").strip().startswith("http://127.0.0.1:")
+
+
+def test_csv_labels_distinguish_http_and_https(tmp_path):
+    from proxyscraper.output import ResultWriter
+
+    r = CheckResult("x", "http", "1.1.1.1:80", 100, "9.9.9.9",
+                    targets={"http://example.org/": True, "https://example.org/": False})
+    ResultWriter(run_dir=tmp_path / "run").finalize([r])
+    assert "http://example.org:ok;https://example.org:nein" in (tmp_path / "run" / "proxies.csv").read_text(
+        encoding="utf-8")

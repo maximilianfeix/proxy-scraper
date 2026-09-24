@@ -367,7 +367,7 @@ class SourceStats:
         now = time.time() if now is None else now
         rec = self.records.setdefault(url, SourceRecord(first_seen=now))
         rec.last_fetch = now
-        if unchanged and count:
+        if unchanged:  # auch mit 0 passenden Proxys (z. B. andere --types): die Quelle hat geantwortet
             rec.fail_streak = 0
             rec.count = count
             return

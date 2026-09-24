@@ -5,7 +5,7 @@ Beim nächsten Lauf fragt der Download mit If-None-Match / If-Modified-Since; ko
 stammen die Schlüssel aus dem Cache. Gespeichert wird ungefiltert (alle Typen), weil sich
 --types zwischen zwei Läufen ändern kann.
 
-  data/fetch-cache/index.json      url -> {etag, modified, file, used}
+  data/fetch-cache/index.json      url -> {etag, modified, type, file, used}
   data/fetch-cache/<sha1>.txt.gz   die Schlüssel, einer pro Zeile
 """
 
@@ -36,10 +36,13 @@ class FetchCache:
             except (OSError, ValueError):
                 self.entries = {}
 
-    def conditional_headers(self, url: str) -> Dict[str, str]:
-        """Header für eine bedingte Anfrage – leer, wenn nichts (Brauchbares) im Cache liegt."""
+    def conditional_headers(self, url: str, ptype: str) -> Dict[str, str]:
+        """Header für eine bedingte Anfrage – leer, wenn nichts (Brauchbares) im Cache liegt.
+
+        ptype ist der Typ, mit dem die Liste geparst wird: Ändert er sich (z. B. http -> auto),
+        passen die gespeicherten Schlüssel nicht mehr und die Liste wird neu geladen."""
         entry = self.entries.get(url) if self.enabled else None
-        if not entry or not (self.dir / entry["file"]).is_file():
+        if not entry or entry.get("type") != ptype or not (self.dir / entry["file"]).is_file():
             return {}
         headers = {}
         if entry.get("etag"):
@@ -61,7 +64,7 @@ class FetchCache:
         self.hits += 1
         return keys
 
-    def store(self, url: str, headers: Dict[bytes, bytes], keys: str) -> None:
+    def store(self, url: str, headers: Dict[bytes, bytes], keys: str, ptype: str) -> None:
         """Nach einem normalen Download: merken, falls der Server ETag oder Last-Modified liefert."""
         if not self.enabled:
             return
@@ -75,12 +78,13 @@ class FetchCache:
         tmp = self.dir / (name + ".tmp")
         tmp.write_bytes(gzip.compress(keys.encode("utf-8"), compresslevel=5))
         tmp.replace(self.dir / name)
-        self.entries[url] = {"etag": etag, "modified": modified, "file": name, "used": time.time()}
+        self.entries[url] = {"etag": etag, "modified": modified, "type": ptype, "file": name, "used": time.time()}
 
     def save(self, now: Optional[float] = None) -> None:
-        if not self.enabled or not self.entries:
-            return
+        index = self.dir / "index.json"
+        if not self.enabled or (not self.entries and not index.exists()):
+            return  # auch ein leerer Index wird geschrieben – sonst käme ein entfernter Eintrag zurück
         now = time.time() if now is None else now
         for url in [u for u, e in self.entries.items() if now - e.get("used", 0) > FORGET_AFTER]:
             (self.dir / self.entries.pop(url)["file"]).unlink(missing_ok=True)
-        atomic_write(self.dir / "index.json", json.dumps(self.entries, indent=0, sort_keys=True))
+        atomic_write(index, json.dumps(self.entries, indent=0, sort_keys=True))

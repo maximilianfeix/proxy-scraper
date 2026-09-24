@@ -105,16 +105,17 @@ def test_servers_without_etag_are_not_cached(tmp_path):
 
 def test_no_cache_option_downloads_everything(tmp_path):
     cache = FetchCache(tmp_path / "cache", enabled=False)
-    cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80")
-    assert cache.conditional_headers("http://x/list") == {}
+    cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
+    assert cache.conditional_headers("http://x/list", "http") == {}
     assert not (tmp_path / "cache").exists()
 
 
 def test_old_entries_are_forgotten(tmp_path):
     cache = FetchCache(tmp_path / "cache")
-    cache.store("http://x/old", {b"last-modified": b"Mon, 01 Jan 2024 00:00:00 GMT"}, "http 1.1.1.1:80")
-    cache.store("http://x/new", {b"etag": b'"b"'}, "http 2.2.2.2:80")
-    assert cache.conditional_headers("http://x/old") == {"If-Modified-Since": "Mon, 01 Jan 2024 00:00:00 GMT"}
+    cache.store("http://x/old", {b"last-modified": b"Mon, 01 Jan 2024 00:00:00 GMT"}, "http 1.1.1.1:80", "http")
+    cache.store("http://x/new", {b"etag": b'"b"'}, "http 2.2.2.2:80", "http")
+    expected = {"If-Modified-Since": "Mon, 01 Jan 2024 00:00:00 GMT"}
+    assert cache.conditional_headers("http://x/old", "http") == expected
     cache.entries["http://x/old"]["used"] -= FORGET_AFTER + 1
     cache.save()
     again = FetchCache(tmp_path / "cache")
@@ -126,6 +127,24 @@ def test_unchanged_fetch_keeps_stale_detection_running():
     st = srcs.SourceStats.__new__(srcs.SourceStats)
     st.records = {}
     st.record_fetch("u", b"http 1.1.1.1:80", 1, now=1000)
-    st.record_fetch("u", None, 1, now=2000, unchanged=True)
+    st.record_fetch("u", None, 0, now=1500)                  # einmal nicht erreichbar
+    st.record_fetch("u", None, 0, now=2000, unchanged=True)  # 304, aber nichts vom gewünschten Typ
     rec = st.records["u"]
     assert rec.last_change == 1000 and rec.last_fetch == 2000 and rec.fail_streak == 0
+
+
+def test_removed_last_entry_is_saved(tmp_path):
+    cache = FetchCache(tmp_path / "cache")
+    cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
+    cache.save()
+    again = FetchCache(tmp_path / "cache")
+    again.store("http://x/list", {}, "http 1.1.1.1:80", "http")  # Server schickt keinen ETag mehr
+    again.save()
+    assert FetchCache(tmp_path / "cache").conditional_headers("http://x/list", "http") == {}
+
+
+def test_changed_source_type_invalidates_the_entry(tmp_path):
+    cache = FetchCache(tmp_path / "cache")
+    cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
+    assert cache.conditional_headers("http://x/list", "http") == {"If-None-Match": '"a"'}
+    assert cache.conditional_headers("http://x/list", "socks5") == {}

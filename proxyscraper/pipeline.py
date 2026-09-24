@@ -118,7 +118,7 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
 
         async def download(url: str):
             """-> (Daten, Schlüssel aus dem Cache). Genau eins von beiden ist gesetzt."""
-            conditional = cache.conditional_headers(url)
+            conditional = cache.conditional_headers(url, sources[url])
             async with sem:
                 status, headers, body = await http_request(url, timeout=30, headers=conditional or None)
             if status == 304 and conditional:
@@ -146,7 +146,7 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
                         keys = parse_blob(data, sources[url], parse_types)
                     else:
                         keys = await loop.run_in_executor(pool, parse_blob, data, sources[url], parse_types)
-                    cache.store(url, headers, keys)
+                    cache.store(url, headers, keys, sources[url])
             except Exception:  # Quelle nicht erreichbar/kaputt – zählt in der Statistik als Fehlschlag
                 pass
             n = 0

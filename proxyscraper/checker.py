@@ -42,6 +42,24 @@ PROXY_HEADERS = {
 ANONYMITY_RANK = {"transparent": 0, "anonymous": 1, "elite": 2}
 
 
+async def wait_for(coro, timeout: float):
+    """asyncio.wait_for, das beim Abbrechen keine unabgeholte Exception zurücklässt.
+
+    Wird eine Prüfung per Strg+C abgebrochen, während ihr innerer Connect gerade scheitert,
+    liefert Python < 3.12 den Verbindungsfehler statt CancelledError. Die innere Task endet
+    dann mit einer Exception, die niemand abholt -> "Task exception was never retrieved"
+    samt Traceback beim Beenden. Der Callback holt sie in jedem Fall ab.
+    """
+    fut = asyncio.ensure_future(coro)
+    fut.add_done_callback(_consume_exception)
+    return await asyncio.wait_for(fut, timeout)
+
+
+def _consume_exception(fut: asyncio.Future) -> None:
+    if not fut.cancelled():
+        fut.exception()
+
+
 @dataclass
 class CheckResult:
     key: str
@@ -87,7 +105,7 @@ class Checker:
         ptype, proxy = split_key(key)
         start = time.perf_counter()
         try:
-            body = await asyncio.wait_for(self._check(ptype, proxy), self.timeout)
+            body = await wait_for(self._check(ptype, proxy), self.timeout)
         except Exception:  # Timeout, Verbindungsfehler, kaputte Antworten – alles heißt "taugt nicht"
             return None
 
@@ -159,7 +177,7 @@ class Checker:
 
     async def _safe(self, coro):
         try:
-            return await asyncio.wait_for(coro, self.timeout)
+            return await wait_for(coro, self.timeout)
         except Exception:  # Detailprüfung fehlgeschlagen -> "nein"/"unbekannt", Basisergebnis bleibt
             return None
 

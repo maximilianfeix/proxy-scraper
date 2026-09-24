@@ -8,6 +8,7 @@ from dataclasses import dataclass, field
 from typing import List, Optional, Set
 
 from .checker import ANONYMITY_RANK, CheckResult
+from .exporters import EXPORTERS
 from .parsing import PROXY_TYPES
 from .paths import is_checkout
 from .targets import target_label
@@ -92,6 +93,7 @@ class RunOptions:
     no_geo: bool = False
     recheck: Optional[str] = None
     output: Optional[str] = None
+    exports: List[str] = field(default_factory=list)  # Zusatzformate, siehe exporters.py
     concurrency: int = DEFAULT_CONCURRENCY
     timeout: float = DEFAULT_TIMEOUT
     connect_timeout: float = DEFAULT_CONNECT_TIMEOUT
@@ -116,6 +118,10 @@ class RunOptions:
             raise ValueError("Timeouts müssen größer als 0 sein")
         if min(self.want, self.limit, self.discover_repos, self.filters.max_latency) < 0:
             raise ValueError("Mengen und Latenz dürfen nicht negativ sein")
+        unknown_exports = set(self.exports) - set(EXPORTERS)
+        if unknown_exports:
+            raise ValueError(f"unbekannte Exportformate: {', '.join(sorted(unknown_exports))}")
+        self.exports = [e for e in EXPORTERS if e in self.exports]
         if not 0 <= self.serve <= 65535:
             raise ValueError("Port muss zwischen 1 und 65535 liegen")
 
@@ -157,6 +163,7 @@ class RunOptions:
             no_geo=args.no_geo,
             recheck=args.recheck,
             output=args.output,
+            exports=list(args.export or []),
             concurrency=args.concurrency,
             timeout=args.timeout,
             connect_timeout=args.connect_timeout,
@@ -191,6 +198,8 @@ class RunOptions:
             argv += ["--recheck", self.recheck] if self.recheck else ["--recheck"]
         if self.output:
             argv += ["--output", self.output]
+        if self.exports:
+            argv += ["--export", ",".join(self.exports)]
         _opt(argv, "--concurrency", self.concurrency, DEFAULT_CONCURRENCY)
         _opt(argv, "--timeout", self.timeout, DEFAULT_TIMEOUT)
         _opt(argv, "--connect-timeout", self.connect_timeout, DEFAULT_CONNECT_TIMEOUT)

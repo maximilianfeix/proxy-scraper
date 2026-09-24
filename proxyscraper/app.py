@@ -283,7 +283,7 @@ class Run:
         fd = raise_fd_limit(self.opts.concurrency + DETAIL_CONNECTIONS + 512)
         opts = replace(self.opts, concurrency=min(self.opts.concurrency, max(fd - DETAIL_CONNECTIONS - 256, 64)))
 
-        writer = ResultWriter(extra_file=Path(opts.output) if opts.output else None)
+        writer = ResultWriter(extra_file=Path(opts.output) if opts.output else None, exports=opts.exports)
         stats = LiveStats(Counter(split_key(k)[0] for k in jobs))
         dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
                                    opts.filters.describe(), opts.want, opts.filters.targets)

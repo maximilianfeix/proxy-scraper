@@ -167,6 +167,7 @@ def test_wait_for_leaves_no_unretrieved_exception_on_cancel():
     (json.dumps({"origin": "kein ip", "headers": {}}).encode(), None),
     (json.dumps({"origin": "7.7.7.7", "headers": [1]}).encode(), None),     # darf nicht abstürzen
     (json.dumps({"origin": "7.7.7.7", "headers": "x"}).encode(), None),
+    (json.dumps({"origin": "7.7.7.7"}).encode(), None),                     # keine httpbin-Antwort
     (json.dumps(["kein", "objekt"]).encode(), None),
     (b"<html>400 Bad Request</html>", None),
     (b"9.9.9.9", None),
@@ -188,3 +189,48 @@ def test_confirm_survives_malformed_headers():
 
     result, confirmed = run_check(weird, "http")
     assert result is not None and confirmed is False
+
+
+def test_confirm_reads_only_a_bounded_amount():
+    """Ein Proxy, der Megabytes schickt, darf bei 2000 parallelen Prüfungen keinen Speicher fressen."""
+    sent = []
+
+    async def huge(reader, writer):
+        head = await reader.readuntil(b"\r\n\r\n")
+        if head.startswith(b"GET http://checkip.amazonaws.com/ "):
+            writer.write(JUDGE_REPLY)
+        else:
+            writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 50000000\r\n\r\n")
+            try:
+                for _ in range(200):  # bis zu 12 MB anbieten
+                    writer.write(b"x" * 65536)
+                    await writer.drain()
+                    sent.append(1)
+            except (ConnectionError, OSError):
+                pass
+        writer.close()
+
+    result, confirmed = run_check(huge, "http")
+    assert result is not None and confirmed is False
+    assert len(sent) < 200  # Verbindung wurde vorher geschlossen
+
+
+@pytest.mark.parametrize("reply, expected", [
+    (confirm_reply(), True),
+    (b"HTTP/1.1 301 Moved Permanently\r\nLocation: https://httpbin.org/get\r\nContent-Length: 0\r\n\r\n", False),
+    (b"HTTP/1.1 200 OK\r\nContent-Length: 30\r\n\r\n<html>WLAN-Anmeldung</html>  ", False),
+])
+def test_probe_confirm_target(reply, expected):
+    async def target(reader, writer):
+        head = await reader.readuntil(b"\r\n\r\n")
+        assert head.startswith(b"GET /get HTTP/1.1\r\nHost: httpbin.org")  # dieselbe Anfrage wie die Bestätigung
+        writer.write(reply)
+        await writer.drain()
+        writer.close()
+
+    async def go():
+        server, port = await _serve(target)
+        async with server:
+            return await ck.probe_confirm_target("127.0.0.1", timeout=3, port=port)
+
+    assert asyncio.run(go()) is expected

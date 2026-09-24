@@ -33,6 +33,10 @@ JUDGE_PORT = 80
 # Zweites, unabhängiges Prüfziel: liefert JSON mit Absender-IP ("origin") und empfangenen Headern
 CONFIRM_HOST = "httpbin.org"
 CONFIRM_PORT = 80
+# Bewusst ohne Proxy-Connection-Header – der würde sonst selbst als Proxy-Spur auftauchen
+_CONFIRM_HEADERS = f"Host: {CONFIRM_HOST}\r\nUser-Agent: {USER_AGENT}\r\nAccept: */*\r\nConnection: close\r\n\r\n"
+CONFIRM_REQUEST = f"GET /get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
+HTTP_PROXY_CONFIRM_REQUEST = f"GET http://{CONFIRM_HOST}/get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 
 CONTENT_LENGTH_RE = re.compile(rb"(?im)^content-length:\s*(\d+)")
 UNREACHABLE_ERRNOS = {errno.ECONNREFUSED, errno.EHOSTUNREACH, errno.ENETUNREACH, errno.ETIMEDOUT}
@@ -98,12 +102,6 @@ class Checker:
             f"GET http://{JUDGE_HOST}/ HTTP/1.1\r\nHost: {JUDGE_HOST}\r\nUser-Agent: Mozilla/5.0\r\n"
             f"Connection: close\r\nProxy-Connection: close\r\n\r\n"
         ).encode()
-        # Bewusst ohne Proxy-Connection-Header – der würde sonst selbst als Proxy-Spur auftauchen
-        confirm_headers = (
-            f"Host: {CONFIRM_HOST}\r\nUser-Agent: {USER_AGENT}\r\nAccept: */*\r\nConnection: close\r\n\r\n"
-        )
-        self.confirm_request = f"GET /get HTTP/1.1\r\n{confirm_headers}".encode()
-        self.http_confirm_request = f"GET http://{CONFIRM_HOST}/get HTTP/1.1\r\n{confirm_headers}".encode()
 
     @property
     def confirms(self) -> bool:
@@ -199,12 +197,12 @@ class Checker:
         try:
             if not await self._handshake(ptype, reader, writer, self.confirm_ip_bytes, CONFIRM_PORT):
                 return None
-            writer.write(self.http_confirm_request if ptype == "http" else self.confirm_request)
+            writer.write(HTTP_PROXY_CONFIRM_REQUEST if ptype == "http" else CONFIRM_REQUEST)
             await writer.drain()
-            status, _, body = await read_response(reader)
+            # Antwort kommt vom (nicht vertrauenswürdigen) Proxy – nur begrenzt viel lesen
+            return await _read_http_200(reader)
         finally:
             writer.close()
-        return body if status == 200 else None
 
     # ------------------------------------------------------------------ Details
 
@@ -286,7 +284,8 @@ def confirmation_origins(body: bytes) -> Optional[List[str]]:
         data = json.loads(body)
     except ValueError:
         return None
-    if not isinstance(data, dict) or not isinstance(data.get("headers", {}), dict):
+    # httpbin liefert immer "origin" und "headers" – fehlt eins, ist es nicht die erwartete Antwort
+    if not isinstance(data, dict) or not isinstance(data.get("headers"), dict):
         return None
     origins = [part.strip() for part in str(data.get("origin", "")).split(",")]
     return [o for o in origins if _is_ipv4(o)] or None
@@ -302,6 +301,28 @@ def classify_confirmation(body: bytes, own_ips: Iterable[str], exit_ip: str) -> 
     if origins is None or exit_ip not in origins:
         return None
     return classify_anonymity(body, own_ips)
+
+
+async def probe_confirm_target(ip: str, timeout: float, port: int = CONFIRM_PORT) -> bool:
+    """Antwortet `ip` direkt (ohne Proxy) genau so, wie die Bestätigung es erwartet?
+
+    Dieselbe Anfrage, dieselbe Größenbegrenzung, dieselbe Auswertung – und genau die IP, die später
+    benutzt wird. Ein Redirect (z. B. auf HTTPS), ein Captive Portal oder eine Fehlerseite zählt nicht.
+    """
+    async def probe() -> Optional[bytes]:
+        reader, writer = await asyncio.open_connection(ip, port)
+        try:
+            writer.write(CONFIRM_REQUEST)
+            await writer.drain()
+            return await _read_http_200(reader)
+        finally:
+            writer.close()
+
+    try:
+        body = await wait_for(probe(), timeout)
+    except Exception:  # nicht erreichbar -> ohne Bestätigung weiter
+        return False
+    return body is not None and confirmation_origins(body) is not None
 
 
 def _is_ipv4(text: str) -> bool:

@@ -15,11 +15,11 @@ from rich.live import Live
 from rich.text import Text
 
 from . import sources as srcs
-from .checker import CONFIRM_HOST, CONFIRM_PORT, JUDGE_HOST, JUDGE_PORT, Checker, confirmation_origins
+from .checker import CONFIRM_HOST, CONFIRM_PORT, JUDGE_HOST, JUDGE_PORT, Checker, probe_confirm_target
 from .compat import raise_fd_limit
 from .geo import GeoResolver
 from .history import ProxyHistory
-from .netio import INSECURE_HOSTS, http_get, http_request
+from .netio import INSECURE_HOSTS, http_get
 from .options import RunOptions
 from .output import ResultWriter, latest_results
 from .parsing import PROXY_TYPES, parse_keys, split_key
@@ -73,17 +73,13 @@ async def get_own_ips() -> List[str]:
 
 
 async def confirm_target() -> Optional[str]:
-    """IP des Bestätigungsziels – nur wenn es von hier aus genau so antwortet, wie die Bestätigung es
-    erwartet: direkt (ohne Redirect, z. B. auf HTTPS) mit JSON samt gültiger Absender-IP.
-    Ein Captive Portal oder eine Fehlerseite mit Status 200 zählt nicht."""
+    """IP des Bestätigungsziels – nur wenn genau diese IP so antwortet, wie die Bestätigung es erwartet."""
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(CONFIRM_HOST, CONFIRM_PORT, family=socket.AF_INET)
-        status, _, body = await http_request(f"http://{CONFIRM_HOST}/get", timeout=8, max_redirects=0)
-    except Exception:  # Ziel weg oder blockiert -> ohne Bestätigung weiter, mit Hinweis
+    except OSError:  # nicht auflösbar -> ohne Bestätigung weiter, mit Hinweis
         return None
-    if status != 200 or confirmation_origins(body) is None:
-        return None
-    return infos[0][4][0]
+    ip = infos[0][4][0]
+    return ip if await probe_confirm_target(ip, timeout=8) else None
 
 
 def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:

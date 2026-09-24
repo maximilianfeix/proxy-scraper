@@ -1,21 +1,17 @@
 import asyncio
-import json
 
 import pytest
 
 from proxyscraper import app
 
 
-@pytest.mark.parametrize("status, body, expected", [
-    (200, json.dumps({"origin": "5.5.5.5", "headers": {}}).encode(), "34.1.2.3"),
-    (301, b"", None),                                              # Redirect auf HTTPS
-    (200, b"<html>Bitte im WLAN anmelden</html>", None),           # Captive Portal
-    (200, json.dumps({"origin": "unbekannt"}).encode(), None),
-])
-def test_confirm_target_requires_the_exact_expected_answer(monkeypatch, status, body, expected):
-    async def fake_request(url, timeout, max_redirects):
-        assert max_redirects == 0  # genau wie die Bestätigung selbst: keinem Redirect folgen
-        return status, {}, body
+@pytest.mark.parametrize("probe_ok, expected", [(True, "34.1.2.3"), (False, None)])
+def test_confirm_target_probes_the_resolved_ip(monkeypatch, probe_ok, expected):
+    probed = []
+
+    async def fake_probe(ip, timeout):
+        probed.append(ip)
+        return probe_ok
 
     async def go():
         loop = asyncio.get_running_loop()
@@ -26,13 +22,19 @@ def test_confirm_target_requires_the_exact_expected_answer(monkeypatch, status, 
         monkeypatch.setattr(loop, "getaddrinfo", fake_getaddrinfo)
         return await app.confirm_target()
 
-    monkeypatch.setattr(app, "http_request", fake_request)
+    monkeypatch.setattr(app, "probe_confirm_target", fake_probe)
     assert asyncio.run(go()) == expected
+    assert probed == ["34.1.2.3"]  # genau die IP, die später benutzt wird
 
 
-def test_confirm_target_unreachable(monkeypatch):
-    async def fail(*args, **kwargs):
-        raise ConnectionError("blockiert")
+def test_confirm_target_unresolvable(monkeypatch):
+    async def go():
+        loop = asyncio.get_running_loop()
 
-    monkeypatch.setattr(app, "http_request", fail)
-    assert asyncio.run(app.confirm_target()) is None
+        async def fail(*args, **kwargs):
+            raise OSError("keine Namensauflösung")
+
+        monkeypatch.setattr(loop, "getaddrinfo", fail)
+        return await app.confirm_target()
+
+    assert asyncio.run(go()) is None

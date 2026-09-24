@@ -258,3 +258,48 @@ def test_failures_before_the_last_good_probe_stay_counted(tmp_path):
     run = asyncio.run(go())
     assert "http 1.1.1.1:80" in run.checked and "http 1.1.1.2:80" in run.checked  # echte Fehlschläge
     assert run.rechecked == 2  # 3 und 4 fielen in den Ausfall
+
+
+def test_second_switch_only_rechecks_failures_under_the_new_target(tmp_path):
+    """Nach einem Wechsel zählt die erfolgreiche Probe des neuen Ziels als gute Kontrolle: Fällt auch das
+    aus, werden nur die Fehlschläge seit dem ersten Wechsel wiederholt – nicht die davor."""
+    jobs = [f"http 1.1.1.{i}:80" for i in range(1, 7)]
+
+    class StubWatch:
+        on_ok = on_switch = None
+
+        async def run(self):
+            await asyncio.sleep(3600)
+
+    watch = StubWatch()
+    a, b, c = (JudgeProbe(Judge(h), "1.1.1.1", 1) for h in "abc")
+
+    class Checker:
+        calls = 0
+
+        async def check(self, key):
+            self.calls += 1
+            await asyncio.sleep(0.01)
+            if self.calls == 3:
+                watch.on_switch(a, b)   # 1 und 2 fielen in den Ausfall von a
+            await asyncio.sleep(0.01)
+            if self.calls == 5:
+                watch.on_switch(b, c)   # 4 fiel in den Ausfall von b (3 lief noch mit a)
+            return None
+
+        async def confirm(self, r):
+            return True
+
+    async def go():
+        stats = LiveStats({"http": len(jobs)})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, 1, True)
+        return await pipeline.run_checks(jobs, Checker(), RunOptions(no_geo=True, concurrency=1), dashboard, writer,
+                                         GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext(),
+                                         watch=watch)
+
+    run = asyncio.run(go())
+    assert run.judge_switches == ["a → b", "b → c"]
+    # 1, 2 (Ausfall a) + 3 (lief noch mit a, endete nach dem Wechsel) + 4, 5 (Ausfall b); danach ist die
+    # Basislinie neu – die Wiederholungen unter c zählen normal
+    assert sorted(set(run.checked)) == sorted(jobs) and len(run.checked) == len(jobs)

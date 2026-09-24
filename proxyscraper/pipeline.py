@@ -302,9 +302,10 @@ async def run_checks(
         recent_failures.clear()
 
     def judge_switched(old, new) -> None:
-        nonlocal generation
+        nonlocal generation, last_ok
         suspect_since[generation] = last_ok
         generation += 1
+        last_ok = loop.time()  # das neue Ziel wurde gerade erfolgreich geprüft – ab hier die Basislinie
         failed = {key for gen, started, key in recent_failures if is_suspect(gen, started)}
         recent_failures.clear()
         if failed:

@@ -402,7 +402,7 @@ class RotatingServer:
         while verdict is None:
             more = await asyncio.wait_for(up_reader.read(65536), self.timeout)
             if not more:
-                return out + screen.buf
+                return b""  # aufgelegt, bevor eine endgültige Antwort kam – das ist kein Erfolg
             data, verdict = screen.feed(more)
             out += data
         return b"" if verdict == "407" else out
@@ -490,9 +490,9 @@ class RotatingServer:
             while True:
                 data = await reader.read(65536)
                 if not data:
-                    if screen and screen.buf:  # Antwort endet mitten im Prüfen – Rest trotzdem weiterreichen
-                        writer.write(screen.buf)
-                        total += len(screen.buf)
+                    if screen:  # aufgelegt, bevor eine endgültige Antwort kam – für den Client ein 502
+                        await self._bad_gateway(writer)
+                        return -1
                     break
                 if screen:
                     data, verdict = screen.feed(data)

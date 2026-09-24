@@ -243,3 +243,17 @@ def test_407_after_100_continue_is_caught_on_both_paths(request_):
     # plain = gepufferter Body (Wechsel möglich), chunked = gestreamt
     reply = through_server("http", continue_then_407_proxy, AUTH, request_)
     assert b"407" not in reply and b"502" in reply
+
+
+
+async def continue_then_hang_up_proxy(reader, writer):
+    await reader.readuntil(b"\r\n\r\n")
+    writer.write(b"HTTP/1.1 100 Continue\r\n\r\n")
+    await writer.drain()
+    writer.close()  # und dann nichts mehr
+
+
+@pytest.mark.parametrize("request_", [plain, chunked_post])
+def test_hanging_up_after_an_interim_response_is_a_failure(request_):
+    reply = through_server("http", continue_then_hang_up_proxy, AUTH, request_)
+    assert b"502" in reply

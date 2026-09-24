@@ -43,11 +43,12 @@ def on_interrupt(loop: asyncio.AbstractEventLoop, callback: Callable[[], None]) 
 
     Unix: loop.add_signal_handler. Windows kennt das nicht – dort ein klassischer
     signal-Handler, der den Callback threadsicher in die Loop reicht.
+    Danach ist in beiden Fällen wieder der vorherige Handler aktiv.
     """
+    previous = signal.getsignal(signal.SIGINT)
     try:
         loop.add_signal_handler(signal.SIGINT, callback)
     except (NotImplementedError, RuntimeError):
-        previous = signal.getsignal(signal.SIGINT)
         try:
             signal.signal(signal.SIGINT, lambda signum, frame: loop.call_soon_threadsafe(callback))
         except ValueError:  # nicht im Haupt-Thread -> Strg+C bleibt Standardverhalten
@@ -56,12 +57,17 @@ def on_interrupt(loop: asyncio.AbstractEventLoop, callback: Callable[[], None]) 
         try:
             yield
         finally:
-            signal.signal(signal.SIGINT, previous)
+            if previous is not None:
+                signal.signal(signal.SIGINT, previous)
         return
     try:
         yield
     finally:
+        # remove_signal_handler() setzt SIGINT fest auf default_int_handler zurück,
+        # nicht auf einen vorher installierten Handler
         loop.remove_signal_handler(signal.SIGINT)
+        if previous is not None:
+            signal.signal(signal.SIGINT, previous)
 
 
 def ensure_utf8_output() -> None:

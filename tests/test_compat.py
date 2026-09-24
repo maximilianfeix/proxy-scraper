@@ -54,6 +54,20 @@ def test_on_interrupt_with_loop_signal_handler():
     assert _interrupt_calls_callback() == ["stop"]
 
 
+@pytest.mark.skipif(sys.platform == "win32", reason="add_signal_handler gibt es nur auf Unix")
+def test_on_interrupt_restores_custom_handler_on_unix():
+    # remove_signal_handler() allein würde auf default_int_handler zurücksetzen
+    def custom(signum, frame):
+        pass
+
+    previous = signal.signal(signal.SIGINT, custom)
+    try:
+        assert _interrupt_calls_callback() == ["stop"]
+        assert signal.getsignal(signal.SIGINT) is custom
+    finally:
+        signal.signal(signal.SIGINT, previous)
+
+
 def test_ensure_utf8_output_reconfigures_legacy_encoding(monkeypatch):
     raw = io.BytesIO()
     legacy = io.TextIOWrapper(raw, encoding="cp1252")

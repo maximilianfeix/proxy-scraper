@@ -47,7 +47,7 @@ def test_banner_shows_version():
 
 
 def test_next_steps():
-    fast = CheckResult("socks5 1.2.3.4:1080", "socks5", "1.2.3.4:1080", 90, "9.9.9.9")
+    fast = CheckResult("socks5 1.2.3.4:1080", "socks5", "1.2.3.4:1080", 90, "9.9.9.9", https=True)
     slow = CheckResult("http 5.6.7.8:80", "http", "5.6.7.8:80", 900, "9.9.9.9")
     steps = dict(app.next_steps(RunOptions(), [slow, fast]))
     assert steps["Schnellsten testen"] == "curl -x socks5h://1.2.3.4:1080 https://api.ipify.org"
@@ -59,8 +59,18 @@ def test_next_steps():
 @pytest.mark.parametrize("checkout, program", [(True, "python3 proxy_scraper.py"), (False, "proxy-scraper")])
 def test_next_steps_use_the_right_command(monkeypatch, checkout, program):
     monkeypatch.setattr(app, "is_checkout", lambda: checkout)
-    fast = CheckResult("http 1.2.3.4:80", "http", "1.2.3.4:80", 90, "9.9.9.9")
+    fast = CheckResult("http 1.2.3.4:80", "http", "1.2.3.4:80", 90, "9.9.9.9", https=True)
     steps = dict(app.next_steps(RunOptions(), [fast]))
     assert steps["Schnellsten testen"] == "curl -x http://1.2.3.4:80 https://api.ipify.org"
     assert steps["Als Proxy-Server"] == f"{program} --recheck --serve"
     assert steps["Später neu prüfen"] == f"{program} --recheck"
+
+
+def test_next_steps_prefer_a_proxy_that_passed_the_https_test():
+    plain = CheckResult("http 1.1.1.1:80", "http", "1.1.1.1:80", 50, "9.9.9.9", https=False)
+    secure = CheckResult("http 2.2.2.2:80", "http", "2.2.2.2:80", 300, "9.9.9.9", https=True)
+    steps = dict(app.next_steps(RunOptions(), [plain, secure]))
+    assert steps["Schnellsten testen"] == "curl -x http://2.2.2.2:80 https://api.ipify.org"
+    # ohne HTTPS-fähigen Proxy (oder mit --fast) nur über HTTP testen
+    steps = dict(app.next_steps(RunOptions(), [plain]))
+    assert steps["Schnellsten testen"] == "curl -x http://1.1.1.1:80 http://api.ipify.org"

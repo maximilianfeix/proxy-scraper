@@ -59,14 +59,17 @@ async def http_forward_proxy(reader, writer):
 
 
 async def socks5_forward_proxy(reader, writer):
-    """SOCKS5-Proxy ohne Anmeldung, IPv4-Adressen."""
+    """SOCKS5-Proxy ohne Anmeldung, IPv4-Adressen und Hostnamen."""
     await reader.readexactly(3)
     writer.write(b"\x05\x00")
-    request = await reader.readexactly(10)
-    ip = socket.inet_ntoa(request[4:8])
-    port = int.from_bytes(request[8:10], "big")
-    up_reader, up_writer = await asyncio.open_connection(ip, port)
-    writer.write(b"\x05\x00\x00\x01" + request[4:10])
+    head = await reader.readexactly(4)
+    if head[3] == 1:
+        host = socket.inet_ntoa(await reader.readexactly(4))
+    else:
+        host = (await reader.readexactly((await reader.readexactly(1))[0])).decode()
+    port = int.from_bytes(await reader.readexactly(2), "big")
+    up_reader, up_writer = await asyncio.open_connection(host, port)
+    writer.write(b"\x05\x00\x00\x01" + b"\x00" * 6)
     await writer.drain()
     await asyncio.gather(pipe(reader, up_writer), pipe(up_reader, writer))
 
@@ -93,3 +96,43 @@ def tls_client_context() -> ssl.SSLContext:
 async def serve_tls(handler):
     server = await asyncio.start_server(handler, "127.0.0.1", 0, ssl=tls_server_context())
     return server, server.sockets[0].getsockname()[1]
+
+
+async def blackhole_proxy(reader, writer):
+    """Nimmt CONNECT an, schluckt das erste Paket und legt ohne Antwort auf (wie im echten Test beobachtet)."""
+    await reader.readuntil(b"\r\n\r\n")
+    writer.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
+    await writer.drain()
+    await reader.read(65536)
+    writer.close()
+
+
+async def echo_server(reader, writer):
+    """Spricht in mehreren Runden: jede Zeile kommt mit Präfix zurück, bis 'bye'."""
+    while True:
+        line = await reader.readline()
+        if not line or line.strip() == b"bye":
+            break
+        writer.write(b"echo: " + line)
+        await writer.drain()
+    writer.close()
+
+
+async def error_page_proxy(reader, writer):
+    """Nimmt CONNECT an, antwortet im Tunnel aber mit einer HTTP-Fehlerseite statt mit TLS."""
+    await reader.readuntil(b"\r\n\r\n")
+    writer.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
+    await writer.drain()
+    await reader.read(65536)
+    writer.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 9\r\n\r\nverboten\n")
+    await writer.drain()
+    writer.close()
+
+
+async def tls_like_server(reader, writer):
+    """Antwortet auf ein Paket, das wie ein TLS ClientHello beginnt, mit einem 'ServerHello'."""
+    data = await reader.read(65536)
+    if data[:1] == b"\x16":
+        writer.write(b"\x16\x03\x03\x00\x04" + b"helo")
+        await writer.drain()
+    writer.close()

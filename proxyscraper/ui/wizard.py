@@ -21,7 +21,7 @@ from rich.table import Table
 from rich.text import Text
 
 from ..geo import flag
-from ..options import RunOptions
+from ..options import DEFAULT_SERVE_PORT, RunOptions
 from ..parsing import PROXY_TYPES
 from ..targets import SUGGESTIONS, target_label
 from .widgets import ACCENT, GOOD, MUTED, TYPE_STYLE, WARN, fmt
@@ -309,6 +309,8 @@ def describe(opts: RunOptions) -> List[tuple]:
                  else Text("egal")))
     rows.append(("Latenz", Text(f"unter {fmt_seconds(f.max_latency)}") if f.max_latency else Text("egal")))
     rows.append(("Menge", Text(f"stoppt bei {fmt(opts.want)}") if opts.want else Text("so viele wie möglich")))
+    if opts.serve:
+        rows.append(("Danach", Text(f"Proxy-Server auf 127.0.0.1:{opts.serve}", style=f"bold {ACCENT}")))
     rows.append(("Prüfung", Text("gründlich – mit HTTPS-Test") if opts.details
                  else Text("schnell – ohne HTTPS-Test")))
     return rows
@@ -405,6 +407,14 @@ def custom_steps() -> List[Step]:
             read=lambda o: o.want, write=lambda o, v: setattr(o, "want", v),
         ),
         SelectStep(
+            "Danach als Proxy-Server bereitstellen?",
+            "Ein lokaler Proxy, der jede Verbindung über einen anderen gefundenen Proxy schickt.",
+            [Option("Nein", "nur die Ergebnisdateien", 0),
+             Option(f"Ja, auf Port {DEFAULT_SERVE_PORT}", f"http://127.0.0.1:{DEFAULT_SERVE_PORT} – läuft bis Strg+C",
+                    DEFAULT_SERVE_PORT)],
+            read=lambda o: o.serve, write=lambda o, v: setattr(o, "serve", v),
+        ),
+        SelectStep(
             "Wie gründlich prüfen?", "Anonymität und Land gibt es immer – der HTTPS-Test kostet eine TLS-Verbindung.",
             [Option("Gründlich", "mit HTTPS-Test für jeden Treffer", False),
              Option("Schnell", "ohne HTTPS-Test (--fast)", True)],
@@ -465,6 +475,10 @@ class Wizard:
         if can_recheck:
             presets.append(Option("Letzte Treffer neu prüfen", "ohne Sammeln – dauert nur Sekunden",
                                   self._preset(recheck="")))
+            quick_server = self._preset(recheck="")
+            quick_server.serve = DEFAULT_SERVE_PORT
+            presets.append(Option("Sofort als Proxy-Server", f"letzte Treffer prüfen, dann auf :{DEFAULT_SERVE_PORT} "
+                                  "bereitstellen", quick_server))
         # Nur anbieten, wenn es sich von "Alles finden" unterscheidet – sonst steht dasselbe zweimal da
         if self.last is not None and self.last != everything:
             presets.append(Option("Wie letztes Mal", short_description(self.last), self.LAST))

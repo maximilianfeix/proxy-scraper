@@ -21,7 +21,7 @@
 
 <br>
 
-[**Schnellstart**](#schnellstart) · [**Live-Liste**](#live-liste) · [**Features**](#features) · [**So funktioniert's**](#so-funktionierts) · [**Optionen**](#optionen) · [**Roadmap**](#roadmap)
+[**Schnellstart**](#schnellstart) · [**Live-Liste**](#live-liste) · [**Proxy-Server**](#proxy-server) · [**Features**](#features) · [**So funktioniert's**](#so-funktionierts) · [**Optionen**](#optionen) · [**Roadmap**](#roadmap)
 
 </div>
 
@@ -113,8 +113,22 @@ Tempo-Verlauf, Latenz-Histogramm, Protokolle, Länder und die letzten Treffer in
 </td>
 <td valign="top">
 
+**🔁 Rotierender Proxy-Server**<br>
+`--serve` macht aus den Treffern einen lokalen Proxy, der jede Verbindung über einen anderen schickt – mit automatischem Wechsel, wenn einer hängt.
+
+</td>
+</tr>
+<tr>
+<td valign="top">
+
 **💻 Läuft überall**<br>
 macOS, Linux und Windows, Python 3.9 bis 3.13. Einzige Abhängigkeiten: `rich` und `certifi`. Erkennt sogar, wenn eine Firewall Proxys blockiert.
+
+</td>
+<td valign="top">
+
+**🧪 Gründlich getestet**<br>
+200+ Tests laufen ohne Internet gegen echte Mini-Proxys und Honeypots auf `localhost` – auf Linux, macOS und Windows mit Python 3.9, 3.11 und 3.13.
 
 </td>
 </tr>
@@ -175,6 +189,29 @@ python3 proxy_scraper.py -i --country DE
 # welche Quellen liefern am meisten?
 python3 proxy_scraper.py --list-sources
 ```
+
+<a id="proxy-server"></a>
+
+## 🔁 Rotierender Proxy-Server
+
+Eine Liste ist nett – aber meistens will man einfach **einen** Proxy eintragen, der immer funktioniert:
+
+```bash
+python3 proxy_scraper.py --recheck --serve     # letzte Treffer prüfen, dann los – dauert Sekunden
+```
+
+```bash
+curl -x http://127.0.0.1:8899 https://api.ipify.org     # jedes Mal eine andere IP
+```
+
+- jede Verbindung läuft über einen anderen gefundenen Proxy, schnelle und bewährte werden bevorzugt
+- `CONNECT` für HTTPS und normale HTTP-Anfragen; dahinter können HTTP-, SOCKS4- und SOCKS5-Proxys stecken (SOCKS5 mit DNS über den Proxy)
+- für HTTPS nur Proxys, die den Test mit **verifiziertem TLS** bestanden haben – keine aufgebrochene Verschlüsselung
+- bleibt ein Proxy im Tunnel stumm oder liefert statt TLS eine Fehlerseite, geht dasselbe erste Paket unbemerkt an den nächsten
+- wer dreimal hintereinander scheitert, fliegt aus der Rotation
+- lauscht nur auf `127.0.0.1`; Live-Ansicht mit Anfragen, Erfolgsquote, Pool und den letzten Verbindungen
+
+Im Test: 20 von 20 HTTPS-Anfragen erfolgreich, über 15 verschiedene Exit-IPs. Im Assistenten gibt es dafür **Sofort als Proxy-Server**.
 
 <a id="so-funktionierts"></a>
 
@@ -248,6 +285,7 @@ results/2026-09-24_18-42-07/
 | `-t`, `--timeout S` | Timeout pro Proxy (Standard: 8 s) |
 | `--discover` | sofort neue Quellen auf GitHub suchen |
 | `--list-sources [N]` | Rangliste der Quellen anzeigen |
+| `--serve [PORT]` | danach als rotierender Proxy auf `127.0.0.1:PORT` bereitstellen (Standard: 8899) |
 | `-o DATEI` | zusätzlich alle Treffer in diese Datei schreiben |
 
 Alles Weitere: `python3 proxy_scraper.py --help`
@@ -276,7 +314,6 @@ Das Repo arbeitet selbst mit:
 Was als Nächstes kommt, steht im Meilenstein [**v1.2**](../../milestone/2) – Ideen und Wünsche gerne als [Issue](../../issues/new/choose).
 
 - [ ] [Schneller prüfen, wenn Filter gesetzt sind](../../issues/13)
-- [ ] [Lokaler rotierender Proxy-Server (`--serve`)](../../issues/15)
 - [ ] [Proxys mit Zugangsdaten](../../issues/7) · [Zweites Prüfziel](../../issues/8) · [ETag-Cache](../../issues/9)
 
 ## 🛠️ Probleme
@@ -311,10 +348,11 @@ proxyscraper/
 ├── geo.py              Länder über ip-api.com (Batch, mit Cache)
 ├── targets.py          Zielseiten für --target
 ├── output.py           Ergebnisdateien
+├── server.py           rotierender Proxy-Server (--serve)
 ├── publish.py          Live-Liste für GitHub Actions aufbereiten
 ├── compat.py           Unterschiede zwischen Unix und Windows
 ├── netio.py            schlanker HTTP-Client auf asyncio
-└── ui/                 widgets · dashboard · report · wizard · keys
+└── ui/                 widgets · dashboard · report · wizard · serve · keys
 ```
 
 </details>

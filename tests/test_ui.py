@@ -1,5 +1,6 @@
 import io
 
+import pytest
 from rich.console import Console
 
 from proxyscraper import app
@@ -53,3 +54,13 @@ def test_next_steps():
     assert steps["Als Proxy-Server"].endswith("--recheck --serve")
     assert "Als Proxy-Server" not in dict(app.next_steps(RunOptions(serve=8899), [fast]))  # läuft ja schon
     assert list(dict(app.next_steps(RunOptions(), []))) == ["Später neu prüfen"]
+
+
+@pytest.mark.parametrize("checkout, program", [(True, "python3 proxy_scraper.py"), (False, "proxy-scraper")])
+def test_next_steps_use_the_right_command(monkeypatch, checkout, program):
+    monkeypatch.setattr(app, "is_checkout", lambda: checkout)
+    fast = CheckResult("http 1.2.3.4:80", "http", "1.2.3.4:80", 90, "9.9.9.9")
+    steps = dict(app.next_steps(RunOptions(), [fast]))
+    assert steps["Schnellsten testen"] == "curl -x http://1.2.3.4:80 https://api.ipify.org"
+    assert steps["Als Proxy-Server"] == f"{program} --recheck --serve"
+    assert steps["Später neu prüfen"] == f"{program} --recheck"

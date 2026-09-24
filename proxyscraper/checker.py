@@ -20,11 +20,12 @@ import re
 import socket
 import ssl
 import time
-from dataclasses import dataclass
-from typing import Iterable, List, Optional, Set
+from dataclasses import dataclass, field
+from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .netio import USER_AGENT, dechunk, read_response, ssl_context
 from .parsing import split_key
+from .targets import Target
 
 # Prüfziel: liefert die IP zurück, die beim Server ankommt (nur Text, sehr klein).
 # Bewusst NICHT hinter Cloudflare – sonst "funktionieren" beliebige Cloudflare-IPs als Fake-Proxy.
@@ -77,12 +78,14 @@ class CheckResult:
     https: Optional[bool] = None
     anonymity: str = ""
     country: str = ""
+    targets: Dict[str, bool] = field(default_factory=dict)  # Zielseiten-URL -> erreichbar?
 
 
 class Checker:
     def __init__(self, judge_ip: str, own_ips: Iterable[str], timeout: float, connect_timeout: float,
                  confirm_ip: Optional[str] = None, detail_timeout: Optional[float] = None,
-                 detail_connect_timeout: Optional[float] = None):
+                 detail_connect_timeout: Optional[float] = None,
+                 targets: Sequence[Tuple[Target, str]] = ()):
         self.judge_ip = judge_ip
         self.judge_ip_bytes = socket.inet_aton(judge_ip)
         # Ohne erreichbares Bestätigungsziel wird nicht bestätigt (sonst fiele jeder Proxy durch)
@@ -90,6 +93,8 @@ class Checker:
         # Mehrere möglich: z. B. echte IP per HTTPS, aber iCloud Private Relay/Firmenproxy auf Port 80
         self.own_ips = set(own_ips)
         self.timeout = timeout
+        # Zielseiten mit vorab aufgelöster IP (SOCKS4 kann keine Hostnamen)
+        self.targets = [(target, socket.inet_aton(ip)) for target, ip in targets]
         # Bestätigung und HTTPS-Test dürfen länger dauern als die (evtl. latenzbegrenzte) Basisprüfung
         self.detail_timeout = detail_timeout or timeout
         self.detail_connect_timeout = min(detail_connect_timeout or connect_timeout, self.detail_timeout)
@@ -216,8 +221,13 @@ class Checker:
     # ------------------------------------------------------------------ Details
 
     async def enrich(self, result: CheckResult) -> None:
-        """HTTPS-Fähigkeit ergänzen (die Anonymität kommt schon aus der Bestätigung)."""
-        result.https = bool(await self._safe(self.check_https(result.ptype, result.proxy)))
+        """HTTPS-Fähigkeit und Zielseiten ergänzen, alles parallel (die Anonymität kommt aus der Bestätigung)."""
+        outcomes = await asyncio.gather(
+            self._safe(self.check_https(result.ptype, result.proxy)),
+            *(self._safe(self.check_target(result.ptype, result.proxy, t, ip)) for t, ip in self.targets),
+        )
+        result.https = bool(outcomes[0])
+        result.targets = {t.url: bool(ok) for (t, _), ok in zip(self.targets, outcomes[1:])}
 
     async def _safe(self, coro):
         try:
@@ -227,25 +237,14 @@ class Checker:
 
     async def check_https(self, ptype: str, proxy: str) -> bool:
         """Tunnel zu JUDGE_HOST:443 + verifiziertes TLS + Exit-IP abrufen."""
-        loop = asyncio.get_running_loop()
-        host, port = proxy.rsplit(":", 1)
-        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        sock.setblocking(False)
-        try:
-            await loop.sock_connect(sock, (host, int(port)))
-            if not await self._open_tunnel(loop, sock, ptype, 443):
-                sock.close()
-                return False
-            reader, writer = await asyncio.open_connection(sock=sock, ssl=ssl_context(), server_hostname=JUDGE_HOST)
-        except ssl.SSLCertVerificationError:
-            sock.close()
-            return False  # Proxy bricht TLS auf (MITM) -> für HTTPS unbrauchbar
-        except BaseException:
-            sock.close()
-            raise
+        opened = await self._tls_tunnel(ptype, proxy, JUDGE_HOST, self.judge_ip_bytes, 443)
+        if opened is None:
+            return False
+        reader, writer = opened
         try:
             writer.write(self.request)
             await writer.drain()
+            # Nach verifiziertem TLS spricht hier der echte Server, nicht der Proxy
             status, _, body = await read_response(reader)
         finally:
             writer.close()
@@ -255,7 +254,56 @@ class Checker:
             return False
         return status == 200
 
-    async def _open_tunnel(self, loop, sock: socket.socket, ptype: str, port: int) -> bool:
+    async def check_target(self, ptype: str, proxy: str, target: Target, ip_bytes: bytes) -> bool:
+        """Echte Anfrage an eine Zielseite durch den Proxy; 2xx/3xx = erreichbar.
+
+        Gelesen wird nur der Antwortkopf – eine 500-KB-Startseite muss niemand herunterladen.
+        """
+        request = (
+            f"GET {{path}} HTTP/1.1\r\nHost: {target.host}\r\nUser-Agent: {USER_AGENT}\r\n"
+            f"Accept: text/html,*/*;q=0.8\r\nAccept-Language: de,en;q=0.8\r\nConnection: close\r\n\r\n"
+        )
+        if target.tls:
+            opened = await self._tls_tunnel(ptype, proxy, target.host, ip_bytes, target.port)
+            if opened is None:
+                return False
+            reader, writer = opened
+            path = target.path
+        else:
+            reader, writer = await self._connect(proxy, detail=True)
+            if not await self._handshake(ptype, reader, writer, ip_bytes, target.port):
+                writer.close()
+                return False
+            # HTTP-Proxys wollen für unverschlüsseltes HTTP die absolute URL
+            path = target.url if ptype == "http" else target.path
+        try:
+            writer.write(request.format(path=path).encode())
+            await writer.drain()
+            status = await _read_status(reader)
+        finally:
+            writer.close()
+        return 200 <= status < 400
+
+    async def _tls_tunnel(self, ptype: str, proxy: str, host: str, ip_bytes: bytes, port: int):
+        """Tunnel durch den Proxy zu host:port und darin verifiziertes TLS. None = Tunnel abgelehnt oder MITM."""
+        loop = asyncio.get_running_loop()
+        proxy_host, proxy_port = proxy.rsplit(":", 1)
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setblocking(False)
+        try:
+            await loop.sock_connect(sock, (proxy_host, int(proxy_port)))
+            if not await self._open_tunnel(loop, sock, ptype, host, ip_bytes, port):
+                sock.close()
+                return None
+            return await asyncio.open_connection(sock=sock, ssl=ssl_context(), server_hostname=host)
+        except ssl.SSLCertVerificationError:
+            sock.close()
+            return None  # Proxy bricht TLS auf (MITM) -> für HTTPS unbrauchbar
+        except BaseException:
+            sock.close()
+            raise
+
+    async def _open_tunnel(self, loop, sock: socket.socket, ptype: str, host: str, ip_bytes: bytes, port: int) -> bool:
         async def recv_exact(n: int) -> bytes:
             buf = b""
             while len(buf) < n:
@@ -266,9 +314,7 @@ class Checker:
             return buf
 
         if ptype == "http":
-            await loop.sock_sendall(
-                sock, f"CONNECT {JUDGE_HOST}:{port} HTTP/1.1\r\nHost: {JUDGE_HOST}:{port}\r\n\r\n".encode()
-            )
+            await loop.sock_sendall(sock, f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode())
             head = b""
             while b"\r\n\r\n" not in head and len(head) < 8192:
                 chunk = await loop.sock_recv(sock, 1)  # byteweise: nichts vom TLS-Strom verschlucken
@@ -278,14 +324,20 @@ class Checker:
             first = head.split(b"\r\n", 1)[0]
             return first.startswith(b"HTTP/") and b" 200" in first
         if ptype == "socks4":
-            await loop.sock_sendall(sock, b"\x04\x01" + port.to_bytes(2, "big") + self.judge_ip_bytes + b"\x00")
+            await loop.sock_sendall(sock, b"\x04\x01" + port.to_bytes(2, "big") + ip_bytes + b"\x00")
             return (await recv_exact(8))[1] == 0x5A
         await loop.sock_sendall(sock, b"\x05\x01\x00")
         if await recv_exact(2) != b"\x05\x00":
             return False
-        await loop.sock_sendall(sock, b"\x05\x01\x00\x01" + self.judge_ip_bytes + port.to_bytes(2, "big"))
+        await loop.sock_sendall(sock, b"\x05\x01\x00\x01" + ip_bytes + port.to_bytes(2, "big"))
         return await _socks5_reply_ok(recv_exact)
 
+
+async def _read_status(reader) -> int:
+    """Nur den Statuscode einer HTTP-Antwort lesen (Kopf höchstens 64 KiB)."""
+    head = await reader.readuntil(b"\r\n\r\n")
+    parts = head.split(b"\r\n", 1)[0].split()
+    return int(parts[1]) if len(parts) > 1 and parts[0].startswith(b"HTTP/") and parts[1].isdigit() else 0
 
 def confirmation_origins(body: bytes) -> Optional[List[str]]:
     """IPs aus einer httpbin-Antwort ("origin": "1.2.3.4" oder "1.2.3.4, 5.6.7.8"), None wenn unbrauchbar."""

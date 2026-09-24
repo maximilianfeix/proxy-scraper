@@ -42,6 +42,13 @@ jobs:
           echo "found $(wc -l < "results/$run/all.txt") proxies"
           test -s "results/$run/all.txt"
           test -f proxy-data/source_stats.json
+      - uses: docker/setup-qemu-action@v3
+      - name: Build for arm64 too (what the release publishes)
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          platforms: linux/arm64
+          cache-from: type=gha
 
   publish:
     needs: test

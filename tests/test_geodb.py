@@ -137,7 +137,6 @@ def test_is_current():
     assert is_current(db, date(2026, 9, 25)) and not is_current(db, date(2026, 10, 1)) and not is_current(None)
 
 
-
 def test_extra_columns_and_odd_codes_are_handled():
     csv = "1.0.0.0,1.0.0.255,AU,Australia\n1.0.1.0,1.0.1.255,Ä1\n8.8.8.0,8.8.8.255,US\n"
     db = CountryDB.from_csv(csv, "2026-09")
@@ -157,7 +156,6 @@ def test_switching_to_offline_resolves_waiting_ips_consistently():
     resolver, resolved = asyncio.run(go())
     assert resolved == {"8.8.8.8": "US"}           # sofort aus der Datenbank gemeldet
     assert resolver.pending == ["5.5.5.5"]          # nur was die Datenbank nicht kennt, bleibt für ip-api
-
 
 
 def test_one_country_per_exit_ip_even_when_sources_disagree():

@@ -24,6 +24,7 @@ from .options import (
 from .output import has_latest_results
 from .parsing import PROXY_TYPES
 from .preferences import load_last_argv, save_last_argv
+from .targets import parse_target
 from .ui import ACCENT, MUTED, banner, note, render_source_ranking, widgets
 from .ui.keys import is_interactive
 from .ui.wizard import run_wizard
@@ -55,6 +56,14 @@ def _number(kind, minimum, strict=False):
     return parse
 
 
+def target_url(text: str) -> str:
+    """argparse-Typ für --target: normalisierte URL oder verständliche Fehlermeldung."""
+    try:
+        return parse_target(text).url
+    except ValueError as e:
+        raise argparse.ArgumentTypeError(str(e)) from None
+
+
 positive_int = _number(int, 1)
 non_negative_int = _number(int, 0)
 positive_float = _number(float, 0, strict=True)
@@ -72,6 +81,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
             "  proxy_scraper.py --want 50 --https-only       stoppt nach 50 HTTPS-fähigen Proxys\n"
             "  proxy_scraper.py --country DE,AT,CH -l 20000  nur DACH, die 20.000 besten Kandidaten\n"
             "  proxy_scraper.py --types socks5 --anonymity elite --max-latency 1500\n"
+            "  proxy_scraper.py --target google.com --target discord.com --want 20\n"
             "  proxy_scraper.py --recheck                    letzte Treffer + Verlauf neu prüfen\n"
             "  proxy_scraper.py --list-sources               Quellen-Rangliste\n"
         ),
@@ -107,6 +117,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     f.add_argument("--anonymity", choices=["anonymous", "elite"], help="Mindest-Anonymität")
     f.add_argument("--max-latency", type=non_negative_int, default=0, metavar="MS",
                    help="nur Proxys bis zu dieser Latenz")
+    f.add_argument("--target", action="append", type=target_url, metavar="URL",
+                   help="nur Proxys, die diese Seite erreichen (mehrfach möglich), z. B. --target google.com")
 
     o = p.add_argument_group("Ausgabe")
     o.add_argument("-o", "--output", help="zusätzlich alle Treffer als typ://ip:port in diese Datei")

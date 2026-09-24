@@ -9,6 +9,7 @@ from typing import List, Optional, Set
 
 from .checker import ANONYMITY_RANK, CheckResult
 from .parsing import PROXY_TYPES
+from .targets import target_label
 
 DEFAULT_CONCURRENCY = 2000
 DEFAULT_TIMEOUT = 8.0
@@ -27,15 +28,16 @@ class Filters:
     https_only: bool = False
     min_anonymity: str = ""
     max_latency: int = 0
+    targets: List[str] = field(default_factory=list)  # Zielseiten, die jeder Proxy erreichen muss
 
     @property
     def needs_details(self) -> bool:
-        # Die Anonymität kommt aus der Bestätigung (läuft immer) – nur HTTPS braucht den Detailtest
-        return self.https_only
+        # Die Anonymität kommt aus der Bestätigung (läuft immer) – HTTPS und Zielseiten brauchen den Detailtest
+        return self.https_only or bool(self.targets)
 
     @property
     def active(self) -> bool:
-        return bool(self.countries or self.https_only or self.min_anonymity or self.max_latency)
+        return bool(self.countries or self.https_only or self.min_anonymity or self.max_latency or self.targets)
 
     def accepts(self, r: CheckResult) -> bool:
         if self.max_latency and r.latency > self.max_latency:
@@ -45,6 +47,8 @@ class Filters:
         if self.min_anonymity and ANONYMITY_RANK.get(r.anonymity, -1) < ANONYMITY_RANK[self.min_anonymity]:
             return False
         if self.countries and r.country not in self.countries:
+            return False
+        if any(not r.targets.get(url) for url in self.targets):
             return False
         return True
 
@@ -71,6 +75,8 @@ class Filters:
             parts.append(f"mind. {self.min_anonymity}")
         if self.max_latency:
             parts.append(f"≤ {self.max_latency} ms")
+        if self.targets:
+            parts.append("Ziel " + ", ".join(target_label(u) for u in self.targets))
         return " · ".join(parts)
 
 
@@ -138,6 +144,7 @@ class RunOptions:
                 https_only=args.https_only,
                 min_anonymity=args.anonymity or "",
                 max_latency=args.max_latency,
+                targets=list(dict.fromkeys(args.target or [])),
             ),
             want=args.want,
             limit=args.limit,
@@ -168,6 +175,8 @@ class RunOptions:
             argv += ["--anonymity", f.min_anonymity]
         if f.max_latency:
             argv += ["--max-latency", str(f.max_latency)]
+        for url in f.targets:
+            argv += ["--target", url]
         _opt(argv, "--want", self.want, 0)
         _opt(argv, "--limit", self.limit, 0)
         _flag(argv, "--fast", self.fast)

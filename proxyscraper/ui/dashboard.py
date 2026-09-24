@@ -176,7 +176,7 @@ class CheckDashboard:
         self.progress = Progress(
             TextColumn("[bold]Fortschritt"),
             BarColumn(bar_width=None, complete_style=ACCENT, finished_style=GOOD),
-            TaskProgressColumn(style=f"bold {ACCENT}"),
+            TaskProgressColumn(text_format=f"[bold {ACCENT}]{{task.percentage:>3.0f}}%"),
             CountColumn(),
             TextColumn("[grey50]· noch"),
             TimeRemainingColumn(),

@@ -5,7 +5,7 @@ Jeder Lauf bekommt einen eigenen Ordner results/<datum>/ mit
   http.txt …      ip:port pro Protokoll – direkt für Tools, die nur eine Liste wollen
   proxies.json    alle Details (Latenz, Land, HTTPS, Anonymität, Exit-IP)
   proxies.csv     dasselbe als Tabelle
-und results/latest zeigt immer auf den neuesten Lauf.
+und results/latest.txt (bzw. der Symlink results/latest) zeigt immer auf den neuesten Lauf.
 """
 
 from __future__ import annotations
@@ -116,17 +116,38 @@ def _row(r: CheckResult) -> dict:
     return d
 
 
+LATEST_POINTER = "latest.txt"
+
+
 def _point_latest(run_dir: Path) -> None:
+    """results/latest.txt nennt immer den neuesten Lauf; results/latest ist zusätzlich ein Symlink.
+
+    Der Symlink ist bequem zum Reinschauen, braucht unter Windows aber Admin- oder
+    Entwicklerrechte – die Zeigerdatei funktioniert überall.
+    """
+    (run_dir.parent / LATEST_POINTER).write_text(run_dir.name + "\n", encoding="utf-8")
     latest = run_dir.parent / "latest"
     try:
-        if latest.is_symlink() or latest.exists():
+        if latest.is_symlink():
             latest.unlink()
-        os.symlink(run_dir.name, latest)
+        if not latest.exists():
+            os.symlink(run_dir.name, latest, target_is_directory=True)
     except OSError:
-        pass  # z. B. Dateisystem ohne Symlinks – die Ergebnisse selbst sind trotzdem da
+        pass  # keine Symlinks erlaubt – latest.txt reicht
 
 
-def latest_results() -> List[str]:
+def latest_run_dir(results_dir: Path = RESULTS_DIR) -> Optional[Path]:
+    pointer = results_dir / LATEST_POINTER
+    if pointer.exists():
+        run_dir = results_dir / pointer.read_text(encoding="utf-8").strip()
+        if run_dir.is_dir():
+            return run_dir
+    link = results_dir / "latest"
+    return link if link.is_dir() else None  # Läufe aus älteren Versionen ohne latest.txt
+
+
+def latest_results(results_dir: Path = RESULTS_DIR) -> List[str]:
     """Proxys des letzten Laufs für --recheck ohne Datei."""
-    path = RESULTS_DIR / "latest" / "all.txt"
-    return path.read_text(encoding="utf-8").splitlines() if path.exists() else []
+    run_dir = latest_run_dir(results_dir)
+    path = run_dir / "all.txt" if run_dir else None
+    return path.read_text(encoding="utf-8").splitlines() if path and path.exists() else []

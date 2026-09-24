@@ -1,0 +1,8 @@
+blank_issues_enabled: false
+contact_links:
+  - name: 📡 Just need working proxies?
+    url: https://github.com/maximilianfeix/proxy-scraper/tree/proxy-list
+    about: The live list is refreshed every 6 hours by GitHub Actions.
+  - name: 🔒 Security issue
+    url: https://github.com/maximilianfeix/proxy-scraper/security/advisories/new
+    about: Please report vulnerabilities privately.

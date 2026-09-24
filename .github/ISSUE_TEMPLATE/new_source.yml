@@ -1,0 +1,28 @@
+name: 📡 New proxy source
+description: Suggest a list or API that is still missing
+labels: [sources]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Check first with `proxy-scraper --list-sources 1000` that the source isn't already included.
+  - type: input
+    id: url
+    attributes:
+      label: URL
+      description: The raw list or API endpoint, not the project page.
+      placeholder: https://raw.githubusercontent.com/user/repo/main/socks5.txt
+    validations:
+      required: true
+  - type: dropdown
+    id: type
+    attributes:
+      label: Proxy type
+      options: [http, socks4, socks5, mixed with type:// prefix, mixed without prefix]
+    validations:
+      required: true
+  - type: input
+    id: interval
+    attributes:
+      label: How often is it updated?
+      placeholder: every 10 minutes

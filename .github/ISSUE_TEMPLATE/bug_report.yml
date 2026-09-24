@@ -1,0 +1,55 @@
+name: 🐛 Bug report
+description: Something doesn't work as expected
+labels: [bug]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thanks for taking the time! German or English – both are fine.
+  - type: textarea
+    id: what
+    attributes:
+      label: What happened?
+      description: And what did you expect instead?
+    validations:
+      required: true
+  - type: textarea
+    id: command
+    attributes:
+      label: Command
+      description: The exact command you ran.
+      placeholder: proxy-scraper --want 50 --https-only
+      render: shell
+    validations:
+      required: true
+  - type: textarea
+    id: output
+    attributes:
+      label: Output or screenshot
+      description: Error messages, the final report or a screenshot of the dashboard.
+  - type: input
+    id: version
+    attributes:
+      label: Version
+      description: Output of `proxy-scraper --version`
+      placeholder: proxy-scraper 1.2.0
+    validations:
+      required: true
+  - type: dropdown
+    id: os
+    attributes:
+      label: Operating system
+      options: [macOS, Linux, Windows, Other]
+    validations:
+      required: true
+  - type: input
+    id: python
+    attributes:
+      label: Python version
+      placeholder: "3.12"
+  - type: dropdown
+    id: network
+    attributes:
+      label: Network
+      description: Company, school and university networks often block proxies.
+      options: [Home, Company / school / university, VPN, Mobile hotspot, Server / cloud]

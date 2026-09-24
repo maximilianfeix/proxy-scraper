@@ -157,6 +157,7 @@ def test_changed_source_type_invalidates_the_entry(tmp_path):
     ("GET", {"If-None-Match": '"a"'}, None, True),              # bedingter Abruf für den Cache
     ("GET", {"Authorization": "token x"}, None, False),         # GitHub-Token
     ("POST", {"If-None-Match": '"a"'}, b"secret", False),       # Daten nie ungeprüft
+    ("POST", None, b"secret", False),                           # auch ganz ohne Header nicht
     ("GET", {"If-None-Match": '"a"', "Authorization": "x"}, None, False),
 ])
 def test_unverified_tls_only_for_requests_without_secrets(monkeypatch, method, headers, body, allowed):

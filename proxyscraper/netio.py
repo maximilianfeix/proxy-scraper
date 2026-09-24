@@ -62,10 +62,9 @@ async def http_request(
         https = u.scheme == "https"
         port = u.port or (443 if https else 80)
         path = (u.path or "/") + (f"?{u.query}" if u.query else "")
-        # Unverifiziert nur ohne eigene Header – außer bedingten GETs ohne Body (ETag-Cache), die tragen
-        # kein Geheimnis. Alles andere (Token, POST-Daten) nie über eine ungeprüfte Verbindung.
-        conditional_get = method == "GET" and body is None and set(headers or ()) <= CONDITIONAL_HEADERS
-        insecure_ok = not headers or conditional_get
+        # Unverifiziert nur für GETs ohne Body und ohne eigene Header (bedingte ETag-Header ausgenommen,
+        # die tragen kein Geheimnis). Token oder gesendete Daten nie über eine ungeprüfte Verbindung.
+        insecure_ok = method == "GET" and body is None and set(headers or ()) <= CONDITIONAL_HEADERS
         reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout)
         try:
             writer.write(

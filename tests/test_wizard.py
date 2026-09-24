@@ -1,5 +1,7 @@
 """Der Einrichtungsassistent als Tastenfolgen – ohne echtes Terminal."""
 
+import io
+
 import pytest
 from rich.console import Console
 
@@ -106,7 +108,7 @@ def test_cancel_from_summary():
 
 @pytest.mark.parametrize("width", [60, 80, 120])
 def test_every_screen_renders(width):
-    console = Console(width=width, record=True, file=open("/dev/null", "w"), color_system=None)
+    console = Console(width=width, record=True, file=io.StringIO(), color_system=None)
     w = Wizard(RunOptions())
     console.print(w)
     press(w, preset_index(w, "Eigene"))

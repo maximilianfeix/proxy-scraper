@@ -37,6 +37,9 @@ def _insecure_ssl_context() -> ssl.SSLContext:
     return ctx
 
 
+CONDITIONAL_HEADERS = {"If-None-Match", "If-Modified-Since"}
+
+
 async def http_request(
     url: str,
     timeout: float = 15.0,
@@ -47,9 +50,10 @@ async def http_request(
 ) -> Tuple[int, Dict[bytes, bytes], bytes]:
     """Eine HTTP/1.1-Anfrage -> (Status, Header, Body). Folgt Redirects bei GET.
 
-    Schlägt die Zertifikatsprüfung fehl, wird nur bei Anfragen ohne eigene Header (also öffentliche
-    Proxy-Listen, nie mit API-Token) unverifiziert wiederholt: Die Listen sind öffentlich, und jeder
-    Proxy daraus wird ohnehin selbst geprüft.
+    Schlägt die Zertifikatsprüfung fehl, wird nur bei GETs ohne Body und ohne eigene Header unverifiziert
+    wiederholt – also bei öffentlichen Proxy-Listen, nie mit API-Token oder gesendeten Daten. Einzige
+    erlaubte Header sind If-None-Match / If-Modified-Since (ETag-Cache), die tragen kein Geheimnis.
+    Die Listen sind öffentlich, und jeder Proxy daraus wird ohnehin selbst geprüft.
     """
     extra = "".join(f"{k}: {v}\r\n" for k, v in (headers or {}).items())
     if body is not None:
@@ -59,7 +63,10 @@ async def http_request(
         https = u.scheme == "https"
         port = u.port or (443 if https else 80)
         path = (u.path or "/") + (f"?{u.query}" if u.query else "")
-        reader, writer = await _connect(u.hostname, port, https, allow_insecure=not headers, timeout=timeout)
+        # Unverifiziert nur für GETs ohne Body und ohne eigene Header (bedingte ETag-Header ausgenommen,
+        # die tragen kein Geheimnis). Token oder gesendete Daten nie über eine ungeprüfte Verbindung.
+        insecure_ok = method == "GET" and body is None and set(headers or ()) <= CONDITIONAL_HEADERS
+        reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout)
         try:
             writer.write(
                 f"{method} {path} HTTP/1.1\r\nHost: {u.hostname}\r\nUser-Agent: {USER_AGENT}\r\n"

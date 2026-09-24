@@ -67,6 +67,7 @@ class CollectView:
         self.ok = 0
         self.failed = 0
         self.bytes = 0
+        self.cached = 0  # Listen, die per ETag unverändert waren
         self.unique = 0
         self.progress = Progress(
             SpinnerColumn(style=ACCENT),
@@ -86,7 +87,8 @@ class CollectView:
         stats = row(
             card("Quellen OK", fmt(self.ok), f"{fmt(self.failed)} fehlgeschlagen", f"bold {GOOD}"),
             card("Geladen", f"{self.bytes / 2**20:,.0f} MB".replace(",", "."),
-                 f"{self.bytes / 2**20 / elapsed:.1f} MB/s"),
+                 f"{self.bytes / 2**20 / elapsed:.1f} MB/s"
+                 + (f" · {fmt(self.cached)} aus Cache" if self.cached else "")),
             card("Proxys", fmt(self.unique), "einzigartig", f"bold {ACCENT}"),
         )
         return Group(

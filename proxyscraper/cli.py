@@ -154,6 +154,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     s.add_argument("--discover-repos", type=non_negative_int, default=DEFAULT_DISCOVER_REPOS,
                    help=f"max. Repos bei der Discovery (Standard: {DEFAULT_DISCOVER_REPOS}, ohne Token 40)")
     s.add_argument("--all-sources", action="store_true", help="auch tote, veraltete und unerreichbare Quellen laden")
+    s.add_argument("--no-cache", action="store_true",
+                   help="alle Listen komplett neu laden (sonst werden unveränderte per ETag übersprungen)")
     s.add_argument("--list-sources", nargs="?", const=50, type=positive_int, metavar="N",
                    help="Rangliste der Quellen nach Trefferquote anzeigen (Standard: Top 50) und beenden")
     return p.parse_args(argv)

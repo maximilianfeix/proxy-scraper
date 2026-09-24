@@ -26,6 +26,7 @@ from .checker import (
     probe_confirm_target,
 )
 from .compat import on_interrupt, raise_fd_limit
+from .fetchcache import FetchCache
 from .geo import GeoResolver
 from .history import ProxyHistory
 from .netio import INSECURE_HOSTS, http_get
@@ -262,13 +263,16 @@ class Run:
         t0 = time.perf_counter()
         view = CollectView(len(plan.sources), self.started)
         with Live(view, console=widgets.console, refresh_per_second=10, transient=True):
-            self.scraped = await scrape(plan.sources, self.opts.types, self.quality, view)
+            cache = FetchCache(enabled=not self.opts.no_cache)
+            self.scraped = await scrape(plan.sources, self.opts.types, self.quality, view, cache)
         self.quality.save()
+        cache.save()
         res = self.scraped
         info("Gesammelt", Text.assemble(
             (fmt(len(res.index)), f"bold {GOOD}"), " einzigartige Proxys aus ",
             f"{res.ok_sources}/{len(plan.sources)} Quellen",
-            (f"  ({view.bytes / 2**20:.0f} MB in {fmt_duration(time.perf_counter() - t0)})", MUTED),
+            (f"  ({view.bytes / 2**20:.0f} MB in {fmt_duration(time.perf_counter() - t0)}"
+             + (f", {view.cached} unverändert aus dem Cache" if view.cached else "") + ")", MUTED),
         ))
         if INSECURE_HOSTS:
             hosts = sorted(INSECURE_HOSTS)

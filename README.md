@@ -80,7 +80,7 @@ Ohne Argumente gestartet fragt das Tool per Pfeiltasten, was du suchst – Schne
 <td valign="top">
 
 **🔐 Echte Detailprüfung**<br>
-Jeder Treffer muss eine Seite abrufen. Dazu: HTTPS über einen Tunnel mit **verifiziertem TLS** (Proxys, die TLS aufbrechen, fallen durch), Anonymitätsstufe *elite / anonymous / transparent* und das Land der Exit-IP.
+Jeder Treffer muss zwei unabhängige Seiten abrufen – das sortiert **Honeypots** aus, die nur auf Prüfanfragen antworten (in manchen Läufen 5 von 6 „Treffern“). Dazu: HTTPS über einen Tunnel mit **verifiziertem TLS**, Anonymitätsstufe *elite / anonymous / transparent* und das Land der Exit-IP.
 
 </td>
 <td valign="top">
@@ -191,7 +191,7 @@ flowchart LR
 1. **Quellen** – die kuratierte Liste in [`sources.json`](sources.json), Meta-Quellen (andere Projekte, die selbst Listen von Proxy-Quellen pflegen) und alle drei Tage eine Suche auf GitHub nach aktiv gepflegten Repos.
 2. **Sammeln** – Text, HTML-Tabellen, JSON-APIs und `typ://ip:port`-Zeilen werden erkannt, private und reservierte Adressbereiche verworfen.
 3. **Priorisieren** – bekannte funktionierende Proxys zuerst, dann nach gelernter Trefferquote ihrer Quellen.
-4. **Prüfen** – jeder Proxy muss `checkip.amazonaws.com` abrufen und eine gültige, *fremde* IP zurückliefern. Wer deine IP durchreicht, fliegt raus.
+4. **Prüfen** – jeder Proxy muss `checkip.amazonaws.com` abrufen und eine gültige, *fremde* IP zurückliefern. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier.
 5. **Lernen** – Trefferquoten und Verlauf landen in `data/`. Quellen ohne Treffer, mit seit einer Woche unverändertem Inhalt oder dauerhaft unerreichbar werden übersprungen.
 
 <details>
@@ -238,7 +238,7 @@ results/2026-09-24_18-42-07/
 | `--anonymity elite` | Mindest-Anonymität (`anonymous` oder `elite`) |
 | `--max-latency MS` | maximale Latenz |
 | `--recheck [DATEI]` | nur Proxys aus einer Datei bzw. vom letzten Lauf prüfen |
-| `--fast` | ohne HTTPS- und Anonymitätstest |
+| `--fast` | ohne HTTPS-Test (Bestätigung und Anonymität laufen trotzdem) |
 | `--no-geo` | ohne Länder-Lookup |
 | `-c`, `--concurrency N` | gleichzeitige Prüfungen (Standard: 2000) |
 | `-t`, `--timeout S` | Timeout pro Proxy (Standard: 8 s) |
@@ -301,7 +301,7 @@ proxyscraper/
 ├── app.py              ein Lauf in Phasen: Netz → Jobs → Prüfen → Lernen & Bericht
 ├── options.py          RunOptions + Filters – alle Einstellungen an einer Stelle
 ├── pipeline.py         Quellen sammeln, priorisieren, Prüfschleife
-├── checker.py          HTTP/SOCKS-Handshakes, HTTPS- und Anonymitätstest
+├── checker.py          HTTP/SOCKS-Handshakes, Bestätigung gegen Honeypots, HTTPS-Test
 ├── sources.py          Quellenlisten, Meta-Quellen, GitHub-Discovery, Statistik
 ├── parsing.py          Proxys in Text, HTML und JSON finden
 ├── history.py          Verlauf funktionierender Proxys

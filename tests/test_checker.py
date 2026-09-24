@@ -17,15 +17,30 @@ async def _serve(handler):
     return server, server.sockets[0].getsockname()[1]
 
 
+def confirm_reply(headers=None, origin="9.9.9.9") -> bytes:
+    body = json.dumps({"origin": origin, "headers": headers or {"Host": "httpbin.org"}}).encode()
+    return b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body
+
+
 async def http_proxy(reader, writer):
     head = await reader.readuntil(b"\r\n\r\n")
     if head.startswith(b"GET http://checkip.amazonaws.com/"):
         writer.write(JUDGE_REPLY)
-    elif head.startswith(b"GET http://httpbin.org/headers"):
-        body = json.dumps({"headers": {"Host": "httpbin.org", "Via": "1.1 squid"}}).encode()
-        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body)
+    elif head.startswith(b"GET http://httpbin.org/get"):
+        writer.write(confirm_reply({"Host": "httpbin.org", "Via": "1.1 squid"}))
     else:
         writer.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
+    await writer.drain()
+    writer.close()
+
+
+async def honeypot(reader, writer):
+    """Wie beobachtet: beantwortet die Prüfanfrage mit 200 + IP, alles andere mit 400."""
+    head = await reader.readuntil(b"\r\n\r\n")
+    if head.startswith(b"GET http://checkip.amazonaws.com/ "):
+        writer.write(b"HTTP/1.1 200 OK\r\nServer: lighttpd/1.4.53\r\nContent-Length: 8\r\n\r\n9.9.9.9\n")
+    else:
+        writer.write(b"HTTP/1.1 400 Bad Request\r\nServer: NSC/0.6.4 (JVM)\r\nContent-Length: 0\r\n\r\n")
     await writer.drain()
     writer.close()
 
@@ -36,8 +51,8 @@ async def socks5_proxy(reader, writer):
     req = await reader.readexactly(10)
     assert req[:4] == b"\x05\x01\x00\x01"
     writer.write(b"\x05\x00\x00\x01" + b"\x00" * 6)
-    await reader.readuntil(b"\r\n\r\n")
-    writer.write(JUDGE_REPLY)
+    head = await reader.readuntil(b"\r\n\r\n")
+    writer.write(confirm_reply() if b"Host: httpbin.org" in head else JUDGE_REPLY)
     await writer.drain()
     writer.close()
 
@@ -49,28 +64,39 @@ async def socks4_reject(reader, writer):
     writer.close()
 
 
-def run_check(handler, ptype, own_ip="1.1.1.1"):
+def run_check(handler, ptype, own_ip="1.1.1.1", confirm_ip="4.4.4.4"):
     async def go():
         server, port = await _serve(handler)
         async with server:
-            c = ck.Checker("3.3.3.3", {own_ip}, timeout=3, connect_timeout=2)
+            c = ck.Checker("3.3.3.3", {own_ip}, timeout=3, connect_timeout=2, confirm_ip=confirm_ip)
             result = await c.check(f"{ptype} 127.0.0.1:{port}")
-            anonymity = await c.check_anonymity(ptype, f"127.0.0.1:{port}") if result else None
-            return result, anonymity
+            confirmed = await c.confirm(result) if result else None
+            return result, confirmed
 
     return asyncio.run(go())
 
 
 def test_http_proxy_works_and_is_anonymous():
-    result, anonymity = run_check(http_proxy, "http")
+    result, confirmed = run_check(http_proxy, "http")
     assert result.exit_ip == "9.9.9.9" and result.ptype == "http"
-    assert anonymity == "anonymous"  # Via-Header verrät den Proxy
+    assert confirmed and result.anonymity == "anonymous"  # Via-Header verrät den Proxy
 
 
 def test_socks5_proxy_works_and_is_elite():
-    result, anonymity = run_check(socks5_proxy, "socks5")
+    result, confirmed = run_check(socks5_proxy, "socks5")
     assert result.exit_ip == "9.9.9.9"
-    assert anonymity == "elite"
+    assert confirmed and result.anonymity == "elite"
+
+
+def test_honeypot_passes_first_check_but_not_confirmation():
+    result, confirmed = run_check(honeypot, "http")
+    assert result is not None     # die erste Prüfung allein fällt darauf herein …
+    assert confirmed is False     # … die Bestätigung nicht
+
+
+def test_without_confirm_target_everything_is_confirmed():
+    result, confirmed = run_check(honeypot, "http", confirm_ip=None)
+    assert confirmed is True and result.anonymity == ""
 
 
 def test_socks4_rejection_is_not_working():
@@ -132,3 +158,79 @@ def test_wait_for_leaves_no_unretrieved_exception_on_cancel():
         return errors
 
     assert asyncio.run(go()) == []
+
+
+@pytest.mark.parametrize("body, expected", [
+    (json.dumps({"origin": "7.7.7.7", "headers": {}}).encode(), "elite"),
+    (json.dumps({"origin": "5.5.5.5, 7.7.7.7", "headers": {"Via": "x"}}).encode(), "transparent"),
+    (json.dumps({"origin": "8.8.8.8", "headers": {}}).encode(), None),       # andere Exit-IP als vorher
+    (json.dumps({"origin": "kein ip", "headers": {}}).encode(), None),
+    (json.dumps({"origin": "7.7.7.7", "headers": [1]}).encode(), None),     # darf nicht abstürzen
+    (json.dumps({"origin": "7.7.7.7", "headers": "x"}).encode(), None),
+    (json.dumps({"origin": "7.7.7.7"}).encode(), None),                     # keine httpbin-Antwort
+    (json.dumps(["kein", "objekt"]).encode(), None),
+    (b"<html>400 Bad Request</html>", None),
+    (b"9.9.9.9", None),
+])
+def test_classify_confirmation(body, expected):
+    assert ck.classify_confirmation(body, {"5.5.5.5"}, exit_ip="7.7.7.7") == expected
+
+
+def test_confirm_survives_malformed_headers():
+    async def weird(reader, writer):
+        head = await reader.readuntil(b"\r\n\r\n")
+        if head.startswith(b"GET http://checkip.amazonaws.com/ "):
+            writer.write(JUDGE_REPLY)
+        else:
+            body = b'{"origin": "9.9.9.9", "headers": [1]}'
+            writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body)
+        await writer.drain()
+        writer.close()
+
+    result, confirmed = run_check(weird, "http")
+    assert result is not None and confirmed is False
+
+
+def test_confirm_reads_only_a_bounded_amount():
+    """Ein Proxy, der Megabytes schickt, darf bei 2000 parallelen Prüfungen keinen Speicher fressen."""
+    sent = []
+
+    async def huge(reader, writer):
+        head = await reader.readuntil(b"\r\n\r\n")
+        if head.startswith(b"GET http://checkip.amazonaws.com/ "):
+            writer.write(JUDGE_REPLY)
+        else:
+            writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 50000000\r\n\r\n")
+            try:
+                for _ in range(200):  # bis zu 12 MB anbieten
+                    writer.write(b"x" * 65536)
+                    await writer.drain()
+                    sent.append(1)
+            except (ConnectionError, OSError):
+                pass
+        writer.close()
+
+    result, confirmed = run_check(huge, "http")
+    assert result is not None and confirmed is False
+    assert len(sent) < 200  # Verbindung wurde vorher geschlossen
+
+
+@pytest.mark.parametrize("reply, expected", [
+    (confirm_reply(), True),
+    (b"HTTP/1.1 301 Moved Permanently\r\nLocation: https://httpbin.org/get\r\nContent-Length: 0\r\n\r\n", False),
+    (b"HTTP/1.1 200 OK\r\nContent-Length: 30\r\n\r\n<html>WLAN-Anmeldung</html>  ", False),
+])
+def test_probe_confirm_target(reply, expected):
+    async def target(reader, writer):
+        head = await reader.readuntil(b"\r\n\r\n")
+        assert head.startswith(b"GET /get HTTP/1.1\r\nHost: httpbin.org")  # dieselbe Anfrage wie die Bestätigung
+        writer.write(reply)
+        await writer.drain()
+        writer.close()
+
+    async def go():
+        server, port = await _serve(target)
+        async with server:
+            return await ck.probe_confirm_target("127.0.0.1", timeout=3, port=port)
+
+    assert asyncio.run(go()) is expected

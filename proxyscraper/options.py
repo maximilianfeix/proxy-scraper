@@ -30,7 +30,8 @@ class Filters:
 
     @property
     def needs_details(self) -> bool:
-        return self.https_only or bool(self.min_anonymity)
+        # Die Anonymität kommt aus der Bestätigung (läuft immer) – nur HTTPS braucht den Detailtest
+        return self.https_only
 
     @property
     def active(self) -> bool:
@@ -96,7 +97,7 @@ class RunOptions:
 
     @property
     def details(self) -> bool:
-        """HTTPS- und Anonymitätstest – abschaltbar, außer ein Filter braucht sie."""
+        """HTTPS-Test – abschaltbar (--fast), außer der HTTPS-Filter braucht ihn."""
         return not self.fast or self.filters.needs_details
 
     @property

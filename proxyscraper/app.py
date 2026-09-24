@@ -15,7 +15,7 @@ from rich.live import Live
 from rich.text import Text
 
 from . import sources as srcs
-from .checker import JUDGE_HOST, JUDGE_PORT, Checker
+from .checker import CONFIRM_HOST, CONFIRM_PORT, JUDGE_HOST, JUDGE_PORT, Checker, probe_confirm_target
 from .compat import raise_fd_limit
 from .geo import GeoResolver
 from .history import ProxyHistory
@@ -72,6 +72,16 @@ async def get_own_ips() -> List[str]:
     return list(dict.fromkeys(ip for ip in ips if ip))
 
 
+async def confirm_target() -> Optional[str]:
+    """IP des Bestätigungsziels – nur wenn genau diese IP so antwortet, wie die Bestätigung es erwartet."""
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(CONFIRM_HOST, CONFIRM_PORT, family=socket.AF_INET)
+    except OSError:  # nicht auflösbar -> ohne Bestätigung weiter, mit Hinweis
+        return None
+    ip = infos[0][4][0]
+    return ip if await probe_confirm_target(ip, timeout=8) else None
+
+
 def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
     """--recheck: Datei, sonst letzter Lauf plus Verlauf."""
     if target:
@@ -85,6 +95,16 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
     return [k for k in keys if split_key(k)[0] in types]
 
 
+def is_network_blocked(stats: LiveStats) -> bool:
+    """Kommt (fast) gar nichts durch, blockiert vermutlich eine Firewall Proxy-Verbindungen.
+
+    Fake-Proxys zählen mit: Sie bestehen die Basisprüfung, die Verbindung klappt also – ein Netz
+    voller Honeypots ist kein blockiertes Netz, und aus dem Lauf soll trotzdem gelernt werden.
+    """
+    reached = stats.found + stats.fakes
+    return stats.checked >= 1000 and reached < stats.checked * BLOCKED_HIT_RATE
+
+
 class Run:
     def __init__(self, opts: RunOptions, show_banner: bool = True):
         self.opts = opts
@@ -94,6 +114,7 @@ class Run:
         self.history = ProxyHistory()
         self.scraped: Optional[ScrapeResult] = None
         self.judge_ip = ""
+        self.confirm_ip: Optional[str] = None
         self.own_ips: List[str] = []
 
     async def execute(self) -> int:
@@ -124,14 +145,21 @@ class Run:
             (ips[0], "bold") if ips else ("unbekannt", "yellow"),
             (f"  (auf Port 80 zusätzlich {', '.join(ips[1:])})" if len(ips) > 1 else "", MUTED),
         ))
-        info("Prüfziel", f"{JUDGE_HOST} ({self.judge_ip})", MUTED)
+        self.confirm_ip = await confirm_target()
+        info("Prüfziel", Text.assemble(
+            (f"{JUDGE_HOST} ({self.judge_ip})", MUTED),
+            (f"  ·  Bestätigung über {CONFIRM_HOST}", MUTED) if self.confirm_ip else "",
+        ))
+        if not self.confirm_ip:
+            note(f"{CONFIRM_HOST} nicht erreichbar – ohne zweite Bestätigung können Fake-Proxys "
+                 "(Honeypots) durchrutschen, und die Anonymität bleibt unbekannt.")
         if not ips:
             note("Eigene IP unbekannt – transparente Proxys (verraten deine IP) werden nicht aussortiert.")
         return True
 
     def show_mode(self) -> None:
         opts = self.opts
-        modes = ["HTTPS- & Anonymitätstest" if opts.details else "nur Basistest (--fast)"]
+        modes = ["mit HTTPS-Test" if opts.details else "ohne HTTPS-Test (--fast)"]
         modes.append("Länder" if opts.geo else "ohne Länder")
         if opts.filters.active:
             modes.append(f"Filter: {opts.filters.describe()}")
@@ -198,7 +226,7 @@ class Run:
         stats = LiveStats(Counter(split_key(k)[0] for k in jobs))
         dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
                                    opts.filters.describe(), opts.want)
-        checker = Checker(self.judge_ip, self.own_ips, opts.timeout, opts.connect_timeout)
+        checker = Checker(self.judge_ip, self.own_ips, opts.timeout, opts.connect_timeout, self.confirm_ip)
         geo = GeoResolver(enabled=opts.geo)
         widgets.console.print()
         run = await run_checks(
@@ -208,7 +236,7 @@ class Run:
 
         kept = [r for r in run.results if opts.filters.accepts(r)]
         files = writer.finalize(kept)
-        network_blocked = stats.checked >= 1000 and stats.found < stats.checked * BLOCKED_HIT_RATE
+        network_blocked = is_network_blocked(stats)
         per_source = self.learn(run, network_blocked)
         geo.save()
 

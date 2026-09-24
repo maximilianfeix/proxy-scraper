@@ -13,7 +13,7 @@ from rich.text import Text
 from ..checker import CheckResult
 from ..parsing import PROXY_TYPES
 from . import widgets
-from .dashboard import LiveStats
+from .dashboard import LiveStats, hit_line
 from .widgets import (
     ACCENT,
     ANON_LABEL,
@@ -63,7 +63,7 @@ def render_summary(
     widgets.console.print(header(3, stats.start))
 
     widgets.console.print(row(
-        card("Funktionieren", fmt(found), f"{pct(found, stats.checked)} Treffer", f"bold {GOOD}"),
+        card("Funktionieren", fmt(found), hit_line(found, stats.checked, stats.fakes), f"bold {GOOD}"),
         card("Gespeichert", fmt(len(kept)), filters_text or "ohne Filter", f"bold {ACCENT}"),
         card("Dauer", fmt_duration(elapsed), f"{fmt(stats.checked / max(elapsed, 1e-6))} Prüf./s"),
         card(
@@ -82,9 +82,10 @@ def render_summary(
         if stats.total_by_type.get(t):
             proto.add_row(type_badge(t), fmt(stats.working_by_type[t]), fmt(stats.checked_by_type[t]),
                           pct(stats.working_by_type[t], stats.checked_by_type[t]))
-    if details and found:
+    if found:
         proto.add_row("", "", "", "")
-        proto.add_row(Text("✔ HTTPS", style=GOOD), fmt(stats.https_ok), "", pct(stats.https_ok, found))
+        if details:
+            proto.add_row(Text("✔ HTTPS", style=GOOD), fmt(stats.https_ok), "", pct(stats.https_ok, found))
         for level in ("elite", "anonymous", "transparent"):
             letter, style = ANON_STYLE[level]
             proto.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(stats.anonymity[level]), "",

@@ -95,7 +95,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="nur die N vielversprechendsten Proxys prüfen (nach Verlauf & Quellenqualität)")
     g.add_argument("--want", type=non_negative_int, default=0, metavar="N",
                    help="beenden, sobald N passende Proxys gefunden sind")
-    g.add_argument("--fast", action="store_true", help="ohne HTTPS- und Anonymitätstest (schneller)")
+    g.add_argument("--fast", action="store_true",
+                   help="ohne HTTPS-Test (schneller); Bestätigung und Anonymität laufen trotzdem")
     g.add_argument("--no-geo", action="store_true", help="keine Länder ermitteln")
     g.add_argument("--recheck", nargs="?", const="", metavar="DATEI",
                    help="nur Proxys aus DATEI prüfen – ohne DATEI: letzter Lauf + Verlauf")

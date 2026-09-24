@@ -3,6 +3,7 @@
 import pytest
 from rich.console import Console
 
+from proxyscraper.cli import parse_args, wants_wizard
 from proxyscraper.options import Filters, RunOptions
 from proxyscraper.ui.keys import decode
 from proxyscraper.ui.wizard import MultiStep, SummaryStep, Wizard
@@ -122,6 +123,18 @@ def test_every_screen_renders(width):
 ])
 def test_decode_keys(raw, name):
     assert decode(raw) == name
+
+
+@pytest.mark.parametrize("argv, tty, expected", [
+    ([], True, True),        # ohne Argumente im Terminal -> Assistent
+    ([], False, False),      # Pipe/Cron -> nie fragen
+    (["-y"], True, False),
+    (["--want", "5"], True, False),
+    (["-i", "--want", "5"], True, True),
+])
+def test_wants_wizard(monkeypatch, argv, tty, expected):
+    monkeypatch.setattr("proxyscraper.cli.is_interactive", lambda: tty)
+    assert wants_wizard(parse_args(argv), argv) == expected
 
 
 def test_short_description_is_readable():

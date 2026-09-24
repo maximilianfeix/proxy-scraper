@@ -50,9 +50,10 @@ async def http_request(
 ) -> Tuple[int, Dict[bytes, bytes], bytes]:
     """Eine HTTP/1.1-Anfrage -> (Status, Header, Body). Folgt Redirects bei GET.
 
-    Schlägt die Zertifikatsprüfung fehl, wird nur bei Anfragen ohne eigene Header (also öffentliche
-    Proxy-Listen, nie mit API-Token) unverifiziert wiederholt: Die Listen sind öffentlich, und jeder
-    Proxy daraus wird ohnehin selbst geprüft.
+    Schlägt die Zertifikatsprüfung fehl, wird nur bei GETs ohne Body und ohne eigene Header unverifiziert
+    wiederholt – also bei öffentlichen Proxy-Listen, nie mit API-Token oder gesendeten Daten. Einzige
+    erlaubte Header sind If-None-Match / If-Modified-Since (ETag-Cache), die tragen kein Geheimnis.
+    Die Listen sind öffentlich, und jeder Proxy daraus wird ohnehin selbst geprüft.
     """
     extra = "".join(f"{k}: {v}\r\n" for k, v in (headers or {}).items())
     if body is not None:

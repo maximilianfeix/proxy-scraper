@@ -251,3 +251,16 @@ def test_detail_connection_failures_dont_mark_proxy_unreachable():
         return c.unreachable
 
     assert asyncio.run(go()) == set()
+
+
+@pytest.mark.parametrize("exit_ip", [b"127.0.0.1", b"10.0.0.5", b"192.168.1.1", b"0.0.0.0", b"100.64.1.1"])
+def test_non_public_exit_ip_is_rejected(exit_ip):
+    async def proxy_claiming(reader, writer):
+        await reader.readuntil(b"\r\n\r\n")
+        body = exit_ip + b"\n"
+        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body)
+        await writer.drain()
+        writer.close()
+
+    result, _ = run_check(proxy_claiming, "http")
+    assert result is None

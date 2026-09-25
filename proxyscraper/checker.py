@@ -1,13 +1,13 @@
-"""Proxy-Prüfung mit eigenen Protokoll-Handshakes (HTTP, SOCKS4, SOCKS5).
+"""Proxy checks with our own protocol handshakes (HTTP, SOCKS4, SOCKS5).
 
-Basisprüfung: eine TCP-Verbindung pro Proxy, Abruf der Exit-IP über checkip.amazonaws.com.
-Bestätigung (nur für Proxys, die die Basisprüfung bestehen, also wenige):
-  - zweite, unabhängige Anfrage an httpbin.org/get – sortiert Honeypots aus, die nur auf die
-    Prüfanfrage mit "200 + IP" antworten und alles andere ablehnen. Dieselbe Antwort zeigt die
-    ankommenden Header und damit die Anonymitätsstufe.
-Detailprüfung:
-  - HTTPS: Tunnel zu Port 443 aufbauen und darin eine verifizierte TLS-Verbindung – scheitert bei
-    Proxys, die kein CONNECT können oder TLS aufbrechen (MITM).
+Basic check: one TCP connection per proxy, fetching the exit IP from checkip.amazonaws.com.
+Confirmation (only for proxies that pass the basic check, so only a few):
+  - a second, independent request to httpbin.org/get – filters out honeypots that answer only the
+    check request with "200 + IP" and reject everything else. The same response shows the headers
+    that arrive and with that the anonymity level.
+Detail check:
+  - HTTPS: open a tunnel to port 443 and a verified TLS connection inside it – fails for proxies
+    that can't CONNECT or that break up TLS (MITM).
 """
 
 from __future__ import annotations
@@ -30,28 +30,28 @@ from .netio import USER_AGENT, dechunk, http_request, read_response, ssl_context
 from .parsing import normalize_public_ip, split_key
 from .targets import Target
 
-# Prüfziel: liefert die IP zurück, die beim Server ankommt (nur Text, sehr klein).
-# Bewusst NICHT hinter Cloudflare – sonst "funktionieren" beliebige Cloudflare-IPs als Fake-Proxy.
-JUDGE_HOST = DEFAULT_JUDGE.host  # für die eigene IP; geprüft wird über Checker.judge
-# Zweites, unabhängiges Prüfziel: liefert JSON mit Absender-IP ("origin") und empfangenen Headern
+# Check target: returns the IP that reaches the server (plain text, very small).
+# Deliberately NOT behind Cloudflare – otherwise any Cloudflare IP would "work" as a fake proxy.
+JUDGE_HOST = DEFAULT_JUDGE.host  # for your own IP; checks go through Checker.judge
+# Second, independent check target: returns JSON with the sender IP ("origin") and the received headers
 CONFIRM_HOST = "httpbin.org"
 CONFIRM_PORT = 80
-# Bewusst ohne Proxy-Connection-Header – der würde sonst selbst als Proxy-Spur auftauchen
+# Deliberately without a Proxy-Connection header – it would show up as a proxy trace itself
 _CONFIRM_HEADERS = f"Host: {CONFIRM_HOST}\r\nUser-Agent: {USER_AGENT}\r\nAccept: */*\r\nConnection: close\r\n\r\n"
 CONFIRM_REQUEST = f"GET /get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 HTTP_PROXY_CONFIRM_REQUEST = f"GET http://{CONFIRM_HOST}/get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
-# Unveränderlichkeit: eine statische HTML-Seite, die über den Proxy exakt so ankommen muss wie direkt.
-# Gemessen an 270 funktionierenden Proxys lieferten 54 (20 %) eine veränderte Seite – meist mit einem
-# eingeschleusten <script src="http://…">.
+# Integrity: a static HTML page that has to arrive through the proxy exactly as it does directly.
+# Measured on 270 working proxies, 54 (20 %) returned a modified page – mostly with an injected
+# <script src="http://…">.
 INTEGRITY_REQUEST = f"GET /html HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 HTTP_PROXY_INTEGRITY_REQUEST = f"GET http://{CONFIRM_HOST}/html HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 
 CONTENT_LENGTH_RE = re.compile(rb"(?im)^content-length:\s*(\d+)")
-# Höchstens so viele HTTPS-/Zielseiten-Verbindungen gleichzeitig. Jeder Treffer öffnet 1 + Zielseiten
-# Verbindungen parallel – ohne Grenze wären das bei 2000 Workern schnell Tausende (EMFILE).
+# At most this many HTTPS/target-site connections at once. Every hit opens 1 + target-site connections
+# in parallel – without a limit that quickly adds up to thousands with 2000 workers (EMFILE).
 DETAIL_CONNECTIONS = 256
 UNREACHABLE_ERRNOS = {errno.ECONNREFUSED, errno.EHOSTUNREACH, errno.ENETUNREACH, errno.ETIMEDOUT}
-# Header, mit denen Proxys sich (oder den Client) verraten
+# Headers that give away the proxy (or the client)
 PROXY_HEADERS = {
     "via", "x-forwarded-for", "forwarded", "x-real-ip", "client-ip", "x-client-ip",
     "x-proxy-id", "proxy-connection", "x-proxy-connection", "proxy-agent", "x-forwarded-host",
@@ -61,12 +61,12 @@ ANONYMITY_RANK = {"transparent": 0, "anonymous": 1, "elite": 2}
 
 
 async def wait_for(coro, timeout: float):
-    """asyncio.wait_for, das beim Abbrechen keine unabgeholte Exception zurücklässt.
+    """asyncio.wait_for that leaves no unretrieved exception behind when cancelled.
 
-    Wird eine Prüfung per Strg+C abgebrochen, während ihr innerer Connect gerade scheitert,
-    liefert Python < 3.12 den Verbindungsfehler statt CancelledError. Die innere Task endet
-    dann mit einer Exception, die niemand abholt -> "Task exception was never retrieved"
-    samt Traceback beim Beenden. Der Callback holt sie in jedem Fall ab.
+    If a check is cancelled with Ctrl+C while its inner connect is just failing, Python < 3.12
+    returns the connection error instead of CancelledError. The inner task then ends with an
+    exception nobody retrieves -> "Task exception was never retrieved" plus a traceback on exit.
+    The callback retrieves it in any case.
     """
     fut = asyncio.ensure_future(coro)
     fut.add_done_callback(_consume_exception)
@@ -88,14 +88,14 @@ class CheckResult:
     https: Optional[bool] = None
     anonymity: str = ""
     country: str = ""
-    targets: Dict[str, bool] = field(default_factory=dict)  # Zielseiten-URL -> erreichbar?
-    asn: int = 0            # Anbieter der Exit-IP (DB-IP), 0 = unbekannt
+    targets: Dict[str, bool] = field(default_factory=dict)  # target site URL -> reachable?
+    asn: int = 0            # provider of the exit IP (DB-IP), 0 = unknown
     org: str = ""
-    hosting: Optional[bool] = None  # Exit vermutlich in einem Rechenzentrum? None = unbekannt
+    hosting: Optional[bool] = None  # exit probably in a datacenter? None = unknown
 
     @property
     def url(self) -> str:
-        """'socks5://1.2.3.4:1080' – so, wie es curl, requests & Co. erwarten."""
+        """'socks5://1.2.3.4:1080' – the way curl, requests and friends expect it."""
         return f"{self.ptype}://{self.proxy}"
 
 
@@ -106,27 +106,27 @@ class Checker:
                  targets: Sequence[Tuple[Target, str]] = (), https_test: bool = True,
                  judge: Judge = DEFAULT_JUDGE, integrity_reference: Optional[bytes] = None):
         self.use_judge(judge, judge_ip)
-        # Hash der Seite, wie sie direkt ankommt – ohne Referenz keine Prüfung auf Veränderung
+        # hash of the page as it arrives directly – without a reference there is no tampering check
         self.integrity_reference = integrity_reference
-        # Ohne erreichbares Bestätigungsziel wird nicht bestätigt (sonst fiele jeder Proxy durch)
+        # without a reachable confirmation target nothing is confirmed (otherwise every proxy would fail)
         self.confirm_ip_bytes = socket.inet_aton(confirm_ip) if confirm_ip else None
-        # Mehrere möglich: z. B. echte IP per HTTPS, aber iCloud Private Relay/Firmenproxy auf Port 80
+        # several possible: e.g. the real IP via HTTPS, but iCloud Private Relay or a corporate proxy on port 80
         self.own_ips = set(own_ips)
         self.timeout = timeout
         self._detail_slots: Optional[asyncio.Semaphore] = None
-        self.https_test = https_test  # --fast: kein HTTPS-Test, Zielseiten aber trotzdem
-        # Zielseiten mit vorab aufgelöster IP (SOCKS4 kann keine Hostnamen)
+        self.https_test = https_test  # --fast: no HTTPS test, target sites still
+        # target sites with a pre-resolved IP (SOCKS4 can't do host names)
         self.targets = [(target, socket.inet_aton(ip)) for target, ip in targets]
-        # Bestätigung und HTTPS-Test dürfen länger dauern als die (evtl. latenzbegrenzte) Basisprüfung
+        # confirmation and HTTPS test may take longer than the (possibly latency-limited) basic check
         self.detail_timeout = detail_timeout or timeout
         self.detail_connect_timeout = min(detail_connect_timeout or connect_timeout, self.detail_timeout)
-        # Die allermeisten toten Proxys scheitern schon am TCP-Connect – die sollen
-        # keinen Slot für den vollen Timeout blockieren.
+        # the vast majority of dead proxies already fail at the TCP connect – they shouldn't
+        # block a slot for the full timeout.
         self.connect_timeout = min(connect_timeout, timeout)
         self.unreachable: Set[str] = set()
 
     def use_judge(self, judge: Judge, ip: str) -> None:
-        """Prüfziel setzen oder mitten im Lauf wechseln (laufende Prüfungen nutzen noch das alte)."""
+        """Set the check target or switch it mid-run (running checks still use the old one)."""
         self.judge = judge
         self.judge_ip = ip
         self.judge_ip_bytes = socket.inet_aton(ip)
@@ -134,7 +134,7 @@ class Checker:
             f"GET {judge.path} HTTP/1.1\r\nHost: {judge.authority}\r\nUser-Agent: Mozilla/5.0\r\n"
             f"Connection: close\r\n\r\n"
         ).encode()
-        # HTTP-Proxys brauchen die absolute URL
+        # HTTP proxies need the absolute URL
         self.http_proxy_request = (
             f"GET http://{judge.authority}{judge.path} HTTP/1.1\r\nHost: {judge.authority}\r\n"
             f"User-Agent: Mozilla/5.0\r\n"
@@ -145,15 +145,15 @@ class Checker:
     def confirms(self) -> bool:
         return self.confirm_ip_bytes is not None
 
-    # ------------------------------------------------------------------ Basis
+    # ------------------------------------------------------------------ basic check
 
     async def check(self, key: str) -> Optional[CheckResult]:
-        """Funktionierender Proxy -> CheckResult, sonst None."""
+        """Working proxy -> CheckResult, otherwise None."""
         ptype, proxy = split_key(key)
         start = time.perf_counter()
         try:
             body = await wait_for(self._check(ptype, proxy), self.timeout)
-        except Exception:  # Timeout, Verbindungsfehler, kaputte Antworten – alles heißt "taugt nicht"
+        except Exception:  # timeout, connection error, broken response – all mean "no good"
             return None
 
         if body is None:
@@ -162,20 +162,20 @@ class Checker:
         try:
             ipaddress.IPv4Address(exit_ip)
         except ValueError:
-            return None  # Proxy liefert Müll/Werbung/Login-Seite -> unbrauchbar
+            return None  # proxy returns garbage/ads/a login page -> unusable
         if normalize_public_ip(exit_ip.encode()) != exit_ip:
-            return None  # 127.0.0.1, 10.x & Co. sind keine echte Exit-IP – der Proxy antwortet selbst
+            return None  # 127.0.0.1, 10.x and the like aren't a real exit IP – the proxy answers itself
         if exit_ip in self.own_ips:
-            return None  # transparenter Proxy verrät deine echte IP
+            return None  # transparent proxy reveals your real IP
         return CheckResult(key, ptype, proxy, round((time.perf_counter() - start) * 1000), exit_ip)
 
     async def _check(self, ptype: str, proxy: str):
-        # Viele ip:port stehen unter mehreren Typen in den Listen – wer schon beim
-        # TCP-Connect scheitert, scheitert bei den anderen Typen genauso.
+        # Many ip:port entries appear under several types in the lists – whatever fails at the
+        # TCP connect fails for the other types just the same.
         ep = parse_endpoint(proxy)
         if ep.address in self.unreachable:
             return None
-        # Ziel-IP und Anfrage zusammen festhalten – wechselt das Prüfziel mittendrin, passt beides noch
+        # keep target IP and request together – if the check target changes mid-way, both still match
         ip_bytes, port = self.judge_ip_bytes, self.judge.port
         request = self.http_proxy_request if ptype == "http" else self.request
         reader, writer = await self._connect(proxy)
@@ -189,8 +189,8 @@ class Checker:
             writer.close()
 
     async def _connect(self, proxy: str, detail: bool = False):
-        """TCP-Verbindung zum Proxy. Nur die Basisprüfung merkt sich unerreichbare Proxys und nutzt den
-        (evtl. latenzbegrenzten) kurzen Timeout – Detailprüfungen bekommen den normalen."""
+        """TCP connection to the proxy. Only the basic check remembers unreachable proxies and uses the
+        (possibly latency-limited) short timeout – detail checks get the normal one."""
         ep = parse_endpoint(proxy)
         timeout = self.detail_connect_timeout if detail else self.connect_timeout
         try:
@@ -200,14 +200,14 @@ class Checker:
                 self.unreachable.add(ep.address)
             raise
         except OSError as e:
-            # nicht z. B. EMFILE – das ist unser Fehler, nicht der des Proxys
+            # not e.g. EMFILE – that's our fault, not the proxy's
             if not detail and e.errno in UNREACHABLE_ERRNOS:
                 self.unreachable.add(ep.address)
             raise
         return reader, writer
 
     async def _handshake(self, ptype: str, ep: Endpoint, reader, writer, ip_bytes: bytes, port: int) -> bool:
-        """SOCKS-Verbindung zu ip:port aufbauen; HTTP-Proxys brauchen keinen Handshake."""
+        """Open a SOCKS connection to ip:port; HTTP proxies don't need a handshake."""
         send, recv_exact = stream_io(reader, writer)
         if ptype == "socks4":
             return await socks4(send, recv_exact, ep, ip_bytes, port)
@@ -215,18 +215,18 @@ class Checker:
             return await socks5(send, recv_exact, ep, socks5_ipv4(ip_bytes), port)
         return True
 
-    # ------------------------------------------------------------------ Bestätigung
+    # ------------------------------------------------------------------ confirmation
 
     async def confirm(self, result: CheckResult) -> bool:
-        """Zweite, unabhängige Anfrage über denselben Proxy. False = Fake/Honeypot oder instabil.
+        """A second, independent request through the same proxy. False = fake/honeypot or unstable.
 
-        Setzt dabei die Anonymitätsstufe aus den Headern, die beim Ziel ankommen.
+        Also sets the anonymity level from the headers that reach the target.
         """
         if not self.confirms:
             return True
         try:
             body = await wait_for(self._confirm(result.ptype, result.proxy), self.detail_timeout)
-        except Exception:  # Fehler bei der zweiten Anfrage heißt: nicht verlässlich
+        except Exception:  # an error on the second request means: not reliable
             return False
         anonymity = classify_confirmation(body, self.own_ips, result.exit_ip) if body is not None else None
         if anonymity is None:
@@ -243,14 +243,14 @@ class Checker:
                 return None
             writer.write(with_proxy_auth(http_proxy_request, ep) if ptype == "http" else request)
             await writer.drain()
-            # Antwort kommt vom (nicht vertrauenswürdigen) Proxy – nur begrenzt viel lesen
+            # the response comes from the (untrusted) proxy – read only a limited amount
             return await _read_http_200(reader)
         finally:
             writer.close()
 
     async def tampers(self, result: CheckResult) -> bool:
-        """Verändert der Proxy Inhalte (Werbung, Skripte)? True nur bei eindeutig veränderter Seite –
-        Timeouts oder Fehlerseiten sagen darüber nichts, dafür gibt es die anderen Prüfungen."""
+        """Does the proxy modify content (ads, scripts)? True only for a clearly modified page –
+        timeouts or error pages say nothing about that, the other checks cover those."""
         if self.integrity_reference is None or not self.confirms:
             return False
         try:
@@ -260,10 +260,10 @@ class Checker:
             return False
         return body is not None and page_hash(body) != self.integrity_reference
 
-    # ------------------------------------------------------------------ Details
+    # ------------------------------------------------------------------ details
 
     async def enrich(self, result: CheckResult) -> None:
-        """HTTPS-Fähigkeit und Zielseiten ergänzen, alles parallel (die Anonymität kommt aus der Bestätigung)."""
+        """Add HTTPS support and target sites, all in parallel (anonymity comes from the confirmation)."""
         https = self._safe(self.check_https(result.ptype, result.proxy)) if self.https_test else _none()
         outcomes = await asyncio.gather(
             https,
@@ -273,17 +273,17 @@ class Checker:
         result.targets = {t.url: bool(ok) for (t, _), ok in zip(self.targets, outcomes[1:])}
 
     async def _safe(self, coro):
-        if self._detail_slots is None:  # erst hier: vor Python 3.10 hängt ein Semaphor an der Event-Loop
+        if self._detail_slots is None:  # only here: before Python 3.10 a semaphore is bound to the event loop
             self._detail_slots = asyncio.Semaphore(DETAIL_CONNECTIONS)
         try:
             async with self._detail_slots:
                 return await wait_for(coro, self.detail_timeout)
-        except Exception:  # Detailprüfung fehlgeschlagen -> "nein"/"unbekannt", Basisergebnis bleibt
+        except Exception:  # detail check failed -> "no"/"unknown", the basic result stays
             return None
 
     async def check_https(self, ptype: str, proxy: str) -> bool:
-        """Tunnel zum Prüfziel auf Port 443 + verifiziertes TLS + Exit-IP abrufen."""
-        judge, ip_bytes, request = self.judge, self.judge_ip_bytes, self.request  # falls mittendrin gewechselt wird
+        """Tunnel to the check target on port 443 + verified TLS + fetch the exit IP."""
+        judge, ip_bytes, request = self.judge, self.judge_ip_bytes, self.request  # in case it switches mid-way
         opened = await self._tls_tunnel(ptype, proxy, judge.host, ip_bytes, 443)
         if opened is None:
             return False
@@ -291,7 +291,7 @@ class Checker:
         try:
             writer.write(request)
             await writer.drain()
-            # Nach verifiziertem TLS spricht hier der echte Server, nicht der Proxy
+            # after verified TLS the real server is talking here, not the proxy
             status, _, body = await read_response(reader)
         finally:
             writer.close()
@@ -302,13 +302,13 @@ class Checker:
         return status == 200
 
     async def check_target(self, ptype: str, proxy: str, target: Target, ip_bytes: bytes) -> bool:
-        """Echte Anfrage an eine Zielseite durch den Proxy; 2xx/3xx = erreichbar.
+        """A real request to a target site through the proxy; 2xx/3xx = reachable.
 
-        Gelesen wird nur der Antwortkopf – eine 500-KB-Startseite muss niemand herunterladen.
+        Only the response head is read – nobody needs to download a 500 KB home page.
         """
         request = (
             f"GET {{path}} HTTP/1.1\r\nHost: {target.host_header}\r\nUser-Agent: {USER_AGENT}\r\n"
-            f"Accept: text/html,*/*;q=0.8\r\nAccept-Language: de,en;q=0.8\r\nConnection: close\r\n\r\n"
+            f"Accept: text/html,*/*;q=0.8\r\nAccept-Language: en-US,en;q=0.8\r\nConnection: close\r\n\r\n"
         )
         if target.tls:
             opened = await self._tls_tunnel(ptype, proxy, target.host, ip_bytes, target.port)
@@ -318,11 +318,11 @@ class Checker:
             path = target.path
         else:
             reader, writer = await self._connect(proxy, detail=True)
-            # HTTP-Proxys wollen für unverschlüsseltes HTTP die absolute URL
+            # HTTP proxies want the absolute URL for plain HTTP
             path = target.url if ptype == "http" else target.path
         ep = parse_endpoint(proxy)
         try:
-            # Handshake mit im try: scheitert er mit einer Exception, wird der Socket trotzdem geschlossen
+            # handshake inside the try: if it fails with an exception, the socket is still closed
             if not target.tls and not await self._handshake(ptype, ep, reader, writer, ip_bytes, target.port):
                 return False
             data = request.format(path=path).encode()
@@ -334,7 +334,7 @@ class Checker:
         return 200 <= status < 400
 
     async def _tls_tunnel(self, ptype: str, proxy: str, host: str, ip_bytes: bytes, port: int):
-        """Tunnel durch den Proxy zu host:port und darin verifiziertes TLS. None = Tunnel abgelehnt oder MITM."""
+        """Tunnel through the proxy to host:port with verified TLS inside. None = tunnel refused or MITM."""
         loop = asyncio.get_running_loop()
         ep = parse_endpoint(proxy)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -347,7 +347,7 @@ class Checker:
             return await asyncio.open_connection(sock=sock, ssl=ssl_context(), server_hostname=host)
         except ssl.SSLCertVerificationError:
             sock.close()
-            return None  # Proxy bricht TLS auf (MITM) -> für HTTPS unbrauchbar
+            return None  # proxy breaks up TLS (MITM) -> useless for HTTPS
         except BaseException:
             sock.close()
             raise
@@ -359,7 +359,7 @@ class Checker:
             while len(buf) < n:
                 chunk = await loop.sock_recv(sock, n - len(buf))
                 if not chunk:
-                    raise ConnectionError("Verbindung geschlossen")
+                    raise ConnectionError("connection closed")
                 buf += chunk
             return buf
 
@@ -368,7 +368,7 @@ class Checker:
             await loop.sock_sendall(sock, with_proxy_auth(connect, ep))
             head = b""
             while b"\r\n\r\n" not in head and len(head) < 8192:
-                chunk = await loop.sock_recv(sock, 1)  # byteweise: nichts vom TLS-Strom verschlucken
+                chunk = await loop.sock_recv(sock, 1)  # byte by byte: don't swallow anything of the TLS stream
                 if not chunk:
                     return False
                 head += chunk
@@ -388,19 +388,19 @@ async def _none() -> None:
 
 
 async def _read_status(reader) -> int:
-    """Nur den Statuscode einer HTTP-Antwort lesen (Kopf höchstens 64 KiB)."""
+    """Read only the status code of an HTTP response (head at most 64 KiB)."""
     head = await reader.readuntil(b"\r\n\r\n")
     parts = head.split(b"\r\n", 1)[0].split()
     return int(parts[1]) if len(parts) > 1 and parts[0].startswith(b"HTTP/") and parts[1].isdigit() else 0
 
 
 def confirmation_origins(body: bytes) -> Optional[List[str]]:
-    """IPs aus einer httpbin-Antwort ("origin": "1.2.3.4" oder "1.2.3.4, 5.6.7.8"), None wenn unbrauchbar."""
+    """IPs from an httpbin response ("origin": "1.2.3.4" or "1.2.3.4, 5.6.7.8"), None if unusable."""
     try:
         data = json.loads(body)
     except ValueError:
         return None
-    # httpbin liefert immer "origin" und "headers" – fehlt eins, ist es nicht die erwartete Antwort
+    # httpbin always returns "origin" and "headers" – if one is missing, it's not the expected response
     if not isinstance(data, dict) or not isinstance(data.get("headers"), dict):
         return None
     origins = [part.strip() for part in str(data.get("origin", "")).split(",")]
@@ -408,10 +408,10 @@ def confirmation_origins(body: bytes) -> Optional[List[str]]:
 
 
 def classify_confirmation(body: bytes, own_ips: Iterable[str], exit_ip: str) -> Optional[str]:
-    """Antwort von httpbin.org/get prüfen -> Anonymitätsstufe, oder None bei unbrauchbarer Antwort.
+    """Check the response from httpbin.org/get -> anonymity level, or None for an unusable response.
 
-    Honeypots liefern hier kein JSON mit gültiger Absender-IP. Außerdem muss der Proxy bei beiden
-    Anfragen dieselbe Exit-IP zeigen – rotierende oder verkettete Ausgänge sind nicht verlässlich.
+    Honeypots don't return JSON with a valid sender IP here. The proxy also has to show the same
+    exit IP on both requests – rotating or chained exits aren't reliable.
     """
     origins = confirmation_origins(body)
     if origins is None or exit_ip not in origins:
@@ -420,10 +420,10 @@ def classify_confirmation(body: bytes, own_ips: Iterable[str], exit_ip: str) -> 
 
 
 async def probe_confirm_target(ip: str, timeout: float, port: int = CONFIRM_PORT) -> bool:
-    """Antwortet `ip` direkt (ohne Proxy) genau so, wie die Bestätigung es erwartet?
+    """Does `ip` answer directly (without a proxy) exactly the way the confirmation expects?
 
-    Dieselbe Anfrage, dieselbe Größenbegrenzung, dieselbe Auswertung – und genau die IP, die später
-    benutzt wird. Ein Redirect (z. B. auf HTTPS), ein Captive Portal oder eine Fehlerseite zählt nicht.
+    The same request, the same size limit, the same evaluation – and exactly the IP that is used
+    later. A redirect (e.g. to HTTPS), a captive portal or an error page doesn't count.
     """
     async def probe() -> Optional[bytes]:
         reader, writer = await asyncio.open_connection(ip, port)
@@ -436,7 +436,7 @@ async def probe_confirm_target(ip: str, timeout: float, port: int = CONFIRM_PORT
 
     try:
         body = await wait_for(probe(), timeout)
-    except Exception:  # nicht erreichbar -> ohne Bestätigung weiter
+    except Exception:  # unreachable -> continue without confirmation
         return False
     return body is not None and confirmation_origins(body) is not None
 
@@ -446,8 +446,8 @@ def page_hash(body: bytes) -> bytes:
 
 
 async def integrity_reference(timeout: float, fetch=None) -> Optional[bytes]:
-    """Hash der Vergleichsseite, direkt geholt – über verifiziertes HTTPS. Über HTTP könnte ein Captive Portal
-    oder ein Filter im eigenen Netz schon die Referenz verfälschen. Beide Wege liefern dieselben Bytes."""
+    """Hash of the reference page, fetched directly – over verified HTTPS. Over HTTP a captive portal
+    or a filter on your own network could already falsify the reference. Both ways return the same bytes."""
     try:
         status, _, body = await (fetch or http_request)(f"https://{CONFIRM_HOST}/html", timeout=timeout,
                                                         max_redirects=0, insecure_fallback=False)
@@ -465,7 +465,7 @@ def _is_ipv4(text: str) -> bool:
 
 
 def classify_anonymity(body: bytes, own_ips: Iterable[str]) -> Optional[str]:
-    """Antwort von httpbin.org (mit "headers") -> transparent / anonymous / elite."""
+    """Response from httpbin.org (with "headers") -> transparent / anonymous / elite."""
     if any(ip and ip.encode() in body for ip in own_ips):
         return "transparent"
     try:
@@ -473,15 +473,15 @@ def classify_anonymity(body: bytes, own_ips: Iterable[str]) -> Optional[str]:
     except (ValueError, AttributeError):
         return None
     if not isinstance(headers, dict):
-        return None  # unerwartete Antwort – nicht abstürzen, nur nicht bestätigen
+        return None  # unexpected response – don't crash, just don't confirm
     names = {str(name).lower() for name in headers}
     return "anonymous" if names & PROXY_HEADERS else "elite"
 
 
 async def _read_http_200(reader) -> Optional[bytes]:
-    """Liest eine kleine HTTP-Antwort; Body nur bei Status 200, sonst None."""
+    """Read a small HTTP response; the body only for status 200, otherwise None."""
     data = bytearray()
-    want = None  # Gesamtlänge laut Content-Length, sobald der Header da ist
+    want = None  # total length from Content-Length, once the header is there
     while len(data) < 16384:
         try:
             chunk = await reader.read(4096)
@@ -494,7 +494,7 @@ async def _read_http_200(reader) -> Optional[bytes]:
             end = data.find(b"\r\n\r\n")
             if end >= 0:
                 if not data.startswith(b"HTTP/") or b" 200" not in data[: data.find(b"\r\n")]:
-                    return None  # früh aussteigen, Rest der Antwort ist egal
+                    return None  # bail out early, the rest of the response doesn't matter
                 m = CONTENT_LENGTH_RE.search(data, 0, end)
                 want = end + 4 + int(m.group(1)) if m else -1
         if want is not None and 0 <= want <= len(data):

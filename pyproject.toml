@@ -58,10 +58,10 @@ line-length = 120
 target-version = "py39"
 
 [tool.ruff.lint]
-# Fehler, Warnungen, Bugbear (echte Fallstricke), sortierte Importe, dazu Vereinfachungen und ein paar
-# Ruff-Regeln, die echte Fehler finden (implizites Optional, ungenutzte Variablen beim Entpacken)
+# errors, warnings, bugbear (real pitfalls), sorted imports, plus simplifications and a few
+# ruff rules that find real bugs (implicit Optional, unused variables when unpacking)
 select = ["E", "F", "W", "B", "I", "C4", "PIE", "SIM", "PERF", "RUF005", "RUF013", "RUF022", "RUF059"]
-# try/except in Schleifen ist hier Absicht (Fallbacks nacheinander probieren)
+# try/except in loops is intentional here (trying fallbacks one after the other)
 ignore = ["PERF203"]
 
 [tool.ruff.lint.isort]

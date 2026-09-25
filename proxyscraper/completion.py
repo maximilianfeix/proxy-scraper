@@ -1,7 +1,7 @@
-"""Tab-Vervollständigung für bash, zsh und fish – direkt aus dem argparse-Parser erzeugt.
+"""Tab completion for bash, zsh and fish – generated straight from the argparse parser.
 
-So kann das Skript nie veralten: jede neue Option taucht automatisch auf, mit ihren Auswahlwerten
-(--types, --rotate, …) und dem Anfang ihres Hilfetexts als Beschreibung (zsh, fish).
+That way the script can never go stale: every new option shows up automatically, with its choices
+(--types, --rotate, …) and the start of its help text as the description (zsh, fish).
 """
 
 from __future__ import annotations
@@ -14,8 +14,8 @@ from typing import List, Optional, Tuple
 
 SHELLS = ("bash", "zsh", "fish")
 PROG = "proxy-scraper"
-FILE_OPTIONS = {"--recheck": ("live",), "--output": ()}  # Wert ist ein Dateipfad (oder eines dieser Wörter)
-GERMAN = {"help": "Hilfe anzeigen", "version": "Version anzeigen"}  # die Texte von argparse selbst sind englisch
+FILE_OPTIONS = {"--recheck": ("live",), "--output": ()}  # the value is a file path (or one of these words)
+OWN_HELP = {"help": "show help", "version": "show the version"}  # shorter than argparse's own texts
 
 
 @dataclass
@@ -23,11 +23,11 @@ class Option:
     flags: List[str]
     help: str
     takes_value: bool
-    optional_value: bool  # nargs="?": der Wert darf fehlen (--recheck, --serve)
+    optional_value: bool  # nargs="?": the value may be missing (--recheck, --serve)
     choices: Tuple[str, ...]
     is_file: bool
-    extra: Tuple[str, ...] = ()  # Wörter, die statt einer Datei gehen (--recheck live)
-    multi: bool = False  # nargs="+": mehrere Werte hintereinander (--types http socks5)
+    extra: Tuple[str, ...] = ()  # words that work instead of a file (--recheck live)
+    multi: bool = False  # nargs="+": several values in a row (--types http socks5)
 
     @property
     def long(self) -> Optional[str]:
@@ -39,20 +39,20 @@ class Option:
 
 
 def short_help(text: Optional[str], width: int = 60) -> str:
-    """Nur der Anfang des Hilfetexts: bis zur ersten Klammer, zum Gedankenstrich, Semikolon oder Beispiel."""
-    text = re.split(r" \(| – |; |,? z\. B\.", text or "")[0].strip()
+    """Only the start of the help text: up to the first parenthesis, dash, semicolon or example."""
+    text = re.split(r" \(| – |; |,? e\.g\.", text or "")[0].strip()
     return text if len(text) <= width else text[:width - 1].rstrip() + "…"
 
 
 def options(parser: argparse.ArgumentParser) -> List[Option]:
     found = []
-    for action in parser._actions:  # argparse bietet keine öffentliche Liste
+    for action in parser._actions:  # argparse offers no public list
         if not action.option_strings or action.help == argparse.SUPPRESS:
             continue
         takes_value = action.nargs != 0
         found.append(Option(
             flags=list(action.option_strings),
-            help=GERMAN.get(action.dest) or short_help(action.help),
+            help=OWN_HELP.get(action.dest) or short_help(action.help),
             takes_value=takes_value,
             optional_value=action.nargs == "?",
             choices=tuple(str(c) for c in action.choices or ()),
@@ -76,21 +76,21 @@ def bash(opts: List[Option]) -> str:
             if o.multi:
                 multi.append(f"                {pattern}) {reply}")
         elif o.is_file:
-            # Zeile für Zeile, damit "Datei mit Leerzeichen" ein Eintrag bleibt
+            # line by line, so "file with spaces" stays one entry
             extra = f'$(compgen -W "{" ".join(o.extra)}" -- "$cur") ' if o.extra else ""
             cases.append(f"        {pattern}) compopt -o filenames 2>/dev/null; local IFS=$'\\n'; "
                          f'COMPREPLY=({extra}$(compgen -f -- "$cur")); return ;;')
         else:
             cases.append(f"        {pattern}) return ;;  # freier Wert")
-    return f"""# bash-Vervollständigung für {PROG}
-# einbinden: eval "$({PROG} --completion bash)"  (z. B. in ~/.bashrc)
+    return f"""# bash completion for {PROG}
+# enable: eval "$({PROG} --completion bash)"  (e.g. in ~/.bashrc)
 _proxy_scraper() {{
     local cur="${{COMP_WORDS[COMP_CWORD]}}" prev="${{COMP_WORDS[COMP_CWORD-1]}}"
     COMPREPLY=()
     case "$prev" in
 {chr(10).join(cases)}
     esac
-    # weitere Werte für Optionen wie --types http socks5: die letzte Option davor zählt
+    # more values for options like --types http socks5: the last option before counts
     if [[ "$cur" != -* ]]; then
         local i
         for ((i = COMP_CWORD - 1; i > 0; i--)); do
@@ -115,7 +115,7 @@ def zsh(opts: List[Option]) -> str:
     specs = []
     for o in opts:
         repeat = "*" if o.long == "--target" else ""
-        # '(-c --concurrency)'{-c,--concurrency}'[…]' – die Klammer {} darf nicht in Anführungszeichen stehen
+        # '(-c --concurrency)'{-c,--concurrency}'[…]' – the braces {} must not be inside quotes
         spec = f"({' '.join(o.flags)}){repeat}'{{{','.join(o.flags)}}}'" if len(o.flags) > 1 else repeat + o.flags[0]
         spec += f"[{_zsh_escape(o.help)}]"
         if o.takes_value:
@@ -127,13 +127,13 @@ def zsh(opts: List[Option]) -> str:
             else:
                 action = " "
             if o.multi:
-                colon += "*-*:"  # alle Wörter bis zur nächsten Option gehören dazu
+                colon += "*-*:"  # every word up to the next option belongs to it
             spec += f"{colon}{o.long.lstrip('-')}:{action}"
         specs.append(f"  '{spec}'")
     body = " \\\n".join(specs)
     return f"""#compdef {PROG}
-# zsh-Vervollständigung für {PROG}
-# einbinden: eval "$({PROG} --completion zsh)"  (in ~/.zshrc, nach compinit)
+# zsh completion for {PROG}
+# enable: eval "$({PROG} --completion zsh)"  (in ~/.zshrc, after compinit)
 _proxy_scraper() {{
   _arguments -s \\
 {body}
@@ -147,10 +147,10 @@ def _fish_quote(text: str) -> str:
 
 
 def fish(opts: List[Option]) -> str:
-    lines = [f"# fish-Vervollständigung für {PROG}",
-             f"# einbinden: {PROG} --completion fish > ~/.config/fish/completions/{PROG}.fish",
+    lines = [f"# fish completion for {PROG}",
+             f"# enable: {PROG} --completion fish > ~/.config/fish/completions/{PROG}.fish",
              f"complete -c {PROG} -f",
-             "# steht die letzte Option vor dem Cursor auf $argv[1]? (für mehrere Werte wie --types http socks5)",
+             "# is the last option before the cursor $argv[1]? (for several values like --types http socks5)",
              "function __proxy_scraper_after",
              "    set -l tokens (commandline -opc)",
              "    test (count $tokens) -gt 1; or return 1",
@@ -186,7 +186,7 @@ def script(parser: argparse.ArgumentParser, shell: str) -> str:
 
 
 class CompletionAction(argparse.Action):
-    """--completion SHELL: Skript ausgeben und beenden – wie --version, noch bevor irgendetwas startet."""
+    """--completion SHELL: print the script and exit – like --version, before anything starts."""
 
     def __init__(self, option_strings, dest, **kwargs):
         super().__init__(option_strings, dest, choices=SHELLS, **kwargs)

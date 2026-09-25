@@ -1,4 +1,4 @@
-"""Proxys mit Zugangsdaten: Parser, Handshakes, Checker, Proxy-Server und Ausgabe."""
+"""Proxies with credentials: parser, handshakes, checker, proxy server and output."""
 
 import asyncio
 import base64
@@ -30,7 +30,7 @@ def test_proxy_authorization_header():
     token = base64.b64encode(f"{USER}:{PASSWORD}".encode())
     out = with_proxy_auth(request, Endpoint("1.2.3.4", 80, USER, PASSWORD))
     assert out == request[:-2] + b"Proxy-Authorization: Basic " + token + b"\r\n\r\n"
-    assert with_proxy_auth(request, Endpoint("1.2.3.4", 80)) == request  # ohne Login unverändert
+    assert with_proxy_auth(request, Endpoint("1.2.3.4", 80)) == request  # unchanged without a login
 
 
 def test_socks4_sends_the_user_id():
@@ -131,8 +131,8 @@ def test_exports_keep_credentials():
 
 
 def test_proxychains_skips_credentials_it_cannot_express():
-    # proxychains trennt an Leerzeichen – so ein Passwort lässt sich dort nicht eintragen
-    auth = format_auth("bob", "mit leerzeichen")
+    # proxychains splits on spaces – such a password can't be put in there
+    auth = format_auth("bob", "with spaces")
     r = CheckResult(f"socks5 {auth}@1.2.3.4:1080", "socks5", f"{auth}@1.2.3.4:1080", 90, "9.9.9.9", https=True)
     assert "1.2.3.4" not in proxychains([r], datetime(2026, 9, 24))
 
@@ -149,7 +149,7 @@ def chunked_post(port):
 
 
 def test_streamed_request_never_shows_the_upstream_407():
-    # gestreamter Body -> kein Wechsel möglich, aber das 407 des Proxys darf trotzdem nicht durch
+    # streamed body -> no switch possible, but the proxy's 407 still must not get through
     reply = through_server("http", auth_http_forward_proxy, "", chunked_post)
     assert b"407" not in reply and b"502" in reply
 
@@ -174,14 +174,14 @@ def test_next_steps_never_print_a_password():
     from proxyscraper.options import RunOptions
     with_login = CheckResult(f"http {AUTH}@1.2.3.4:80", "http", f"{AUTH}@1.2.3.4:80", 50, "9.9.9.9", https=True)
     plain = CheckResult("http 5.6.7.8:80", "http", "5.6.7.8:80", 400, "9.9.9.9", https=True)
-    assert dict(app.next_steps(RunOptions(), [with_login, plain]))["Schnellsten testen"] == \
-        "curl -x http://5.6.7.8:80 https://api.ipify.org"  # lieber ohne Login
-    command = dict(app.next_steps(RunOptions(), [with_login]))["Schnellsten testen"]
+    assert dict(app.next_steps(RunOptions(), [with_login, plain]))["Test the fastest"] == \
+        "curl -x http://5.6.7.8:80 https://api.ipify.org"  # preferably without a login
+    command = dict(app.next_steps(RunOptions(), [with_login]))["Test the fastest"]
     assert PASSWORD not in command and "alice:•••@1.2.3.4:80" in command
 
 
 async def split_407_proxy(reader, writer):
-    """Schickt das 407 in zwei TCP-Stücken – "HTTP/1.1 4" und den Rest."""
+    """Sends the 407 in two TCP pieces – "HTTP/1.1 4" and the rest."""
     await reader.readuntil(b"\r\n\r\n")
     writer.write(b"HTTP/1.1 4")
     await writer.drain()
@@ -206,8 +206,8 @@ def test_407_split_across_reads_is_still_caught(request_):
      b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\n\r\n", "ok"),
     ([b"HTTP/1.1 100 Cont", b"inue\r\n\r\n", b"HTTP/1.1 200 OK\r\n\r\n"],
      b"HTTP/1.1 100 Continue\r\n\r\nHTTP/1.1 200 OK\r\n\r\n", "ok"),
-    ([b"\x16\x03\x03 tls"], b"\x16\x03\x03 tls", "ok"),                                # kein HTTP
-    ([b"HTTP/1.1 4070 Seltsam\r\n\r\n"], b"HTTP/1.1 4070 Seltsam\r\n\r\n", "ok"),          # kein 407
+    ([b"\x16\x03\x03 tls"], b"\x16\x03\x03 tls", "ok"),                                # not HTTP
+    ([b"HTTP/1.1 4070 Seltsam\r\n\r\n"], b"HTTP/1.1 4070 Seltsam\r\n\r\n", "ok"),          # not a 407
     ([b"HTTP/1.1 101 Switching Protocols\r\n\r\n"], b"HTTP/1.1 101 Switching Protocols\r\n\r\n", "ok"),
 ])
 def test_response_screen(chunks, forwarded, verdict):
@@ -238,7 +238,7 @@ def test_407_after_100_continue_does_not_reach_the_client():
 
 @pytest.mark.parametrize("request_", [plain, chunked_post])
 def test_407_after_100_continue_is_caught_on_both_paths(request_):
-    # plain = gepufferter Body (Wechsel möglich), chunked = gestreamt
+    # plain = buffered body (switch possible), chunked = streamed
     reply = through_server("http", continue_then_407_proxy, AUTH, request_)
     assert b"407" not in reply and b"502" in reply
 
@@ -247,7 +247,7 @@ async def continue_then_hang_up_proxy(reader, writer):
     await reader.readuntil(b"\r\n\r\n")
     writer.write(b"HTTP/1.1 100 Continue\r\n\r\n")
     await writer.drain()
-    writer.close()  # und dann nichts mehr
+    writer.close()  # and then nothing more
 
 
 @pytest.mark.parametrize("request_", [plain, chunked_post])

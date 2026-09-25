@@ -52,11 +52,11 @@ def test_filters_require_all_targets():
     assert not f.accepts(r)
     r.targets["https://b.com/"] = True
     assert f.accepts(r)
-    assert "Ziel a.com, b.com" in f.describe()
+    assert "target a.com, b.com" in f.describe()
 
 
 @pytest.mark.parametrize("proxy_handler, ptype", [(http_forward_proxy, "http"), (socks5_forward_proxy, "socks5")])
-@pytest.mark.parametrize("path, expected", [("/ok", True), ("/weiter", True), ("/gesperrt", False)])
+@pytest.mark.parametrize("path, expected", [("/ok", True), ("/redirect", True), ("/blocked", False)])
 def test_check_target_through_real_forwarding_proxy(proxy_handler, ptype, path, expected):
     async def go():
         target_srv, target_port = await serve(target_server)
@@ -76,8 +76,8 @@ def test_enrich_fills_every_target():
         proxy_srv, proxy_port = await serve(http_forward_proxy)
         async with target_srv, proxy_srv:
             ok = parse_target(f"http://127.0.0.1:{target_port}/ok")
-            blocked = parse_target(f"http://127.0.0.1:{target_port}/nein")
-            # lokales Prüfziel: der HTTPS-Test bleibt auf localhost (und scheitert schnell)
+            blocked = parse_target(f"http://127.0.0.1:{target_port}/no")
+            # local check target: the HTTPS test stays on localhost (and fails fast)
             c = ck.Checker("3.3.3.3", set(), timeout=3, connect_timeout=2, judge=Judge("127.0.0.1"),
                            targets=[(ok, "127.0.0.1"), (blocked, "127.0.0.1")])
             r = CheckResult("x", "http", f"127.0.0.1:{proxy_port}", 100, "9.9.9.9")
@@ -95,7 +95,7 @@ def test_csv_flattens_targets(tmp_path):
                     {"https://www.google.com/": True, "https://discord.com/": False})
     ResultWriter(run_dir=tmp_path / "run").finalize([r])
     csv_text = (tmp_path / "run" / "proxies.csv").read_text(encoding="utf-8")
-    assert "google.com:ok;discord.com:nein" in csv_text
+    assert "google.com:ok;discord.com:no" in csv_text
 
 
 def test_host_header_keeps_non_default_port():
@@ -106,7 +106,7 @@ def test_host_header_keeps_non_default_port():
         target_srv, target_port = await serve(target_server)
         proxy_srv, proxy_port = await serve(http_forward_proxy)
         async with target_srv, proxy_srv:
-            target = parse_target(f"http://127.0.0.1:{target_port}/host-mit-port")
+            target = parse_target(f"http://127.0.0.1:{target_port}/host-with-port")
             c = ck.Checker("3.3.3.3", set(), timeout=3, connect_timeout=2)
             return await c.check_target("http", f"127.0.0.1:{proxy_port}", target, socket.inet_aton("127.0.0.1"))
 
@@ -128,12 +128,12 @@ def run_tls_target(proxy_handler, ptype, path="/ok"):
 @pytest.mark.parametrize("proxy_handler, ptype", [(http_forward_proxy, "http"), (socks5_forward_proxy, "socks5")])
 @pytest.mark.parametrize("path, expected", [("/ok", True), ("/gesperrt", False)])
 def test_https_target_through_tunnel_with_verified_tls(monkeypatch, proxy_handler, ptype, path, expected):
-    monkeypatch.setattr(ck, "ssl_context", tls_client_context)  # dem Test-Zertifikat vertrauen
+    monkeypatch.setattr(ck, "ssl_context", tls_client_context)  # trust the test certificate
     assert run_tls_target(proxy_handler, ptype, path) is expected
 
 
 def test_https_target_with_untrusted_certificate_fails():
-    """Ohne Vertrauen ins Zertifikat (wie bei einem MITM-Proxy) zählt die Seite als nicht erreichbar."""
+    """Without trust in the certificate (like with a MITM proxy) the site counts as unreachable."""
     assert run_tls_target(http_forward_proxy, "http") is False
 
 
@@ -148,7 +148,7 @@ def test_targets_without_any_success_stay_visible():
 
 
 def test_detail_connections_are_bounded(monkeypatch):
-    """Viele gleichzeitige Treffer dürfen nicht unbegrenzt viele Verbindungen öffnen (EMFILE)."""
+    """Many simultaneous hits must not open unlimited connections (EMFILE)."""
     monkeypatch.setattr(ck, "DETAIL_CONNECTIONS", 4)
     active = peak = 0
 
@@ -180,7 +180,7 @@ def test_labels_distinguish_http_and_https_of_the_same_site():
 
 
 def test_failing_socks_handshake_closes_the_socket(monkeypatch):
-    """Scheitert der Handshake mit einer Exception, darf der Socket nicht offen bleiben."""
+    """If the handshake fails with an exception, the socket must not stay open."""
     closed = []
 
     class FakeWriter:
@@ -224,7 +224,7 @@ def test_startup_resolves_targets(monkeypatch, resolvable, expected):
 
 
 def test_fast_mode_skips_https_test_but_checks_targets(tmp_path):
-    """--fast --target: kein HTTPS-Test, Zielseiten ja – und die Treffer werden trotzdem gespeichert."""
+    """--fast --target: no HTTPS test, target sites yes – and the hits are still saved."""
     import contextlib
 
     from proxyscraper import pipeline
@@ -267,5 +267,5 @@ def test_csv_labels_distinguish_http_and_https(tmp_path):
     r = CheckResult("x", "http", "1.1.1.1:80", 100, "9.9.9.9",
                     targets={"http://example.org/": True, "https://example.org/": False})
     ResultWriter(run_dir=tmp_path / "run").finalize([r])
-    assert "http://example.org:ok;https://example.org:nein" in (tmp_path / "run" / "proxies.csv").read_text(
+    assert "http://example.org:ok;https://example.org:no" in (tmp_path / "run" / "proxies.csv").read_text(
         encoding="utf-8")

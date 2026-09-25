@@ -9,11 +9,11 @@ from proxyscraper import compat
 
 
 def test_raise_fd_limit_without_resource_module(monkeypatch):
-    monkeypatch.setattr(compat, "resource", None)  # so sieht es unter Windows aus
+    monkeypatch.setattr(compat, "resource", None)  # that's what it looks like on Windows
     assert compat.raise_fd_limit(2512) == 2512
 
 
-@pytest.mark.skipif(compat.resource is None, reason="nur mit resource-Modul")
+@pytest.mark.skipif(compat.resource is None, reason="only with the resource module")
 def test_raise_fd_limit_returns_usable_limit():
     assert compat.raise_fd_limit(1024) >= 256
 
@@ -37,7 +37,7 @@ def _interrupt_calls_callback(patch_loop=None) -> list:
 
 
 def test_on_interrupt_fallback_without_add_signal_handler():
-    # Windows: add_signal_handler fehlt -> klassischer signal-Handler muss einspringen
+    # Windows: add_signal_handler is missing -> a classic signal handler has to step in
     def no_signal_handlers(loop):
         def raise_not_implemented(*args, **kwargs):
             raise NotImplementedError
@@ -46,17 +46,17 @@ def test_on_interrupt_fallback_without_add_signal_handler():
 
     before = signal.getsignal(signal.SIGINT)
     assert _interrupt_calls_callback(no_signal_handlers) == ["stop"]
-    assert signal.getsignal(signal.SIGINT) is before  # vorheriger Handler ist wiederhergestellt
+    assert signal.getsignal(signal.SIGINT) is before  # the previous handler is restored
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="add_signal_handler gibt es nur auf Unix")
+@pytest.mark.skipif(sys.platform == "win32", reason="add_signal_handler only exists on Unix")
 def test_on_interrupt_with_loop_signal_handler():
     assert _interrupt_calls_callback() == ["stop"]
 
 
-@pytest.mark.skipif(sys.platform == "win32", reason="add_signal_handler gibt es nur auf Unix")
+@pytest.mark.skipif(sys.platform == "win32", reason="add_signal_handler only exists on Unix")
 def test_on_interrupt_restores_custom_handler_on_unix():
-    # remove_signal_handler() allein würde auf default_int_handler zurücksetzen
+    # remove_signal_handler() alone would reset to default_int_handler
     def custom(signum, frame):
         pass
 
@@ -73,6 +73,6 @@ def test_ensure_utf8_output_reconfigures_legacy_encoding(monkeypatch):
     legacy = io.TextIOWrapper(raw, encoding="cp1252")
     monkeypatch.setattr(sys, "stdout", legacy)
     compat.ensure_utf8_output()
-    print("✔ ▁▂▃")  # in cp1252 nicht darstellbar
+    print("✔ ▁▂▃")  # can't be shown in cp1252
     legacy.flush()
     assert raw.getvalue().decode("utf-8").strip() == "✔ ▁▂▃"

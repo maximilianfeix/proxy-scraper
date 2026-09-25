@@ -13,11 +13,11 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <script>
-  // Vor dem ersten Zeichnen: Thema setzen und entscheiden, ob der Vorspann läuft (einmal pro Sitzung)
+  // before the first paint: set the theme and decide whether the intro plays (once per session)
   (function () {
     var html = document.documentElement, intro = false;
     html.classList.add("js");
-    // gespeicherte Wahl zuerst, sonst wie das System (dunkel, wenn es nichts sagt)
+    // saved choice first, otherwise like the system (dark if it doesn't say)
     var t = null;
     try { t = localStorage.getItem("theme"); } catch (e) {}
     html.dataset.theme = t || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
@@ -26,7 +26,7 @@
       sessionStorage.setItem("seen", "1");
     } catch (e) {}
     if (intro) html.classList.add("intro");
-    // unabhängig vom restlichen Skript: die Seite wird auf jeden Fall sichtbar
+    // independent of the rest of the script: the page becomes visible in any case
     var ready = function () { html.classList.add("ready"); };
     if (intro) setTimeout(ready, 1500);
     else document.addEventListener("DOMContentLoaded", function () { requestAnimationFrame(function () { requestAnimationFrame(ready); }); });
@@ -66,7 +66,7 @@
   /* Logo */
   .mark { width: 36px; height: 36px; flex: none; display: block; }
 
-  /* Vorspann */
+  /* Intro */
   .loader { display: none; }
   html.intro .loader { display: grid; place-items: center; position: fixed; inset: 0; z-index: 100; background: #121113; color: #EDEBE6;
                        transition: transform 1s var(--ease-io) .15s; }
@@ -137,7 +137,7 @@
   html.ready .hero-foot, html.ready .ticker { opacity: 1; transform: none; transition: opacity 1s var(--ease) calc(var(--d, .05s) + .35s), transform 1s var(--ease) calc(var(--d, .05s) + .35s); }
   html.intro .hero-foot, html.intro .ticker { --d: .75s; }
 
-  /* Laufband mit den schnellsten Proxys */
+  /* Ticker with the fastest proxies */
   .ticker { border-block: 1px solid var(--line); overflow: hidden; margin-inline: calc(var(--gutter) * -1);
             mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
   .ticker-track { display: flex; width: max-content; animation: marquee var(--dur, 80s) linear infinite; }
@@ -151,14 +151,14 @@
   .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--muted); display: inline-block; }
   .dot.http { background: var(--http); } .dot.socks4 { background: var(--socks4); } .dot.socks5 { background: var(--socks5); }
 
-  /* Abschnitte */
+  /* Sections */
   section.block { padding-block: clamp(80px, 9vw, 140px); }
   .h2 { margin: 0; font-weight: 600; font-size: clamp(40px, 6.6vw, 104px); line-height: .95; letter-spacing: -.05em; max-width: 14ch; }
   .intro-text { margin: 22px 0 0; max-width: 46ch; color: var(--muted); font-size: clamp(17px, 1.4vw, 20px); }
   .head-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: end; gap: 24px 48px; margin-bottom: clamp(40px, 5vw, 72px); }
   .head-row .intro-text { margin: 0; justify-self: end; }
 
-  /* Große Zahlen */
+  /* Big numbers */
   .figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(48px, 7vw, 96px) clamp(32px, 5vw, 80px); }
   .fig { border-top: 1px solid var(--line); padding-top: 26px; }
   .fig .big { font-weight: 600; font-size: clamp(64px, 9.5vw, 156px); line-height: .9; letter-spacing: -.06em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; }
@@ -166,7 +166,7 @@
   .fig p { margin: 20px 0 0; max-width: 36ch; color: var(--muted); font-size: 17px; }
   .fig p strong { color: var(--text); font-weight: 500; }
 
-  /* Liste */
+  /* List */
   .filters { position: sticky; top: var(--nav-h); z-index: 20; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 0;
              background: var(--bg); transition: top .6s var(--ease), background-color .5s; }
   body.nav-hidden .filters { top: 0; }
@@ -215,7 +215,7 @@
   .list-foot .count { color: var(--muted); font-size: 15px; }
   .list-foot .actions { display: flex; gap: 10px; flex-wrap: wrap; }
 
-  /* Route: wie ein Proxy auf die Liste kommt */
+  /* Route: how a proxy gets on the list */
   .route { height: 460vh; position: relative; }
   .route-sticky { position: sticky; top: 0; height: 100svh; display: flex; flex-direction: column; justify-content: center; gap: clamp(24px, 4vh, 48px); padding-top: var(--nav-h); }
   .route-title { margin: 0; font-size: clamp(20px, 1.8vw, 26px); font-weight: 500; letter-spacing: -.02em; color: var(--muted); }
@@ -237,7 +237,7 @@
   .step p { margin: 18px 0 0; max-width: 52ch; color: var(--muted); font-size: clamp(17px, 1.4vw, 20px); }
   .step.final h3 { font-size: clamp(48px, 8vw, 128px); }
 
-  /* Verlauf, Länder, Latenz */
+  /* Trend, countries, latency */
   .insights { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: clamp(22px, 3vw, 34px); }
   .panel h3 { margin: 0 0 6px; font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
@@ -257,7 +257,7 @@
   .bar { height: 10px; border-radius: 99px; background: var(--raised); overflow: hidden; }
   .bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--text); transition: width 1.2s var(--ease); }
 
-  /* Selbst nutzen */
+  /* Use it */
   .use { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; }
   .use-cmds { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
   .use .panel { min-width: 0; }
@@ -270,7 +270,7 @@
   .raw a:hover { border-color: var(--muted); }
   .raw a span:last-child { color: var(--muted); }
 
-  /* Abschluss */
+  /* Footer */
   footer { padding: clamp(80px, 10vw, 140px) 0 36px; border-top: 1px solid var(--line); }
   .wordmark { display: flex; align-items: center; gap: .18em; font-weight: 600; font-size: clamp(38px, 11.2vw, 170px); letter-spacing: -.065em; line-height: .9; white-space: nowrap; }
   .wordmark .mark { width: .8em; height: .8em; }
@@ -530,7 +530,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
 <script>
 (() => {
   const RAW = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list";
-  const PAGE = 50, STABLE = 4;  // 4 Läufe in Folge = 24 Stunden
+  const PAGE = 50, STABLE = 4;  // 4 runs in a row = 24 hours
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
   const html = document.documentElement;
@@ -540,7 +540,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const flag = (cc) => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : "";
   const pct = (n, of) => Math.round(100 * n / Math.max(of, 1));
   const short = (org) => { const s = String(org || "").replace(/,? (Inc|LLC|Ltd|GmbH|Co|Corporation|Limited|S\.?A|B\.?V)\.?$/i, ""); return s.length > 28 ? s.slice(0, 27) + "…" : s; };
-  const uptime = (n) => {  // n Läufe in Folge ≈ n × 6 Stunden
+  const uptime = (n) => {  // n runs in a row ≈ n × 6 hours
     if (!n) return '<span class="quiet">–</span>';
     const h = n * 6, text = n === 1 ? "new" : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`;
     return n >= STABLE ? `<span class="stable-badge">${text}</span>` : `<span class="quiet">${text}</span>`;
@@ -549,7 +549,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http", "socks4", "socks5"]),
                   https: false, elite: false, noDc: false, stable: false, country: "", maxLat: 8000, q: "" };
 
-  // Thema
+  // Theme
   const themeBtn = $("#theme");
   const isLight = () => html.dataset.theme === "light";
   const labelTheme = () => themeBtn.setAttribute("aria-label", isLight() ? "Switch to dark theme" : "Switch to light theme");
@@ -561,7 +561,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     themeColor(); labelTheme();
   };
 
-  // Kopieren, Hinweise
+  // Copying, toasts
   const toastEl = $("#toast");
   function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(toastEl._t); toastEl._t = setTimeout(() => toastEl.classList.remove("show"), 1800); }
   async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg); } catch (e) { toast("Copying isn't allowed here. Select the text instead."); } }
@@ -576,9 +576,9 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     if (s < 129600) return `${Math.round(s / 3600)} hours ago`; return `${Math.round(s / 86400)} days ago`;
   }
 
-  // Weiches Scrollen (Lenis), Navigation blendet sich beim Runterscrollen aus
+  // Smooth scrolling (Lenis), the nav hides while scrolling down
   let lenis = null;
-  window.startLenis = () => {  // vom Lenis-Skript aufgerufen, sobald es geladen ist; fehlt es, scrollt der Browser normal
+  window.startLenis = () => {  // called by the Lenis script once it has loaded; without it the browser scrolls normally
     if (calm || lenis || !window.Lenis) return;
     lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
     const raf = (t) => { lenis.raf(t); requestAnimationFrame(raf); };
@@ -604,12 +604,12 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
   addEventListener("resize", () => { placeGates(); updateRoute(); });
 
-  // Hochzählen, sobald die Zahl zu sehen ist
+  // Count up once the number is visible
   function countTo(el, to, decimals = 0) {
     const show = (v) => { el.textContent = decimals ? v.toFixed(decimals) : fmt(Math.round(v)); };
     if (calm) return show(to);
     const io = new IntersectionObserver((entries) => {
-      const e = entries[0];  // ab halb sichtbar – oder wenn man schon daran vorbeigesprungen ist
+      const e = entries[0];  // from half visible – or if we already jumped past it
       if (e.intersectionRatio < 0.5 && e.boundingClientRect.top > 0) return;
       io.disconnect();
       const start = performance.now(), dur = 1600;
@@ -619,7 +619,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     io.observe(el);
   }
 
-  // Route durch die fünf Prüfungen – der Scrollfortschritt schiebt ein Paket über die Linie
+  // Route through the five checks – scroll progress pushes a packet along the line
   const GATES = [["Lists", 0.03], ["Handshake", 0.27], ["Honeypots", 0.5], ["Content", 0.73], ["Details", 0.96]];
   const path = $("#route-path"), done = $("#route-done"), packet = $("#packet"), halo = $("#halo");
   const total = path.getTotalLength();
@@ -640,14 +640,14 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       const r = section.getBoundingClientRect();
       p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - innerHeight)));
     }
-    const along = Math.min(1, p / 0.9);  // die letzten 10 % gehören dem Ergebnis
+    const along = Math.min(1, p / 0.9);  // the last 10 % belong to the result
     const pt = path.getPointAtLength(total * along);
     packet.setAttribute("cx", pt.x); packet.setAttribute("cy", pt.y); halo.setAttribute("cx", pt.x); halo.setAttribute("cy", pt.y);
     done.style.strokeDashoffset = total * (1 - along);
-    // Kamera: ist die Route breiter als der Bildschirm, bleibt das Paket ungefähr in der Mitte
+    // Camera: if the route is wider than the screen, the packet stays roughly in the middle
     const svg = $("#route-svg"), cam = svg.parentElement;
     const extra = svg.clientWidth - (cam.clientWidth - 2 * parseFloat(getComputedStyle(cam).paddingLeft));
-    if (extra > 1 && !calm) {  // ohne Bewegung: stattdessen seitlich scrollbar
+    if (extra > 1 && !calm) {  // without motion: scrollable sideways instead
       const scale = svg.clientWidth / 1200;
       const shift = Math.min(extra, Math.max(0, pt.x * scale - cam.clientWidth / 2));
       svg.style.transform = `translateX(${-shift}px)`;
@@ -660,12 +660,12 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   }
   updateRoute();
 
-  // Liste
+  // List
   function filtered() {
     const q = state.q.trim().toLowerCase();
     const rows = state.rows.filter(r => state.types.has(r.ptype) && (!state.https || r.https) && (!state.elite || r.anonymity === "elite")
       && (!state.noDc || !r.hosting) && (!state.stable || (r.streak || 0) >= STABLE) && (!state.country || r.country === state.country)
-      && (state.maxLat >= 8000 || r.latency <= state.maxLat)  // ganz rechts = keine Grenze
+      && (state.maxLat >= 8000 || r.latency <= state.maxLat)  // all the way right = no limit
       && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.exit_ip} ${r.org || ""} AS${r.asn || ""}`.toLowerCase().includes(q)));
     const k = state.sort, d = state.dir;
     return rows.sort((a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * d || a.latency - b.latency);
@@ -716,7 +716,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   $("#raw").innerHTML = [["all", "Everything"], ["http", "HTTP"], ["socks4", "SOCKS4"], ["socks5", "SOCKS5"], ["https", "HTTPS-capable"], ["elite", "Elite"]]
     .map(([f, label]) => `<a href="${RAW}/${f}.txt"><span>${label}</span><span class="mono">${f}.txt</span></a>`).join("");
 
-  // Diagramme
+  // Charts
   function bars(el, entries, label) {
     const max = Math.max(1, ...entries.map(e => e[1]));
     el.innerHTML = entries.map(([k, n]) => `<div class="bar-row"><span class="k">${esc(label(k))}</span><span class="bar"><i data-w="${(100 * n / max).toFixed(1)}"></i></span><span class="v">${fmt(n)}</span></div>`).join("")
@@ -761,7 +761,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     track.style.setProperty("--dur", `${fastest.length * 3.2}s`);
   }
 
-  // Daten liegen direkt neben dieser Seite
+  // the data sits right next to this page
   const load = (f) => fetch(f, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
   Promise.all([load("proxies.json"), load("stats.json"), load("history.json")]).then(([rows, st, history]) => {
     if (!rows || !st) {

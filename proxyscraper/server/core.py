@@ -1,9 +1,9 @@
-"""Lokaler rotierender Proxy-Server (--serve).
+"""Local rotating proxy server (--serve).
 
-Nimmt HTTP-Proxy-Anfragen an (CONNECT für HTTPS und normale HTTP-Anfragen) und schickt jede
-Verbindung über einen der gefundenen Proxys. Schnelle, zuverlässige Proxys werden bevorzugt;
-scheitert einer, wird automatisch der nächste versucht, und wer mehrmals hintereinander scheitert,
-fliegt aus der Rotation.
+Accepts HTTP proxy requests (CONNECT for HTTPS and plain HTTP requests) and sends every
+connection through one of the proxies that were found. Fast, reliable proxies are preferred;
+if one fails, the next one is tried automatically, and one that fails several times in a row
+drops out of the rotation.
 """
 
 from __future__ import annotations
@@ -37,9 +37,9 @@ from .status import (
 )
 from .upstream import UpstreamError, open_upstream
 
-MAX_ATTEMPTS = 3            # so viele Proxys pro Anfrage, bevor der Client einen Fehler bekommt
-FIRST_CHUNK_WAIT = 5.0      # so lange auf das erste Paket des Clients im Tunnel warten
-MAX_REPLAY_BODY = 1024 * 1024  # Request-Bodies bis zu dieser Größe werden für einen Proxy-Wechsel gepuffert
+MAX_ATTEMPTS = 3            # this many proxies per request before the client gets an error
+FIRST_CHUNK_WAIT = 5.0      # how long to wait for the client's first packet in the tunnel
+MAX_REPLAY_BODY = 1024 * 1024  # request bodies up to this size are buffered for switching proxies
 HTTP_ESTABLISHED = b"HTTP/1.1 200 Connection established\r\n\r\n"
 HEAD_LIMIT = 64 * 1024
 
@@ -73,7 +73,7 @@ class RotatingServer:
         self.port = port
         self.timeout = timeout
         self.stats = ServerStats()
-        self.revived = 0  # Proxys, die nach dem Ausmustern die Nachprüfung bestanden haben
+        self.revived = 0  # proxies that passed the recheck after being disabled
         self._server: Optional[asyncio.AbstractServer] = None
 
     async def start(self) -> None:
@@ -91,7 +91,7 @@ class RotatingServer:
         self.stats.active += 1
         try:
             try:
-                # SOCKS5 und HTTP auf demselben Port: SOCKS5 beginnt immer mit 0x05, HTTP mit einem Buchstaben
+                # SOCKS5 and HTTP on the same port: SOCKS5 always starts with 0x05, HTTP with a letter
                 first = await asyncio.wait_for(reader.readexactly(1), self.timeout)
                 if first == SOCKS5_VERSION:
                     await self._serve_socks5(reader, writer, client)
@@ -108,7 +108,7 @@ class RotatingServer:
             selection = selection_from_headers(headers)
             await self._serve_request(reader, writer, client, method, host, port, path, headers, selection)
         except (ConnectionError, OSError):
-            pass  # Client hat aufgelegt
+            pass  # client hung up
         finally:
             self.stats.active -= 1
             writer.close()
@@ -127,14 +127,14 @@ class RotatingServer:
 
     async def _serve_tunnel(self, reader, writer, client, host, port, started, selection: Selection = ANY,
                             established: bytes = HTTP_ESTABLISHED, refuse=None) -> bool:
-        """CONNECT: erst einen Tunnel aufbauen, dann "200" an den Client – klappt keiner, gibt es 502.
+        """CONNECT: open a tunnel first, then "200" to the client – if none works, it gets a 502.
 
-        Danach zählt ein Proxy erst als erfolgreich, wenn er antwortet. Das erste Client-Paket (bei HTTPS
-        der Beginn des TLS-Handshakes) ist gepuffert und geht bei Bedarf unbemerkt an den nächsten Proxy.
+        After that a proxy only counts as successful once it answers. The client's first packet (for HTTPS
+        the start of the TLS handshake) is buffered and goes to the next proxy unnoticed if needed.
         """
         tried: Set[str] = set()
-        # CONNECT ist fast immer TLS (auch auf Ports wie 8443) – das erste ClientHello soll nur über Proxys
-        # gehen, die den HTTPS-Test bestanden haben; ohne solche greift pick() auf alle zurück
+        # CONNECT is almost always TLS (also on ports like 8443) – the first ClientHello should only go through
+        # proxies that passed the HTTPS test; without any, pick() falls back to all of them
         opened = await self._open_next(tried, host, port, tls=True, tunnel=True, selection=selection)
         if opened is None:
             self._log(client, host, port, None, False, started, len(tried))
@@ -155,12 +155,12 @@ class RotatingServer:
             self._give_up(entry, up_writer)
             opened = await self._open_next(tried, host, port, tls=tls, tunnel=True, selection=selection)
         self._log(client, host, port, None, False, started, len(tried))
-        return False  # nach "200 Connection established" bleibt nur, die Verbindung zu schließen
+        return False  # after "200 Connection established" all that's left is to close the connection
 
     async def _serve_http(self, reader, writer, client, method, host, port, path, headers, started,
                           selection: Selection = ANY) -> bool:
-        """Normale HTTP-Anfrage. HTTP-Upstreams bekommen sie als klassische Proxy-Anfrage (ohne CONNECT),
-        SOCKS-Upstreams in der Form für den Zielserver. Kleine Bodies werden für einen Wechsel gepuffert."""
+        """Plain HTTP request. HTTP upstreams get it as a classic proxy request (without CONNECT),
+        SOCKS upstreams in the form for the target server. Small bodies are buffered for a switch."""
         body, replayable = await self._read_body(reader, headers)
         tried: Set[str] = set()
         while True:
@@ -175,7 +175,7 @@ class RotatingServer:
                 head = origin_request(method, path, host, port, headers)
             first_out = head + body
             if not replayable:
-                # Großer oder gestreamter Body: kein Wechsel möglich – Kopf senden, den Rest durchreichen
+                # large or streamed body: no switch possible – send the head, pass the rest through
                 up_writer.write(first_out)
                 await up_writer.drain()
                 return await self._relay(reader, writer, client, host, port, started, len(tried), entry,
@@ -192,14 +192,14 @@ class RotatingServer:
 
     async def _open_next(self, tried: Set[str], host: str, port: int, tls: bool, tunnel: bool,
                          selection: Selection = ANY):
-        """Nächsten Proxy aus dem Pool öffnen (höchstens MAX_ATTEMPTS pro Anfrage). None = keiner mehr."""
+        """Open the next proxy from the pool (at most MAX_ATTEMPTS per request). None = none left."""
         while len(tried) < MAX_ATTEMPTS:
             entry = self.pool.pick(tried, tls=tls, selection=selection, target=f"{host}:{port}")
             if entry is None:
                 return None
             tried.add(entry.result.key)
-            # schon beim Verbinden als beschäftigt zählen – sonst sähen gleichzeitige Anfragen den schnellsten
-            # Proxy als frei an (wichtig für --rotate fastest); freigegeben in _give_up bzw. am Ende von _relay
+            # count as busy while connecting already – otherwise concurrent requests would see the fastest
+            # proxy as free (important for --rotate fastest); released in _give_up or at the end of _relay
             entry.active += 1
             try:
                 up_reader, up_writer = await open_upstream(entry, host, port, self.timeout, tunnel=tunnel)
@@ -211,7 +211,7 @@ class RotatingServer:
         return None
 
     async def _exchange(self, up_reader, up_writer, first_out: bytes) -> Optional[bytes]:
-        """Erstes Paket senden, erste Antwort abwarten. None = dieser Proxy taugt gerade nicht."""
+        """Send the first packet, wait for the first response. None = this proxy is no good right now."""
         try:
             if first_out:
                 up_writer.write(first_out)
@@ -226,21 +226,21 @@ class RotatingServer:
         return first_in
 
     async def _screen_first_answer(self, up_reader, first_in: bytes) -> bytes:
-        """Bis zur endgültigen Statuszeile lesen (über 100 Continue & Co. hinweg). b"" = Proxy will Login."""
+        """Read up to the final status line (past 100 Continue and the like). b"" = the proxy wants a login."""
         screen = ResponseScreen()
         out, verdict = screen.feed(first_in)
         while verdict is None:
             more = await asyncio.wait_for(up_reader.read(65536), self.timeout)
             if not more:
-                return b""  # aufgelegt, bevor eine endgültige Antwort kam – das ist kein Erfolg
+                return b""  # hung up before a final response came – that's not a success
             data, verdict = screen.feed(more)
             out += data
         return b"" if verdict == "407" else out
 
     async def _relay(self, reader, writer, client, host, port, started, attempts, entry,
                      up_reader, up_writer, first_out: bytes, first_in: bytes) -> bool:
-        """Beide Richtungen durchreichen. Erfolg zählt erst, wenn der Upstream geantwortet hat – bei
-        gestreamten Bodies (first_in leer) also erst, wenn überhaupt Daten zurückkommen."""
+        """Pass both directions through. Success only counts once the upstream has answered – for
+        streamed bodies (first_in empty) that means once any data comes back at all."""
         if first_in:
             self._account(client, host, port, entry, True, started, attempts)
         try:
@@ -251,7 +251,7 @@ class RotatingServer:
                 await writer.drain()
             _, received = await asyncio.gather(
                 self._pipe(reader, up_writer, up=True),
-                # ohne erste Antwort vorab (gestreamter Body) hier auf ein 407 des Proxys achten
+                # without a first response up front (streamed body) watch for a 407 from the proxy here
                 self._pipe(up_reader, writer, up=False, reject_proxy_auth=not first_in),
             )
         finally:
@@ -262,7 +262,7 @@ class RotatingServer:
         return bool(first_in) or received > 0
 
     def _give_up(self, entry, up_writer) -> None:
-        """Dieser Proxy hat nicht geliefert: als Fehlschlag werten, Verbindung zu, Reservierung frei."""
+        """This proxy didn't deliver: count it as a failure, close the connection, release the reservation."""
         entry.active -= 1
         self.pool.report(entry, False)
         up_writer.close()
@@ -274,20 +274,20 @@ class RotatingServer:
         self._log(client, host, port, entry, ok, started, attempts)
 
     async def _read_body(self, reader, headers) -> Tuple[bytes, bool]:
-        """Request-Body lesen, wenn er klein genug zum Puffern ist -> (Body, wiederholbar?)."""
+        """Read the request body if it's small enough to buffer -> (body, repeatable?)."""
         values = {name.lower(): value for name, value in headers}
         if b"chunked" in values.get(b"transfer-encoding", b"").lower():
             return b"", False
         if b"100-continue" in values.get(b"expect", b"").lower():
-            return b"", False  # der Client schickt den Body erst nach "100 Continue" vom Ziel
+            return b"", False  # the client only sends the body after "100 Continue" from the target
         length = values.get(b"content-length", b"0").strip()
         if not length.isdigit() or int(length) > MAX_REPLAY_BODY:
             return b"", False
         return (await reader.readexactly(int(length)) if int(length) else b""), True
 
     async def _first_client_chunk(self, reader) -> bytes:
-        """Erstes Paket des Clients im Tunnel (bei HTTPS: TLS ClientHello). Leer, falls der Server zuerst
-        sprechen soll (z. B. SSH) – dann wird direkt auf die Gegenseite gewartet."""
+        """The client's first packet in the tunnel (for HTTPS: TLS ClientHello). Empty if the server is
+        supposed to talk first (e.g. SSH) – then we wait for the other side right away."""
         try:
             data = await asyncio.wait_for(reader.read(65536), FIRST_CHUNK_WAIT)
             if data[:1] == TLS_HANDSHAKE:
@@ -297,10 +297,10 @@ class RotatingServer:
             return b""
 
     async def _complete_tls_record(self, reader, data: bytes) -> bytes:
-        """Ersten TLS-Record vollständig sammeln – er kann über mehrere TCP-Pakete verteilt sein, und bei
-        einem Proxy-Wechsel soll nicht nur ein Bruchstück des ClientHello weitergehen."""
+        """Collect the first TLS record completely – it can be spread over several TCP packets, and when
+        switching proxies not just a fragment of the ClientHello should go out."""
         while True:
-            # erst den 5-Byte-Kopf, dann steht die Länge fest (höchstens ein Puffer voll)
+            # first the 5-byte header, then the length is known (at most one buffer full)
             needed = 5 if len(data) < 5 else min(5 + int.from_bytes(data[3:5], "big"), 65536)
             if len(data) >= needed:
                 return data
@@ -311,21 +311,21 @@ class RotatingServer:
 
     async def _bad_gateway(self, writer) -> None:
         writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
-                     b"Connection: close\r\n\r\nKein Proxy aus dem Pool hat geantwortet.\n")
+                     b"Connection: close\r\n\r\nNo proxy from the pool answered.\n")
         await writer.drain()
 
     async def _pipe(self, reader, writer, up: bool, reject_proxy_auth: bool = False) -> int:
-        """Daten weiterreichen, bis eine Seite aufhört; gibt die Anzahl der Bytes zurück.
+        """Pass data through until one side stops; returns the number of bytes.
 
-        reject_proxy_auth: ist die endgültige Antwort ein 407 (auch nach 100 Continue), bekommt der
-        Client stattdessen 502 und es wird -1 zurückgegeben (Proxy gilt als gescheitert)."""
+        reject_proxy_auth: if the final response is a 407 (also after 100 Continue), the client gets
+        a 502 instead and -1 is returned (the proxy counts as failed)."""
         total = 0
         screen = ResponseScreen() if reject_proxy_auth else None
         try:
             while True:
                 data = await reader.read(65536)
                 if not data:
-                    if screen:  # aufgelegt, bevor eine endgültige Antwort kam – für den Client ein 502
+                    if screen:  # hung up before a final response came – a 502 for the client
                         await self._bad_gateway(writer)
                         return -1
                     break
@@ -346,9 +346,9 @@ class RotatingServer:
                 writer.write(data)
                 await writer.drain()
         except (ConnectionError, OSError, asyncio.TimeoutError):
-            # eine Seite hat aufgelegt – das beendet die Weiterleitung normalerweise ganz normal. Kam aber noch
-            # keine endgültige Antwort (Upstream bricht z. B. per RST ab, weil unser Body ungelesen im Puffer
-            # lag), ist das genauso ein Fehlschlag wie ein sauberes Auflegen.
+            # one side hung up – that normally ends the relay just fine. But if no final response came yet
+            # (the upstream aborts with an RST, for example, because our body sat unread in its buffer),
+            # that's just as much a failure as a clean hang-up.
             if screen:
                 with contextlib.suppress(ConnectionError, OSError):
                     await self._bad_gateway(writer)
@@ -366,20 +366,20 @@ class RotatingServer:
         self.stats.recent.append(RequestLog(client, target, via, ok, round((time.perf_counter() - started) * 1000),
                                             attempts))
 
-    # ------------------------------------------------------------------ SOCKS5, Status, Auffrischen
+    # ------------------------------------------------------------------ SOCKS5, status, refreshing
 
     async def _serve_socks5(self, reader, writer, client) -> None:
-        """SOCKS5 auf demselben Port. Anmeldung optional – der Benutzername trägt dieselben Wünsche wie bei
-        HTTP ("country-de-session-abc"). Danach läuft alles wie bei CONNECT, inklusive Wechsel bei Fehlern."""
+        """SOCKS5 on the same port. Authentication optional – the user name carries the same wishes as with
+        HTTP ("country-de-session-abc"). After that everything works like CONNECT, including switching on errors."""
         try:
             host, port, username = await asyncio.wait_for(socks5_accept(reader, writer), self.timeout)
         except (Socks5Refused, asyncio.IncompleteReadError, asyncio.TimeoutError, ValueError, UnicodeError):
-            return  # abgelehnt, mittendrin aufgelegt, zu langsam oder kaputte Adresse – Verbindung schließen
+            return  # refused, hung up half-way, too slow or a broken address – close the connection
         self.stats.requests += 1
         started = time.perf_counter()
 
         async def refuse(w) -> None:
-            w.write(socks5_reply(0x04))  # Host unreachable – keiner der Proxys kam durch
+            w.write(socks5_reply(0x04))  # host unreachable – none of the proxies got through
             await w.drain()
 
         served = await self._serve_tunnel(reader, writer, client, host, port, started,
@@ -394,16 +394,16 @@ class RotatingServer:
             status, body = b"200 OK", status_json(self).encode()
         elif target == METRICS_PATH:
             status, body, kind = b"200 OK", metrics_text(self).encode(), METRICS_TYPE
-        else:  # nur genau diese Pfade – Tippfehler sollen nicht still den Status liefern
+        else:  # only exactly these paths – typos shouldn't silently return the status
             status, body = b"404 Not Found", b'{"error": "unknown path, try /__proxy-scraper/status or /metrics"}'
         writer.write(b"HTTP/1.1 " + status + b"\r\nContent-Type: " + kind + b"\r\nCache-Control: no-store\r\n"
                      b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body)
         await writer.drain()
 
     async def keep_fresh(self, recheck, interval: float = 300.0) -> None:
-        """Ausgemusterte Proxys regelmäßig nachprüfen und zurückholen, wenn sie wieder funktionieren.
+        """Recheck disabled proxies regularly and bring them back when they work again.
 
-        `recheck(result)` ist die normale Prüfung (True = funktioniert). Läuft, bis der Task abgebrochen wird."""
+        `recheck(result)` is the normal check (True = works). Runs until the task is cancelled."""
         while True:
             await asyncio.sleep(interval)
             await self.refresh_once(recheck)

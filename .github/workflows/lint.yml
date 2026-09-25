@@ -16,6 +16,6 @@ jobs:
       - uses: actions/setup-python@v7
         with:
           python-version: "3.13"
-      # Version gepinnt, damit lokal und in der CI dieselben Regeln gelten
+      # version pinned so the same rules apply locally and in CI
       - run: pip install ruff==0.16.8
       - run: ruff check --output-format=github .

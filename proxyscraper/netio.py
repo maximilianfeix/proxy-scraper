@@ -1,4 +1,4 @@
-"""Minimaler HTTP-Client auf reinem asyncio + ssl – für Quellen, APIs und Prüfziele."""
+"""Minimal HTTP client on plain asyncio + ssl – for sources, APIs and check targets."""
 
 from __future__ import annotations
 
@@ -14,15 +14,15 @@ USER_AGENT = (
 )
 MAX_BODY = 64 * 1024 * 1024
 
-# Hosts, deren Zertifikat nicht prüfbar war (typisch: Firewall mit TLS-Inspektion wie Sophos)
+# hosts whose certificate couldn't be verified (typically: a firewall with TLS inspection like Sophos)
 INSECURE_HOSTS: Set[str] = set()
 
 
 @lru_cache(maxsize=None)
 def ssl_context() -> ssl.SSLContext:
-    # Einmal bauen statt pro Verbindung – das Laden der CA-Datei blockiert sonst jedes Mal die Event-Loop
+    # build once instead of per connection – otherwise loading the CA file blocks the event loop every time
     try:
-        import certifi  # python.org-Python auf macOS hat oft keine System-Zertifikate
+        import certifi  # python.org Python on macOS often has no system certificates
 
         return ssl.create_default_context(cafile=certifi.where())
     except ImportError:
@@ -49,12 +49,12 @@ async def http_request(
     max_redirects: int = 3,
     insecure_fallback: bool = True,
 ) -> Tuple[int, Dict[bytes, bytes], bytes]:
-    """Eine HTTP/1.1-Anfrage -> (Status, Header, Body). Folgt Redirects bei GET.
+    """One HTTP/1.1 request -> (status, headers, body). Follows redirects for GET.
 
-    Schlägt die Zertifikatsprüfung fehl, wird nur bei GETs ohne Body und ohne eigene Header unverifiziert
-    wiederholt – also bei öffentlichen Proxy-Listen, nie mit API-Token oder gesendeten Daten. Einzige
-    erlaubte Header sind If-None-Match / If-Modified-Since (ETag-Cache), die tragen kein Geheimnis.
-    Die Listen sind öffentlich, und jeder Proxy daraus wird ohnehin selbst geprüft.
+    If certificate verification fails, it is only retried unverified for GETs without a body and without
+    custom headers – so for public proxy lists, never with API tokens or sent data. The only headers
+    allowed are If-None-Match / If-Modified-Since (ETag cache), which carry no secret.
+    The lists are public, and every proxy from them gets checked on its own anyway.
     """
     extra = "".join(f"{k}: {v}\r\n" for k, v in (headers or {}).items())
     if body is not None:
@@ -64,8 +64,8 @@ async def http_request(
         https = u.scheme == "https"
         port = u.port or (443 if https else 80)
         path = (u.path or "/") + (f"?{u.query}" if u.query else "")
-        # Unverifiziert nur für GETs ohne Body und ohne eigene Header (bedingte ETag-Header ausgenommen,
-        # die tragen kein Geheimnis). Token oder gesendete Daten nie über eine ungeprüfte Verbindung.
+        # unverified only for GETs without a body and without custom headers (except the conditional ETag headers,
+        # they carry no secret). Never tokens or sent data over an unverified connection.
         insecure_ok = insecure_fallback and method == "GET" and body is None and \
             set(headers or ()) <= CONDITIONAL_HEADERS
         reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout)
@@ -84,13 +84,13 @@ async def http_request(
             url = urljoin(url, resp_headers[b"location"].decode())
             continue
         return status, resp_headers, resp_body
-    raise ConnectionError("zu viele Redirects")
+    raise ConnectionError("too many redirects")
 
 
 async def http_get(
     url: str, timeout: float = 15.0, max_redirects: int = 3, headers: Optional[Dict[str, str]] = None
 ) -> bytes:
-    """GET, der bei allem außer 200 eine Ausnahme wirft."""
+    """GET that raises an exception for anything but 200."""
     status, _, body = await http_request(url, timeout, headers, max_redirects=max_redirects)
     if status != 200:
         raise ConnectionError(f"HTTP {status}")
@@ -122,14 +122,14 @@ async def read_response(reader) -> Tuple[int, Dict[bytes, bytes], bytes]:
         k, _, v = line.partition(b":")
         headers[k.strip().lower()] = v.strip()
 
-    # Content-Length beachten: Server mit keep-alive (z. B. checkip.amazonaws.com) schließen
-    # die Verbindung sonst nicht, und Lesen bis zum Ende liefe in den Timeout.
+    # respect Content-Length: servers with keep-alive (e.g. checkip.amazonaws.com) don't close
+    # the connection otherwise, and reading to the end would run into the timeout.
     if headers.get(b"transfer-encoding", b"").lower() == b"chunked":
         body = dechunk(await read_all(reader))
     elif headers.get(b"content-length", b"").isdigit():
         length = int(headers[b"content-length"])
         if length > MAX_BODY:
-            raise ConnectionError("Antwort zu groß")
+            raise ConnectionError("response too large")
         body = await reader.readexactly(length)
     else:
         body = await read_all(reader)
@@ -137,7 +137,7 @@ async def read_response(reader) -> Tuple[int, Dict[bytes, bytes], bytes]:
 
 
 async def read_all(reader, limit: int = MAX_BODY) -> bytes:
-    # Manche Server (z. B. Cloudflare) beenden mit RST statt FIN – bereits gelesene Daten behalten
+    # some servers (e.g. Cloudflare) end with RST instead of FIN – keep the data already read
     buf = bytearray()
     while len(buf) < limit:
         try:

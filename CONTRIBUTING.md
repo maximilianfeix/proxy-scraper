@@ -1,6 +1,6 @@
 # Contributing
 
-Thanks for wanting to help! Bug reports, new proxy sources, ideas and pull requests are all welcome – in English or German.
+Thanks for wanting to help! Bug reports, new proxy sources, ideas and pull requests are all welcome.
 
 ## Quick ways to help
 
@@ -30,7 +30,7 @@ ruff check .
 - **UI changes:** attach a screenshot, and regenerate the README images with `python3 docs/make_demo.py`.
 - **Python 3.9 compatible:** CI runs 3.9, 3.11 and 3.13 on Linux, macOS and Windows.
 - **Dependencies:** the runtime only needs `rich` and `certifi`. Please discuss new ones in an issue first.
-- The terminal UI text is German; code, comments in new modules, commits and pull requests can be English.
+- Everything is in English: UI text, code, comments, commits and pull requests.
 
 ## Commits and pull requests
 

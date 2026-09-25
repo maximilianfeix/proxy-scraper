@@ -1,5 +1,5 @@
-"""Status als JSON (/__proxy-scraper/status), Metriken für Prometheus (/__proxy-scraper/metrics) und
-Wünsche aus der Proxy-Anmeldung."""
+"""Status as JSON (/__proxy-scraper/status), metrics for Prometheus (/__proxy-scraper/metrics) and
+wishes from the proxy login."""
 
 from __future__ import annotations
 
@@ -33,7 +33,7 @@ def selection_from_headers(headers: List[Tuple[bytes, bytes]]) -> Selection:
 
 
 def status_json(server: Any) -> str:
-    """server: der RotatingServer (nicht importiert, sonst hingen core und status im Kreis voneinander ab)."""
+    """server: the RotatingServer (not imported, otherwise core and status would depend on each other in a circle)."""
     st, pool = server.stats, server.pool
     entries = sorted(pool.entries, key=lambda e: (e.disabled, -e.ok, e.result.latency))
     payload = {
@@ -56,7 +56,7 @@ def status_json(server: Any) -> str:
 
 
 def metrics_text(server: Any) -> str:
-    """Prometheus-Textformat, ohne Abhängigkeit – z. B. für Grafana, wenn der Server dauerhaft läuft."""
+    """Prometheus text format, without a dependency – e.g. for Grafana when the server runs permanently."""
     st, pool = server.stats, server.pool
     out: List[str] = []
 

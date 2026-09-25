@@ -1,4 +1,4 @@
-"""Verbindung zum Ziel über einen Proxy aus dem Pool aufbauen (HTTP CONNECT, SOCKS4, SOCKS5)."""
+"""Connect to the target through a proxy from the pool (HTTP CONNECT, SOCKS4, SOCKS5)."""
 
 from __future__ import annotations
 
@@ -10,18 +10,18 @@ from .pool import PoolEntry
 
 
 class UpstreamError(Exception):
-    """Der gewählte Proxy hat die Verbindung nicht aufgebaut – nächster Versuch."""
+    """The chosen proxy didn't establish the connection – next attempt."""
 
 
 async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, tunnel: bool = True):
-    """Verbindung über den Proxy zu host:port. tunnel=False heißt: HTTP-Upstream im Weiterleitungsmodus
-    (klassische Proxy-Anfrage ohne CONNECT). Wirft UpstreamError, wenn der Proxy nicht mitspielt."""
+    """Connection through the proxy to host:port. tunnel=False means: HTTP upstream in forwarding mode
+    (classic proxy request without CONNECT). Raises UpstreamError if the proxy doesn't play along."""
     r = entry.result
     ep = parse_endpoint(r.proxy)
     try:
         reader, writer = await asyncio.wait_for(asyncio.open_connection(ep.host, ep.port), timeout)
     except (OSError, asyncio.TimeoutError) as e:
-        raise UpstreamError(f"Proxy nicht erreichbar: {e!r}") from None
+        raise UpstreamError(f"proxy unreachable: {e!r}") from None
     if r.ptype == "http" and not tunnel:
         return reader, writer
     try:
@@ -43,15 +43,15 @@ async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: in
         head = await reader.readuntil(b"\r\n\r\n")
         first = head.split(b"\r\n", 1)[0]
         parts = first.split()
-        # exakt 200 – "HTTP/1.1 2000" o. ä. ist kein aufgebauter Tunnel
+        # exactly 200 – "HTTP/1.1 2000" or similar is not an established tunnel
         if len(parts) < 2 or not parts[0].startswith(b"HTTP/") or parts[1] != b"200":
             raise UpstreamError(first.decode("latin-1"))
     elif ptype == "socks4":
-        ip = await _resolve(host, port)  # SOCKS4 kennt nur IPv4-Adressen
+        ip = await _resolve(host, port)  # SOCKS4 only knows IPv4 addresses
         if not await socks4(*stream_io(reader, writer), ep, socket.inet_aton(ip), port):
             raise UpstreamError("SOCKS4 abgelehnt")
     else:
-        # Hostname statt IP: die Namensauflösung passiert beim Proxy (kein DNS-Leck)
+        # host name instead of IP: name resolution happens at the proxy (no DNS leak)
         if not await socks5(*stream_io(reader, writer), ep, socks5_domain(host), port):
             raise UpstreamError("SOCKS5 abgelehnt")
 

@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Changed
+- Everything is in English now: terminal UI, CLI help, messages, code comments, tests and the generated proxy-list README. Numbers use English formatting (12,345 and 1.5%), and the terminal uses the lime brand color ([#72](https://github.com/maximilianfeix/proxy-scraper/issues/72))
 - New website design and a real logo: the route through a proxy that forms a check mark. Big live numbers, a ticker with the fastest proxies, a scroll scene through the five checks, smooth scrolling, light and dark theme. The README banner uses the same look
 
 ## [1.5.0] – 2026-09-25
@@ -39,7 +40,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ### Added
 - Installable as a real command-line tool: `pipx install git+https://github.com/maximilianfeix/proxy-scraper.git` gives you `proxy-scraper`, plus `python -m proxyscraper` and `--version` ([#26](https://github.com/maximilianfeix/proxy-scraper/issues/26))
 - Release workflow: every version tag is tested, built, smoke-tested and published with a wheel
-- “Nächste Schritte” panel after a run with ready-to-copy commands ([#27](https://github.com/maximilianfeix/proxy-scraper/issues/27))
+- “Next steps” panel after a run with ready-to-copy commands ([#27](https://github.com/maximilianfeix/proxy-scraper/issues/27))
 - English README (German version in `README.de.md`), contributing guide, security policy, issue forms ([#28](https://github.com/maximilianfeix/proxy-scraper/issues/28))
 
 ### Changed

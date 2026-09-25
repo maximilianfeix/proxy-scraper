@@ -24,7 +24,7 @@ def test_confirm_target_probes_the_resolved_ip(monkeypatch, probe_ok, expected):
 
     monkeypatch.setattr(app, "probe_confirm_target", fake_probe)
     assert asyncio.run(go()) == expected
-    assert probed == ["34.1.2.3"]  # genau die IP, die später benutzt wird
+    assert probed == ["34.1.2.3"]  # exactly the IP that is used later
 
 
 def test_confirm_target_unresolvable(monkeypatch):
@@ -32,7 +32,7 @@ def test_confirm_target_unresolvable(monkeypatch):
         loop = asyncio.get_running_loop()
 
         async def fail(*args, **kwargs):
-            raise OSError("keine Namensauflösung")
+            raise OSError("no name resolution")
 
         monkeypatch.setattr(loop, "getaddrinfo", fail)
         return await app.confirm_target()
@@ -41,9 +41,9 @@ def test_confirm_target_unresolvable(monkeypatch):
 
 
 @pytest.mark.parametrize("found, fakes, expected", [
-    (0, 0, True),      # nichts kommt durch -> Firewall
+    (0, 0, True),      # nothing gets through -> firewall
     (1, 0, True),
-    (0, 50, False),    # Honeypots bestehen die Basisprüfung -> Verbindungen klappen
+    (0, 50, False),    # honeypots pass the basic check -> connections work
     (30, 0, False),
 ])
 def test_network_blocked_counts_fakes_as_reachable(found, fakes, expected):

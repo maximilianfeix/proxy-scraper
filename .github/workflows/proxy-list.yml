@@ -2,11 +2,11 @@ name: proxy list
 
 on:
   schedule:
-    - cron: "17 */6 * * *"   # alle 6 Stunden
+    - cron: "17 */6 * * *"   # every 6 hours
   workflow_dispatch:
 
 permissions:
-  contents: write            # zum Pushen auf den Branch proxy-list
+  contents: write            # to push to the proxy-list branch
 
 concurrency:
   group: proxy-list
@@ -26,16 +26,16 @@ jobs:
           cache: pip
       - run: pip install -r requirements.txt
 
-      # Gelernte Quellen-Statistik und Verlauf vom letzten Lauf – das Tool lernt auch hier weiter
+      # learned source statistics and history from the last run – the tool keeps learning here too
       - uses: actions/cache/restore@v6
         with:
           path: data
           key: proxy-data-${{ github.run_id }}
           restore-keys: proxy-data-
 
-      - name: Proxys sammeln und prüfen
+      - name: Collect and check proxies
         env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # für die GitHub-Discovery
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # for the GitHub discovery
         run: python proxy_scraper.py -y --limit 150000 --timeout 6 --connect-timeout 3
 
       - uses: actions/cache/save@v6
@@ -47,14 +47,14 @@ jobs:
       - name: Liste aufbereiten
         id: prepare
         run: |
-          # Verlauf der letzten Läufe (Diagramm) und seit wann jeder Proxy dabei ist (stabile Proxys).
-          # 404 heißt: gibt es noch nicht (erster Lauf). Jeder andere Fehler: lieber diesmal nicht
-          # veröffentlichen, als den Verlauf zu verlieren.
+          # history of the last runs (chart) and how long each proxy has been listed (stable proxies).
+          # 404 means: doesn't exist yet (first run). Any other error: better not publish this time
+          # than lose the history.
           for f in history.json streaks.json; do
             code=$(curl -sL --retry 3 --retry-all-errors -o "$f" -w "%{http_code}" \
               "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/proxy-list/$f" || echo 000)
             if [ "$code" = "404" ]; then rm -f "$f"; elif [ "$code" != "200" ]; then
-              echo "::warning::$f nicht ladbar (HTTP $code) – alte Liste bleibt online"
+              echo "::warning::$f could not be loaded (HTTP $code) – the old list stays online"
               echo "publish=false" >> "$GITHUB_OUTPUT"; exit 0
             fi
           done
@@ -67,7 +67,7 @@ jobs:
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
 
-      - name: Auf Branch proxy-list veröffentlichen
+      - name: Publish to the proxy-list branch
         if: steps.prepare.outputs.publish == 'true'
         working-directory: public
         env:
@@ -78,5 +78,5 @@ jobs:
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
           git commit -q -m "Proxy-Liste vom $(date -u +'%d.%m.%Y %H:%M UTC')"
-          # Ein einzelner Commit, der jedes Mal ersetzt wird – die Historie wächst nicht an
+          # a single commit that gets replaced every time – the history doesn't grow
           git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" proxy-list

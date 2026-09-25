@@ -1,9 +1,9 @@
-"""Der Pool gefundener Proxys: Auswahl, Bewertung und wer aus der Rotation fliegt.
+"""The pool of proxies that were found: selection, scoring and who drops out of the rotation.
 
-Auswahl pro Verbindung in drei Schritten:
-  1. Filter aus der Anfrage (Selection): Land, Typ – über den Benutzernamen, z. B. "country-de-type-socks5"
-  2. Sticky: dieselbe Session (oder mit --sticky dieselbe Zielseite) bekommt eine Weile denselben Proxy
-  3. Strategie für alles andere: weighted (Standard), random, round-robin, fastest
+Selection per connection in three steps:
+  1. filters from the request (Selection): country, type – via the user name, e.g. "country-de-type-socks5"
+  2. sticky: the same session (or with --sticky the same target site) keeps the same proxy for a while
+  3. strategy for everything else: weighted (default), random, round-robin, fastest
 """
 
 from __future__ import annotations
@@ -16,22 +16,22 @@ from typing import Callable, Dict, List, Optional, Set, Tuple
 
 from ..checker import CheckResult
 
-DISABLE_AFTER = 3           # so viele Fehlschläge hintereinander -> aus der Rotation
+DISABLE_AFTER = 3           # this many failures in a row -> out of the rotation
 STRATEGIES = ("weighted", "random", "round-robin", "fastest")
-SESSION_SECONDS = 600       # so lange hält eine Session (session-…) ihren Proxy, wenn --sticky nicht gesetzt ist
+SESSION_SECONDS = 600       # how long a session (session-…) keeps its proxy when --sticky isn't set
 _TOKEN_RE = re.compile(r"(country|type|session)[-_]([A-Za-z0-9]+)")
 
 
 @dataclass(frozen=True)
 class Selection:
-    """Wünsche des Clients für diese Verbindung – kommen aus dem Benutzernamen der Proxy-Anmeldung."""
+    """The client's wishes for this connection – they come from the user name of the proxy login."""
     country: str = ""
     ptype: str = ""
     session: str = ""
 
     @classmethod
     def from_username(cls, username: str) -> "Selection":
-        """'country-de-session-abc' -> Selection(country='DE', session='abc'). Unbekanntes wird ignoriert."""
+        """'country-de-session-abc' -> Selection(country='DE', session='abc'). Unknown parts are ignored."""
         found = dict(_TOKEN_RE.findall(username or ""))
         ptype = found.get("type", "").lower()
         return cls(country=found.get("country", "").upper()[:2],
@@ -46,7 +46,7 @@ class Selection:
         return " · ".join(p for p in parts if p)
 
 
-ANY = Selection()  # keine besonderen Wünsche
+ANY = Selection()  # no special wishes
 
 
 @dataclass
@@ -60,7 +60,7 @@ class PoolEntry:
 
     @property
     def weight(self) -> float:
-        # Schnell und bewährt bevorzugen, aber allen eine Chance geben
+        # prefer fast and proven ones, but give everyone a chance
         reliability = (self.ok + 1) / (self.ok + self.fail + 2)
         return reliability / (self.result.latency + 300)
 
@@ -70,14 +70,14 @@ class ProxyPool:
                  strategy: str = "weighted", sticky_seconds: float = 0,
                  clock: Callable[[], float] = time.monotonic):
         if strategy not in STRATEGIES:
-            raise ValueError(f"unbekannte Strategie {strategy!r} (möglich: {', '.join(STRATEGIES)})")
+            raise ValueError(f"unknown strategy {strategy!r} (possible: {', '.join(STRATEGIES)})")
         self.entries = [PoolEntry(r) for r in sorted(results, key=lambda r: r.latency)]
         self.rng = rng or random.Random()
         self.strategy = strategy
         self.sticky_seconds = sticky_seconds
         self.clock = clock
-        self._sticky: Dict[str, Tuple[PoolEntry, float]] = {}  # Session/Zielseite -> (Proxy, gültig bis)
-        self._next = 0  # für round-robin
+        self._sticky: Dict[str, Tuple[PoolEntry, float]] = {}  # session/target site -> (proxy, valid until)
+        self._next = 0  # for round-robin
 
     @property
     def usable(self) -> List[PoolEntry]:
@@ -89,11 +89,11 @@ class ProxyPool:
 
     def pick(self, exclude: Set[str], tls: bool = False, selection: Selection = ANY,
              target: str = "") -> Optional[PoolEntry]:
-        """Nächster Proxy für eine Verbindung zu `target` (host:port). None = keiner passt (mehr).
+        """Next proxy for a connection to `target` (host:port). None = none fits (any more).
 
-        Für TLS nur Proxys, die den HTTPS-Test (verifiziertes TLS) bestanden haben – andere brechen die
-        Verschlüsselung oft auf. Gibt es keine, dann alle. Länder- und Typwünsche gelten dagegen streng:
-        wer "country-de" verlangt, bekommt lieber einen Fehler als einen Proxy aus einem anderen Land."""
+        For TLS only proxies that passed the HTTPS test (verified TLS) – others often break up the
+        encryption. If there are none, all of them. Country and type wishes are strict, though:
+        whoever asks for "country-de" would rather get an error than a proxy from another country."""
         candidates = [e for e in self.usable if e.result.key not in exclude and self._matches(e, selection)]
         if tls and any(e.result.https for e in self.usable if self._matches(e, selection)):
             candidates = [e for e in candidates if e.result.https]
@@ -107,7 +107,7 @@ class ProxyPool:
         entry = self._choose(candidates)
         if sticky_key:
             self._sticky[sticky_key] = (entry, self.clock() + (self.sticky_seconds or SESSION_SECONDS))
-            if len(self._sticky) > 10_000:  # alte Einträge nicht endlos sammeln
+            if len(self._sticky) > 10_000:  # don't collect old entries forever
                 now = self.clock()
                 self._sticky = {k: v for k, v in self._sticky.items() if v[1] > now}
         return entry
@@ -129,7 +129,7 @@ class ProxyPool:
         if self.strategy == "random":
             return self.rng.choice(candidates)
         if self.strategy == "fastest":
-            # der schnellste freie; sind alle beschäftigt, der am wenigsten beschäftigte (dann der schnellere)
+            # the fastest free one; if all are busy, the least busy one (then the faster one)
             idle = [e for e in candidates if not e.active]
             if idle:
                 return min(idle, key=lambda e: (e.result.latency, -e.weight))
@@ -150,10 +150,10 @@ class ProxyPool:
             entry.fail_streak += 1
             if entry.fail_streak >= DISABLE_AFTER:
                 entry.disabled = True
-                # hält eine Session diesen Proxy, soll sie beim nächsten Mal einen anderen bekommen
+                # if a session holds this proxy, it should get a different one next time
                 self._sticky = {k: v for k, v in self._sticky.items() if v[0] is not entry}
 
     def revive(self, entry: PoolEntry) -> None:
-        """Ein ausgemusterter Proxy hat die Nachprüfung bestanden – zurück in die Rotation."""
+        """A disabled proxy passed the recheck – back into the rotation."""
         entry.disabled = False
         entry.fail_streak = 0

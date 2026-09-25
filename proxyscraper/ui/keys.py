@@ -1,6 +1,6 @@
-"""Einzelne Tastendrücke lesen – ohne Enter, ohne Zusatzbibliothek, auf Unix und Windows.
+"""Read single key presses – without Enter, without an extra library, on Unix and Windows.
 
-Liefert Namen wie "up", "down", "enter", "space", "esc", "backspace" oder das Zeichen selbst.
+Returns names like "up", "down", "enter", "space", "esc", "backspace" or the character itself.
 """
 
 from __future__ import annotations
@@ -12,7 +12,7 @@ from typing import Callable, Iterator
 
 from ..compat import IS_WINDOWS
 
-# Escape-Sequenzen der Pfeiltasten (xterm und "application mode")
+# escape sequences of the arrow keys (xterm and "application mode")
 _ESCAPES = {
     "[A": "up", "[B": "down", "[C": "right", "[D": "left",
     "OA": "up", "OB": "down", "OC": "right", "OD": "left",
@@ -33,7 +33,7 @@ def is_interactive() -> bool:
 
 
 def decode(seq: str) -> str:
-    """Rohe Zeichenfolge eines Tastendrucks -> Tastenname."""
+    """Raw character sequence of a key press -> key name."""
     if seq.startswith("\x1b"):
         return _ESCAPES.get(seq[1:], "esc")
     return _SIMPLE.get(seq, seq)
@@ -41,7 +41,7 @@ def decode(seq: str) -> str:
 
 @contextmanager
 def raw_keys() -> Iterator[Callable[[], str]]:
-    """Terminal in den Rohmodus schalten; liefert eine Funktion, die den nächsten Tastendruck liest."""
+    """Switch the terminal to raw mode; returns a function that reads the next key press."""
     if IS_WINDOWS:
         import msvcrt
 
@@ -67,7 +67,7 @@ def raw_keys() -> Iterator[Callable[[], str]]:
         ch = os.read(fd, 1).decode("utf-8", "ignore")
         if ch != "\x1b":
             return decode(ch)
-        # ESC allein oder Beginn einer Sequenz? Kurz warten, ob noch etwas kommt
+        # ESC alone or the start of a sequence? Wait briefly to see if more comes
         seq = ch
         while select.select([fd], [], [], 0.03)[0]:
             seq += os.read(fd, 1).decode("utf-8", "ignore")
@@ -76,7 +76,7 @@ def raw_keys() -> Iterator[Callable[[], str]]:
         return decode(seq)
 
     try:
-        tty.setcbreak(fd)  # Strg+C bleibt ein Signal – Abbrechen funktioniert wie gewohnt
+        tty.setcbreak(fd)  # Ctrl+C stays a signal – cancelling works as usual
         yield read_unix
     finally:
         termios.tcsetattr(fd, termios.TCSADRAIN, saved)

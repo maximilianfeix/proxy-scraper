@@ -1,11 +1,11 @@
-"""Bereitet die Treffer eines Laufs für den Branch `proxy-list` auf (läuft in GitHub Actions).
+"""Prepares the hits of a run for the `proxy-list` branch (runs in GitHub Actions).
 
-    python -m proxyscraper.publish results/<lauf> public/ --min 20
+    python -m proxyscraper.publish results/<run> public/ --min 20
 
-Schreibt Listen pro Protokoll, HTTPS- und Elite-Listen, JSON/CSV, Badge-Dateien für shields.io,
-eine README und die Website für GitHub Pages (site/index.html plus history.json für den Verlauf).
-Gibt es weniger als `--min` Treffer (z. B. weil der Runner gerade kein Glück hatte), endet es mit
-Code 78 und schreibt nichts – die alte Liste bleibt dann online.
+Writes lists per protocol, HTTPS and elite lists, JSON/CSV, badge files for shields.io,
+a README and the website for GitHub Pages (site/index.html plus history.json for the trend).
+If there are fewer than `--min` hits (e.g. because the runner was unlucky), it exits with
+code 78 and writes nothing – the old list then stays online.
 """
 
 from __future__ import annotations
@@ -25,13 +25,13 @@ from .parsing import PROXY_TYPES
 
 SKIP_EXIT_CODE = 78
 SITE = Path(__file__).resolve().parent / "site" / "index.html"
-HISTORY_LIMIT = 120  # 30 Tage bei einem Lauf alle 6 Stunden
+HISTORY_LIMIT = 120  # 30 days with a run every 6 hours
 RAW_BASE = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list"
 
 
 def is_public(row: dict) -> bool:
-    """Proxys mit Zugangsdaten gehören nie in die öffentliche Liste – der Login stammt aus irgendeiner
-    fremden Liste, und veröffentlicht wäre er für alle sichtbar."""
+    """Proxies with credentials never belong in the public list – the login comes from some
+    third-party list, and once published it would be visible to everyone."""
     return "@" not in row.get("proxy", "")
 
 
@@ -41,12 +41,12 @@ def load_rows(run_dir: Path) -> List[dict]:
 
 
 def num(n: int) -> str:
-    """Tausenderpunkte: 12345 -> 12.345"""
-    return f"{n:,}".replace(",", ".")
+    """Thousands separators: 12345 -> 12,345"""
+    return f"{n:,}"
 
 
 def badge(label: str, count: int, color: str) -> dict:
-    """Format für https://shields.io/badges/endpoint-badge"""
+    """Format for https://shields.io/badges/endpoint-badge"""
     return {"schemaVersion": 1, "label": label, "message": num(count), "color": color}
 
 
@@ -57,7 +57,7 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         "by_type": {t: sum(1 for r in rows if r["ptype"] == t) for t in PROXY_TYPES},
         "https": sum(1 for r in rows if r.get("https")),
         "elite": sum(1 for r in rows if r.get("anonymity") == "elite"),
-        # nur mit Anbieterdaten – sonst hieße "0" fälschlich "keine Rechenzentren"
+        # only with provider data – otherwise "0" would wrongly mean "no datacenters"
         "datacenter": sum(1 for r in rows if r.get("hosting")) if any(r.get("org") for r in rows) else None,
         "stable": sum(1 for r in rows if r.get("streak", 0) >= STABLE_RUNS),
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
@@ -79,40 +79,41 @@ def write_lists(rows: List[dict], out: Path) -> Dict[str, int]:
 
 
 def readme(stats: dict, counts: Dict[str, int]) -> str:
-    updated = datetime.fromisoformat(stats["updated"]).strftime("%d.%m.%Y %H:%M UTC")
+    updated = datetime.fromisoformat(stats["updated"]).strftime("%Y-%m-%d %H:%M UTC")
     rows = [
-        ("Alle (`typ://ip:port`)", "all.txt"),
+        ("All (`type://ip:port`)", "all.txt"),
         ("HTTP (`ip:port`)", "http.txt"),
         ("SOCKS4 (`ip:port`)", "socks4.txt"),
         ("SOCKS5 (`ip:port`)", "socks5.txt"),
-        ("HTTPS-fähig (`typ://ip:port`)", "https.txt"),
-        ("Elite (`typ://ip:port`)", "elite.txt"),
+        ("HTTPS-capable (`type://ip:port`)", "https.txt"),
+        ("Elite (`type://ip:port`)", "elite.txt"),
     ]
     table = "\n".join(f"| {label} | {num(counts[name])} | [{name}]({RAW_BASE}/{name}) |" for label, name in rows)
     details = f"[proxies.json]({RAW_BASE}/proxies.json) · [proxies.csv]({RAW_BASE}/proxies.csv)"
     countries = " · ".join(f"{cc} {num(n)}" for cc, n in stats["countries"].items()) or "–"
-    return f"""# Live-Proxyliste
+    return f"""# Live proxy list
 
-Automatisch erzeugt von [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) über GitHub Actions.
-Jeder Proxy hier hat beim letzten Lauf wirklich funktioniert – sortiert nach Latenz, schnellste zuerst.
+Generated automatically by [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) with GitHub Actions.
+Every proxy here really worked in the last run – sorted by latency, fastest first.
+Browse and filter it on the [website](https://maximilianfeix.github.io/proxy-scraper/).
 
-**Stand:** {updated} · **{num(stats["total"])} Proxys** · Median-Latenz {num(stats["median_latency"])} ms
+**Updated:** {updated} · **{num(stats["total"])} proxies** · median latency {num(stats["median_latency"])} ms
 
-| Liste | Anzahl | Datei |
+| List | Count | File |
 |---|---:|---|
 {table}
-| Details (Latenz, Land, HTTPS, Anonymität) | {num(stats["total"])} | {details} |
+| Details (latency, country, HTTPS, anonymity) | {num(stats["total"])} | {details} |
 
-**Häufigste Länder:** {countries}
+**Top countries:** {countries}
 
-> Öffentliche Proxys werden von Unbekannten betrieben. Keine Passwörter oder persönlichen Daten darüber schicken.
+> Public proxies are run by strangers. Never send passwords or personal data through them.
 """
 
 
 def step_summary(stats: dict) -> str:
     by_type = " · ".join(f"{t}: {n}" for t, n in stats["by_type"].items())
-    return (f"### Proxy-Liste aktualisiert\n\n**{stats['total']}** funktionierende Proxys ({by_type}), "
-            f"{stats['https']} HTTPS-fähig, {stats['elite']} Elite, Median-Latenz {stats['median_latency']} ms\n")
+    return (f"### Proxy list updated\n\n**{stats['total']}** working proxies ({by_type}), "
+            f"{stats['https']} HTTPS-capable, {stats['elite']} elite, median latency {stats['median_latency']} ms\n")
 
 
 def write_json(path: Path, data, indent: Optional[int] = None) -> None:
@@ -120,7 +121,7 @@ def write_json(path: Path, data, indent: Optional[int] = None) -> None:
 
 
 def load_history(path: Optional[Path]) -> List[dict]:
-    """Verlauf der letzten Läufe (vom Branch geholt) – kaputt oder fehlend heißt: neu anfangen."""
+    """History of the last runs (fetched from the branch) – broken or missing means: start over."""
     if not path:
         return []
     try:
@@ -137,11 +138,11 @@ def history_entry(stats: dict) -> dict:
             "by_type": stats["by_type"], "median_latency": stats["median_latency"]}
 
 
-STABLE_RUNS = 4  # so viele Läufe in Folge (= 24 Stunden bei einem Lauf alle 6 Stunden) heißt "stabil"
+STABLE_RUNS = 4  # this many runs in a row (= 24 hours with a run every 6 hours) means "stable"
 
 
 def load_streaks(path: Optional[Path]) -> Dict[str, int]:
-    """url -> seit wie vielen Läufen in Folge dabei (vom Branch geholt); kaputt oder fehlend = neu anfangen."""
+    """url -> runs in a row it has been on the list (fetched from the branch); broken or missing = start over."""
     if not path:
         return {}
     try:
@@ -150,23 +151,23 @@ def load_streaks(path: Optional[Path]) -> Dict[str, int]:
         return {}
     if not isinstance(data, dict):
         return {}
-    return {k: v for k, v in data.items() if isinstance(k, str) and type(v) is int and v > 0}  # bool ist auch ein int
+    return {k: v for k, v in data.items() if isinstance(k, str) and type(v) is int and v > 0}  # bool is an int too
 
 
 def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None,
             history: Optional[Path] = None, streaks: Optional[Path] = None) -> int:
     rows = load_rows(run_dir)
     if len(rows) < minimum:
-        print(f"Nur {len(rows)} Treffer (< {minimum}) – alte Liste bleibt online.")
+        print(f"Only {len(rows)} hits (< {minimum}) – the old list stays online.")
         return SKIP_EXIT_CODE
     now = now or datetime.now(timezone.utc)
-    # Wer beim letzten Lauf schon dabei war, zählt weiter – alle anderen fangen bei 1 an, wer fehlt, fliegt raus
+    # whoever was there in the last run keeps counting – everyone else starts at 1, whoever is missing drops out
     previous = load_streaks(streaks)
     for row in rows:
         row["streak"] = previous.get(row["url"], 0) + 1
     out.mkdir(parents=True, exist_ok=True)
     counts = write_lists(rows, out)
-    # nicht einfach kopieren: Details neu schreiben, damit auch dort nichts mit Zugangsdaten landet
+    # don't just copy: rewrite the details so nothing with credentials ends up there either
     (out / "proxies.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
     with (run_dir / "proxies.csv").open(newline="", encoding="utf-8") as src, \
             (out / "proxies.csv").open("w", newline="", encoding="utf-8") as dst:
@@ -185,9 +186,9 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     write_json(badges / "updated.json", {"schemaVersion": 1, "label": "updated",
                                          "message": now.strftime("%Y-%m-%d %H:%M UTC"), "color": "grey"})
     (out / "README.md").write_text(readme(stats, counts), encoding="utf-8")
-    # Website: statische Seite, lädt proxies.json/stats.json/history.json von nebenan
+    # website: a static page that loads proxies.json/stats.json/history.json from next door
     (out / "index.html").write_bytes(SITE.read_bytes())
-    (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages soll die Dateien unverändert ausliefern
+    (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages should serve the files unchanged
     runs = [*load_history(history), history_entry(stats)][-HISTORY_LIMIT:]
     write_json(out / "history.json", runs)
     write_json(out / "streaks.json", {row["url"]: row["streak"] for row in rows})
@@ -196,17 +197,17 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     if summary_file:
         with open(summary_file, "a", encoding="utf-8") as fh:
             fh.write(step_summary(stats))
-    print(f"{stats['total']} Proxys nach {out} geschrieben.")
+    print(f"{stats['total']} proxies written to {out}.")
     return 0
 
 
 def main(argv: Optional[List[str]] = None) -> int:
-    p = argparse.ArgumentParser(description="Treffer eines Laufs für den Branch proxy-list aufbereiten")
+    p = argparse.ArgumentParser(description="prepare the hits of a run for the proxy-list branch")
     p.add_argument("run_dir", type=Path)
     p.add_argument("out_dir", type=Path)
-    p.add_argument("--min", type=int, default=20, help="mindestens so viele Treffer, sonst nichts schreiben")
-    p.add_argument("--history", type=Path, help="history.json vom letzten Mal (für das Diagramm auf der Website)")
-    p.add_argument("--streaks", type=Path, help="streaks.json vom letzten Mal (seit wann jeder Proxy dabei ist)")
+    p.add_argument("--min", type=int, default=20, help="at least this many hits, otherwise write nothing")
+    p.add_argument("--history", type=Path, help="history.json from last time (for the chart on the website)")
+    p.add_argument("--streaks", type=Path, help="streaks.json from last time (how long each proxy has been listed)")
     args = p.parse_args(argv)
     return publish(args.run_dir, args.out_dir, args.min, history=args.history, streaks=args.streaks)
 

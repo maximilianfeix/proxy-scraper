@@ -1,4 +1,4 @@
-"""Prüfziele: Auswahl, Cloudflare-Sperre, Wechsel bei Ausfall und was das für die Statistik heißt."""
+"""Check targets: selection, the Cloudflare ban, switching on outages and what that means for the statistics."""
 
 import asyncio
 import contextlib
@@ -52,7 +52,7 @@ def test_rank_keeps_the_preference_order_and_drops_unreachable():
     judges = [Judge("a"), Judge("b"), Judge("c")]
 
     async def probe(judge, timeout):
-        # "b" antwortet am schnellsten, "a" ist aber das bessere Ziel – Reihenfolge bleibt
+        # "b" answers fastest, but "a" is the better target – the order stays
         return None if judge.host == "c" else JudgeProbe(judge, "1.1.1.1", {"a": 300, "b": 50}[judge.host])
 
     ranked = asyncio.run(rank_judges(judges, probe=probe))
@@ -88,7 +88,7 @@ def test_watch_skips_reserves_that_are_down_too():
     for _ in range(2):
         asyncio.run(watch.check_once())
     assert watch.current.judge.host == "c"
-    assert [r.judge.host for r in watch.reserve] == ["b", "a"]  # das ausgefallene kommt ans Ende
+    assert [r.judge.host for r in watch.reserve] == ["b", "a"]  # the one that went down goes to the end
 
 
 def test_watch_recovers_after_a_single_hiccup():
@@ -111,15 +111,15 @@ def test_checker_can_switch_judge_mid_run():
 
 
 def test_outage_mid_run_rechecks_and_keeps_stats_clean(tmp_path):
-    """Die ersten drei Prüfungen fallen in einen Ausfall des Prüfziels. Nach dem Wechsel werden genau
-    diese drei wiederholt; für die Statistik zählt jeder Proxy nur einmal."""
+    """The first three checks fall into an outage of the check target. After the switch exactly these
+    three are repeated; for the statistics every proxy counts only once."""
     jobs = [f"http 1.1.1.{i}:80" for i in range(1, 7)]
 
     class StubWatch:
         on_ok = on_switch = None
 
         async def run(self):
-            self.on_ok()  # erste Kontrolle vor den Prüfungen war gut
+            self.on_ok()  # the first probe before the checks was good
             await asyncio.sleep(3600)
 
     watch = StubWatch()
@@ -131,7 +131,7 @@ def test_outage_mid_run_rechecks_and_keeps_stats_clean(tmp_path):
 
         async def check(self, key):
             self.calls += 1
-            if self.down and self.calls > 3:  # Watchdog bemerkt den Ausfall und wechselt
+            if self.down and self.calls > 3:  # the watchdog notices the outage and switches
                 self.down = False
                 watch.on_switch(JudgeProbe(Judge("a"), "1.1.1.1", 1), JudgeProbe(Judge("b"), "2.2.2.2", 1))
             if self.down:
@@ -158,18 +158,18 @@ def test_outage_mid_run_rechecks_and_keeps_stats_clean(tmp_path):
         return run, stats, dashboard
 
     run, stats, dashboard = asyncio.run(go())
-    assert run.working == set(jobs)            # alle sechs funktionieren nach dem Wechsel
-    assert sorted(run.checked) == sorted(jobs)  # jeder genau einmal – keine falschen Fehlschläge
+    assert run.working == set(jobs)            # all six work after the switch
+    assert sorted(run.checked) == sorted(jobs)  # each exactly once – no false failures
     assert run.rechecked == 3 and run.judge_switches == ["a → b"]
     assert stats.total == 9 and stats.total_by_type["http"] == 9
     assert "b" in dashboard.judge_note
 
 
 def test_check_that_fails_after_the_switch_is_rechecked_not_counted(tmp_path):
-    """Copilot-Fund: Eine Prüfung läuft noch mit dem alten Ziel, während gewechselt wird, und scheitert
-    erst danach. Sie darf nicht als echter Fehlschlag in die Statistik – sie wird wiederholt."""
+    """Found by Copilot: a check still runs with the old target while switching, and only fails
+    afterwards. It must not count as a real failure in the statistics – it gets repeated."""
     jobs = ["http 1.1.1.1:80", "http 2.2.2.2:80"]
-    switched = None  # asyncio.Event erst in der Loop anlegen (Python 3.9)
+    switched = None  # create asyncio.Event only inside the loop (Python 3.9)
 
     class StubWatch:
         on_ok = on_switch = None
@@ -187,9 +187,9 @@ def test_check_that_fails_after_the_switch_is_rechecked_not_counted(tmp_path):
         async def check(self, key):
             self.seen.append(key)
             if key == "http 1.1.1.1:80" and not switched.is_set():
-                await asyncio.sleep(0.05)      # noch unterwegs mit dem alten Ziel ...
+                await asyncio.sleep(0.05)      # still on its way with the old target ...
                 await switched.wait()
-                return None                    # ... und scheitert erst nach dem Wechsel
+                return None                    # ... and only fails after the switch
             if key == "http 2.2.2.2:80" and not switched.is_set():
                 watch.on_switch(JudgeProbe(Judge("a"), "1.1.1.1", 1), JudgeProbe(Judge("b"), "2.2.2.2", 1))
                 switched.set()
@@ -218,15 +218,15 @@ def test_check_that_fails_after_the_switch_is_rechecked_not_counted(tmp_path):
                                          watch=watch)
 
     run = asyncio.run(go())
-    assert checker.seen.count("http 1.1.1.1:80") == 2   # nach dem Wechsel erneut geprüft
+    assert checker.seen.count("http 1.1.1.1:80") == 2   # checked again after the switch
     assert run.working == set(jobs) and sorted(run.checked) == sorted(jobs)
     assert run.rechecked == 1
-    assert len(run.results) == 2                        # kein doppelter Treffer
+    assert len(run.results) == 2                        # no duplicate hit
 
 
 def test_failures_before_the_last_good_probe_stay_counted(tmp_path):
-    """Kontrolle ok -> ein paar echte Fehlschläge -> erneut ok -> Ausfall: nur was nach der zweiten
-    guten Kontrolle scheiterte, wird wiederholt."""
+    """Probe ok -> a few real failures -> ok again -> outage: only what failed after the second
+    good probe is repeated."""
     jobs = [f"http 1.1.1.{i}:80" for i in range(1, 7)]
 
     class StubWatch:
@@ -244,11 +244,11 @@ def test_failures_before_the_last_good_probe_stay_counted(tmp_path):
             self.calls += 1
             if self.calls == 3:
                 await asyncio.sleep(0.01)
-                watch.on_ok()       # Prüfziel nach zwei echten Fehlschlägen noch erreichbar
+                watch.on_ok()       # check target still reachable after two real failures
                 await asyncio.sleep(0.01)
             if self.calls == 5:
                 watch.on_switch(JudgeProbe(Judge("a"), "1.1.1.1", 1), JudgeProbe(Judge("b"), "2.2.2.2", 1))
-            return None             # alles scheitert – die ersten zwei aber vor der guten Kontrolle
+            return None             # everything fails – but the first two before the good probe
 
         async def confirm(self, r):
             return True
@@ -265,13 +265,13 @@ def test_failures_before_the_last_good_probe_stay_counted(tmp_path):
                                          watch=watch)
 
     run = asyncio.run(go())
-    assert "http 1.1.1.1:80" in run.checked and "http 1.1.1.2:80" in run.checked  # echte Fehlschläge
-    assert run.rechecked == 2  # 3 und 4 fielen in den Ausfall
+    assert "http 1.1.1.1:80" in run.checked and "http 1.1.1.2:80" in run.checked  # real failures
+    assert run.rechecked == 2  # 3 and 4 fell into the outage
 
 
 def test_second_switch_only_rechecks_failures_under_the_new_target(tmp_path):
-    """Nach einem Wechsel zählt die erfolgreiche Probe des neuen Ziels als gute Kontrolle: Fällt auch das
-    aus, werden nur die Fehlschläge seit dem ersten Wechsel wiederholt – nicht die davor."""
+    """After a switch the successful probe of the new target counts as a good probe: if that one goes
+    down too, only the failures since the first switch are repeated – not the ones before."""
     jobs = [f"http 1.1.1.{i}:80" for i in range(1, 7)]
 
     class StubWatch:
@@ -290,10 +290,10 @@ def test_second_switch_only_rechecks_failures_under_the_new_target(tmp_path):
             self.calls += 1
             await asyncio.sleep(0.01)
             if self.calls == 3:
-                watch.on_switch(a, b)   # 1 und 2 fielen in den Ausfall von a
+                watch.on_switch(a, b)   # 1 and 2 fell into the outage of a
             await asyncio.sleep(0.01)
             if self.calls == 5:
-                watch.on_switch(b, c)   # 4 fiel in den Ausfall von b (3 lief noch mit a)
+                watch.on_switch(b, c)   # 4 fell into the outage of b (3 was still running with a)
             return None
 
         async def confirm(self, r):
@@ -312,8 +312,8 @@ def test_second_switch_only_rechecks_failures_under_the_new_target(tmp_path):
 
     run = asyncio.run(go())
     assert run.judge_switches == ["a → b", "b → c"]
-    # 1, 2 (Ausfall a) + 3 (lief noch mit a, endete nach dem Wechsel) + 4, 5 (Ausfall b); danach ist die
-    # Basislinie neu – die Wiederholungen unter c zählen normal
+    # 1, 2 (outage a) + 3 (still running with a, ended after the switch) + 4, 5 (outage b); after that the
+    # baseline is new – the repeats under c count normally
     assert sorted(set(run.checked)) == sorted(jobs) and len(run.checked) == len(jobs)
 
 
@@ -334,7 +334,7 @@ def test_own_ip_falls_back_to_what_the_judges_saw(monkeypatch):
 
     async def ranked():
         return [JudgeProbe(J("a"), "1.1.1.1", 10, "87.150.19.11"), JudgeProbe(J("b"), "2.2.2.2", 10, "87.150.19.11"),
-                JudgeProbe(J("c"), "3.3.3.3", 10, "2003:d6::1")]  # IPv6 hilft dem Checker nicht
+                JudgeProbe(J("c"), "3.3.3.3", 10, "2003:d6::1")]  # IPv6 doesn't help the checker
 
     async def no_confirm():
         return None

@@ -32,9 +32,9 @@ def test_proxychains_config():
 
 def test_clash_skips_socks4_and_builds_a_group():
     text = clash(ROWS, NOW)
-    assert "192.0.2.40" not in text  # Clash kennt kein SOCKS4
+    assert "192.0.2.40" not in text  # Clash doesn't know SOCKS4
     assert '    server: "203.0.113.10"\n    port: 1080' in text
-    assert '  - name: "?? http 198.51.100.24:8080"' in text  # ohne Land
+    assert '  - name: "?? http 198.51.100.24:8080"' in text  # without a country
     assert "type: url-test" in text and "  - MATCH,proxy-scraper" in text
     group = text.split("    proxies:\n", 1)[1].split("rules:", 1)[0].splitlines()
     names = [json.loads(line.strip()[2:]) for line in group]
@@ -74,7 +74,7 @@ def test_unknown_format_is_rejected(capsys):
     with pytest.raises(ValueError):
         RunOptions(exports=["v2ray"])
     with pytest.raises(ValueError, match="v2ray"):
-        parse_exports("all,v2ray")  # "all" darf keinen Tippfehler verdecken
+        parse_exports("all,v2ray")  # "all" must not hide a typo
 
 
 def test_writer_writes_requested_formats(tmp_path):
@@ -90,4 +90,4 @@ def test_http_proxies_without_connect_are_left_out_where_everything_is_tunnelled
     rows = [plain, untested, *ROWS]
     assert "192.0.2.80" not in proxychains(rows, NOW) and "192.0.2.80" not in clash(rows, NOW)
     assert "192.0.2.81" in proxychains(rows, NOW) and "192.0.2.81" in clash(rows, NOW)
-    assert "192.0.2.80" in curl(rows, NOW)  # curl kann auch einfaches HTTP ohne Tunnel
+    assert "192.0.2.80" in curl(rows, NOW)  # curl can also do plain HTTP without a tunnel

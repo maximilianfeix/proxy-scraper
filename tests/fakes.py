@@ -1,4 +1,4 @@
-"""Echte, weiterleitende Mini-Proxys und ein Zielserver auf localhost – für Tests ohne Internet."""
+"""Real, forwarding mini proxies and a target server on localhost – for tests without internet."""
 
 import asyncio
 import base64
@@ -16,32 +16,32 @@ async def pipe(reader, writer):
             writer.write(data)
             await writer.drain()
     except (ConnectionError, OSError):
-        pass  # Gegenseite hat aufgelegt – für einen Test-Proxy kein Fehler
+        pass  # the other side hung up – not an error for a test proxy
     finally:
         writer.close()
 
 
 async def target_server(reader, writer):
-    """Zielseite: /ok -> 200, /weiter -> 302, alles andere -> 403 (wie eine Seite, die Proxys sperrt)."""
+    """Target site: /ok -> 200, /redirect -> 302, anything else -> 403 (like a site that blocks proxies)."""
     head = await reader.readuntil(b"\r\n\r\n")
     path = head.split()[1]
     if path.endswith(b"/echo"):
         length = int(next((line.split(b":", 1)[1] for line in head.split(b"\r\n")
                            if line.lower().startswith(b"content-length:")), b"0"))
         if b"expect: 100-continue" in head.lower():
-            writer.write(b"HTTP/1.1 100 Continue\r\n\r\n")  # wie ein echter Server: erst dann kommt der Body
+            writer.write(b"HTTP/1.1 100 Continue\r\n\r\n")  # like a real server: only then does the body come
             await writer.drain()
         body = await reader.readexactly(length) if length else b""
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: %d\r\n\r\n" % len(body) + body)
-    elif path.endswith(b"/host-mit-port"):
-        # 200 nur, wenn der Host-Header den (nicht standardmäßigen) Port enthält
+    elif path.endswith(b"/host-with-port"):
+        # 200 only if the Host header contains the (non-default) port
         port = writer.get_extra_info("sockname")[1]
         ok = f"Host: 127.0.0.1:{port}\r\n".encode() in head
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 0\r\n\r\n" if ok else
                      b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\n\r\n")
     elif path.endswith(b"/ok"):
         writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
-    elif path.endswith(b"/weiter"):
+    elif path.endswith(b"/redirect"):
         writer.write(b"HTTP/1.1 302 Found\r\nLocation: /ok\r\nContent-Length: 0\r\n\r\n")
     else:
         writer.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 0\r\n\r\n")
@@ -50,7 +50,7 @@ async def target_server(reader, writer):
 
 
 async def http_forward_proxy(reader, writer):
-    """HTTP-Proxy: absolute URLs weiterleiten und CONNECT tunneln."""
+    """HTTP proxy: forwards absolute URLs and tunnels CONNECT."""
     await _http_forward(await reader.readuntil(b"\r\n\r\n"), reader, writer)
 
 
@@ -71,7 +71,7 @@ async def _http_forward(head, reader, writer):
 
 
 async def socks5_forward_proxy(reader, writer):
-    """SOCKS5-Proxy ohne Anmeldung, IPv4-Adressen und Hostnamen."""
+    """SOCKS5 proxy without authentication, IPv4 addresses and host names."""
     await reader.readexactly(3)
     writer.write(b"\x05\x00")
     await _socks5_connect(reader, writer)
@@ -105,7 +105,7 @@ def tls_server_context() -> ssl.SSLContext:
 
 
 def tls_client_context() -> ssl.SSLContext:
-    """Vertraut genau dem Test-Zertifikat – wie certifi einem echten Zertifikat vertrauen würde."""
+    """Trusts exactly the test certificate – like certifi would trust a real certificate."""
     return ssl.create_default_context(cafile=str(DATA / "localhost-cert.pem"))
 
 
@@ -115,7 +115,7 @@ async def serve_tls(handler):
 
 
 async def blackhole_proxy(reader, writer):
-    """Nimmt CONNECT an, schluckt das erste Paket und legt ohne Antwort auf (wie im echten Test beobachtet)."""
+    """Accepts CONNECT, swallows the first packet and hangs up without an answer (as seen in real tests)."""
     await reader.readuntil(b"\r\n\r\n")
     writer.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
     await writer.drain()
@@ -124,7 +124,7 @@ async def blackhole_proxy(reader, writer):
 
 
 async def echo_server(reader, writer):
-    """Spricht in mehreren Runden: jede Zeile kommt mit Präfix zurück, bis 'bye'."""
+    """Talks in several rounds: every line comes back with a prefix, until 'bye'."""
     while True:
         line = await reader.readline()
         if not line or line.strip() == b"bye":
@@ -135,18 +135,18 @@ async def echo_server(reader, writer):
 
 
 async def error_page_proxy(reader, writer):
-    """Nimmt CONNECT an, antwortet im Tunnel aber mit einer HTTP-Fehlerseite statt mit TLS."""
+    """Accepts CONNECT, but answers inside the tunnel with an HTTP error page instead of TLS."""
     await reader.readuntil(b"\r\n\r\n")
     writer.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
     await writer.drain()
     await reader.read(65536)
-    writer.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 9\r\n\r\nverboten\n")
+    writer.write(b"HTTP/1.1 403 Forbidden\r\nContent-Length: 10\r\n\r\nforbidden\n")
     await writer.drain()
     writer.close()
 
 
 async def tls_like_server(reader, writer):
-    """Antwortet auf ein Paket, das wie ein TLS ClientHello beginnt, mit einem 'ServerHello'."""
+    """Answers a packet that starts like a TLS ClientHello with a 'ServerHello'."""
     data = await reader.read(65536)
     if data[:1] == b"\x16":
         writer.write(b"\x16\x03\x03\x00\x04" + b"helo")
@@ -155,7 +155,7 @@ async def tls_like_server(reader, writer):
 
 
 async def socks4_forward_proxy(reader, writer):
-    """SOCKS4-Proxy: nur IPv4-Adressen, User-ID wird ignoriert."""
+    """SOCKS4 proxy: IPv4 addresses only, the user ID is ignored."""
     request = await reader.readexactly(8)
     await reader.readuntil(b"\x00")  # User-ID
     port = int.from_bytes(request[2:4], "big")
@@ -167,7 +167,7 @@ async def socks4_forward_proxy(reader, writer):
 
 
 async def forward_only_proxy(reader, writer):
-    """HTTP-Proxy ohne CONNECT – nur klassische Anfragen mit absoluter URL (wie manche Port-80-Proxys)."""
+    """HTTP proxy without CONNECT – only classic requests with an absolute URL (like some port 80 proxies)."""
     head = await reader.readuntil(b"\r\n\r\n")
     if head.startswith(b"CONNECT"):
         writer.write(b"HTTP/1.1 405 Method Not Allowed\r\nContent-Length: 0\r\n\r\n")
@@ -184,22 +184,22 @@ async def forward_only_proxy(reader, writer):
 
 
 async def silent_proxy(reader, writer):
-    """Nimmt die Anfrage an und legt ohne Antwort auf."""
+    """Accepts the request and hangs up without an answer."""
     await reader.readuntil(b"\r\n\r\n")
     writer.close()
 
 
 async def weird_status_proxy(reader, writer):
-    """Antwortet auf CONNECT mit "HTTP/1.1 2000" – enthält " 200", ist aber kein Erfolg."""
+    """Answers CONNECT with "HTTP/1.1 2000" – contains " 200", but isn't a success."""
     await reader.readuntil(b"\r\n\r\n")
-    writer.write(b"HTTP/1.1 2000 Irgendwas\r\n\r\n")
+    writer.write(b"HTTP/1.1 2000 Whatever\r\n\r\n")
     await writer.drain()
     await reader.read(65536)
     writer.close()
 
 
 async def tls_record_server(reader, writer):
-    """Antwortet erst, wenn ein TLS-Record vollständig angekommen ist (wie ein echter TLS-Server)."""
+    """Only answers once a TLS record has arrived completely (like a real TLS server)."""
     header = await reader.readexactly(5)
     await reader.readexactly(int.from_bytes(header[3:5], "big"))
     writer.write(b"\x16\x03\x03\x00\x02ok")
@@ -207,12 +207,12 @@ async def tls_record_server(reader, writer):
     writer.close()
 
 
-# Zugangsdaten der Proxys mit Login – mit Zeichen, die in URLs kodiert werden müssen
+# credentials of the proxies with a login – with characters that have to be encoded in URLs (and a non-ASCII one)
 USER, PASSWORD = "alice", "p@ss:wörd"
 
 
 async def auth_http_forward_proxy(reader, writer):
-    """HTTP-Proxy mit Pflicht-Login: ohne passenden Proxy-Authorization-Header gibt es 407."""
+    """HTTP proxy with a required login: without a matching Proxy-Authorization header it returns 407."""
     head = await reader.readuntil(b"\r\n\r\n")
     token = base64.b64encode(f"{USER}:{PASSWORD}".encode())
     if b"\r\nProxy-Authorization: Basic " + token + b"\r\n" not in head:
@@ -224,11 +224,11 @@ async def auth_http_forward_proxy(reader, writer):
 
 
 async def auth_socks5_forward_proxy(reader, writer):
-    """SOCKS5-Proxy, der nur Benutzer/Passwort (RFC 1929) akzeptiert."""
+    """SOCKS5 proxy that only accepts user/password (RFC 1929)."""
     _, count = await reader.readexactly(2)
     methods = await reader.readexactly(count)
     if 0x02 not in methods:
-        writer.write(b"\x05\xff")  # keine akzeptable Methode
+        writer.write(b"\x05\xff")  # no acceptable method
         await writer.drain()
         writer.close()
         return

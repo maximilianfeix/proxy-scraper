@@ -44,9 +44,9 @@ def test_publish_writes_lists_badges_and_readme(tmp_path, monkeypatch):
     assert stats["countries"] == {"DE": 3, "US": 1}
 
     readme = read("README.md")
-    assert "24.09.2026 18:00 UTC" in readme and "Latenz, Land, HTTPS, Anonymität" in readme
+    assert "2026-09-24 18:00 UTC" in readme and "latency, country, HTTPS, anonymity" in readme
     assert "raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt" in readme
-    assert "**4** funktionierende Proxys" in summary.read_text(encoding="utf-8")
+    assert "**4** working proxies" in summary.read_text(encoding="utf-8")
 
 
 def test_publish_skips_when_too_few(tmp_path):
@@ -61,7 +61,7 @@ def test_median_latency_for_even_count():
 
 
 def test_num():
-    assert publish.num(1234567) == "1.234.567"
+    assert publish.num(1234567) == "1,234,567"
 
 
 def test_proxies_with_credentials_are_never_published(tmp_path):
@@ -97,7 +97,7 @@ def test_history_is_capped_and_survives_garbage(tmp_path):
     publish.publish(run_dir(tmp_path), out, minimum=2, history=previous)
     runs = json.loads((out / "history.json").read_text())
     assert len(runs) == publish.HISTORY_LIMIT and runs[-1]["total"] == 4
-    previous.write_text("{nicht json")
+    previous.write_text("{not json")
     publish.publish(run_dir(tmp_path), tmp_path / "public2", minimum=2, history=previous)
     assert len(json.loads((tmp_path / "public2" / "history.json").read_text())) == 1
 
@@ -113,7 +113,7 @@ def test_stats_count_datacenter_exits(tmp_path):
             for i in range(4)]
     ResultWriter(run_dir=tmp_path / "run").finalize(rows)
     publish.publish(tmp_path / "run", tmp_path / "noprov", minimum=2)
-    assert json.loads((tmp_path / "noprov" / "stats.json").read_text())["datacenter"] is None  # keine Daten
+    assert json.loads((tmp_path / "noprov" / "stats.json").read_text())["datacenter"] is None  # no data
     for r in rows:
         r.org = "Some ISP"
     rows[0].hosting, rows[0].org = True, "Hetzner Online GmbH"
@@ -129,13 +129,13 @@ def test_streaks_count_consecutive_runs(tmp_path):
     out = tmp_path / "public"
     publish.publish(run_dir(tmp_path), out, minimum=2, streaks=previous)
     streaks = json.loads((out / "streaks.json").read_text())
-    assert streaks["socks5://2.2.2.2:1080"] == 6       # war dabei -> weiterzählen
+    assert streaks["socks5://2.2.2.2:1080"] == 6       # was there -> keep counting
     assert streaks["http://1.1.1.0:80"] == 2
-    assert streaks["http://1.1.1.2:80"] == 1           # neu
-    assert "http://7.7.7.7:80" not in streaks          # diesmal nicht dabei -> Serie vorbei
+    assert streaks["http://1.1.1.2:80"] == 1           # new
+    assert "http://7.7.7.7:80" not in streaks          # not there this time -> streak over
     rows = {r["url"]: r for r in json.loads((out / "proxies.json").read_text())}
     assert rows["socks5://2.2.2.2:1080"]["streak"] == 6
-    assert json.loads((out / "stats.json").read_text())["stable"] == 1  # nur der mit 6 Läufen (>= 4)
+    assert json.loads((out / "stats.json").read_text())["stable"] == 1  # only the one with 6 runs (>= 4)
 
 
 def test_missing_or_broken_streaks_start_fresh(tmp_path):

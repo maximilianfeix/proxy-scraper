@@ -34,7 +34,7 @@ def result(ptype, port, latency=100):
 
 
 class OrderedPool(ProxyPool):
-    """Nimmt die Proxys in fester Reihenfolge – macht Ausfalltests unabhängig vom Zufall."""
+    """Takes the proxies in a fixed order – makes failure tests independent of chance."""
 
     def pick(self, exclude, tls=False, **_):
         return next((e for e in self.usable if e.result.key not in exclude), None)
@@ -50,7 +50,7 @@ async def request_via(server_port: int, raw: bytes) -> bytes:
 
 
 def run_server(upstreams, client_request, pool_cls=OrderedPool):
-    """Startet Zielserver, Upstream-Proxys und den rotierenden Server; schickt eine Client-Anfrage."""
+    """Starts the target server, upstream proxies and the rotating server; sends a client request."""
     async def go():
         target_srv, target_port = await serve(target_server)
         servers, results = [target_srv], []
@@ -135,7 +135,7 @@ def test_pool_disables_after_repeated_failures():
     entry = pool.entries[0]
     for _ in range(DISABLE_AFTER - 1):
         pool.report(entry, False)
-    pool.report(entry, True)             # ein Erfolg setzt die Serie zurück
+    pool.report(entry, True)             # a success resets the streak
     assert not entry.disabled
     for _ in range(DISABLE_AFTER):
         pool.report(entry, False)
@@ -167,10 +167,10 @@ def test_origin_request_strips_proxy_headers():
 
 
 def test_tunnel_without_answer_is_retried_transparently():
-    """Proxy bestätigt CONNECT, liefert aber nichts – der Client merkt vom Wechsel nichts."""
+    """The proxy confirms CONNECT but delivers nothing – the client doesn't notice the switch."""
     answer, pool, stats = run_server([("http", blackhole_proxy), ("http", http_forward_proxy)], connect_then_get)
     assert answer.startswith(b"HTTP/1.1 200 Connection established")
-    assert answer.count(b"HTTP/1.1 200 Connection established") == 1  # nur einmal an den Client
+    assert answer.count(b"HTTP/1.1 200 Connection established") == 1  # only once to the client
     assert b"HTTP/1.1 200 OK" in answer and answer.endswith(b"ok")
     blackhole, good = pool.entries
     assert (blackhole.fail, good.ok) == (1, 1)
@@ -179,7 +179,7 @@ def test_tunnel_without_answer_is_retried_transparently():
 
 @pytest.mark.parametrize("kind, handler", [("http", http_forward_proxy), ("socks5", socks5_forward_proxy)])
 def test_tunnel_carries_a_whole_conversation(kind, handler):
-    """Wie bei TLS: mehrere Runden hin und her, nicht nur das erste Paket."""
+    """Like TLS: several rounds back and forth, not just the first packet."""
     async def go():
         echo_srv, echo_port = await serve(echo_server)
         proxy_srv, proxy_port = await serve(handler)
@@ -191,7 +191,7 @@ def test_tunnel_carries_a_whole_conversation(kind, handler):
             await writer.drain()
             await reader.readuntil(b"\r\n\r\n")
             answers = []
-            for word in (b"eins", b"zwei", b"drei"):
+            for word in (b"eins", b"two", b"drei"):
                 writer.write(word + b"\n")
                 await writer.drain()
                 answers.append(await asyncio.wait_for(reader.readline(), 3))
@@ -203,11 +203,11 @@ def test_tunnel_carries_a_whole_conversation(kind, handler):
             echo_srv.close()
             proxy_srv.close()
 
-    assert asyncio.run(go()) == [b"echo: eins\n", b"echo: zwei\n", b"echo: drei\n"]
+    assert asyncio.run(go()) == [b"echo: eins\n", b"echo: two\n", b"echo: drei\n"]
 
 
 def test_non_tls_answer_to_tls_is_retried():
-    """Proxy liefert im Tunnel eine HTTP-Fehlerseite statt TLS – nächster Proxy, Client merkt nichts."""
+    """The proxy returns an HTTP error page instead of TLS in the tunnel – next proxy, the client notices nothing."""
     async def go():
         tls_srv, tls_port = await serve(tls_like_server)
         bad_srv, bad_port = await serve(error_page_proxy)
@@ -220,7 +220,7 @@ def test_non_tls_answer_to_tls_is_retried():
             writer.write(f"CONNECT 127.0.0.1:{tls_port} HTTP/1.1\r\n\r\n".encode())
             await writer.drain()
             await reader.readuntil(b"\r\n\r\n")
-            writer.write(b"\x16\x03\x01\x00\x05hello")  # sieht aus wie ein ClientHello
+            writer.write(b"\x16\x03\x01\x00\x05hello")  # looks like a ClientHello
             await writer.drain()
             answer = await asyncio.wait_for(reader.read(100), 3)
             writer.close()
@@ -237,7 +237,7 @@ def test_non_tls_answer_to_tls_is_retried():
 
 @pytest.mark.parametrize("out, answer, expected", [
     (b"\x16\x03\x01...", b"\x16\x03\x03...", True),
-    (b"\x16\x03\x01...", b"\x15\x03\x03\x00\x02", True),       # TLS-Alert ist auch echtes TLS
+    (b"\x16\x03\x01...", b"\x15\x03\x03\x00\x02", True),       # a TLS alert is real TLS too
     (b"\x16\x03\x01...", b"HTTP/1.1 403 Forbidden", False),
     (b"GET / HTTP/1.1", b"HTTP/1.1 200 OK", True),
     (b"", b"SSH-2.0-OpenSSH", True),                            # Server spricht zuerst
@@ -256,11 +256,11 @@ def test_tls_prefers_proxies_that_passed_the_https_test():
     pool = ProxyPool([good, mitm], rng=random.Random(3))
     assert {pool.pick(set(), tls=True).result.key for _ in range(50)} == {good.key}
     assert {pool.pick(set(), tls=False).result.key for _ in range(200)} == {good.key, mitm.key}
-    assert pool.pick({good.key}, tls=True) is None       # keine anderen HTTPS-fähigen übrig
+    assert pool.pick({good.key}, tls=True) is None       # no other HTTPS-capable ones left
 
 
 def test_tls_falls_back_to_all_without_https_results():
-    pool = ProxyPool([result("http", 1)])  # z. B. nach --fast: HTTPS unbekannt
+    pool = ProxyPool([result("http", 1)])  # e.g. after --fast: HTTPS unknown
     assert pool.pick(set(), tls=True) is not None
 
 
@@ -273,7 +273,7 @@ def test_socks4_upstream_plain_and_tunnel(kind, handler):
 
 
 def test_plain_http_uses_no_connect_on_http_upstreams():
-    """Proxys, die kein CONNECT können, taugen trotzdem für normales HTTP."""
+    """Proxies that can't CONNECT are still fine for plain HTTP."""
     answer, pool, _ = run_server([("http", forward_only_proxy)], plain_get)
     assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(b"ok")
     assert pool.entries[0].ok == 1
@@ -303,7 +303,7 @@ def post_echo(body: bytes):
             writer.write(head + body)
             await writer.drain()
         except ConnectionError:
-            pass  # Server hat abgebrochen, bevor alles gesendet war – die Antwort zählt trotzdem
+            pass  # the server aborted before everything was sent – the response still counts
         answer = b""
         while True:
             try:
@@ -331,7 +331,7 @@ def test_post_body_is_replayed_after_a_silent_proxy():
 
 
 def test_large_body_is_streamed_without_replay():
-    body = b"x" * (2 * 1024 * 1024)  # über MAX_REPLAY_BODY
+    body = b"x" * (2 * 1024 * 1024)  # above MAX_REPLAY_BODY
     answer, _, _ = run_server([("http", http_forward_proxy)], post_echo(body))
     assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(body[-100:])
     assert len(answer) > len(body)
@@ -346,7 +346,7 @@ def test_connect_on_other_ports_prefers_https_verified_proxies():
             return super().pick(exclude, tls)
 
     run_server([("http", http_forward_proxy)], connect_then_get, pool_cls=RecordingPool)
-    assert seen and seen[0] is True   # Zielport ist hier beliebig, nicht 443
+    assert seen and seen[0] is True   # the target port is arbitrary here, not 443
 
 
 @pytest.mark.parametrize("raw", [b"CONNECT example.org:70000 HTTP/1.1\r\n\r\n",
@@ -378,7 +378,7 @@ def test_expect_100_continue_does_not_deadlock():
         writer.write((f"POST http://127.0.0.1:{target_port}/echo HTTP/1.1\r\nHost: 127.0.0.1:{target_port}\r\n"
                       f"Content-Length: 5\r\nExpect: 100-continue\r\n\r\n").encode())
         await writer.drain()
-        interim = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 3)  # wartet auf 100 Continue
+        interim = await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), 3)  # waits for 100 Continue
         writer.write(b"hallo")
         await writer.drain()
         rest = await asyncio.wait_for(reader.read(65536), 3)
@@ -401,7 +401,7 @@ def test_split_tls_client_hello_is_collected_completely():
             await writer.drain()
             await reader.readuntil(b"\r\n\r\n")
             record = b"\x16\x03\x01\x00\x0a" + b"0123456789"
-            writer.write(record[:4])          # Record über zwei TCP-Pakete verteilt
+            writer.write(record[:4])          # record spread over two TCP packets
             await writer.drain()
             await asyncio.sleep(0.2)
             writer.write(record[4:])

@@ -1,5 +1,5 @@
-"""Alle Einstellungen eines Laufs an einer Stelle – egal ob sie von der Kommandozeile oder
-aus dem Einrichtungsassistenten kommen."""
+"""All settings of a run in one place – whether they come from the command line or
+from the setup wizard."""
 
 from __future__ import annotations
 
@@ -32,12 +32,12 @@ class Filters:
     https_only: bool = False
     min_anonymity: str = ""
     max_latency: int = 0
-    targets: List[str] = field(default_factory=list)  # Zielseiten, die jeder Proxy erreichen muss
-    no_datacenter: bool = False  # nur Exits, die nicht (erkennbar) in einem Rechenzentrum liegen
+    targets: List[str] = field(default_factory=list)  # target sites every proxy has to reach
+    no_datacenter: bool = False  # only exits that are not (recognizably) in a datacenter
 
     @property
     def needs_details(self) -> bool:
-        # Die Anonymität kommt aus der Bestätigung (läuft immer) – HTTPS und Zielseiten brauchen den Detailtest
+        # anonymity comes from the confirmation (always runs) – HTTPS and target sites need the detail test
         return self.https_only or bool(self.targets)
 
     @property
@@ -56,12 +56,12 @@ class Filters:
             return False
         if self.no_datacenter and r.hosting:
             return False
-        return all(r.targets.get(url) for url in self.targets)  # jede gewünschte Zielseite erreicht
+        return all(r.targets.get(url) for url in self.targets)  # reached every requested target site
 
     def may_pass(self, r: CheckResult) -> bool:
-        """Kann `r` die Filter noch erfüllen? HTTPS ist an dieser Stelle noch unbekannt, das Land evtl. auch.
+        """Can `r` still pass the filters? HTTPS is still unknown at this point, possibly the country too.
 
-        Wer schon jetzt sicher durchfällt, braucht keinen teuren HTTPS-Test mehr.
+        Whatever is sure to fail already doesn't need an expensive HTTPS test any more.
         """
         if self.max_latency and r.latency > self.max_latency:
             return False
@@ -69,23 +69,23 @@ class Filters:
             return False
         if self.no_datacenter and r.hosting:
             return False
-        # Land noch unbekannt -> kann noch passen
+        # country still unknown -> may still match
         return not self.countries or not r.country or r.country in self.countries
 
     def describe(self) -> str:
         parts = []
         if self.countries:
-            parts.append("Land " + ",".join(sorted(self.countries)))
+            parts.append("country " + ",".join(sorted(self.countries)))
         if self.https_only:
-            parts.append("nur HTTPS")
+            parts.append("HTTPS only")
         if self.min_anonymity:
-            parts.append(f"mind. {self.min_anonymity}")
+            parts.append(f"min. {self.min_anonymity}")
         if self.max_latency:
             parts.append(f"≤ {self.max_latency} ms")
         if self.targets:
-            parts.append("Ziel " + ", ".join(target_label(u, self.targets) for u in self.targets))
+            parts.append("target " + ", ".join(target_label(u, self.targets) for u in self.targets))
         if self.no_datacenter:
-            parts.append("ohne Rechenzentren")
+            parts.append("no datacenters")
         return " · ".join(parts)
 
 
@@ -107,27 +107,27 @@ class RunOptions:
     no_discover: bool = False
     discover_repos: int = DEFAULT_DISCOVER_REPOS
     all_sources: bool = False
-    no_cache: bool = False  # alle Listen neu laden statt unveränderte aus dem Cache
-    serve: int = 0  # Port des rotierenden Proxy-Servers nach dem Lauf, 0 = aus
-    rotate: str = "weighted"  # Strategie des Proxy-Servers, siehe server/pool.py
-    sticky: int = 0  # Sekunden, die eine Zielseite denselben Proxy behält (0 = jede Verbindung neu)
-    serve_host: str = "127.0.0.1"  # Adresse des Proxy-Servers; alles andere ist von außen erreichbar
+    no_cache: bool = False  # reload every list instead of taking unchanged ones from the cache
+    serve: int = 0  # port of the rotating proxy server after the run, 0 = off
+    rotate: str = "weighted"  # strategy of the proxy server, see server/pool.py
+    sticky: int = 0  # seconds a target site keeps the same proxy (0 = new one for every connection)
+    serve_host: str = "127.0.0.1"  # address of the proxy server; anything else is reachable from outside
 
     def __post_init__(self) -> None:
         unknown = set(self.types) - set(PROXY_TYPES)
         if unknown:
             raise ValueError(f"unbekannte Proxy-Typen: {', '.join(sorted(unknown))}")
-        # Die Typen sind fachlich eine Menge: feste Reihenfolge, keine Duplikate.
-        # Sonst ergäben "--types socks5 http" und "--types http socks5" verschiedene Einstellungen.
+        # the types are really a set: fixed order, no duplicates.
+        # Otherwise "--types socks5 http" and "--types http socks5" would give different settings.
         self.types = [t for t in PROXY_TYPES if t in self.types]
         if not self.types:
-            raise ValueError("mindestens ein Proxy-Typ nötig")  # sonst wäre to_argv() "--types" ohne Wert
+            raise ValueError("at least one proxy type needed")  # else to_argv() gives "--types" without a value
         if self.concurrency < 1:
-            raise ValueError("concurrency muss mindestens 1 sein")
+            raise ValueError("concurrency must be at least 1")
         if self.timeout <= 0 or self.connect_timeout <= 0:
-            raise ValueError("Timeouts müssen größer als 0 sein")
+            raise ValueError("timeouts must be greater than 0")
         if min(self.want, self.limit, self.discover_repos, self.filters.max_latency) < 0:
-            raise ValueError("Mengen und Latenz dürfen nicht negativ sein")
+            raise ValueError("amounts and latency must not be negative")
         unknown_exports = set(self.exports) - set(EXPORTERS)
         if unknown_exports:
             raise ValueError(f"unbekannte Exportformate: {', '.join(sorted(unknown_exports))}")
@@ -135,19 +135,19 @@ class RunOptions:
         if self.rotate not in STRATEGIES:
             raise ValueError(f"unbekannte Strategie: {self.rotate}")
         if self.sticky < 0:
-            raise ValueError("--sticky darf nicht negativ sein")
+            raise ValueError("--sticky must not be negative")
         if not 0 <= self.serve <= 65535:
-            raise ValueError("Port muss zwischen 1 und 65535 liegen")
+            raise ValueError("port must be between 1 and 65535")
 
     @property
     def details(self) -> bool:
-        """HTTPS-Test – abschaltbar (--fast), außer der HTTPS-Filter braucht ihn."""
+        """HTTPS test – can be switched off (--fast), unless the HTTPS filter needs it."""
         return not self.fast or self.filters.needs_details
 
     @property
     def check_timeout(self) -> float:
-        """Timeout der Basisprüfung: Wer das Latenzlimit überschreitet, fliegt ohnehin raus –
-        so lange muss niemand warten. Bei 2000 parallelen Slots ist das deutlich mehr Durchsatz."""
+        """Timeout of the basic check: whatever exceeds the latency limit drops out anyway –
+        nobody needs to wait that long. With 2000 parallel slots that's a lot more throughput."""
         if self.filters.max_latency:
             return min(self.timeout, self.filters.max_latency / 1000)
         return self.timeout
@@ -194,7 +194,7 @@ class RunOptions:
         )
 
     def to_argv(self) -> List[str]:
-        """Kommandozeilen-Argumente, die genau diese Einstellungen ergeben (nur Abweichungen vom Standard)."""
+        """Command line arguments that produce exactly these settings (only deviations from the defaults)."""
         argv: List[str] = []
         if self.types != list(PROXY_TYPES):
             argv += ["--types", *self.types]
@@ -238,7 +238,7 @@ class RunOptions:
         return argv
 
     def to_command(self, program: Optional[str] = None) -> str:
-        if program is None:  # aus dem Repo gestartet oder installiert?
+        if program is None:  # started from the repo or installed?
             program = "python3 proxy_scraper.py" if is_checkout() else "proxy-scraper"
         return " ".join([program, *map(shlex.quote, self.to_argv())])
 

@@ -1,8 +1,8 @@
-"""Einrichtungsassistent: Beim Start per Pfeiltasten auswählen, welche Proxys gesucht werden.
+"""Setup wizard: pick with the arrow keys at startup which proxies to look for.
 
-Die Logik ist bewusst von der Tastatur getrennt – `Wizard.handle()` bekommt Tastennamen
-("up", "space", "enter" …), `Wizard` selbst ist ein rich-Renderable. Dadurch lässt sich der
-komplette Ablauf ohne Terminal testen.
+The logic is deliberately separate from the keyboard – `Wizard.handle()` receives key names
+("up", "space", "enter" …), `Wizard` itself is a rich renderable. That way the whole flow can be
+tested without a terminal.
 """
 
 from __future__ import annotations
@@ -30,19 +30,19 @@ NEXT, BACK = "next", "back"
 VISIBLE_ROWS = 9
 
 COUNTRIES = (
-    ("DE", "Deutschland"), ("AT", "Österreich"), ("CH", "Schweiz"), ("NL", "Niederlande"),
-    ("FR", "Frankreich"), ("GB", "Großbritannien"), ("PL", "Polen"), ("SE", "Schweden"),
-    ("IT", "Italien"), ("ES", "Spanien"), ("US", "USA"), ("CA", "Kanada"), ("BR", "Brasilien"),
-    ("JP", "Japan"), ("SG", "Singapur"), ("HK", "Hongkong"), ("KR", "Südkorea"), ("IN", "Indien"),
-    ("ID", "Indonesien"), ("TH", "Thailand"), ("VN", "Vietnam"), ("TR", "Türkei"),
-    ("RU", "Russland"), ("UA", "Ukraine"),
+    ("DE", "Germany"), ("AT", "Austria"), ("CH", "Switzerland"), ("NL", "Netherlands"),
+    ("FR", "France"), ("GB", "United Kingdom"), ("PL", "Poland"), ("SE", "Sweden"),
+    ("IT", "Italy"), ("ES", "Spain"), ("US", "USA"), ("CA", "Canada"), ("BR", "Brazil"),
+    ("JP", "Japan"), ("SG", "Singapore"), ("HK", "Hong Kong"), ("KR", "South Korea"), ("IN", "India"),
+    ("ID", "Indonesia"), ("TH", "Thailand"), ("VN", "Vietnam"), ("TR", "Turkey"),
+    ("RU", "Russia"), ("UA", "Ukraine"),
 )
 TYPE_HINTS = {
-    "http": "Web-Proxys, HTTPS über CONNECT",
-    "socks4": "älter, nur TCP, kein DNS über den Proxy",
-    "socks5": "universell – Browser, Apps, Spiele",
+    "http": "web proxies, HTTPS via CONNECT",
+    "socks4": "older, TCP only, no DNS through the proxy",
+    "socks5": "universal – browsers, apps, games",
 }
-ANON_TEXT = {"": "egal", "anonymous": "mindestens anonym", "elite": "nur Elite"}
+ANON_TEXT = {"": "any", "anonymous": "at least anonymous", "elite": "elite only"}
 
 
 @dataclass
@@ -53,25 +53,25 @@ class Option:
 
     @property
     def search_text(self) -> str:
-        """Text für den Buchstabensprung: ohne Flaggen/Symbole davor, Umlaute wie Grundbuchstaben (Ö -> o)."""
+        """Text for jumping by letter: without leading flags/symbols, accents as base letters (Ö -> o)."""
         text = re.sub(r"^\W+", "", self.label)
         return unicodedata.normalize("NFD", text).encode("ascii", "ignore").decode().lower()
 
 
 # --------------------------------------------------------------------------- #
-# Schritte
+# Steps
 # --------------------------------------------------------------------------- #
 
 class Step:
     title = ""
     subtitle = ""
-    keys_help = "↑↓ auswählen · Enter weiter · Esc zurück · q beenden"
+    keys_help = "↑↓ select · Enter next · Esc back · q quit"
 
     def load(self, opts: RunOptions) -> None:
-        """Aktuelle Einstellung vorauswählen."""
+        """Preselect the current setting."""
 
     def apply(self, opts: RunOptions) -> None:
-        """Auswahl in die Einstellungen übernehmen."""
+        """Apply the selection to the settings."""
 
     def handle(self, key: str) -> Optional[str]:
         raise NotImplementedError
@@ -98,7 +98,7 @@ class _ListStep(Step):
         elif key in ("end", "pagedown"):
             self.cursor = n - 1
         elif len(key) == 1 and key.isalpha() and key not in "jkq":
-            # Tippen springt zum nächsten Eintrag mit diesem Anfangsbuchstaben
+            # typing jumps to the next entry starting with that letter
             order = list(range(self.cursor + 1, n)) + list(range(self.cursor + 1))
             hit = next((i for i in order if self.options[i].search_text.startswith(key.lower())), None)
             if hit is None:
@@ -120,7 +120,7 @@ class _ListStep(Step):
 
     def _rows(self, marker: Callable[[int], Text]) -> Table:
         numbers = self.numbered and len(self.options) <= 9
-        # Feste Breiten für Pfeil, Nummer, Markierung und Label – wird es eng, kürzt rich nur den Hinweis
+        # fixed widths for arrow, number, marker and label – when space runs out, rich only shortens the hint
         grid = Table.grid(padding=(0, 1), expand=True)
         grid.add_column(width=1)
         if numbers:
@@ -131,7 +131,7 @@ class _ListStep(Step):
         window = self._window()
         pad = [""] if numbers else []
         if window.start > 0:
-            grid.add_row("", *pad, "", Text(f"↑ {window.start} weitere", style=MUTED), "")
+            grid.add_row("", *pad, "", Text(f"↑ {window.start} more", style=MUTED), "")
         for i in window:
             opt = self.options[i]
             active = i == self.cursor
@@ -144,7 +144,7 @@ class _ListStep(Step):
             )
         rest = len(self.options) - window.stop
         if rest > 0:
-            grid.add_row("", *pad, "", Text(f"↓ {rest} weitere", style=MUTED), "")
+            grid.add_row("", *pad, "", Text(f"↓ {rest} more", style=MUTED), "")
         return grid
 
     def body(self) -> RenderableType:
@@ -158,7 +158,7 @@ class _ListStep(Step):
 
 
 class SelectStep(_ListStep):
-    """Einfachauswahl – Zahlen 1–9 wählen direkt."""
+    """Single choice – numbers 1–9 pick directly."""
 
     numbered = True
 
@@ -194,9 +194,9 @@ class SelectStep(_ListStep):
 
 
 class MultiStep(_ListStep):
-    """Mehrfachauswahl mit Leertaste."""
+    """Multiple choice with the space bar."""
 
-    keys_help = "↑↓ auswählen · Leertaste an/aus · a alle/keine · Enter weiter · Esc zurück"
+    keys_help = "↑↓ select · Space on/off · a all/none · Enter next · Esc back"
 
     def __init__(self, title, subtitle, options, read: Callable[[RunOptions], Set],
                  write: Callable[[RunOptions, List], None], min_selected: int = 0, empty_hint: str = ""):
@@ -222,7 +222,7 @@ class MultiStep(_ListStep):
             self.message = ""
         elif key == "enter":
             if len(self.checked) < self.min_selected:
-                self.message = f"Bitte mindestens {self.min_selected} auswählen (Leertaste)."
+                self.message = f"Please select at least {self.min_selected} (space bar)."
                 return None
             return NEXT
         else:
@@ -234,18 +234,18 @@ class MultiStep(_ListStep):
 
     def body(self) -> RenderableType:
         chosen = [self.options[i].value for i in sorted(self.checked)]
-        status = Text(f"{len(chosen)} ausgewählt", style=GOOD) if chosen else Text(self.empty_hint, style=MUTED)
+        status = Text(f"{len(chosen)} selected", style=GOOD) if chosen else Text(self.empty_hint, style=MUTED)
         return Group(super().body(), Text(""), status)
 
 
 class TargetStep(SelectStep):
-    """Zielseite wählen. Ziele von der Kommandozeile, die keine Vorschläge sind, bleiben als Option erhalten."""
+    """Pick a target site. Targets from the command line that aren't suggestions stay available as an option."""
 
     def __init__(self):
         super().__init__(
-            "Muss eine bestimmte Seite gehen?",
-            "Viele Proxys kommen nicht auf Google, Discord & Co. – hier wird es echt ausprobiert.",
-            [Option("Nein", "irgendeine Seite reicht", [])]
+            "Does a specific site have to work?",
+            "Many proxies can't reach Google, Discord and the like – this actually tries it.",
+            [Option("No", "any site is fine", [])]
             + [Option(name, target_label(url), [url]) for name, url in SUGGESTIONS],
             read=lambda o: o.filters.targets, write=lambda o, v: setattr(o.filters, "targets", list(v)),
         )
@@ -255,19 +255,19 @@ class TargetStep(SelectStep):
         del self.options[self._fixed:]
         current = list(opts.filters.targets)
         if current and all(o.value != current for o in self.options):
-            self.options.append(Option("Wie angegeben", ", ".join(target_label(u) for u in current), current))
+            self.options.append(Option("As given", ", ".join(target_label(u) for u in current), current))
         super().load(opts)
 
 
 class ServeStep(SelectStep):
-    """Proxy-Server danach? Ein eigener Port von der Kommandozeile (-i --serve 9000) bleibt wählbar."""
+    """Proxy server afterwards? A custom port from the command line (-i --serve 9000) stays selectable."""
 
     def __init__(self):
         super().__init__(
-            "Danach als Proxy-Server bereitstellen?",
-            "Ein lokaler Proxy, der jede Verbindung über einen anderen gefundenen Proxy schickt.",
-            [Option("Nein", "nur die Ergebnisdateien", 0),
-             Option(f"Ja, auf Port {DEFAULT_SERVE_PORT}", f"http://127.0.0.1:{DEFAULT_SERVE_PORT} – läuft bis Strg+C",
+            "Serve them as a proxy server afterwards?",
+            "A local proxy that sends every connection through a different proxy that was found.",
+            [Option("No", "just the result files", 0),
+             Option(f"Yes, on port {DEFAULT_SERVE_PORT}", f"http://127.0.0.1:{DEFAULT_SERVE_PORT} – runs until Ctrl+C",
                     DEFAULT_SERVE_PORT)],
             read=lambda o: o.serve, write=lambda o, v: setattr(o, "serve", v),
         )
@@ -275,7 +275,7 @@ class ServeStep(SelectStep):
     def load(self, opts: RunOptions) -> None:
         del self.options[2:]
         if opts.serve not in (0, DEFAULT_SERVE_PORT):
-            self.options.append(Option(f"Ja, auf Port {opts.serve}", "wie angegeben", opts.serve))
+            self.options.append(Option(f"Yes, on port {opts.serve}", "as given", opts.serve))
         super().load(opts)
 
 
@@ -283,10 +283,10 @@ class SummaryStep(SelectStep):
     START, ADJUST, CANCEL = "start", "adjust", "cancel"
 
     def __init__(self):
-        super().__init__("Alles bereit?", "So wird gesucht – Enter startet.", [
-            Option("Suche starten", "", self.START),
-            Option("Anpassen …", "jede Einstellung einzeln ändern", self.ADJUST),
-            Option("Abbrechen", "", self.CANCEL),
+        super().__init__("All set?", "This is what will be searched – Enter starts.", [
+            Option("Start the search", "", self.START),
+            Option("Adjust …", "change every setting one by one", self.ADJUST),
+            Option("Cancel", "", self.CANCEL),
         ])
         self.opts = RunOptions()
 
@@ -302,37 +302,37 @@ class SummaryStep(SelectStep):
             grid.add_row(label, value)
         command = Padding(Text(self.opts.to_command(), style=f"italic {MUTED}"), (0, 0, 0, 2))
         warnings = [Text(f"⚠ {w}", style=WARN) for w in warnings_for(self.opts)]
-        return Group(grid, Text(""), *warnings, Text("Dasselbe direkt starten:", style=MUTED), command,
+        return Group(grid, Text(""), *warnings, Text("Start the same directly:", style=MUTED), command,
                      Text(""), self._rows(self._marker))
 
 
 # --------------------------------------------------------------------------- #
-# Beschreibung der Einstellungen
+# Describing the settings
 # --------------------------------------------------------------------------- #
 
 def describe(opts: RunOptions) -> List[tuple]:
     f = opts.filters
     if opts.recheck is not None:
-        rows = [("Modus", Text("letzte Treffer + Verlauf neu prüfen", style="bold"))]
+        rows = [("Mode", Text("recheck the last hits + history", style="bold"))]
     else:
-        rows = [("Modus", Text("alle Quellen sammeln und prüfen", style="bold"))]
+        rows = [("Mode", Text("collect and check all sources", style="bold"))]
     types = Text()
     for i, t in enumerate(t for t in PROXY_TYPES if t in opts.types):
         if i:
             types.append(" · ", style=MUTED)
         types.append(t, style=f"bold {TYPE_STYLE[t]}")
-    rows.append(("Protokolle", types))
-    rows.append(("Länder", Text("  ".join(f"{flag(c)} {c}" for c in sorted(f.countries)) if f.countries else "alle")))
-    rows.append(("Anonymität", Text(ANON_TEXT[f.min_anonymity])))
-    rows.append(("HTTPS", Text("nur HTTPS-fähige", style=GOOD) if f.https_only else Text("egal")))
-    rows.append(("Zielseite", Text(", ".join(target_label(u) for u in f.targets), style=ACCENT) if f.targets
-                 else Text("egal")))
-    rows.append(("Latenz", Text(f"unter {fmt_seconds(f.max_latency)}") if f.max_latency else Text("egal")))
-    rows.append(("Menge", Text(f"stoppt bei {fmt(opts.want)}") if opts.want else Text("so viele wie möglich")))
+    rows.append(("Protocols", types))
+    rows.append(("Countries", Text("  ".join(f"{flag(c)} {c}" for c in sorted(f.countries)) if f.countries else "all")))
+    rows.append(("Anonymity", Text(ANON_TEXT[f.min_anonymity])))
+    rows.append(("HTTPS", Text("HTTPS-capable only", style=GOOD) if f.https_only else Text("any")))
+    rows.append(("Target site", Text(", ".join(target_label(u) for u in f.targets), style=ACCENT) if f.targets
+                 else Text("any")))
+    rows.append(("Latency", Text(f"under {fmt_seconds(f.max_latency)}") if f.max_latency else Text("any")))
+    rows.append(("Amount", Text(f"stops at {fmt(opts.want)}") if opts.want else Text("as many as possible")))
     if opts.serve:
-        rows.append(("Danach", Text(f"Proxy-Server auf 127.0.0.1:{opts.serve}", style=f"bold {ACCENT}")))
-    rows.append(("Prüfung", Text("gründlich – mit HTTPS-Test") if opts.details
-                 else Text("schnell – ohne HTTPS-Test")))
+        rows.append(("Afterwards", Text(f"proxy server on 127.0.0.1:{opts.serve}", style=f"bold {ACCENT}")))
+    rows.append(("Checks", Text("thorough – with HTTPS test") if opts.details
+                 else Text("fast – without HTTPS test")))
     return rows
 
 
@@ -340,22 +340,22 @@ def warnings_for(opts: RunOptions) -> List[str]:
     out = []
     f = opts.filters
     if opts.fast and f.needs_details:
-        out.append("Der HTTPS-Filter braucht den HTTPS-Test – die gründliche Prüfung bleibt an.")
+        out.append("The HTTPS filter needs the HTTPS test – thorough checks stay on.")
     if "socks4" in opts.types and len(opts.types) == 1 and f.https_only:
-        out.append("SOCKS4 kann HTTPS tunneln, findet aber meist nur wenige passende Proxys.")
+        out.append("SOCKS4 can tunnel HTTPS, but usually finds only a few matching proxies.")
     return out
 
 
 def short_description(opts: RunOptions) -> str:
-    """Einzeilige Beschreibung für "Wie letztes Mal", z. B. "socks5 · DE,AT · nur HTTPS · 50 Stück"."""
+    """One-line description for "Same as last time", e.g. "socks5 · DE,AT · HTTPS only · 50 proxies"."""
     f = opts.filters
-    parts = [" + ".join(opts.types) if opts.types != list(PROXY_TYPES) else "alle Protokolle"]
+    parts = [" + ".join(opts.types) if opts.types != list(PROXY_TYPES) else "all protocols"]
     if opts.recheck is not None:
         parts.insert(0, "Recheck")
     if f.countries:
         parts.append(",".join(sorted(f.countries)))
     if f.https_only:
-        parts.append("nur HTTPS")
+        parts.append("HTTPS only")
     if f.min_anonymity:
         parts.append(ANON_TEXT[f.min_anonymity])
     if f.max_latency:
@@ -363,18 +363,18 @@ def short_description(opts: RunOptions) -> str:
     if f.targets:
         parts.append("→ " + ", ".join(target_label(u) for u in f.targets))
     if opts.want:
-        parts.append(f"{fmt(opts.want)} Stück")
+        parts.append(f"{fmt(opts.want)} proxies")
     if opts.fast:
-        parts.append("schnell")
+        parts.append("fast")
     return " · ".join(parts)
 
 
 def fmt_seconds(ms: int) -> str:
-    return f"{ms / 1000:g} s".replace(".", ",")
+    return f"{ms / 1000:g} s"
 
 
 # --------------------------------------------------------------------------- #
-# Assistent
+# Wizard
 # --------------------------------------------------------------------------- #
 
 def _set_types(opts: RunOptions, values: List[str]) -> None:
@@ -392,52 +392,52 @@ def _set_filter(name: str) -> Callable[[RunOptions, Any], None]:
 def custom_steps() -> List[Step]:
     return [
         MultiStep(
-            "Welche Protokolle?", "Mehrfachauswahl mit der Leertaste.",
+            "Which protocols?", "Pick several with the space bar.",
             [Option(t.upper(), TYPE_HINTS[t], t) for t in PROXY_TYPES],
             read=lambda o: set(o.types), write=_set_types, min_selected=1,
         ),
         MultiStep(
-            "Aus welchen Ländern?", "Tippen springt zum Buchstaben. Nichts ausgewählt = alle Länder.",
+            "From which countries?", "Typing jumps to the letter. Nothing selected = all countries.",
             [Option(f"{flag(cc)} {name}", cc, cc) for cc, name in COUNTRIES],
-            read=lambda o: o.filters.countries, write=_set_countries, empty_hint="keine Auswahl = alle Länder",
+            read=lambda o: o.filters.countries, write=_set_countries, empty_hint="no selection = all countries",
         ),
         SelectStep(
-            "Wie anonym?", "SOCKS-Proxys sind immer Elite – sie fassen deinen Datenverkehr nicht an.",
-            [Option("Egal", "auch transparente Proxys, die deine IP weitergeben", ""),
-             Option("Mindestens anonym", "verbergen deine IP, geben sich aber als Proxy zu erkennen", "anonymous"),
-             Option("Nur Elite", "nicht als Proxy erkennbar", "elite")],
+            "How anonymous?", "SOCKS proxies are always elite – they don't touch your traffic.",
+            [Option("Any", "also transparent proxies that pass on your IP", ""),
+             Option("At least anonymous", "hide your IP, but identify themselves as a proxy", "anonymous"),
+             Option("Elite only", "not recognizable as a proxy", "elite")],
             read=lambda o: o.filters.min_anonymity, write=_set_filter("min_anonymity"),
         ),
         SelectStep(
-            "Brauchst du HTTPS?", "Für fast alle Webseiten nötig – der Proxy muss verschlüsselte Verbindungen tunneln.",
-            [Option("Egal", "", False), Option("Nur HTTPS-fähige", "wird mit echtem TLS-Handshake geprüft", True)],
+            "Do you need HTTPS?", "Needed for almost every website – the proxy has to tunnel encrypted connections.",
+            [Option("Any", "", False), Option("HTTPS-capable only", "checked with a real TLS handshake", True)],
             read=lambda o: o.filters.https_only, write=_set_filter("https_only"),
         ),
         TargetStep(),
         SelectStep(
-            "Wie schnell?", "Langsame Proxys werden gar nicht erst zu Ende geprüft.",
-            [Option("Egal", "", 0), Option("Unter 0,5 s", "sehr streng", 500), Option("Unter 1 s", "flott", 1000),
-             Option("Unter 2 s", "guter Kompromiss", 2000), Option("Unter 5 s", "fast alle", 5000)],
+            "How fast?", "Slow proxies aren't even checked to the end.",
+            [Option("Any", "", 0), Option("Under 0.5 s", "very strict", 500), Option("Under 1 s", "snappy", 1000),
+             Option("Under 2 s", "good compromise", 2000), Option("Under 5 s", "almost all", 5000)],
             read=lambda o: o.filters.max_latency, write=_set_filter("max_latency"),
         ),
         SelectStep(
-            "Wie viele?", "Die Suche stoppt, sobald genug passende Proxys gefunden sind.",
-            [Option("So viele wie möglich", "prüft alle Kandidaten", 0), Option("10", "", 10), Option("25", "", 25),
+            "How many?", "The search stops as soon as enough matching proxies are found.",
+            [Option("As many as possible", "checks every candidate", 0), Option("10", "", 10), Option("25", "", 25),
              Option("50", "", 50), Option("100", "", 100), Option("500", "", 500)],
             read=lambda o: o.want, write=lambda o, v: setattr(o, "want", v),
         ),
         ServeStep(),
         SelectStep(
-            "Wie gründlich prüfen?", "Anonymität und Land gibt es immer – der HTTPS-Test kostet eine TLS-Verbindung.",
-            [Option("Gründlich", "mit HTTPS-Test für jeden Treffer", False),
-             Option("Schnell", "ohne HTTPS-Test (--fast)", True)],
+            "How thorough?", "Anonymity and country are always included – the HTTPS test costs a TLS connection.",
+            [Option("Thorough", "with an HTTPS test for every hit", False),
+             Option("Fast", "without HTTPS test (--fast)", True)],
             read=lambda o: o.fast, write=lambda o, v: setattr(o, "fast", v),
         ),
     ]
 
 
 class Wizard:
-    """Zustandsmaschine des Assistenten. `result` ist nach Abschluss gesetzt, `cancelled` bei Abbruch."""
+    """State machine of the wizard. `result` is set when finished, `cancelled` when aborted."""
 
     CUSTOM, LAST = "custom", "last"
 
@@ -447,7 +447,7 @@ class Wizard:
         self.opts = copy.deepcopy(initial)
         self.custom = custom_steps()
         self.summary = SummaryStep()
-        self.start = SelectStep("Was suchst du?", "Schnellauswahl – oder alles selbst einstellen.",
+        self.start = SelectStep("What are you looking for?", "Quick pick – or set everything yourself.",
                                 self._presets(can_recheck))
         self.step: Step = self.start
         self.history: List[Step] = []
@@ -460,10 +460,10 @@ class Wizard:
 
     def _preset(self, types: Optional[Sequence[str]] = None, want: Optional[int] = None,
                 recheck: Optional[str] = None, **filters) -> RunOptions:
-        """Voreinstellung = Startwerte + nur das, was die Voreinstellung selbst festlegt.
+        """Preset = starting values + only what the preset itself sets.
 
-        So bleiben Angaben von der Kommandozeile (z. B. -i --country DE -c 500) erhalten,
-        solange die Voreinstellung sie nicht ausdrücklich ändert.
+        That way options from the command line (e.g. -i --country DE -c 500) are kept
+        as long as the preset doesn't explicitly change them.
         """
         opts = replace(copy.deepcopy(self.initial), recheck=recheck)
         if types is not None:
@@ -477,25 +477,25 @@ class Wizard:
     def _presets(self, can_recheck: bool) -> List[Option]:
         everything = self._preset(types=PROXY_TYPES)
         presets = [
-            Option("Alles finden", "alle Protokolle – maximale Ausbeute", everything),
-            Option("Surfen & Web", "HTTP + SOCKS5, HTTPS-fähig, mindestens anonym, unter 3 s", self._preset(
+            Option("Find everything", "all protocols – maximum yield", everything),
+            Option("Browsing & web", "HTTP + SOCKS5, HTTPS-capable, at least anonymous, under 3 s", self._preset(
                 types=["http", "socks5"], https_only=True, min_anonymity="anonymous", max_latency=3000)),
-            Option("Maximal anonym", "nur Elite-SOCKS5 mit HTTPS – sonst liest der Betreiber mit", self._preset(
+            Option("Maximum anonymity", "elite SOCKS5 with HTTPS only – so the operator can't read along", self._preset(
                 types=["socks5"], https_only=True, min_anonymity="elite")),
-            Option("Schnell & stabil", "nur Proxys unter 1 s Latenz", self._preset(max_latency=1000)),
-            Option("Sofort ein paar", "stoppt nach 25 Treffern", self._preset(want=25)),
+            Option("Fast & stable", "only proxies under 1 s latency", self._preset(max_latency=1000)),
+            Option("A few right now", "stops after 25 hits", self._preset(want=25)),
         ]
         if can_recheck:
-            presets.append(Option("Letzte Treffer neu prüfen", "ohne Sammeln – dauert nur Sekunden",
+            presets.append(Option("Recheck the last hits", "no collecting – takes only seconds",
                                   self._preset(recheck="")))
             quick_server = self._preset(recheck="")
             quick_server.serve = DEFAULT_SERVE_PORT
-            presets.append(Option("Sofort als Proxy-Server", f"letzte Treffer prüfen, dann auf :{DEFAULT_SERVE_PORT} "
-                                  "bereitstellen", quick_server))
-        # Nur anbieten, wenn es sich von "Alles finden" unterscheidet – sonst steht dasselbe zweimal da
+            presets.append(Option("Proxy server right away", f"recheck the last hits, then serve them on "
+                                  f":{DEFAULT_SERVE_PORT}", quick_server))
+        # only offer it if it differs from "Find everything" – otherwise the same thing shows up twice
         if self.last is not None and self.last != everything:
-            presets.append(Option("Wie letztes Mal", short_description(self.last), self.LAST))
-        presets.append(Option("Eigene Auswahl …", "Schritt für Schritt alles einstellen", self.CUSTOM))
+            presets.append(Option("Same as last time", short_description(self.last), self.LAST))
+        presets.append(Option("Custom …", "set everything step by step", self.CUSTOM))
         return presets
 
     def _go(self, step: Step) -> None:
@@ -522,7 +522,7 @@ class Wizard:
         if step is self.start:
             choice = self.start.value
             if choice == self.CUSTOM:
-                # Mit dem starten, was schon auf der Kommandozeile stand (z. B. -i --country DE)
+                # start with what was already on the command line (e.g. -i --country DE)
                 self.opts = replace(copy.deepcopy(self.initial), recheck=None)
                 self._go(self.custom[0])
             else:
@@ -541,13 +541,13 @@ class Wizard:
             i = self.custom.index(step)
             self._go(self.custom[i + 1] if i + 1 < len(self.custom) else self.summary)
 
-    # ------------------------------------------------------------------ Darstellung
+    # ------------------------------------------------------------------ rendering
 
     def _position(self) -> Text:
         if self.step is self.start:
             return Text("Start", style=MUTED)
         if self.step is self.summary:
-            return Text("Übersicht", style=MUTED)
+            return Text("Summary", style=MUTED)
         i = self.custom.index(self.step)
         dots = Text()
         for j in range(len(self.custom)):
@@ -568,18 +568,18 @@ class Wizard:
         )
         panel = Panel(
             content, box=box.ROUNDED, border_style=ACCENT, padding=(1, 2),
-            title=Text.assemble(("⚡ PROXY SCRAPER", f"bold {ACCENT}"), (" · Einrichtung", MUTED)),
+            title=Text.assemble(("◆ PROXY SCRAPER", f"bold {ACCENT}"), (" · setup", MUTED)),
             title_align="left",
         )
         help_line = Text("  " + step.keys_help, style=MUTED)
         if step is self.start or step is self.summary:
-            help_line = Text("  ↑↓ auswählen · Enter bestätigen · Zahl = direkt wählen · Esc zurück · q beenden",
+            help_line = Text("  ↑↓ select · Enter confirm · number = pick directly · Esc back · q quit",
                              style=MUTED)
         return Group(panel, help_line)
 
 
 def run_wizard(initial: RunOptions, last: Optional[RunOptions], can_recheck: bool, console) -> Optional[RunOptions]:
-    """Zeigt den Assistenten im Terminal; None bei Abbruch."""
+    """Shows the wizard in the terminal; None when cancelled."""
     from rich.live import Live
 
     from .keys import raw_keys

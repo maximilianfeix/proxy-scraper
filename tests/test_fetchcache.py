@@ -1,4 +1,4 @@
-"""ETag-Cache: unveränderte Listen kommen per 304 aus dem Cache – gegen einen echten Server auf localhost."""
+"""ETag cache: unchanged lists come from the cache via 304 – against a real server on localhost."""
 
 import asyncio
 import time
@@ -14,7 +14,7 @@ LIST = b"socks5://8.8.4.4:1080\n1.1.1.1:80\n9.9.9.9:3128\n"
 
 
 class ListServer:
-    """Liefert eine Proxy-Liste mit ETag und beantwortet passende If-None-Match mit 304."""
+    """Serves a proxy list with an ETag and answers a matching If-None-Match with 304."""
 
     def __init__(self, etag=b'"v1"'):
         self.etag = etag
@@ -33,7 +33,7 @@ class ListServer:
 
 
 def run_scrapes(tmp_path, server, runs, types=("http", "socks5"), between=None):
-    """Mehrere Läufe hintereinander mit gemeinsamem Cache/Statistik; gibt (Ergebnisse, Views, Stats) zurück."""
+    """Several runs in a row with a shared cache/statistics; returns (results, views, stats)."""
     async def go():
         srv = await asyncio.start_server(server.handle, "127.0.0.1", 0)
         url = f"http://127.0.0.1:{srv.sockets[0].getsockname()[1]}/list.txt"
@@ -64,7 +64,7 @@ def test_unchanged_list_comes_from_the_cache(tmp_path):
     assert views[1].bytes == 0
     assert b'If-None-Match: "v1"' in server.requests[1]
     rec = quality.get(url)
-    assert rec.fail_streak == 0 and rec.count == 3  # 304 ist kein Fehlschlag
+    assert rec.fail_streak == 0 and rec.count == 3  # 304 isn't a failure
 
 
 def test_cache_is_unfiltered_so_types_can_change(tmp_path):
@@ -86,18 +86,18 @@ def test_cache_is_unfiltered_so_types_can_change(tmp_path):
 
     only_http, only_socks5 = asyncio.run(go())
     assert set(only_http.index) == {"http 1.1.1.1:80", "http 9.9.9.9:3128"}
-    assert set(only_socks5.index) == {"socks5 8.8.4.4:1080"}  # kam aus dem Cache, obwohl erst http gefragt war
+    assert set(only_socks5.index) == {"socks5 8.8.4.4:1080"}  # from the cache, although http was asked for first
 
 
 def test_broken_cache_file_triggers_a_normal_download(tmp_path):
     def break_cache(path):
         for f in (path / "cache").glob("*.gz"):
-            f.write_bytes(b"kein gzip")
+            f.write_bytes(b"not gzip")
 
     server = ListServer()
     results, views, _, _ = run_scrapes(tmp_path, server, runs=2, between=break_cache)
     assert len(results[1].index) == 3 and views[1].cached == 0
-    assert len(server.requests) == 3  # 304 mit kaputter Datei -> noch einmal ohne Bedingung
+    assert len(server.requests) == 3  # 304 with a broken file -> once more without a condition
 
 
 def test_servers_without_etag_are_not_cached(tmp_path):
@@ -130,8 +130,8 @@ def test_unchanged_fetch_keeps_stale_detection_running():
     st = srcs.SourceStats.__new__(srcs.SourceStats)
     st.records = {}
     st.record_fetch("u", b"http 1.1.1.1:80", 1, now=1000)
-    st.record_fetch("u", None, 0, now=1500)                  # einmal nicht erreichbar
-    st.record_fetch("u", None, 0, now=2000, unchanged=True)  # 304, aber nichts vom gewünschten Typ
+    st.record_fetch("u", None, 0, now=1500)                  # unreachable once
+    st.record_fetch("u", None, 0, now=2000, unchanged=True)  # 304, but nothing of the requested type
     rec = st.records["u"]
     assert rec.last_change == 1000 and rec.last_fetch == 2000 and rec.fail_streak == 0
 
@@ -141,7 +141,7 @@ def test_removed_last_entry_is_saved(tmp_path):
     cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
     cache.save()
     again = FetchCache(tmp_path / "cache")
-    again.store("http://x/list", {}, "http 1.1.1.1:80", "http")  # Server schickt keinen ETag mehr
+    again.store("http://x/list", {}, "http 1.1.1.1:80", "http")  # the server no longer sends an ETag
     again.save()
     assert FetchCache(tmp_path / "cache").conditional_headers("http://x/list", "http") == {}
 
@@ -154,11 +154,11 @@ def test_changed_source_type_invalidates_the_entry(tmp_path):
 
 
 @pytest.mark.parametrize("method, headers, body, allowed", [
-    ("GET", None, None, True),                                  # öffentliche Liste
-    ("GET", {"If-None-Match": '"a"'}, None, True),              # bedingter Abruf für den Cache
+    ("GET", None, None, True),                                  # public list
+    ("GET", {"If-None-Match": '"a"'}, None, True),              # conditional fetch for the cache
     ("GET", {"Authorization": "token x"}, None, False),         # GitHub-Token
-    ("POST", {"If-None-Match": '"a"'}, b"secret", False),       # Daten nie ungeprüft
-    ("POST", None, b"secret", False),                           # auch ganz ohne Header nicht
+    ("POST", {"If-None-Match": '"a"'}, b"secret", False),       # never send data unverified
+    ("POST", None, b"secret", False),                           # not even without any headers
     ("GET", {"If-None-Match": '"a"', "Authorization": "x"}, None, False),
 ])
 def test_unverified_tls_only_for_requests_without_secrets(monkeypatch, method, headers, body, allowed):
@@ -166,7 +166,7 @@ def test_unverified_tls_only_for_requests_without_secrets(monkeypatch, method, h
 
     async def fake_connect(host, port, https, allow_insecure, timeout):
         seen.append(allow_insecure)
-        raise ConnectionError("nur der Aufruf interessiert")
+        raise ConnectionError("only the call matters")
 
     monkeypatch.setattr(netio, "_connect", fake_connect)
     with pytest.raises(ConnectionError):
@@ -180,7 +180,7 @@ def test_corrupt_deflate_data_is_a_cache_miss(tmp_path):
     cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
     path = tmp_path / "cache" / cache.entries["http://x/list"]["file"]
     data = bytearray(gzip.compress(b"http 1.1.1.1:80\n" * 200))
-    data[20:40] = b"\xff" * 20  # gültiger gzip-Kopf, kaputte Daten -> zlib.error
+    data[20:40] = b"\xff" * 20  # valid gzip header, broken data -> zlib.error
     path.write_bytes(bytes(data))
     assert cache.load("http://x/list") is None
 
@@ -199,4 +199,4 @@ def test_malformed_index_is_an_empty_cache(tmp_path, index):
     (tmp_path / "cache" / "index.json").write_text(index)
     cache = FetchCache(tmp_path / "cache")
     assert cache.entries == {} and cache.conditional_headers("http://x/l", "http") == {}
-    cache.save()  # darf auch nicht stolpern
+    cache.save()  # must not trip either

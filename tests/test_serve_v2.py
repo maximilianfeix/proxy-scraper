@@ -1,4 +1,4 @@
-"""Proxy-Server v2: Strategien, Sticky Sessions, Auswahl per Benutzername, SOCKS5-Eingang, Status, Auffrischen."""
+"""Proxy server v2: strategies, sticky sessions, selection by user name, SOCKS5 inbound, status, refreshing."""
 
 import asyncio
 import base64
@@ -26,7 +26,7 @@ def result(n, latency=100, country="DE", ptype="http", https=True):
     ("country-us-type-socks5", Selection(country="US", ptype="socks5")),
     ("session-abc123", Selection(session="abc123")),
     ("user_country_de_session_x", Selection(country="DE", session="x")),
-    ("type-ftp", Selection()),        # unbekannter Typ wird ignoriert
+    ("type-ftp", Selection()),        # an unknown type is ignored
     ("", Selection()),
 ])
 def test_selection_from_username(username, expected):
@@ -50,11 +50,11 @@ def test_fastest_takes_the_fastest_and_spreads_load():
     pool = ProxyPool([result(1, latency=900), result(2, latency=100), result(3, latency=400)], strategy="fastest")
     first = pool.pick(set())
     assert first.result.proxy == "10.0.0.2:80"
-    first.active = 1  # beschäftigt -> der schnellste freie ist dran, auch wenn er viel langsamer ist
+    first.active = 1  # busy -> the fastest free one is next, even if it's much slower
     assert pool.pick(set()).result.proxy == "10.0.0.3:80"
     for e in pool.entries:
         e.active = 2
-    pool.entries[0].active = 1  # alle beschäftigt -> der am wenigsten beschäftigte
+    pool.entries[0].active = 1  # all busy -> the least busy one
     assert pool.pick(set()) is pool.entries[0]
 
 
@@ -72,7 +72,7 @@ def test_country_and_type_are_strict():
     pool = ProxyPool([result(1, country="DE"), result(2, country="US", ptype="socks5")])
     assert pool.pick(set(), selection=Selection(country="US")).result.proxy == "10.0.0.2:80"
     assert pool.pick(set(), selection=Selection(ptype="socks5")).result.country == "US"
-    assert pool.pick(set(), selection=Selection(country="FR")) is None  # lieber Fehler als falsches Land
+    assert pool.pick(set(), selection=Selection(country="FR")) is None  # better an error than the wrong country
 
 
 class Clock:
@@ -88,7 +88,7 @@ def test_sticky_target_keeps_the_proxy_until_it_expires():
     pool = ProxyPool([result(i) for i in range(1, 6)], strategy="round-robin", sticky_seconds=60, clock=clock)
     first = pool.pick(set(), target="shop.example:443")
     assert all(pool.pick(set(), target="shop.example:443") is first for _ in range(5))
-    assert pool.pick(set(), target="other.example:443") is not first  # andere Seite, andere Wahl
+    assert pool.pick(set(), target="other.example:443") is not first  # another site, another choice
     clock.now += 61
     assert pool.pick(set(), target="shop.example:443") is not first
 
@@ -127,7 +127,7 @@ def test_refresh_brings_back_proxies_that_work_again():
 
 
 def run_with_server(pool_results, client):
-    """Zielserver + ein Upstream pro Ergebnis (alle HTTP-Proxys auf localhost) + rotierender Server."""
+    """Target server + one upstream per result (all HTTP proxies on localhost) + rotating server."""
     async def go():
         target_srv, target_port = await serve(target_server)
         servers, results, seen = [target_srv], [], []
@@ -244,7 +244,7 @@ def test_busy_counter_is_released_when_a_proxy_fails():
     server = RotatingServer(pool, timeout=1)
 
     async def go():
-        # 10.0.0.1:80 ist nicht erreichbar -> UpstreamError, Reservierung muss wieder frei sein
+        # 10.0.0.1:80 isn't reachable -> UpstreamError, the reservation has to be released again
         return await server._open_next(set(), "example.com", 80, tls=False, tunnel=True)
 
     assert asyncio.run(go()) is None and pool.entries[0].active == 0
@@ -277,7 +277,7 @@ def test_broken_socks5_clients_are_closed_quietly(greeting):
             _reader, writer = await asyncio.open_connection("127.0.0.1", rotating.port)
             writer.write(greeting)
             await writer.drain()
-            writer.close()  # mitten im Handshake auflegen
+            writer.close()  # hang up in the middle of the handshake
             await asyncio.sleep(0.8)
         finally:
             await rotating.close()
@@ -336,6 +336,6 @@ def test_metrics_endpoint_speaks_prometheus():
     assert samples['proxy_scraper_pool_proxies{type="http",state="usable"}'] == "2"
     assert samples['proxy_scraper_pool_proxies{type="socks5",state="usable"}'] == "0"
     assert 'proxy_scraper_requests_total{result="ok"}' in samples
-    # jede Metrik hat HELP und TYPE
+    # every metric has HELP and TYPE
     names = {line.split()[2] for line in lines if line.startswith("# TYPE")}
     assert {n.split("{")[0] for n in samples} <= names

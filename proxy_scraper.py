@@ -1,15 +1,14 @@
 #!/usr/bin/env python3
 """
-Proxy-Scraper: sammelt öffentliche HTTP/SOCKS4/SOCKS5-Proxys aus hunderten Quellen,
-prüft sie parallel mit reinem asyncio (eigene Handshakes, kein HTTP-Client-Overhead)
-und schreibt die funktionierenden Proxys nach results/<datum>/.
+proxy-scraper: collects public HTTP/SOCKS4/SOCKS5 proxies from hundreds of sources,
+checks them in parallel with plain asyncio (own handshakes, no HTTP client overhead)
+and writes the working proxies to results/<date>/.
 
-Quellen stehen in proxyscraper/sources.json, dazu kommen Meta-Quellen (fremd gepflegte Quellenlisten)
-und automatisch auf GitHub gefundene Listen. Pro Quelle wird gelernt, wie viele ihrer Proxys
-funktionieren (data/source_stats.json); bekannte funktionierende Proxys (data/proxy_history.json)
-werden zuerst geprüft.
+Sources live in proxyscraper/sources.json, plus meta sources (source lists maintained by others)
+and lists found automatically on GitHub. For every source it learns how many of its proxies
+work (data/source_stats.json); known working proxies (data/proxy_history.json) are checked first.
 
-Nutzung:
+Usage:
     python3 proxy_scraper.py
     python3 proxy_scraper.py --want 50 --https-only
     python3 proxy_scraper.py --help

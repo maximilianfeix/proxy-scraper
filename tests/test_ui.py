@@ -21,7 +21,7 @@ def test_section_frames_info_and_notes(monkeypatch):
     widgets.info("Deine IP", "203.0.113.7")
     widgets.note("Achtung")
     widgets.section_end()
-    widgets.info("Danach", "ohne Rahmen")
+    widgets.info("Danach", "no border")
     lines = console.export_text().splitlines()
     assert lines[0].startswith("  ╭─ Vorbereitung ─")
     assert lines[1].startswith("  │  Deine IP") and lines[2].startswith("  │  ⚠ Achtung")
@@ -29,7 +29,7 @@ def test_section_frames_info_and_notes(monkeypatch):
 
 
 def test_gutter_color_does_not_bleed_into_values(monkeypatch):
-    """Die dunkle Rahmenfarbe darf nur das Rahmenzeichen färben, nicht den Wert dahinter."""
+    """The dark border color may only color the border character, not the value behind it."""
     record(monkeypatch)
     widgets.section("X")
     line = widgets._gutter()
@@ -50,10 +50,10 @@ def test_next_steps():
     fast = CheckResult("socks5 1.2.3.4:1080", "socks5", "1.2.3.4:1080", 90, "9.9.9.9", https=True)
     slow = CheckResult("http 5.6.7.8:80", "http", "5.6.7.8:80", 900, "9.9.9.9")
     steps = dict(app.next_steps(RunOptions(), [slow, fast]))
-    assert steps["Schnellsten testen"] == "curl -x socks5h://1.2.3.4:1080 https://api.ipify.org"
-    assert steps["Als Proxy-Server"].endswith("--recheck --serve")
-    assert "Als Proxy-Server" not in dict(app.next_steps(RunOptions(serve=8899), [fast]))  # läuft ja schon
-    assert list(dict(app.next_steps(RunOptions(), []))) == ["Später neu prüfen"]
+    assert steps["Test the fastest"] == "curl -x socks5h://1.2.3.4:1080 https://api.ipify.org"
+    assert steps["As a proxy server"].endswith("--recheck --serve")
+    assert "As a proxy server" not in dict(app.next_steps(RunOptions(serve=8899), [fast]))  # already running
+    assert list(dict(app.next_steps(RunOptions(), []))) == ["Recheck later"]
 
 
 @pytest.mark.parametrize("checkout, program", [(True, "python3 proxy_scraper.py"), (False, "proxy-scraper")])
@@ -61,16 +61,16 @@ def test_next_steps_use_the_right_command(monkeypatch, checkout, program):
     monkeypatch.setattr(app, "is_checkout", lambda: checkout)
     fast = CheckResult("http 1.2.3.4:80", "http", "1.2.3.4:80", 90, "9.9.9.9", https=True)
     steps = dict(app.next_steps(RunOptions(), [fast]))
-    assert steps["Schnellsten testen"] == "curl -x http://1.2.3.4:80 https://api.ipify.org"
-    assert steps["Als Proxy-Server"] == f"{program} --recheck --serve"
-    assert steps["Später neu prüfen"] == f"{program} --recheck"
+    assert steps["Test the fastest"] == "curl -x http://1.2.3.4:80 https://api.ipify.org"
+    assert steps["As a proxy server"] == f"{program} --recheck --serve"
+    assert steps["Recheck later"] == f"{program} --recheck"
 
 
 def test_next_steps_prefer_a_proxy_that_passed_the_https_test():
     plain = CheckResult("http 1.1.1.1:80", "http", "1.1.1.1:80", 50, "9.9.9.9", https=False)
     secure = CheckResult("http 2.2.2.2:80", "http", "2.2.2.2:80", 300, "9.9.9.9", https=True)
     steps = dict(app.next_steps(RunOptions(), [plain, secure]))
-    assert steps["Schnellsten testen"] == "curl -x http://2.2.2.2:80 https://api.ipify.org"
-    # ohne HTTPS-fähigen Proxy (oder mit --fast) nur über HTTP testen
+    assert steps["Test the fastest"] == "curl -x http://2.2.2.2:80 https://api.ipify.org"
+    # without an HTTPS-capable proxy (or with --fast) test over HTTP only
     steps = dict(app.next_steps(RunOptions(), [plain]))
-    assert steps["Schnellsten testen"] == "curl -x http://1.1.1.1:80 http://api.ipify.org"
+    assert steps["Test the fastest"] == "curl -x http://1.1.1.1:80 http://api.ipify.org"

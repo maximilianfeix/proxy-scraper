@@ -1,9 +1,9 @@
-"""Lokaler rotierender Proxy-Server (--serve).
+"""Local rotating proxy server (--serve).
 
-  pool.py      welche Proxys es gibt und welcher als nächster drankommt
-  http.py      HTTP-Anfragen zerlegen/umbauen, Antworten der Upstreams prüfen
-  upstream.py  Verbindung über einen Proxy aus dem Pool aufbauen
-  core.py      der Server selbst: Clients annehmen, weiterleiten, bei Fehlern wechseln
+  pool.py      which proxies there are and which one comes next
+  http.py      take HTTP requests apart and rebuild them, check upstream responses
+  upstream.py  connect through a proxy from the pool
+  core.py      the server itself: accept clients, relay, switch on errors
 """
 
 from .core import FIRST_CHUNK_WAIT, MAX_ATTEMPTS, MAX_REPLAY_BODY, RequestLog, RotatingServer, ServerStats

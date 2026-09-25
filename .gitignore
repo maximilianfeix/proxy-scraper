@@ -5,7 +5,7 @@ __pycache__/
 venv/
 .pytest_cache/
 
-# Laufzeitdaten (werden lokal gelernt bzw. bei jedem Lauf neu erzeugt)
+# runtime data (learned locally or created fresh on every run)
 /data/
 /results/
 working_proxies_*.txt

@@ -40,7 +40,11 @@ class ServeDashboard:
 
     def __rich__(self):
         server, st, pool = self.server, self.server.stats, self.server.pool
-        address = f"{server.host}:{server.port}"
+        # lauscht er auf allen Adressen (Docker), ist er lokal trotzdem über 127.0.0.1 erreichbar
+        shown_host = {"0.0.0.0": "127.0.0.1", "": "127.0.0.1", "::": "[::1]"}.get(server.host, server.host)
+        if ":" in shown_host and not shown_host.startswith("["):
+            shown_host = f"[{shown_host}]"  # IPv6 in URLs nur in Klammern
+        address = f"{shown_host}:{server.port}"
         width = widgets.console.size.width
         uptime = max(time.perf_counter() - st.started, 1e-6)
         usable = pool.usable

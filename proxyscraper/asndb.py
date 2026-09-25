@@ -136,7 +136,8 @@ class AsnDB:
                 orgs = json.loads(fh.read(table_len).decode("utf-8"))
         except (OSError, EOFError, ValueError, struct.error, UnicodeDecodeError):
             return None
-        if not isinstance(orgs, list) or any(k >= len(orgs) for k in arrays[3]):
+        if not isinstance(orgs, list) or not all(isinstance(o, str) for o in orgs) \
+                or any(k >= len(orgs) for k in arrays[3]):
             return None
         return cls(*arrays, orgs, month)
 

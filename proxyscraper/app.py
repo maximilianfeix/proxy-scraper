@@ -316,10 +316,11 @@ class Run:
         refresh = None
         if opts.geo and not is_current(country_db):
             refresh = asyncio.ensure_future(self.refresh_country_db(geo))
-        # Anbieter der Exit-IPs genauso: sofort aus data/, alt oder fehlend -> im Hintergrund neu laden
-        providers = ProviderLookup(AsnDB.load() if opts.geo or opts.filters.no_datacenter else None)
+        # Anbieter der Exit-IPs genauso: sofort aus data/, alt oder fehlend -> im Hintergrund neu laden.
+        # Unabhängig von --no-geo – das betrifft nur die Länder, die Anbieter kommen ohnehin aus der Datei.
+        providers = ProviderLookup(AsnDB.load())
         providers_refresh = None
-        if (opts.geo or opts.filters.no_datacenter) and not asn_is_current(providers.db):
+        if not asn_is_current(providers.db):
             providers_refresh = asyncio.ensure_future(self.refresh_asn_db(providers))
         widgets.console.print()
         run = await run_checks(

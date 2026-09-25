@@ -81,3 +81,18 @@ def test_no_datacenter_option_roundtrip():
     opts = RunOptions.from_args(parse_args(["--no-datacenter", "--want", "5"]))
     assert opts.filters.no_datacenter and "ohne Rechenzentren" in opts.filters.describe()
     assert RunOptions.from_args(parse_args(opts.to_argv())) == opts
+
+
+
+def test_non_string_providers_invalidate_the_file(tmp_path):
+    import json
+    import struct
+    db = AsnDB.from_csv(CSV, "2026-09")
+    db.orgs = [123 for _ in db.orgs]  # kaputte Tabelle mit Zahlen statt Namen
+    table = json.dumps(db.orgs).encode()
+    with (tmp_path / "asn.bin").open("wb") as fh:
+        fh.write(b"PSASN1" + b"2026-09" + struct.pack("!II", len(db), len(table)))
+        for arr in (db.starts, db.ends, db.asns, db.org_index):
+            arr.tofile(fh)
+        fh.write(table)
+    assert AsnDB.load(tmp_path / "asn.bin") is None

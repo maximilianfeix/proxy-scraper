@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import asyncio
 import errno
+import hashlib
 import ipaddress
 import json
 import re
@@ -25,7 +26,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .handshake import Endpoint, parse_endpoint, socks4, socks5, socks5_ipv4, stream_io, with_proxy_auth
 from .judges import DEFAULT_JUDGE, Judge
-from .netio import USER_AGENT, dechunk, read_response, ssl_context
+from .netio import USER_AGENT, dechunk, http_request, read_response, ssl_context
 from .parsing import normalize_public_ip, split_key
 from .targets import Target
 
@@ -39,6 +40,11 @@ CONFIRM_PORT = 80
 _CONFIRM_HEADERS = f"Host: {CONFIRM_HOST}\r\nUser-Agent: {USER_AGENT}\r\nAccept: */*\r\nConnection: close\r\n\r\n"
 CONFIRM_REQUEST = f"GET /get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 HTTP_PROXY_CONFIRM_REQUEST = f"GET http://{CONFIRM_HOST}/get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
+# Unveränderlichkeit: eine statische HTML-Seite, die über den Proxy exakt so ankommen muss wie direkt.
+# Gemessen an 270 funktionierenden Proxys lieferten 54 (20 %) eine veränderte Seite – meist mit einem
+# eingeschleusten <script src="http://…">.
+INTEGRITY_REQUEST = f"GET /html HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
+HTTP_PROXY_INTEGRITY_REQUEST = f"GET http://{CONFIRM_HOST}/html HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 
 CONTENT_LENGTH_RE = re.compile(rb"(?im)^content-length:\s*(\d+)")
 # Höchstens so viele HTTPS-/Zielseiten-Verbindungen gleichzeitig. Jeder Treffer öffnet 1 + Zielseiten
@@ -93,8 +99,10 @@ class Checker:
                  confirm_ip: Optional[str] = None, detail_timeout: Optional[float] = None,
                  detail_connect_timeout: Optional[float] = None,
                  targets: Sequence[Tuple[Target, str]] = (), https_test: bool = True,
-                 judge: Judge = DEFAULT_JUDGE):
+                 judge: Judge = DEFAULT_JUDGE, integrity_reference: Optional[bytes] = None):
         self.use_judge(judge, judge_ip)
+        # Hash der Seite, wie sie direkt ankommt – ohne Referenz keine Prüfung auf Veränderung
+        self.integrity_reference = integrity_reference
         # Ohne erreichbares Bestätigungsziel wird nicht bestätigt (sonst fiele jeder Proxy durch)
         self.confirm_ip_bytes = socket.inet_aton(confirm_ip) if confirm_ip else None
         # Mehrere möglich: z. B. echte IP per HTTPS, aber iCloud Private Relay/Firmenproxy auf Port 80
@@ -221,18 +229,31 @@ class Checker:
         result.anonymity = anonymity
         return True
 
-    async def _confirm(self, ptype: str, proxy: str) -> Optional[bytes]:
+    async def _confirm(self, ptype: str, proxy: str, request: bytes = CONFIRM_REQUEST,
+                       http_proxy_request: bytes = HTTP_PROXY_CONFIRM_REQUEST) -> Optional[bytes]:
         ep = parse_endpoint(proxy)
         reader, writer = await self._connect(proxy, detail=True)
         try:
             if not await self._handshake(ptype, ep, reader, writer, self.confirm_ip_bytes, CONFIRM_PORT):
                 return None
-            writer.write(with_proxy_auth(HTTP_PROXY_CONFIRM_REQUEST, ep) if ptype == "http" else CONFIRM_REQUEST)
+            writer.write(with_proxy_auth(http_proxy_request, ep) if ptype == "http" else request)
             await writer.drain()
             # Antwort kommt vom (nicht vertrauenswürdigen) Proxy – nur begrenzt viel lesen
             return await _read_http_200(reader)
         finally:
             writer.close()
+
+    async def tampers(self, result: CheckResult) -> bool:
+        """Verändert der Proxy Inhalte (Werbung, Skripte)? True nur bei eindeutig veränderter Seite –
+        Timeouts oder Fehlerseiten sagen darüber nichts, dafür gibt es die anderen Prüfungen."""
+        if self.integrity_reference is None or not self.confirms:
+            return False
+        try:
+            body = await wait_for(self._confirm(result.ptype, result.proxy, INTEGRITY_REQUEST,
+                                                HTTP_PROXY_INTEGRITY_REQUEST), self.detail_timeout)
+        except Exception:
+            return False
+        return body is not None and page_hash(body) != self.integrity_reference
 
     # ------------------------------------------------------------------ Details
 
@@ -413,6 +434,21 @@ async def probe_confirm_target(ip: str, timeout: float, port: int = CONFIRM_PORT
     except Exception:  # nicht erreichbar -> ohne Bestätigung weiter
         return False
     return body is not None and confirmation_origins(body) is not None
+
+
+def page_hash(body: bytes) -> bytes:
+    return hashlib.sha256(body).digest()
+
+
+async def integrity_reference(timeout: float, fetch=None) -> Optional[bytes]:
+    """Hash der Vergleichsseite, direkt geholt – über verifiziertes HTTPS. Über HTTP könnte ein Captive Portal
+    oder ein Filter im eigenen Netz schon die Referenz verfälschen. Beide Wege liefern dieselben Bytes."""
+    try:
+        status, _, body = await (fetch or http_request)(f"https://{CONFIRM_HOST}/html", timeout=timeout,
+                                                        max_redirects=0, insecure_fallback=False)
+    except Exception:
+        return None
+    return page_hash(body) if status == 200 and body else None
 
 
 def _is_ipv4(text: str) -> bool:

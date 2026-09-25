@@ -369,6 +369,10 @@ async def run_checks(
             if not await checker.confirm(r):
                 stats.fakes += 1
                 continue
+            # Dritte Anfrage: kommt eine bekannte Seite unverändert an? Sonst schleust der Proxy etwas ein
+            if await checker.tampers(r):
+                stats.tampered += 1
+                continue
             if providers:
                 providers.annotate(r)
             run.results.append(r)

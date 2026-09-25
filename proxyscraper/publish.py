@@ -2,9 +2,10 @@
 
     python -m proxyscraper.publish results/<lauf> public/ --min 20
 
-Schreibt Listen pro Protokoll, HTTPS- und Elite-Listen, JSON/CSV, Badge-Dateien für shields.io
-und eine README. Gibt es weniger als `--min` Treffer (z. B. weil der Runner gerade kein Glück
-hatte), endet es mit Code 78 und schreibt nichts – die alte Liste bleibt dann online.
+Schreibt Listen pro Protokoll, HTTPS- und Elite-Listen, JSON/CSV, Badge-Dateien für shields.io,
+eine README und die Website für GitHub Pages (site/index.html plus history.json für den Verlauf).
+Gibt es weniger als `--min` Treffer (z. B. weil der Runner gerade kein Glück hatte), endet es mit
+Code 78 und schreibt nichts – die alte Liste bleibt dann online.
 """
 
 from __future__ import annotations
@@ -23,6 +24,8 @@ from typing import Dict, List, Optional
 from .parsing import PROXY_TYPES
 
 SKIP_EXIT_CODE = 78
+SITE = Path(__file__).resolve().parent / "site" / "index.html"
+HISTORY_LIMIT = 120  # 30 Tage bei einem Lauf alle 6 Stunden
 RAW_BASE = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list"
 
 
@@ -113,7 +116,26 @@ def write_json(path: Path, data, indent: Optional[int] = None) -> None:
     path.write_text(json.dumps(data, indent=indent, ensure_ascii=False), encoding="utf-8")
 
 
-def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None) -> int:
+def load_history(path: Optional[Path]) -> List[dict]:
+    """Verlauf der letzten Läufe (vom Branch geholt) – kaputt oder fehlend heißt: neu anfangen."""
+    if not path:
+        return []
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return []
+    if not isinstance(data, list):
+        return []
+    return [e for e in data if isinstance(e, dict) and isinstance(e.get("total"), int)]
+
+
+def history_entry(stats: dict) -> dict:
+    return {"updated": stats["updated"], "total": stats["total"], "https": stats["https"],
+            "by_type": stats["by_type"], "median_latency": stats["median_latency"]}
+
+
+def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None,
+            history: Optional[Path] = None) -> int:
     rows = load_rows(run_dir)
     if len(rows) < minimum:
         print(f"Nur {len(rows)} Treffer (< {minimum}) – alte Liste bleibt online.")
@@ -140,6 +162,11 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     write_json(badges / "updated.json", {"schemaVersion": 1, "label": "updated",
                                          "message": now.strftime("%Y-%m-%d %H:%M UTC"), "color": "grey"})
     (out / "README.md").write_text(readme(stats, counts), encoding="utf-8")
+    # Website: statische Seite, lädt proxies.json/stats.json/history.json von nebenan
+    (out / "index.html").write_bytes(SITE.read_bytes())
+    (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages soll die Dateien unverändert ausliefern
+    runs = [*load_history(history), history_entry(stats)][-HISTORY_LIMIT:]
+    write_json(out / "history.json", runs)
 
     summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_file:
@@ -154,8 +181,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("run_dir", type=Path)
     p.add_argument("out_dir", type=Path)
     p.add_argument("--min", type=int, default=20, help="mindestens so viele Treffer, sonst nichts schreiben")
+    p.add_argument("--history", type=Path, help="history.json vom letzten Mal (für das Diagramm auf der Website)")
     args = p.parse_args(argv)
-    return publish(args.run_dir, args.out_dir, args.min)
+    return publish(args.run_dir, args.out_dir, args.min, history=args.history)
 
 
 if __name__ == "__main__":

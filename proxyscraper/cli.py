@@ -27,6 +27,7 @@ from .options import (
 from .output import has_latest_results
 from .parsing import PROXY_TYPES
 from .preferences import load_last_argv, save_last_argv
+from .server.pool import STRATEGIES
 from .targets import parse_target
 from .ui import ACCENT, BAD, MUTED, banner, note, render_source_ranking, widgets
 from .ui.keys import is_interactive
@@ -142,6 +143,12 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     v.add_argument("--serve", nargs="?", const=DEFAULT_SERVE_PORT, default=0, type=port_number, metavar="PORT",
                    help=f"nach dem Lauf als rotierender Proxy auf 127.0.0.1:PORT bereitstellen "
                         f"(Standard-Port: {DEFAULT_SERVE_PORT}); schnell startklar mit --recheck")
+    v.add_argument("--rotate", choices=STRATEGIES, default="weighted",
+                   help="welcher Proxy als nächster: weighted (schnell & zuverlässig bevorzugt, Standard), "
+                        "random, round-robin oder fastest")
+    v.add_argument("--sticky", type=non_negative_int, default=0, metavar="SEK",
+                   help="dieselbe Zielseite behält so lange denselben Proxy (z. B. für Logins); "
+                        "pro Anfrage geht das auch mit dem Benutzernamen session-NAME")
 
     o = p.add_argument_group("Ausgabe")
     o.add_argument("-o", "--output", help="zusätzlich alle Treffer als typ://ip:port in diese Datei")

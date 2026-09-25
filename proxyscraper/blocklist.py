@@ -17,15 +17,23 @@ from typing import Awaitable, Callable, Dict, Optional
 
 ZONE = "bl.spamcop.net"
 CONCURRENT_LOOKUPS = 50
+LOOKUP_TIMEOUT = 5.0
+NOT_LISTED = "NXDOMAIN"  # the name doesn't exist: the only answer that means "not on the list"
 LISTED_PREFIX = "127.0.0."  # a listed IP resolves to 127.0.0.x; 127.255.255.x means "query refused"
 
 Resolve = Callable[[str], Awaitable[Optional[str]]]
 
 
+_NX_ERRORS = {getattr(socket, n) for n in ("EAI_NONAME", "EAI_NODATA") if hasattr(socket, n)}
+
+
 async def system_resolve(name: str) -> Optional[str]:
-    """First IPv4 address for name, None for NXDOMAIN or any other error."""
+    """First IPv4 address for name, NOT_LISTED if the name doesn't exist, None for any other error
+    (timeout, SERVFAIL, no network) – those must not be mistaken for "not listed"."""
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(name, None, family=socket.AF_INET)
+    except socket.gaierror as e:
+        return NOT_LISTED if e.errno in _NX_ERRORS else None
     except OSError:
         return None
     return infos[0][4][0] if infos else None
@@ -49,10 +57,16 @@ class Blocklist:
 
     async def probe(self) -> bool:
         """Does the resolver get real answers? 127.0.0.2 must be listed, 127.0.0.1 must not."""
-        test = await self.resolve(query_name("127.0.0.2", self.zone))
-        clean = await self.resolve(query_name("127.0.0.1", self.zone))
-        self.usable = bool(test and test.startswith(LISTED_PREFIX)) and clean is None
+        test = await self._ask(query_name("127.0.0.2", self.zone))
+        clean = await self._ask(query_name("127.0.0.1", self.zone))
+        self.usable = bool(test and test.startswith(LISTED_PREFIX)) and clean == NOT_LISTED
         return self.usable
+
+    async def _ask(self, name: str) -> Optional[str]:
+        try:
+            return await asyncio.wait_for(self.resolve(name), LOOKUP_TIMEOUT)
+        except asyncio.TimeoutError:
+            return None
 
     async def lookup(self, ip: str) -> Optional[bool]:
         """True = listed, False = not listed, None = unknown (not probed, refused or not an IPv4)."""
@@ -66,13 +80,13 @@ class Blocklist:
         if self._slots is None:  # created here: before Python 3.10 a semaphore is bound to the event loop
             self._slots = asyncio.Semaphore(CONCURRENT_LOOKUPS)
         async with self._slots:
-            answer = await self.resolve(name)
-        if answer is None:
+            answer = await self._ask(name)
+        if answer == NOT_LISTED:
             result: Optional[bool] = False
-        elif answer.startswith(LISTED_PREFIX):
+        elif answer and answer.startswith(LISTED_PREFIX):
             result = True
         else:
-            result = None  # 127.255.255.x and anything else: the operator refused to answer
+            result = None  # an error, a timeout, or 127.255.255.x (the operator refused to answer)
         self._cache[ip] = result
         self.listed += bool(result)
         return result

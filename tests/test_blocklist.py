@@ -3,7 +3,7 @@
 import asyncio
 
 from proxyscraper import publish
-from proxyscraper.blocklist import Blocklist, query_name
+from proxyscraper.blocklist import NOT_LISTED, Blocklist, query_name
 from proxyscraper.checker import CheckResult
 from proxyscraper.cli import parse_args
 from proxyscraper.options import Filters, RunOptions
@@ -20,7 +20,7 @@ def resolver(answers=None, calls=None):
         ip = ".".join(reversed(name.split(".")[:4]))
         if answers is not None:
             return answers
-        return "127.0.0.2" if ip in LISTED else None
+        return "127.0.0.2" if ip in LISTED else NOT_LISTED
     return resolve
 
 
@@ -85,3 +85,45 @@ def test_published_stats_only_count_when_the_lookup_ran(tmp_path):
 
     assert run([True, False, True])["blocklisted"] == 2
     assert run([None, None, None])["blocklisted"] is None  # not "none listed", just unknown
+
+
+def test_dns_errors_and_timeouts_stay_unknown(monkeypatch):
+    import proxyscraper.blocklist as bl_module
+    monkeypatch.setattr(bl_module, "LOOKUP_TIMEOUT", 0.05)
+
+    async def flaky(name):
+        ip = ".".join(reversed(name.split(".")[:4]))
+        if ip == "127.0.0.2":
+            return "127.0.0.2"
+        if ip == "127.0.0.1":
+            return NOT_LISTED
+        if ip == "5.5.5.5":
+            await asyncio.sleep(1)  # the resolver hangs
+        return None  # SERVFAIL and friends
+
+    async def go():
+        bl = Blocklist(flaky)
+        assert await bl.probe()
+        return await bl.lookup("4.4.4.4"), await bl.lookup("5.5.5.5")
+
+    assert asyncio.run(go()) == (None, None)  # unknown, never "not listed"
+
+
+def test_system_resolver_tells_nxdomain_from_errors(monkeypatch):
+    import socket
+
+    import proxyscraper.blocklist as bl_module
+    monkeypatch.undo()  # the autouse fixture replaced system_resolve – this test is about the real one
+
+    def fake(errno):
+        async def getaddrinfo(*a, **k):
+            raise socket.gaierror(errno, "x")
+        return getaddrinfo
+
+    async def go(errno):
+        loop = asyncio.get_running_loop()
+        monkeypatch.setattr(loop, "getaddrinfo", fake(errno))
+        return await bl_module.system_resolve("4.4.4.4.bl.spamcop.net")
+
+    assert asyncio.run(go(socket.EAI_NONAME)) == NOT_LISTED
+    assert asyncio.run(go(socket.EAI_AGAIN)) is None

@@ -96,7 +96,7 @@ class ResultWriter:
             try:
                 self.stdout.write(lines)
                 self.stdout.flush()
-            except BrokenPipeError:  # `| head` stopped reading early – that's fine
+            except OSError:  # `| head` stopped reading early – BrokenPipeError, on Windows EINVAL
                 _silence(self.stdout)
 
         _point_latest(self.run_dir)

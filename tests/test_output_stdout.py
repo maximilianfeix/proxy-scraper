@@ -61,5 +61,6 @@ def test_a_pipe_closed_before_the_end_still_exits_cleanly(tmp_path):
     """)
     writer = subprocess.Popen([sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
     writer.stdout.close()  # like `| head` that already quit
-    _, err = writer.communicate(timeout=30)
+    err = writer.stderr.read()
+    writer.wait(30)
     assert writer.returncode == 0 and b"BrokenPipe" not in err

@@ -119,6 +119,7 @@ class LiveStats:
         self.anonymity: Counter = Counter()
         self.passing = 0
         self.fakes = 0  # bestanden die Basisprüfung, aber nicht die Bestätigung
+        self.tampered = 0  # bestätigt, aber veränderten eine bekannte Seite (Skripte, Werbung)
         self.details_saved = 0  # HTTPS-Tests, die dank Filter entfallen konnten
         self.targets_ok: Counter = Counter()  # Zielseiten-URL -> Anzahl Proxys, die sie erreichen
         self.recent: Deque[CheckResult] = deque(maxlen=8)
@@ -306,6 +307,8 @@ class CheckDashboard:
 
         footer = Text("  Strg+C beendet und speichert", style=MUTED)
         footer.append(f"  ·  {fmt(self.concurrency)} parallel", style=MUTED)
+        if s.tampered:
+            footer.append(f"  ·  {fmt(s.tampered)} manipulierend aussortiert", style=WARN)
         if self.judge:
             footer.append(f"  ·  Ziel {self.judge}", style=MUTED)
         if self.judge_note:
@@ -316,7 +319,7 @@ class CheckDashboard:
             footer.append(f"\n  Filter: {self.filters_text}", style=WARN)
             footer.append(f"  ·  {fmt(s.passing)} passend", style=MUTED)
         footer.append(f"\n  → {self.outfile}", style=MUTED)
-        if s.checked >= 2000 and found + s.fakes < s.checked * BLOCKED_HIT_RATE:
+        if s.checked >= 2000 and found + s.fakes + s.tampered < s.checked * BLOCKED_HIT_RATE:
             footer.append("\n  ⚠ Kaum Treffer – blockiert dein Netz (Firewall) Proxy-Verbindungen?",
                           style=f"bold {WARN}")
 

@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- Proxies that tamper with content are filtered out: a static HTML page has to arrive unchanged. On 270 working proxies, 54 injected something, mostly a `<script src="http://…">` ([#46](https://github.com/maximilianfeix/proxy-scraper/issues/46))
+
 ## [1.4.0] – 2026-09-25
 
 ### Added

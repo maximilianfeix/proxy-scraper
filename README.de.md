@@ -179,7 +179,7 @@ Ohne Argumente gestartet fragt das Tool per Pfeiltasten, was du suchst – Schne
 <td valign="top">
 
 **🔐 Echte Detailprüfung**<br>
-Jeder Treffer muss zwei unabhängige Seiten abrufen – das sortiert **Honeypots** aus, die nur auf Prüfanfragen antworten (in manchen Läufen 5 von 6 „Treffern“). Dazu: HTTPS über einen Tunnel mit **verifiziertem TLS**, Anonymitätsstufe *elite / anonymous / transparent* und das Land der Exit-IP.
+Jeder Treffer muss zwei unabhängige Seiten abrufen – das sortiert **Honeypots** aus, die nur auf Prüfanfragen antworten (in manchen Läufen 5 von 6 „Treffern“). Eine dritte Anfrage erwischt Proxys, die **Inhalte verändern**: In unseren Messungen schleuste jeder fünfte funktionierende Proxy ein Skript in eine einfache HTML-Seite ein. Dazu: HTTPS über einen Tunnel mit **verifiziertem TLS**, Anonymitätsstufe *elite / anonymous / transparent* und das Land der Exit-IP.
 
 </td>
 <td valign="top">
@@ -303,7 +303,7 @@ flowchart LR
 1. **Quellen** – die kuratierte Liste in [`sources.json`](proxyscraper/sources.json), Meta-Quellen (andere Projekte, die selbst Listen von Proxy-Quellen pflegen) und alle drei Tage eine Suche auf GitHub nach aktiv gepflegten Repos.
 2. **Sammeln** – Text, HTML-Tabellen, JSON-APIs und `typ://ip:port`-Zeilen werden erkannt, private und reservierte Adressbereiche verworfen. Listen, die sich seit dem letzten Lauf nicht geändert haben, antworten mit `304` und kommen aus einem lokalen Cache – ein zweiter Lauf direkt danach lädt 0 MB statt ~160 MB.
 3. **Priorisieren** – bekannte funktionierende Proxys zuerst, dann nach gelernter Trefferquote ihrer Quellen.
-4. **Prüfen** – jeder Proxy muss seine Exit-IP von einem Prüfziel abrufen (`checkip.amazonaws.com`, als Reserve `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` und `ident.me` – keins davon hinter Cloudflare) und eine gültige, *fremde* IP zurückliefern. Fällt das Ziel mitten im Lauf aus, wechselt das Tool und prüft die betroffenen Proxys erneut – die Statistik lernt so nicht aus einem Ausfall. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier.
+4. **Prüfen** – jeder Proxy muss seine Exit-IP von einem Prüfziel abrufen (`checkip.amazonaws.com`, als Reserve `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` und `ident.me` – keins davon hinter Cloudflare) und eine gültige, *fremde* IP zurückliefern. Fällt das Ziel mitten im Lauf aus, wechselt das Tool und prüft die betroffenen Proxys erneut – die Statistik lernt so nicht aus einem Ausfall. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier. Zum Schluss muss eine statische HTML-Seite Byte für Byte so ankommen wie ohne Proxy – wer Werbung oder Skripte einschleust, fliegt raus.
 5. **Länder** – offline aus der freien DB-IP-Datenbank (einmal im Monat geladen, ~2 µs pro Abfrage); ip-api.com wird nur noch für die wenigen Adressen gefragt, die dort fehlen.
 6. **Lernen** – Trefferquoten und Verlauf landen in `data/`. Quellen ohne Treffer, mit seit einer Woche unverändertem Inhalt oder dauerhaft unerreichbar werden übersprungen.
 

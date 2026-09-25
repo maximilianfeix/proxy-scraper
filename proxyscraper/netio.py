@@ -47,6 +47,7 @@ async def http_request(
     method: str = "GET",
     body: Optional[bytes] = None,
     max_redirects: int = 3,
+    insecure_fallback: bool = True,
 ) -> Tuple[int, Dict[bytes, bytes], bytes]:
     """Eine HTTP/1.1-Anfrage -> (Status, Header, Body). Folgt Redirects bei GET.
 
@@ -65,7 +66,8 @@ async def http_request(
         path = (u.path or "/") + (f"?{u.query}" if u.query else "")
         # Unverifiziert nur für GETs ohne Body und ohne eigene Header (bedingte ETag-Header ausgenommen,
         # die tragen kein Geheimnis). Token oder gesendete Daten nie über eine ungeprüfte Verbindung.
-        insecure_ok = method == "GET" and body is None and set(headers or ()) <= CONDITIONAL_HEADERS
+        insecure_ok = insecure_fallback and method == "GET" and body is None and \
+            set(headers or ()) <= CONDITIONAL_HEADERS
         reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout)
         try:
             writer.write(

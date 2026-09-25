@@ -177,6 +177,9 @@ def test_run_checks_drops_unconfirmed_proxies(tmp_path):
         async def confirm(self, r):
             return r.proxy.startswith("1.")  # 2.x.x.x ist ein "Honeypot"
 
+        async def tampers(self, r):
+            return False
+
         async def enrich(self, r):
             r.https = True
 
@@ -222,6 +225,9 @@ def test_run_checks_skips_https_test_when_filters_already_fail(tmp_path):
         async def confirm(self, r):
             r.anonymity = "elite" if r.proxy.startswith("1.") else "anonymous"
             return True
+
+        async def tampers(self, r):
+            return False
 
         async def enrich(self, r):
             enriched.append(r.key)

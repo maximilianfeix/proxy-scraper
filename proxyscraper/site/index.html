@@ -76,6 +76,7 @@
   .skip:focus { transform: none; }
   .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   [id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
+  section[tabindex="-1"]:focus { outline: none; }
 
   /* Logo */
   .mark { width: 36px; height: 36px; flex: none; display: block; }
@@ -152,12 +153,13 @@
   html.intro .hero-foot, html.intro .ticker { --d: .75s; }
 
   /* Ticker with the fastest proxies */
-  .ticker { border-block: 1px solid var(--line); overflow: hidden; margin-inline: calc(var(--gutter) * -1);
-            mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
+  .ticker { border-block: 1px solid var(--line); margin-inline: calc(var(--gutter) * -1); display: flex; align-items: center; }
+  .ticker-window { flex: 1; min-width: 0; overflow: hidden;
+                   mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
   .ticker-track { display: flex; width: max-content; animation: marquee var(--dur, 80s) linear infinite; }
-  .ticker:hover .ticker-track, .ticker:focus-within .ticker-track, .ticker.paused .ticker-track { animation-play-state: paused; }
-  .ticker { position: relative; }
-  .ticker-toggle { position: absolute; right: var(--gutter); top: 50%; transform: translateY(-50%); z-index: 2; width: 36px; height: 36px;
+  .ticker:not(.manual):hover .ticker-track, .ticker:not(.manual):focus-within .ticker-track,
+  .ticker.paused .ticker-track { animation-play-state: paused; }
+  .ticker-toggle { flex: none; margin-inline: 12px var(--gutter); width: 36px; height: 36px;
                    border-radius: 50%; border: 1px solid var(--control); background: var(--bg); color: var(--text); cursor: pointer;
                    display: grid; place-items: center; }
   .ticker-toggle svg { width: 12px; height: 12px; }
@@ -220,11 +222,11 @@
   tbody tr { transition: background-color .2s; }
   tbody tr:hover { background: var(--raised); }
   .t-type { display: inline-flex; align-items: center; gap: 9px; }
-  .addr { font: 14.5px/1.4 "Geist Mono", ui-monospace, monospace; color: inherit; background: none; border: 0; padding: 4px 6px; margin: -4px -6px;
+  .addr-btn { font: 14.5px/1.4 "Geist Mono", ui-monospace, monospace; color: inherit; background: none; border: 0; padding: 4px 6px; margin: -4px -6px;
           border-radius: 8px; cursor: copy; display: inline-flex; align-items: center; gap: 10px; }
-  .addr svg { width: 14px; height: 14px; color: var(--muted); opacity: 0; transition: opacity .2s; }
-  .addr:hover, .addr:focus-visible { background: var(--line); }
-  .addr:hover svg, .addr:focus-visible svg { opacity: 1; }
+  .addr-btn svg { width: 14px; height: 14px; color: var(--muted); opacity: 0; transition: opacity .2s; }
+  .addr-btn:hover, .addr-btn:focus-visible { background: var(--line); }
+  .addr-btn:hover svg, .addr-btn:focus-visible svg { opacity: 1; }
   .fast { color: var(--signal-ink); } .mid { color: var(--warn); } .slow { color: var(--bad); }
   .quiet { color: var(--muted); }
   .tag { display: inline-block; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 6px; border-radius: 6px; margin-right: 8px;
@@ -335,11 +337,12 @@
     .route-svg .gate-label { font-size: 19px; }
     .filters { position: static; }
     .t-type .name, th .name { display: none; }
-    .addr { font-size: 13.5px; }
+    .addr-btn { font-size: 13.5px; }
+    .addr-btn svg { display: none; }
     .sort { padding: 14px 9px; }
     th:first-child .sort { padding-left: 16px; }
-    td, th { padding-inline: 9px; }
-    td:first-child, th:first-child { padding-left: 16px; }
+    td { padding-inline: 9px; }
+    td:first-child { padding-left: 16px; }
     .steps { min-height: 17em; }
     .gh .label { display: none; }
     .gh { padding: 0; width: 36px; justify-content: center; }
@@ -353,7 +356,7 @@
   @media (prefers-reduced-motion: reduce) {
     *, *::before, *::after { animation: none !important; transition: none !important; }
     html.js .headline .line > span, html.js .hero-foot, html.js .ticker { transform: none; opacity: 1; }
-    .ticker { overflow-x: auto; }
+    .ticker-window { overflow-x: auto; }
     .ticker-toggle { display: none; }
     .route { height: auto; }
     .route-sticky { position: static; height: auto; padding-block: 0; }
@@ -422,7 +425,7 @@
       </div>
     </div>
     <div class="ticker" role="group" aria-label="Fastest proxies right now, click one to copy it">
-      <div class="ticker-track" id="ticker"></div>
+      <div class="ticker-window"><div class="ticker-track" id="ticker"></div></div>
       <button class="ticker-toggle" id="ticker-toggle" type="button" aria-pressed="false" aria-label="Pause the ticker">
         <svg class="pause" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1" width="3" height="10" rx="1" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="1" fill="currentColor"/></svg>
         <svg class="play" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor"/></svg>
@@ -663,6 +666,9 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     e.preventDefault();
     if (lenis) lenis.scrollTo(target, { offset: target === 0 ? 0 : -72, duration: 1.4 });
     else if (target === 0) scrollTo({ top: 0 }); else target.scrollIntoView();
+    const focusTarget = target === 0 ? $("#top") : target;
+    if (!focusTarget.hasAttribute("tabindex")) focusTarget.setAttribute("tabindex", "-1");
+    focusTarget.focus({ preventScroll: true });
   });
   let lastY = scrollY, ticking = false;
   const onScroll = () => {
@@ -745,7 +751,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const rows = filtered();
     $("#rows").innerHTML = rows.slice(0, state.shown).map(r => `<tr>
       <td><span class="t-type" title="${esc(r.ptype)}"><span class="dot ${esc(r.ptype)}"></span><span class="name">${esc(r.ptype)}</span></span></td>
-      <td><button class="addr" type="button" data-url="${esc(r.url)}" aria-label="Copy ${esc(r.url)}">${esc(r.proxy)}<svg aria-hidden="true"><use href="#i-copy"/></svg></button></td>
+      <td><button class="addr-btn" type="button" data-url="${esc(r.url)}" aria-label="Copy ${esc(r.url)}">${esc(r.proxy)}<svg aria-hidden="true"><use href="#i-copy"/></svg></button></td>
       <td>${flag(r.country)} ${esc(r.country || "–")}</td>
       <td>${latency(r.latency)}</td>
       <td class="hide-sm">${r.https ? "Yes" : '<span class="quiet">No</span>'}</td>
@@ -771,12 +777,13 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   $$("th[data-key]").forEach(th => {
     th.querySelector(".sort").onclick = () => { const k = th.dataset.key; state.dir = state.sort === k ? -state.dir : 1; state.sort = k; render(); };
   });
-  $("#rows").onclick = (e) => { const b = e.target.closest(".addr"); if (b) copy(b.dataset.url, `Copied ${b.dataset.url}`); };
+  $("#rows").onclick = (e) => { const b = e.target.closest(".addr-btn"); if (b) copy(b.dataset.url, `Copied ${b.dataset.url}`); };
   $("#copy-all").onclick = () => { const rows = filtered(); copy(rows.map(r => r.url).join("\n") + "\n", `Copied ${fmt(rows.length)} proxies`); };
   $("#download").onclick = () => download(filtered(), "proxies.txt");
   $("#dl-all").onclick = () => state.rows.length ? download(state.rows, "all.txt") : toast("The list is still loading");
   $("#ticker-toggle").onclick = (e) => {
     const t = $(".ticker"), paused = t.classList.toggle("paused");
+    t.classList.add("manual");
     e.currentTarget.setAttribute("aria-pressed", paused);
     e.currentTarget.setAttribute("aria-label", paused ? "Play the ticker" : "Pause the ticker");
   };

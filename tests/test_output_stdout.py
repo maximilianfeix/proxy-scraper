@@ -42,3 +42,24 @@ def test_the_interface_moves_to_stderr(monkeypatch):
     monkeypatch.setattr(widgets, "console", widgets.console)  # restored afterwards
     assert cli.run(["-y", "-o", "-"]) == 0
     assert seen == {"output": "-", "stderr": True}
+
+
+def test_a_pipe_closed_before_the_end_still_exits_cleanly(tmp_path):
+    import subprocess
+    import sys
+    import textwrap
+
+    script = textwrap.dedent(f"""
+        import sys, time
+        from pathlib import Path
+        from proxyscraper.checker import CheckResult
+        from proxyscraper.output import ResultWriter
+        time.sleep(0.5)  # the reader is gone by now
+        rows = [CheckResult(f"http 1.1.{{i // 250}}.{{i % 250}}:80", "http", f"1.1.{{i // 250}}.{{i % 250}}:80", i,
+                            "9.9.9.9") for i in range(20)]  # small enough to sit in the buffer
+        ResultWriter(run_dir=Path({str(tmp_path)!r}), stdout=sys.stdout).finalize(rows)
+    """)
+    writer = subprocess.Popen([sys.executable, "-c", script], stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    writer.stdout.close()  # like `| head` that already quit
+    _, err = writer.communicate(timeout=30)
+    assert writer.returncode == 0 and b"BrokenPipe" not in err

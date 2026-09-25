@@ -93,12 +93,20 @@ class ResultWriter:
             self.extra_file.write_text(lines, encoding="utf-8")
             files["Extra file (-o)"] = self.extra_file
         if self.stdout is not None:
-            with contextlib.suppress(BrokenPipeError):  # `| head` may stop reading early
+            try:
                 self.stdout.write(lines)
                 self.stdout.flush()
+            except BrokenPipeError:  # `| head` stopped reading early – that's fine
+                _silence(self.stdout)
 
         _point_latest(self.run_dir)
         return files
+
+
+def _silence(stream: TextIO) -> None:
+    """Point a closed pipe at devnull, so the interpreter doesn't fail flushing it again on exit."""
+    with contextlib.suppress(OSError, ValueError, AttributeError):
+        os.dup2(os.open(os.devnull, os.O_WRONLY), stream.fileno())
 
 
 def _row(r: CheckResult) -> dict:

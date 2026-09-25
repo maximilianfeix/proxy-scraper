@@ -75,3 +75,34 @@ def test_proxies_with_credentials_are_never_published(tmp_path):
     everything = "".join(p.read_text(encoding="utf-8") for p in out.rglob("*") if p.is_file())
     assert "geheim" not in everything and "alice" not in everything and "2.2.2.2" not in everything
     assert (out / "http.txt").read_text().count("\n") == 3
+
+
+def test_publish_writes_the_website_and_extends_the_history(tmp_path):
+    previous = tmp_path / "history.json"
+    previous.write_text(json.dumps([{"updated": f"2026-09-{d:02d}T00:00:00+00:00", "total": d, "https": 1,
+                                     "by_type": {}, "median_latency": 1} for d in range(1, 4)]))
+    out = tmp_path / "public"
+    now = datetime(2026, 9, 24, 18, 0, tzinfo=timezone.utc)
+    assert publish.publish(run_dir(tmp_path), out, minimum=2, now=now, history=previous) == 0
+    assert (out / "index.html").read_text(encoding="utf-8").startswith("<!doctype html>")
+    assert (out / ".nojekyll").exists()
+    runs = json.loads((out / "history.json").read_text())
+    assert [r["total"] for r in runs] == [1, 2, 3, 4] and runs[-1]["updated"] == "2026-09-24T18:00:00+00:00"
+
+
+def test_history_is_capped_and_survives_garbage(tmp_path):
+    previous = tmp_path / "history.json"
+    previous.write_text(json.dumps([{"total": i} for i in range(publish.HISTORY_LIMIT + 50)] + ["kaputt", {"x": 1}]))
+    out = tmp_path / "public"
+    publish.publish(run_dir(tmp_path), out, minimum=2, history=previous)
+    runs = json.loads((out / "history.json").read_text())
+    assert len(runs) == publish.HISTORY_LIMIT and runs[-1]["total"] == 4
+    previous.write_text("{nicht json")
+    publish.publish(run_dir(tmp_path), tmp_path / "public2", minimum=2, history=previous)
+    assert len(json.loads((tmp_path / "public2" / "history.json").read_text())) == 1
+
+
+def test_website_ships_with_the_package():
+    from proxyscraper.publish import SITE
+    html = SITE.read_text(encoding="utf-8")
+    assert "proxies.json" in html and "history.json" in html and "<script" in html

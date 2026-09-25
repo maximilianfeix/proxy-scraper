@@ -47,7 +47,9 @@ jobs:
       - name: Liste aufbereiten
         id: prepare
         run: |
-          if python -m proxyscraper.publish "results/$(cat results/latest.txt)" public --min 20; then
+          # Verlauf der letzten Läufe für das Diagramm auf der Website – beim ersten Mal gibt es ihn noch nicht
+          curl -sfL "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/proxy-list/history.json" -o history.json || true
+          if python -m proxyscraper.publish "results/$(cat results/latest.txt)" public --min 20 --history history.json; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             rc=$?

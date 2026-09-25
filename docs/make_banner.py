@@ -1,5 +1,9 @@
 #!/usr/bin/env python3
-"""Render the README banner (docs/banner-dark.svg, docs/banner-light.svg)."""
+"""Render the README banner (docs/banner-dark.svg, docs/banner-light.svg) and the logo (docs/logo.svg).
+
+Same look as the website: the logo is a route through a proxy node that forms a check mark,
+and the banner shows that route through the five checks every proxy has to pass.
+"""
 
 # ruff: noqa: E501  (SVG markup reads better unwrapped)
 
@@ -8,78 +12,76 @@ from pathlib import Path
 
 DOCS = Path(__file__).resolve().parent
 
+SIGNAL, INK = "#D4F77A", "#121113"
 THEMES = {
-    "dark": {"bg1": "#0B1622", "bg2": "#0F2233", "grid": "#16293B", "glow": "#38BDF8", "text": "#E6EDF3", "muted": "#8BA3B8",
-                 "faint": "#5E7B94", "accent": "#38BDF8", "accent2": "#34D399", "bar": "#132638", "border": "#24405A"},
-    "light": {"bg1": "#F6F9FC", "bg2": "#EAF2F8", "grid": "#DCE7F0", "glow": "#0284C7", "text": "#10243A", "muted": "#43647E",
-                  "faint": "#6B879E", "accent": "#0284C7", "accent2": "#10B981", "bar": "#FFFFFF", "border": "#D3E1EC"},
+    "dark": {"bg": "#121113", "line": "#2B292F", "text": "#EDEBE6", "muted": "#9A97A0", "route": SIGNAL},
+    "light": {"bg": "#EFEFEC", "line": "#DAD9D4", "text": "#121113", "muted": "#5F5C66", "route": "#3F5A00"},
 }
 
-# funnel: label, detail, bar width
-STAGES = [
-    ("700+ sources", "lists · APIs · GitHub discovery", 440),
-    ("~1M candidates", "parsed on all cores", 360),
-    ("checked & confirmed", "two sites · same exit IP", 280),
-    ("verified proxies", "HTTPS · anonymity · country", 200),
-]
+# 64×64: Quelle → Proxy-Knoten → Ziel, zusammen ein Haken
+MARK = f"""<rect width="64" height="64" rx="18" fill="{SIGNAL}"/>
+    <path d="M13 31.5 26.5 44.5 51 18" fill="none" stroke="{INK}" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="13" cy="31.5" r="4.6" fill="{INK}"/><circle cx="51" cy="18" r="4.6" fill="{INK}"/>
+    <circle cx="26.5" cy="44.5" r="7.6" fill="{SIGNAL}" stroke="{INK}" stroke-width="5"/>"""
 
-MONO = "ui-monospace, SFMono-Regular, Menlo, Consolas, monospace"
-SANS = "-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+GATES = [("Lists", 700, 250), ("Handshake", 820, 170), ("Honeypots", 950, 262), ("Content", 1070, 176), ("Details", 1190, 232)]
+
+
+def smooth(points) -> str:
+    """Weiche Kurve genau durch alle Punkte (Catmull-Rom als kubische Bézier-Stücke)."""
+    d = f"M{points[0][0]} {points[0][1]}"
+    for i in range(1, len(points)):
+        x0, y0 = points[i - 2] if i > 1 else points[i - 1]
+        x1, y1 = points[i - 1]
+        x2, y2 = points[i]
+        x3, y3 = points[i + 1] if i + 1 < len(points) else points[i]
+        d += f" C {x1 + (x2 - x0) / 6:.1f} {y1 + (y2 - y0) / 6:.1f} {x2 - (x3 - x1) / 6:.1f} {y2 - (y3 - y1) / 6:.1f} {x2} {y2}"
+    return d
+
+
+ROUTE = smooth([(640, 262), *((x, y) for _, x, y in GATES), (1230, 214)])
+SANS = "'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif"
+
+
+def logo() -> str:
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 64 64" width="64" height="64" role="img" aria-label="proxy-scraper">
+  {MARK}
+</svg>
+"""
 
 
 def render(c: dict) -> str:
-    x0, y0 = 760, 70
-    bars = []
-    for i, (label, detail, width) in enumerate(STAGES):
-        y = y0 + i * 58
-        x = x0 + (440 - width) / 2
-        last = i == len(STAGES) - 1
-        fill = "url(#accent)" if last else c["bar"]
-        label_color = "#FFFFFF" if last else c["text"]
-        bars.append(f"""
-    <g class="grow" style="animation-delay:{0.2 + 0.15 * i:.2f}s">
-      <rect x="{x:.0f}" y="{y}" width="{width}" height="44" rx="10" fill="{fill}" stroke="{c["border"] if not last else "none"}"/>
-      <text x="{x0 + 220}" y="{y + 20}" text-anchor="middle" fill="{label_color}" font-family="{MONO}" font-size="15" font-weight="700">{escape(label)}</text>
-      <text x="{x0 + 220}" y="{y + 36}" text-anchor="middle" fill="{label_color if last else c["faint"]}" fill-opacity="{0.85 if last else 1}" font-family="{MONO}" font-size="11">{escape(detail)}</text>
+    gates = []
+    for i, (label, x, y) in enumerate(GATES):
+        above = i % 2 == 1
+        gates.append(f"""
+    <g class="gate" style="animation-delay:{0.35 + 0.18 * i:.2f}s">
+      <circle cx="{x}" cy="{y}" r="10" fill="{SIGNAL}" stroke="{c["route"]}" stroke-width="2"/>
+      <text x="{x}" y="{y - 22 if above else y + 34}" text-anchor="middle" fill="{c["muted"]}" font-family="{SANS}" font-size="15">{escape(label)}</text>
     </g>""")
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="proxy-scraper – free proxies that actually work. 700+ sources, about a million candidates, checked and confirmed, verified proxies.">
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="proxy-scraper – free proxies that actually work. Every proxy passes five checks: lists, handshake, honeypots, content and details.">
   <style>
-    .grow, .fade {{ animation: fade .7s ease-out both; }}
-    .bolt {{ animation: glow 3s ease-in-out infinite; }}
+    .fade {{ animation: fade .8s cubic-bezier(.16,1,.3,1) both; }}
+    .route {{ stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw 1.6s cubic-bezier(.16,1,.3,1) .2s forwards; }}
+    .gate {{ animation: fade .6s cubic-bezier(.16,1,.3,1) both; }}
     @keyframes fade {{ from {{ opacity: 0; transform: translateY(8px); }} to {{ opacity: 1; transform: none; }} }}
-    @keyframes glow {{ 0%, 100% {{ opacity: 1; }} 50% {{ opacity: .7; }} }}
-    @media (prefers-reduced-motion: reduce) {{ .grow, .fade, .bolt {{ animation: none; }} }}
+    @keyframes draw {{ to {{ stroke-dashoffset: 0; }} }}
+    @media (prefers-reduced-motion: reduce) {{ .fade, .gate {{ animation: none; }} .route {{ animation: none; stroke-dashoffset: 0; }} }}
   </style>
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="{c["bg1"]}"/><stop offset="1" stop-color="{c["bg2"]}"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.8" cy="0.5" r="0.55">
-      <stop offset="0" stop-color="{c["glow"]}" stop-opacity=".14"/><stop offset="1" stop-color="{c["glow"]}" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="{c["accent"]}"/><stop offset="1" stop-color="{c["accent2"]}"/>
-    </linearGradient>
-    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-      <path d="M32 0H0V32" fill="none" stroke="{c["grid"]}"/>
-    </pattern>
-    <clipPath id="frame"><rect width="1280" height="360" rx="20"/></clipPath>
-  </defs>
-  <g clip-path="url(#frame)">
-    <rect width="1280" height="360" fill="url(#bg)"/>
-    <rect width="1280" height="360" fill="url(#grid)" opacity=".5"/>
-    <rect width="1280" height="360" fill="url(#glow)"/>
-  </g>
+  <defs><clipPath id="frame"><rect width="1280" height="360" rx="24"/></clipPath></defs>
+  <g clip-path="url(#frame)"><rect width="1280" height="360" fill="{c["bg"]}"/></g>
 
   <g class="fade">
-    <rect x="72" y="92" width="76" height="76" rx="20" fill="url(#accent)"/>
-    <path class="bolt" d="M116 104 L94 138 H110 L104 158 L128 122 H112 Z" fill="#FFFFFF"/>
-    <text x="168" y="148" fill="{c["text"]}" font-family="{MONO}" font-size="54" font-weight="800" letter-spacing="-1">proxy-scraper</text>
-    <text x="74" y="222" fill="{c["text"]}" font-family="{SANS}" font-size="28" font-weight="600">Free proxies that actually work.</text>
-    <text x="74" y="258" fill="{c["muted"]}" font-family="{SANS}" font-size="18">Scraped from hundreds of sources, verified for real, smarter with every run.</text>
-    <text x="74" y="300" fill="{c["faint"]}" font-family="{MONO}" font-size="14">$ pipx install git+https://github.com/maximilianfeix/proxy-scraper.git</text>
+    <svg x="72" y="70" width="56" height="56" viewBox="0 0 64 64">{MARK}</svg>
+    <text x="144" y="110" fill="{c["text"]}" font-family="{SANS}" font-size="30" font-weight="600" letter-spacing="-1">proxy-scraper</text>
+    <text x="70" y="206" fill="{c["text"]}" font-family="{SANS}" font-size="66" font-weight="600" letter-spacing="-3.4">Free proxies that</text>
+    <text x="70" y="270" fill="{c["text"]}" font-family="{SANS}" font-size="66" font-weight="600" letter-spacing="-3.4">actually work.</text>
+    <text x="72" y="312" fill="{c["muted"]}" font-family="{SANS}" font-size="17">700+ sources, five checks, a fresh list every 6 hours.</text>
   </g>
-  {"".join(bars)}
+
+  <path d="{ROUTE}" fill="none" stroke="{c["line"]}" stroke-width="2"/>
+  <path class="route" pathLength="100" d="{ROUTE}" fill="none" stroke="{c["route"]}" stroke-width="3" stroke-linecap="round"/>
+  {"".join(gates)}
 </svg>
 """
 
@@ -87,6 +89,7 @@ def render(c: dict) -> str:
 def main() -> None:
     for name, colors in THEMES.items():
         (DOCS / f"banner-{name}.svg").write_text(render(colors), encoding="utf-8")
+    (DOCS / "logo.svg").write_text(logo(), encoding="utf-8")
 
 
 if __name__ == "__main__":

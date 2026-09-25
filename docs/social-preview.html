@@ -2,47 +2,32 @@
 <html>
 <head>
 <meta charset="utf-8">
+<!-- Vorschaubild für Links (1280×640), als PNG: Repo-Einstellungen → Social preview -->
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
 <style>
   html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
-  body {
-    background: radial-gradient(circle at 85% 20%, #12314a 0%, #0b1622 45%, #070d14 100%);
-    font-family: "SF Mono", Menlo, Consolas, monospace; color: #E6EDF3;
-    display: flex; align-items: center; padding: 0 64px; box-sizing: border-box; gap: 44px;
-  }
-  .left { flex: 1.05; }
-  h1 { font-size: 64px; margin: 0; letter-spacing: -2px; white-space: nowrap; }
-  h1 span { color: #38BDF8; }
-  .tag { font-size: 30px; color: #8BA3B8; margin: 18px 0 34px; font-family: -apple-system, "Segoe UI", sans-serif; }
-  .pills { display: flex; flex-wrap: wrap; gap: 12px; }
-  .pill { border: 2px solid #30363D; border-radius: 999px; padding: 7px 16px; font-size: 20px; color: #C9D6E2; }
-  .pill b { color: #34D399; }
-  .term { flex: 0 0 520px; background: #0D1117; border: 2px solid #30363D; border-radius: 16px; padding: 22px 26px; font-size: 19px; line-height: 1.6; box-shadow: 0 30px 80px rgba(0,0,0,.55); }
-  .dots { margin-bottom: 12px; }
-  .dots i { display: inline-block; width: 14px; height: 14px; border-radius: 50%; margin-right: 8px; }
-  .m { color: #8B949E; } .a { color: #38BDF8; } .g { color: #34D399; } .y { color: #FBBF24; } .v { color: #C084FC; } .b { color: #60A5FA; }
+  body { background: #121113; color: #EDEBE6; font-family: "Geist", sans-serif; box-sizing: border-box; padding: 64px 72px; position: relative; }
+  .brand { display: flex; align-items: center; gap: 16px; font-size: 32px; font-weight: 600; letter-spacing: -1px; }
+  .brand svg { width: 60px; height: 60px; }
+  h1 { margin: 58px 0 0; font-size: 112px; line-height: .92; font-weight: 600; letter-spacing: -6px; }
+  .sub { position: absolute; left: 72px; bottom: 60px; font-size: 26px; color: #9A97A0; }
+  .route { position: absolute; right: 40px; bottom: 150px; width: 560px; }
+  .addr { position: absolute; right: 72px; top: 80px; font-family: "Geist Mono", monospace; font-size: 22px; color: #9A97A0; }
+  .addr b { color: #D4F77A; font-weight: 400; }
 </style>
 </head>
 <body>
-  <div class="left">
-    <h1><span>⚡</span> proxy-scraper</h1>
-    <div class="tag">Free proxies that actually work – scraped, verified, learned.</div>
-    <div class="pills">
-      <div class="pill"><b>700+</b> sources</div>
-      <div class="pill"><b>~1M</b> checks in 25 s</div>
-      <div class="pill">honeypot filter</div>
-      <div class="pill">HTTPS · anonymity · geo</div>
-      <div class="pill">rotating proxy server</div>
-    </div>
+  <div class="brand">
+    <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="18" fill="#D4F77A"/><path d="M13 31.5 26.5 44.5 51 18" fill="none" stroke="#121113" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13" cy="31.5" r="4.6" fill="#121113"/><circle cx="51" cy="18" r="4.6" fill="#121113"/><circle cx="26.5" cy="44.5" r="7.6" fill="#D4F77A" stroke="#121113" stroke-width="5"/></svg>
+    proxy-scraper
   </div>
-  <div class="term">
-    <div class="dots"><i style="background:#FF5F57"></i><i style="background:#FEBC2E"></i><i style="background:#28C840"></i></div>
-    <div><span class="m">$</span> proxy-scraper --want 50 --https-only</div>
-    <div class="g">✔ Quellen <span class="m">—</span> ✔ Sammeln <span class="m">—</span> <span class="a">● Prüfen</span></div>
-    <div><span class="m">geprüft</span> 289.000 <span class="m">·</span> <span class="a">3.588/s</span></div>
-    <div><span class="g">socks5</span> 203.0.113.10:1080 <span class="g">✔ E</span> <span class="g">90 ms</span></div>
-    <div><span class="b">http</span>&nbsp;&nbsp; 198.51.100.24:8080 <span class="g">✔</span> <span class="y">A</span> <span class="g">182 ms</span></div>
-    <div><span class="v">socks4</span> 192.0.2.40:4145 <span class="g">✔ E</span> <span class="g">301 ms</span></div>
-    <div><span class="m">$</span> curl -x http://127.0.0.1:8899 …</div>
-  </div>
+  <h1>Free proxies<br>that actually<br>work.</h1>
+  <svg class="route" viewBox="0 0 600 180">
+    <path d="M10 130 C 60 130 80 60 150 60 S 240 150 300 150 S 380 50 450 60 S 540 120 590 100" fill="none" stroke="#D4F77A" stroke-width="4" stroke-linecap="round"/>
+    <circle cx="150" cy="60" r="12" fill="#D4F77A"/><circle cx="300" cy="150" r="12" fill="#D4F77A"/><circle cx="450" cy="60" r="12" fill="#D4F77A"/>
+    <circle cx="590" cy="100" r="9" fill="#EDEBE6"/>
+  </svg>
+  <div class="sub">700+ sources, five checks, a fresh list every 6 hours.</div>
+  <div class="addr"><b>●</b> maximilianfeix.github.io/proxy-scraper</div>
 </body>
 </html>

@@ -106,3 +106,12 @@ def test_website_ships_with_the_package():
     from proxyscraper.publish import SITE
     html = SITE.read_text(encoding="utf-8")
     assert "proxies.json" in html and "history.json" in html and "<script" in html
+
+
+def test_stats_count_datacenter_exits(tmp_path):
+    rows = [CheckResult(f"http 1.1.1.{i}:80", "http", f"1.1.1.{i}:80", 100, "9.9.9.9", True, "elite", "DE")
+            for i in range(4)]
+    rows[0].hosting = True
+    ResultWriter(run_dir=tmp_path / "run").finalize(rows)
+    publish.publish(tmp_path / "run", tmp_path / "public", minimum=2)
+    assert json.loads((tmp_path / "public" / "stats.json").read_text())["datacenter"] == 1

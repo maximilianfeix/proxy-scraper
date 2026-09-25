@@ -46,7 +46,7 @@
   @keyframes pulse { 0% { box-shadow: 0 0 0 0 rgba(52,211,153,.6); } 70% { box-shadow: 0 0 0 8px rgba(52,211,153,0); } 100% { box-shadow: 0 0 0 0 rgba(52,211,153,0); } }
   @media (prefers-reduced-motion: reduce) { .pulse { animation: none; } }
   .updated { color: var(--muted); font-size: 14px; display: flex; align-items: center; gap: 8px; margin: 6px 0 22px; }
-  .cards { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+  .cards { display: grid; grid-template-columns: repeat(7, 1fr); gap: 12px; }
   .card { background: var(--card); border: 1px solid var(--border); border-radius: 14px; padding: 14px 16px; box-shadow: var(--shadow); }
   .card .label { color: var(--faint); font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-weight: 600; }
   .card .value { font: 700 26px/1.2 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; margin-top: 4px; }
@@ -81,6 +81,7 @@
   .type { font-weight: 700; } .type.http { color: var(--http); } .type.socks4 { color: var(--socks4); } .type.socks5 { color: var(--socks5); }
   .ok { color: var(--green); } .no { color: var(--faint); }
   .lat.fast { color: var(--green); } .lat.mid { color: var(--amber); } .lat.slow { color: var(--red); }
+  .stable { color: var(--green); font-weight: 600; }
   .provider { color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
   .dc { font: 700 10px/1 -apple-system, sans-serif; color: var(--amber); border: 1px solid var(--amber); border-radius: 4px; padding: 2px 4px; margin-right: 6px; vertical-align: 1px; }
   .copy { border: 0; background: none; color: var(--faint); cursor: pointer; padding: 2px 6px; border-radius: 6px; font-size: 14px; }
@@ -93,7 +94,7 @@
            padding: 9px 16px; border-radius: 10px; font-size: 14px; opacity: 0; transition: .2s; pointer-events: none; }
   .toast.show { opacity: 1; transform: translateX(-50%); }
   .empty { padding: 40px; text-align: center; color: var(--muted); }
-  @media (max-width: 960px) { .cards { grid-template-columns: repeat(3, 1fr); } .grid2 { grid-template-columns: 1fr; } .install { grid-template-columns: 1fr; } }
+  @media (max-width: 960px) { .cards { grid-template-columns: repeat(4, 1fr); } .grid2 { grid-template-columns: 1fr; } .install { grid-template-columns: 1fr; } }
   .cards > *, .grid2 > *, .install > * { min-width: 0; }
   .tablewrap, pre { max-width: 100%; }
   @media (max-width: 560px) {
@@ -139,6 +140,7 @@
     <button class="chip" id="f-https" aria-pressed="false">HTTPS only</button>
     <button class="chip" id="f-elite" aria-pressed="false">Elite only</button>
     <button class="chip" id="f-dc" aria-pressed="false" title="Datacenter exits get blocked sooner">No datacenter</button>
+    <button class="chip" id="f-stable" aria-pressed="false" title="Worked in every run for at least 24 hours">Stable 24 h+</button>
     <select id="f-country" aria-label="Country"><option value="">All countries</option></select>
     <label class="range">max <input type="range" id="f-lat" min="200" max="8000" step="100" value="8000"><span id="f-lat-v" class="mono">8 s</span></label>
     <input type="search" id="f-q" placeholder="Search IP, port, country, provider …" aria-label="Search">
@@ -148,10 +150,10 @@
     <table>
       <thead><tr>
         <th data-key="ptype">Type</th><th data-key="proxy">Proxy</th><th data-key="country">Country</th>
-        <th data-key="latency" aria-sort="ascending">Latency</th><th data-key="https">HTTPS</th>
+        <th data-key="latency" aria-sort="ascending">Latency</th><th data-key="https">HTTPS</th><th data-key="streak" title="How long it has been working without a gap">Up for</th>
         <th data-key="anonymity" class="hide-sm">Anonymity</th><th data-key="org" class="hide-sm">Provider</th><th></th>
       </tr></thead>
-      <tbody id="rows"><tr><td colspan="8" class="empty">Loading the list …</td></tr></tbody>
+      <tbody id="rows"><tr><td colspan="9" class="empty">Loading the list …</td></tr></tbody>
     </table>
   </div>
   <div class="foot">
@@ -186,7 +188,12 @@ proxy-scraper --want 50 --https-only</pre></div>
   const fmt = (n) => Number(n).toLocaleString("en-US");
   const flag = (cc) => cc && cc.length === 2 ? String.fromCodePoint(...[...cc.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : "";
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http","socks4","socks5"]), https: false, elite: false, noDc: false, country: "", maxLat: 8000, q: "" };
+  const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http","socks4","socks5"]), https: false, elite: false, noDc: false, stable: false, country: "", maxLat: 8000, q: "" };
+  const STABLE = 4;  // Läufe in Folge = 24 Stunden
+  // n Läufe in Folge = etwa n × 6 Stunden, damit "Stable" (4 Läufe) auch als 24 h dasteht
+  const uptime = (n) => { if (!n) return '<span class="no">–</span>'; const h = n * 6;
+    const text = n === 1 ? "new" : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`;
+    return n >= STABLE ? `<span class="stable">${text}</span>` : `<span class="no">${text}</span>`; };
   const short = (org) => { const s = String(org || "").replace(/,? (Inc|LLC|Ltd|GmbH|Co|Corporation|Limited|S\.?A|B\.?V)\.?$/i, ""); return s.length > 26 ? s.slice(0, 25) + "…" : s; };
 
   // Thema umschalten und merken
@@ -211,12 +218,13 @@ proxy-scraper --want 50 --https-only</pre></div>
   function cards(st) {
     const share = (n) => `${Math.round(100 * n / Math.max(st.total, 1))} % of all`;
     const items = [
-      ["Working", fmt(st.total), "verified in the last run"],
+      ["Working", fmt(st.total), "in the last run"],
       ["HTTP", fmt(st.by_type.http), share(st.by_type.http)],
       ["SOCKS4", fmt(st.by_type.socks4), share(st.by_type.socks4)],
       ["SOCKS5", fmt(st.by_type.socks5), share(st.by_type.socks5)],
       ["HTTPS", fmt(st.https), share(st.https)],
-      ["Median", fmt(st.median_latency) + " ms", `${fmt(st.elite)} elite` + (st.datacenter != null ? ` · ${Math.round(100 * st.datacenter / Math.max(st.total, 1))} % datacenter` : "")],
+      ["Stable", st.stable != null ? fmt(st.stable) : "–", "working for 24 h+"],
+      ["Median", st.median_latency >= 1000 ? (st.median_latency / 1000).toFixed(2) + " s" : fmt(st.median_latency) + " ms", `${fmt(st.elite)} elite` + (st.datacenter != null ? ` · ${Math.round(100 * st.datacenter / Math.max(st.total, 1))} % datacenter` : "")],
     ];
     $("#cards").innerHTML = items.map(([l, v, s]) => `<div class="card"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
   }
@@ -241,7 +249,7 @@ proxy-scraper --want 50 --https-only</pre></div>
 
   function filtered() {
     const q = state.q.trim().toLowerCase();
-    const rows = state.rows.filter(r => state.types.has(r.ptype) && (!state.https || r.https) && (!state.elite || r.anonymity === "elite") && (!state.noDc || !r.hosting)
+    const rows = state.rows.filter(r => state.types.has(r.ptype) && (!state.https || r.https) && (!state.elite || r.anonymity === "elite") && (!state.noDc || !r.hosting) && (!state.stable || (r.streak || 0) >= STABLE)
       && (!state.country || r.country === state.country) && r.latency <= state.maxLat
       && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.exit_ip} ${r.org || ""} AS${r.asn || ""}`.toLowerCase().includes(q)));
     const k = state.sort, d = state.dir;
@@ -253,10 +261,10 @@ proxy-scraper --want 50 --https-only</pre></div>
     const lat = (ms) => `<span class="lat ${ms < 1000 ? "fast" : ms < 3000 ? "mid" : "slow"}">${fmt(ms)} ms</span>`;
     $("#rows").innerHTML = rows.slice(0, state.shown).map(r => `<tr>
       <td class="type ${r.ptype}">${r.ptype}</td><td>${esc(r.proxy)}</td><td>${flag(r.country)} ${esc(r.country || "–")}</td>
-      <td>${lat(r.latency)}</td><td class="${r.https ? "ok" : "no"}">${r.https ? "✔" : "–"}</td>
+      <td>${lat(r.latency)}</td><td class="${r.https ? "ok" : "no"}">${r.https ? "✔" : "–"}</td><td>${uptime(r.streak)}</td>
       <td class="hide-sm">${esc(r.anonymity || "–")}</td><td class="hide-sm provider" title="${esc(r.org ? `AS${r.asn} · ${r.org} · exit ${r.exit_ip}` : r.exit_ip)}">${r.hosting ? '<span class="dc">DC</span>' : ""}${esc(short(r.org) || r.exit_ip)}</td>
       <td><button class="copy" data-url="${esc(r.url)}" title="Copy ${esc(r.url)}" aria-label="Copy ${esc(r.url)}">⧉</button></td></tr>`).join("")
-      || '<tr><td colspan="8" class="empty">No proxy matches these filters.</td></tr>';
+      || '<tr><td colspan="9" class="empty">No proxy matches these filters.</td></tr>';
     $("#count").textContent = `${fmt(Math.min(state.shown, rows.length))} of ${fmt(rows.length)} shown · ${fmt(state.rows.length)} in total`;
     $("#more").hidden = rows.length <= state.shown;
     document.querySelectorAll("th[data-key]").forEach(th => th.dataset.key === state.sort ? th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending") : th.removeAttribute("aria-sort"));
@@ -268,7 +276,7 @@ proxy-scraper --want 50 --https-only</pre></div>
     b.setAttribute("aria-pressed", state.types.has(t)); state.shown = PAGE; render();
   });
   const toggle = (id, key) => $(id).onclick = (e) => { state[key] = !state[key]; e.target.setAttribute("aria-pressed", state[key]); state.shown = PAGE; render(); };
-  toggle("#f-https", "https"); toggle("#f-elite", "elite"); toggle("#f-dc", "noDc");
+  toggle("#f-https", "https"); toggle("#f-elite", "elite"); toggle("#f-dc", "noDc"); toggle("#f-stable", "stable");
   $("#f-country").onchange = (e) => { state.country = e.target.value; state.shown = PAGE; render(); };
   $("#f-lat").oninput = (e) => { state.maxLat = +e.target.value; $("#f-lat-v").textContent = state.maxLat >= 8000 ? "8 s" : fmt(state.maxLat) + " ms"; state.shown = PAGE; render(); };
   $("#f-q").oninput = (e) => { state.q = e.target.value; state.shown = PAGE; render(); };
@@ -291,7 +299,7 @@ proxy-scraper --want 50 --https-only</pre></div>
   // Daten laden – liegen direkt neben dieser Seite
   const load = (f) => fetch(f, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
   Promise.all([load("proxies.json"), load("stats.json"), load("history.json")]).then(([rows, st, history]) => {
-    if (!rows || !st) { $("#rows").innerHTML = '<tr><td colspan="8" class="empty">Could not load the list – try the raw files below.</td></tr>'; $("#updated").textContent = "unavailable"; return; }
+    if (!rows || !st) { $("#rows").innerHTML = '<tr><td colspan="9" class="empty">Could not load the list – try the raw files below.</td></tr>'; $("#updated").textContent = "unavailable"; return; }
     state.rows = rows;
     const when = new Date(st.updated);
     $("#updated").textContent = `Updated ${ago(st.updated)} · ${when.toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" })}`;

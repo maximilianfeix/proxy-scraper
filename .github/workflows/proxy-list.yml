@@ -47,15 +47,19 @@ jobs:
       - name: Liste aufbereiten
         id: prepare
         run: |
-          # Verlauf der letzten Läufe für das Diagramm auf der Website. 404 heißt: gibt es noch nicht (erster Lauf).
-          # Jeder andere Fehler: lieber diesmal nicht veröffentlichen, als 30 Tage Verlauf zu verlieren.
-          code=$(curl -sL --retry 3 --retry-all-errors -o history.json -w "%{http_code}" \
-            "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/proxy-list/history.json" || echo 000)
-          if [ "$code" = "404" ]; then rm -f history.json; elif [ "$code" != "200" ]; then
-            echo "::warning::history.json nicht ladbar (HTTP $code) – alte Liste bleibt online"
-            echo "publish=false" >> "$GITHUB_OUTPUT"; exit 0
-          fi
-          if python -m proxyscraper.publish "results/$(cat results/latest.txt)" public --min 20 --history history.json; then
+          # Verlauf der letzten Läufe (Diagramm) und seit wann jeder Proxy dabei ist (stabile Proxys).
+          # 404 heißt: gibt es noch nicht (erster Lauf). Jeder andere Fehler: lieber diesmal nicht
+          # veröffentlichen, als den Verlauf zu verlieren.
+          for f in history.json streaks.json; do
+            code=$(curl -sL --retry 3 --retry-all-errors -o "$f" -w "%{http_code}" \
+              "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/proxy-list/$f" || echo 000)
+            if [ "$code" = "404" ]; then rm -f "$f"; elif [ "$code" != "200" ]; then
+              echo "::warning::$f nicht ladbar (HTTP $code) – alte Liste bleibt online"
+              echo "publish=false" >> "$GITHUB_OUTPUT"; exit 0
+            fi
+          done
+          if python -m proxyscraper.publish "results/$(cat results/latest.txt)" public --min 20 \
+              --history history.json --streaks streaks.json; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             rc=$?

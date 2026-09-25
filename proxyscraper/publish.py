@@ -57,7 +57,9 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         "by_type": {t: sum(1 for r in rows if r["ptype"] == t) for t in PROXY_TYPES},
         "https": sum(1 for r in rows if r.get("https")),
         "elite": sum(1 for r in rows if r.get("anonymity") == "elite"),
-        "datacenter": sum(1 for r in rows if r.get("hosting")),
+        # nur mit Anbieterdaten – sonst hieße "0" fälschlich "keine Rechenzentren"
+        "datacenter": sum(1 for r in rows if r.get("hosting")) if any(r.get("org") for r in rows) else None,
+        "stable": sum(1 for r in rows if r.get("streak", 0) >= STABLE_RUNS),
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
         "median_latency": round(statistics.median(r["latency"] for r in rows)) if rows else 0,
     }
@@ -135,13 +137,33 @@ def history_entry(stats: dict) -> dict:
             "by_type": stats["by_type"], "median_latency": stats["median_latency"]}
 
 
+STABLE_RUNS = 4  # so viele Läufe in Folge (= 24 Stunden bei einem Lauf alle 6 Stunden) heißt "stabil"
+
+
+def load_streaks(path: Optional[Path]) -> Dict[str, int]:
+    """url -> seit wie vielen Läufen in Folge dabei (vom Branch geholt); kaputt oder fehlend = neu anfangen."""
+    if not path:
+        return {}
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return {}
+    if not isinstance(data, dict):
+        return {}
+    return {k: v for k, v in data.items() if isinstance(k, str) and type(v) is int and v > 0}  # bool ist auch ein int
+
+
 def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None,
-            history: Optional[Path] = None) -> int:
+            history: Optional[Path] = None, streaks: Optional[Path] = None) -> int:
     rows = load_rows(run_dir)
     if len(rows) < minimum:
         print(f"Nur {len(rows)} Treffer (< {minimum}) – alte Liste bleibt online.")
         return SKIP_EXIT_CODE
     now = now or datetime.now(timezone.utc)
+    # Wer beim letzten Lauf schon dabei war, zählt weiter – alle anderen fangen bei 1 an, wer fehlt, fliegt raus
+    previous = load_streaks(streaks)
+    for row in rows:
+        row["streak"] = previous.get(row["url"], 0) + 1
     out.mkdir(parents=True, exist_ok=True)
     counts = write_lists(rows, out)
     # nicht einfach kopieren: Details neu schreiben, damit auch dort nichts mit Zugangsdaten landet
@@ -168,6 +190,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages soll die Dateien unverändert ausliefern
     runs = [*load_history(history), history_entry(stats)][-HISTORY_LIMIT:]
     write_json(out / "history.json", runs)
+    write_json(out / "streaks.json", {row["url"]: row["streak"] for row in rows})
 
     summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
     if summary_file:
@@ -183,8 +206,9 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("out_dir", type=Path)
     p.add_argument("--min", type=int, default=20, help="mindestens so viele Treffer, sonst nichts schreiben")
     p.add_argument("--history", type=Path, help="history.json vom letzten Mal (für das Diagramm auf der Website)")
+    p.add_argument("--streaks", type=Path, help="streaks.json vom letzten Mal (seit wann jeder Proxy dabei ist)")
     args = p.parse_args(argv)
-    return publish(args.run_dir, args.out_dir, args.min, history=args.history)
+    return publish(args.run_dir, args.out_dir, args.min, history=args.history, streaks=args.streaks)
 
 
 if __name__ == "__main__":

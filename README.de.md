@@ -134,7 +134,7 @@ Bedienung: <kbd>↑</kbd><kbd>↓</kbd> auswählen · <kbd>Leertaste</kbd> an/au
 
 Keine Lust, selbst zu scannen? Alle 6 Stunden läuft das Tool per **GitHub Actions** und veröffentlicht die Treffer auf dem Branch [`proxy-list`](../../tree/proxy-list) – jeder Eintrag hat beim letzten Lauf wirklich funktioniert, schnellste zuerst.
 
-**→ [Auf der Website durchsuchen](https://maximilianfeix.github.io/proxy-scraper/)** – suchen, nach Typ, Land, HTTPS und Latenz filtern, genau die passenden Proxys kopieren oder herunterladen.
+**→ [Auf der Website durchsuchen](https://maximilianfeix.github.io/proxy-scraper/)** – suchen, nach Typ, Land, HTTPS, Anbieter und Latenz filtern, sehen, wie lange jeder Proxy schon läuft, und genau die passenden kopieren oder herunterladen. `streaks.json` auf dem Branch enthält für jeden Proxy die Zahl der Läufe in Folge.
 
 <div align="center"><a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="docs/website.png" alt="Die Website der Live-Liste" width="860"></a></div>
 

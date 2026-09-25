@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ipaddress
 import socket
 import time
@@ -15,6 +16,8 @@ from rich.live import Live
 from rich.text import Text
 
 from . import sources as srcs
+from .asndb import AsnDB, ProviderLookup, load_asn_db
+from .asndb import is_current as asn_is_current
 from .checker import (
     CONFIRM_HOST,
     CONFIRM_PORT,
@@ -64,6 +67,7 @@ from .ui import (
     fmt_duration,
     info,
     note,
+    pct,
     render_summary,
     section,
     section_end,
@@ -341,15 +345,42 @@ class Run:
         refresh = None
         if opts.geo and not is_current(country_db):
             refresh = asyncio.ensure_future(self.refresh_country_db(geo))
+        # Anbieter der Exit-IPs genauso: sofort aus data/, alt oder fehlend -> im Hintergrund neu laden.
+        # Unabhängig von --no-geo – das betrifft nur die Länder, die Anbieter kommen ohnehin aus der Datei.
+        providers = ProviderLookup(AsnDB.load())
+        providers_refresh = None
+        if not asn_is_current(providers.db):
+            providers_refresh = asyncio.ensure_future(self.refresh_asn_db(providers))
+            if opts.filters.no_datacenter and providers.db is None:
+                # ausdrücklich ohne Rechenzentren, aber noch gar keine Datenbank: vor dem Prüfen laden –
+                # sonst gingen unbekannte Anbieter als "kein Rechenzentrum" durch und --want hörte zu früh auf
+                with widgets.console.status("Lade Anbieter-Datenbank (DB-IP) …", spinner="dots"), \
+                        contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(asyncio.shield(providers_refresh), 90)
         widgets.console.print()
         run = await run_checks(
             jobs, checker, opts, dashboard, writer, geo,
             live_factory=lambda renderable: Live(renderable, console=widgets.console, refresh_per_second=6),
             watch=watch,
+            providers=providers,
         )
 
         if refresh and not refresh.done():
-            refresh.cancel()  # Download läuft noch – beim nächsten Lauf wieder
+            refresh.cancel()  # Länder-Download läuft noch – beim nächsten Lauf wieder (ip-api hat übernommen)
+        if providers_refresh and not providers_refresh.done():
+            # Anbieter-Datenbank lädt noch (erster Lauf oder neuer Monat): kurz warten und nachtragen –
+            # sonst fehlen die Anbieter in den Dateien und --no-datacenter ließe Rechenzentren durch
+            with widgets.console.status("Lade Anbieter-Datenbank (DB-IP) …", spinner="dots"), \
+                    contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(providers_refresh), 30)
+            if not providers_refresh.done():
+                providers_refresh.cancel()  # dauert zu lange – dann eben beim nächsten Lauf
+        if providers.db:
+            for r in run.results:
+                if not r.asn:
+                    providers.annotate(r)
+                    if r.hosting:
+                        stats.hosting += 1  # sonst zeigten Dashboard und Hinweis zu wenig Rechenzentren
         kept = [r for r in run.results if opts.filters.accepts(r)]
         files = writer.finalize(kept)
         network_blocked = is_network_blocked(stats)
@@ -393,6 +424,15 @@ class Run:
             await server.close()
         st = server.stats
         note(f"Proxy-Server beendet – {fmt(st.requests)} Anfragen, {fmt(st.ok)} erfolgreich.", GOOD, "✔")
+
+    @staticmethod
+    async def refresh_asn_db(providers: ProviderLookup) -> None:
+        try:
+            db = await load_asn_db()
+        except Exception:
+            return
+        if db is not None:
+            providers.db = db
 
     @staticmethod
     async def refresh_country_db(geo: GeoResolver) -> None:
@@ -444,6 +484,10 @@ class Run:
         if stats.tampered:
             note(f"{fmt(stats.tampered)} Proxys haben eine Testseite verändert (meist mit eingeschleusten Skripten) "
                  "und wurden aussortiert.", WARN, "⚠")
+        if stats.hosting and run.results and not opts.filters.no_datacenter:
+            note(f"{fmt(stats.hosting)} von {fmt(len(run.results))} Treffern ({pct(stats.hosting, len(run.results))}) "
+                 "liegen vermutlich in Rechenzentren – die werden oft schneller gesperrt. "
+                 "Nur andere: --no-datacenter", MUTED, "ℹ")
         if run.reached_goal:
             note(f"Ziel von {fmt(opts.want)} Treffern erreicht – vorzeitig beendet.", GOOD, "✔")
         elif run.interrupted:

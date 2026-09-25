@@ -321,7 +321,7 @@ flowchart LR
 2. **Sammeln** – Text, HTML-Tabellen, JSON-APIs und `typ://ip:port`-Zeilen werden erkannt, private und reservierte Adressbereiche verworfen. Listen, die sich seit dem letzten Lauf nicht geändert haben, antworten mit `304` und kommen aus einem lokalen Cache – ein zweiter Lauf direkt danach lädt 0 MB statt ~160 MB.
 3. **Priorisieren** – bekannte funktionierende Proxys zuerst, dann nach gelernter Trefferquote ihrer Quellen.
 4. **Prüfen** – jeder Proxy muss seine Exit-IP von einem Prüfziel abrufen (`checkip.amazonaws.com`, als Reserve `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` und `ident.me` – keins davon hinter Cloudflare) und eine gültige, *fremde* IP zurückliefern. Fällt das Ziel mitten im Lauf aus, wechselt das Tool und prüft die betroffenen Proxys erneut – die Statistik lernt so nicht aus einem Ausfall. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier. Zum Schluss muss eine statische HTML-Seite Byte für Byte so ankommen wie ohne Proxy – wer Werbung oder Skripte einschleust, fliegt raus.
-5. **Länder** – offline aus der freien DB-IP-Datenbank (einmal im Monat geladen, ~2 µs pro Abfrage); ip-api.com wird nur noch für die wenigen Adressen gefragt, die dort fehlen.
+5. **Länder und Anbieter** – offline aus den freien DB-IP-Datenbanken, dazu der Anbieter (ASN) und ob es vermutlich ein Rechenzentrum ist (bei etwa 45 % der funktionierenden Proxys) (einmal im Monat geladen, ~2 µs pro Abfrage); ip-api.com wird nur noch für die wenigen Adressen gefragt, die dort fehlen.
 6. **Lernen** – Trefferquoten und Verlauf landen in `data/`. Quellen ohne Treffer, mit seit einer Woche unverändertem Inhalt oder dauerhaft unerreichbar werden übersprungen.
 
 <details>
@@ -434,6 +434,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--https-only` | nur Proxys, die HTTPS tunneln können |
 | `--anonymity elite` | Mindest-Anonymität (`anonymous` oder `elite`) |
 | `--max-latency MS` | maximale Latenz |
+| `--no-datacenter` | keine Proxys mit Exit (vermutlich) in einem Rechenzentrum – die werden schneller gesperrt |
 | `--target URL` | nur Proxys, die diese Seite erreichen (mehrfach möglich) |
 | `--recheck [DATEI]` | nur Proxys aus einer Datei bzw. vom letzten Lauf prüfen |
 | `--fast` | ohne HTTPS-Test (Bestätigung und Anonymität laufen trotzdem) |
@@ -561,6 +562,7 @@ proxyscraper/
 ├── parsing.py          Proxys in Text, HTML und JSON finden
 ├── history.py          Verlauf funktionierender Proxys
 ├── geo.py              Länder: erst offline, ip-api.com als Reserve
+├── asndb.py            DB-IP-Anbieterdatenbank, Rechenzentrum-Heuristik
 ├── geodb.py            DB-IP-Länderdatenbank (monatlich, Binärsuche)
 ├── targets.py          Zielseiten für --target
 ├── output.py           Ergebnisdateien

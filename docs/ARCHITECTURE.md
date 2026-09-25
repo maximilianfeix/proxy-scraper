@@ -17,7 +17,7 @@ flowchart LR
     end
     subgraph check["3 · Check"]
         Q[pipeline.py<br/>priority queue] --> C[checker.py<br/>handshake · confirm · tamper · HTTPS]
-        C --> G[geo.py · asndb.py<br/>country · provider]
+        C --> G[geo.py · asndb.py · blocklist.py<br/>country · provider · blocklist]
     end
     subgraph finish["4 · Learn & report"]
         O[output.py · exporters.py] --> L[sources · history<br/>learned stats]
@@ -41,8 +41,12 @@ flowchart LR
 | `handshake.py` | HTTP/SOCKS4/SOCKS5 handshakes including login, shared by checker and server |
 | `judges.py` | check targets, Cloudflare filter, failover while running |
 | `geo.py` · `geodb.py` · `asndb.py` | countries and providers, offline from DB-IP, ip-api.com as fallback |
+| `blocklist.py` | is the exit IP on SpamCop? One cached DNS lookup per IP, skipped when the resolver is refused |
+| `targets.py` | target sites for `--target` |
+| `completion.py` | bash/zsh/fish completion, generated from the argparse parser so it can't go stale |
 | `history.py` | which proxies worked before – they are checked first next time |
 | `output.py` · `exporters.py` · `publish.py` | result files, proxychains/Clash/curl configs, the live list and its website |
+| `site/` | the live list website (one static `index.html` plus images), published next to the JSON files |
 | `server/` | the rotating proxy server (`--serve`) |
 | `api.py` | `find_proxies()` / `check_proxies()` for use from Python |
 | `ui/` | everything that draws: widgets, dashboard, report, wizard, server view |
@@ -61,11 +65,11 @@ flowchart TD
     D -- fails --> H[counted as honeypot]
     D --> E[fetch a static page<br/>must match byte for byte]
     E -- differs --> T[counted as tampering]
-    E --> F[country · provider · HTTPS with verified TLS · target sites]
+    E --> F[country · provider · blocklist · HTTPS with verified TLS · target sites]
     F --> R[result]
 ```
 
-Only hits go through the later steps, so the expensive checks cost little. Every failure still counts for the source it came from, that's what the learning is built on.
+Only hits go through the later steps, so the expensive checks cost little. Every failure still counts for the source it came from, that's what the learning is built on. A hit is only recorded once its verdict is in: when `--want` or Ctrl+C stops the workers, proxies still being confirmed are neither working nor failed.
 
 ## The proxy server
 
@@ -73,7 +77,7 @@ Only hits go through the later steps, so the expensive checks cost little. Every
 flowchart LR
     CL[client] -->|first byte 0x05| S5[socks.py]
     CL -->|HTTP / CONNECT| H[http.py]
-    CL -->|GET /__proxy-scraper/status| ST[status.py]
+    CL -->|GET /__proxy-scraper/status · /metrics| ST[status.py]
     S5 --> CO[core.py]
     H --> CO
     CO --> PO[pool.py<br/>filter · sticky · strategy]
@@ -82,6 +86,20 @@ flowchart LR
 ```
 
 The first packet of every connection is kept, so if a proxy stays silent or answers with garbage, the same packet goes to the next one without the client noticing. Upstream answers are screened until the final status line, so a proxy asking for a login (407) never reaches the client.
+
+Failures come in three kinds. A proxy that doesn't answer, times out or speaks garbage counts against it right away. A proxy that answers but can't open the tunnel (CONNECT 502, SOCKS refusal) raises `TargetError`: that only counts against it if another proxy then reaches the same target, so a dead target never disables the pool. `Unsupported` (SOCKS4 and IPv6) never counts.
+
+## Around the tool
+
+```mermaid
+flowchart LR
+    GA[GitHub Actions<br/>every 6 hours] -->|run + publish.py| PL[proxy-list branch<br/>lists · JSON · website]
+    PL --> WEB[GitHub Pages<br/>live list website]
+    PL -->|stats.json · proxies.json| BOT[bot/<br/>Discord bot]
+    PL -->|all.txt| RL[--recheck live]
+```
+
+`bot/` is a separate package with its own requirements (discord.py). It only reads the published JSON files, so it knows nothing about the tool's internals. `.github/workflows/bot.yml` tests it and deploys it to a server over SSH.
 
 ## State on disk
 
@@ -104,6 +122,7 @@ Some things look like obvious improvements and turned out not to be. The numbers
 - **Check targets are ranked by quality, not latency** ([#8](../../../issues/8)) – the same 300 proxies found 255 hits through checkip.amazonaws.com but only 199 through ident.me, although ident.me answered faster.
 - **Tamper check** ([#46](../../../issues/46)) – one in five working proxies injected something into a plain HTML page. That's why it's always on.
 - **Cloudflare is never a check target** – many "proxies" are Cloudflare addresses that would answer a request to a Cloudflare-hosted site themselves.
+- **Blocklists** ([#66](../../../issues/66)) – Spamhaus refuses public resolvers, DroneBL lists 59 % of exit IPs (it's essentially a list of open proxies), SpamCop lists 29 %. Only SpamCop is used, and only after a probe with the documented test address proves the resolver gets real answers.
 
 ## Testing
 

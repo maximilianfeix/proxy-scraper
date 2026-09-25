@@ -34,7 +34,7 @@ STATS_FILE = DATA_DIR / "source_stats.json"
 
 GH_RAW = "https://raw.githubusercontent.com"
 # "auto" = Liste enthält typ://ip:port-Zeilen, der Typ steht pro Zeile
-SOURCE_TYPES = PROXY_TYPES + ("auto",)
+SOURCE_TYPES = (*PROXY_TYPES, "auto")
 
 # url -> Typ
 SourceMap = Dict[str, str]

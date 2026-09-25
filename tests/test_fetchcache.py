@@ -69,6 +69,7 @@ def test_unchanged_list_comes_from_the_cache(tmp_path):
 
 def test_cache_is_unfiltered_so_types_can_change(tmp_path):
     server = ListServer()
+
     async def go():
         srv = await asyncio.start_server(server.handle, "127.0.0.1", 0)
         url = f"http://127.0.0.1:{srv.sockets[0].getsockname()[1]}/list.txt"
@@ -189,7 +190,6 @@ def test_dropping_validators_removes_the_payload(tmp_path):
     cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
     cache.store("http://x/list", {}, "http 1.1.1.1:80", "http")
     assert list((tmp_path / "cache").glob("*.gz")) == []
-
 
 
 @pytest.mark.parametrize("index", ['[1, 2, 3]', '{"http://x/l": {"etag": "a"}}', '{"http://x/l": "kaputt"}',

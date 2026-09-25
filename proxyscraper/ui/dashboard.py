@@ -62,6 +62,7 @@ from .widgets import (
 # Phase 2: Sammeln
 # --------------------------------------------------------------------------- #
 
+
 class CollectView:
     def __init__(self, total_sources: int, started: float):
         self.started = started

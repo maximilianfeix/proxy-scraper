@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import os
 import random
 from collections import Counter
@@ -399,10 +400,7 @@ async def run_checks(
     geo.stop()
     if geo.pending and not geo.failed:
         message = f"[bold {ACCENT}]Ermittle Länder für {fmt(len(geo.pending))} Exit-IPs …"
-        with widgets.console.status(message, spinner="dots"):
-            try:
-                await asyncio.wait_for(asyncio.shield(geo_task), 30)
-            except asyncio.TimeoutError:
-                pass
+        with widgets.console.status(message, spinner="dots"), contextlib.suppress(asyncio.TimeoutError):
+            await asyncio.wait_for(asyncio.shield(geo_task), 30)
     geo_task.cancel()
     return run

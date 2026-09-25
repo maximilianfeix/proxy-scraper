@@ -9,6 +9,7 @@ zwischengespeichert, damit bekannte IPs nie erneut abgefragt werden.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import json
 import time
 import warnings
@@ -100,10 +101,8 @@ class GeoResolver:
             return
         while not (self._stop.is_set() and not self.pending):
             if not self.pending:
-                try:
+                with contextlib.suppress(asyncio.TimeoutError):
                     await asyncio.wait_for(self._stop.wait(), 0.5)
-                except asyncio.TimeoutError:
-                    pass
                 continue
             batch, self.pending = self.pending[:BATCH_SIZE], self.pending[BATCH_SIZE:]
             started = time.monotonic()

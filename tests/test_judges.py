@@ -84,7 +84,7 @@ def test_watch_needs_two_failures_before_switching():
 
 
 def test_watch_skips_reserves_that_are_down_too():
-    watch, used = make_watch(FakeProbes(down={"a", "b"}))
+    watch, _used = make_watch(FakeProbes(down={"a", "b"}))
     for _ in range(2):
         asyncio.run(watch.check_once())
     assert watch.current.judge.host == "c"
@@ -303,7 +303,6 @@ def test_second_switch_only_rechecks_failures_under_the_new_target(tmp_path):
     # 1, 2 (Ausfall a) + 3 (lief noch mit a, endete nach dem Wechsel) + 4, 5 (Ausfall b); danach ist die
     # Basislinie neu – die Wiederholungen unter c zählen normal
     assert sorted(set(run.checked)) == sorted(jobs) and len(run.checked) == len(jobs)
-
 
 
 def test_a_single_cloudflare_address_rules_out_the_target(monkeypatch):

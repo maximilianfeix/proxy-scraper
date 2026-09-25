@@ -95,14 +95,14 @@ async def connect_then_get(server_port, target_port):
 
 @pytest.mark.parametrize("kind, handler", [("http", http_forward_proxy), ("socks5", socks5_forward_proxy)])
 def test_plain_http_through_pool(kind, handler):
-    answer, pool, stats = run_server([(kind, handler)], plain_get)
+    answer, _pool, stats = run_server([(kind, handler)], plain_get)
     assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(b"ok")
     assert (stats.requests, stats.ok, stats.failed) == (1, 1, 0)
 
 
 @pytest.mark.parametrize("kind, handler", [("http", http_forward_proxy), ("socks5", socks5_forward_proxy)])
 def test_connect_tunnel_through_pool(kind, handler):
-    answer, pool, stats = run_server([(kind, handler)], connect_then_get)
+    answer, _pool, stats = run_server([(kind, handler)], connect_then_get)
     assert answer.startswith(b"HTTP/1.1 200 Connection established")
     assert b"HTTP/1.1 200 OK" in answer and answer.endswith(b"ok")
     assert stats.bytes_down > 0
@@ -117,7 +117,7 @@ def test_failover_to_next_proxy():
 
 
 def test_all_proxies_dead_gives_502():
-    answer, pool, stats = run_server([("http", None), ("socks5", None)], plain_get)
+    answer, _pool, stats = run_server([("http", None), ("socks5", None)], plain_get)
     assert answer.startswith(b"HTTP/1.1 502")
     assert (stats.ok, stats.failed) == (0, 1)
 
@@ -153,7 +153,7 @@ def test_pool_prefers_fast_proxies():
 def test_parse_request_head():
     assert parse_request_head(b"CONNECT example.org:443 HTTP/1.1\r\nHost: example.org:443\r\n\r\n")[:3] == \
         ("CONNECT", "example.org", 443)
-    method, host, port, path, headers = parse_request_head(
+    method, host, port, path, _headers = parse_request_head(
         b"GET http://example.org/a?b=1 HTTP/1.1\r\nHost: example.org\r\nProxy-Connection: keep-alive\r\n\r\n")
     assert (method, host, port, path) == ("GET", "example.org", 80, b"/a?b=1")
     with pytest.raises(ValueError):
@@ -367,7 +367,7 @@ def test_status_2000_is_not_an_established_tunnel():
 
 def test_streamed_body_through_silent_proxy_counts_as_failure():
     body = b"y" * (2 * 1024 * 1024)
-    answer, pool, stats = run_server([("http", silent_proxy)], post_echo(body))
+    _answer, pool, stats = run_server([("http", silent_proxy)], post_echo(body))
     assert (stats.ok, stats.failed, pool.entries[0].fail) == (0, 1, 1)
     assert not stats.recent[-1].ok
 

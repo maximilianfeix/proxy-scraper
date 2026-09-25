@@ -7,6 +7,7 @@ asyncio-Programme auf dem ProactorEventLoop (IOCP), der kein select()-Limit für
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import signal
 import sys
 from contextlib import contextmanager
@@ -78,7 +79,5 @@ def ensure_utf8_output() -> None:
     for stream in (sys.stdout, sys.stderr):
         encoding = (getattr(stream, "encoding", "") or "").lower().replace("-", "")
         if encoding != "utf8" and hasattr(stream, "reconfigure"):
-            try:
+            with contextlib.suppress(ValueError, OSError):  # z. B. bereits geschlossener oder fremder Stream
                 stream.reconfigure(encoding="utf-8", errors="replace")
-            except (ValueError, OSError):  # z. B. bereits geschlossener oder fremder Stream
-                pass

@@ -51,9 +51,7 @@ class Filters:
             return False
         if self.countries and r.country not in self.countries:
             return False
-        if any(not r.targets.get(url) for url in self.targets):
-            return False
-        return True
+        return all(r.targets.get(url) for url in self.targets)  # jede gewünschte Zielseite erreicht
 
     def may_pass(self, r: CheckResult) -> bool:
         """Kann `r` die Filter noch erfüllen? HTTPS ist an dieser Stelle noch unbekannt, das Land evtl. auch.
@@ -64,9 +62,8 @@ class Filters:
             return False
         if self.min_anonymity and ANONYMITY_RANK.get(r.anonymity, -1) < ANONYMITY_RANK[self.min_anonymity]:
             return False
-        if self.countries and r.country and r.country not in self.countries:
-            return False
-        return True
+        # Land noch unbekannt -> kann noch passen
+        return not self.countries or not r.country or r.country in self.countries
 
     def describe(self) -> str:
         parts = []

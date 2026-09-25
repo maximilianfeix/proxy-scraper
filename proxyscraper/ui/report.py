@@ -48,6 +48,7 @@ from .widgets import (
 # Phase 4: Bericht
 # --------------------------------------------------------------------------- #
 
+
 def render_summary(
     stats: LiveStats,
     results: List[CheckResult],

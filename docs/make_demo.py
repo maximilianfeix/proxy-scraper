@@ -116,7 +116,7 @@ def wizard_frames():
 
 def summary_frame(seed: int):
     s = live_stats(seed, 289_000, 2847, 287)
-    rows = [r for r in s.recent]
+    rows = list(s.recent)
     rng = random.Random(seed + 1)
     kept = [CheckResult(f"x{i}", t, f"{NETS[i % 3]}.{20 + i}:{rng.choice(PORTS[t])}", 90 + i * 23, ip(rng), True,
                         "elite" if t != "http" else "anonymous", rng.choice(("US", "DE", "NL", "JP", "SG")))

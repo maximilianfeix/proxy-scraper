@@ -284,7 +284,7 @@ curl -x http://session-cart42:x@127.0.0.1:8899 https://shop.example  # derselbe 
 curl http://127.0.0.1:8899/__proxy-scraper/status                # Pool und Zähler als JSON
 ```
 
-Wie bei kommerziellen rotierenden Proxys trägt der **Benutzername** die Wünsche: `country-XX`, `type-http|socks4|socks5` und `session-NAME`, kombinierbar (`country-us-type-socks5-session-a`). Das klappt über HTTP (`Proxy-Authorization`) und SOCKS5 (Benutzer/Passwort). Das Passwort ist egal – der Server lauscht nur auf `127.0.0.1`.
+Wie bei kommerziellen rotierenden Proxys trägt der **Benutzername** die Wünsche: `country-XX`, `type-http|socks4|socks5` und `session-NAME`, kombinierbar (`country-us-type-socks5-session-a`). Das klappt über HTTP (`Proxy-Authorization`) und SOCKS5 (Benutzer/Passwort). Das Passwort ist egal – standardmäßig lauscht der Server nur auf `127.0.0.1`. Mit `--serve-host` geht auch eine andere Adresse, dann kann ihn **jeder benutzen, der ihn erreicht** – also nur hinter einer Firewall oder in Docker mit `-p 127.0.0.1:…`.
 
 | Option | Was sie macht |
 |---|---|
@@ -298,7 +298,7 @@ Wie bei kommerziellen rotierenden Proxys trägt der **Benutzername** die Wünsch
 - für HTTPS nur Proxys, die den Test mit **verifiziertem TLS** bestanden haben – keine aufgebrochene Verschlüsselung
 - bleibt ein Proxy im Tunnel stumm oder liefert statt TLS eine Fehlerseite, geht dasselbe erste Paket unbemerkt an den nächsten
 - wer dreimal hintereinander scheitert, fliegt aus der Rotation – alle 5 Minuten werden die nachgeprüft und kommen zurück, wenn sie wieder funktionieren
-- lauscht nur auf `127.0.0.1`; Live-Ansicht mit Anfragen, Erfolgsquote, Pool und den letzten Verbindungen
+- lauscht nur auf `127.0.0.1` (außer mit `--serve-host`); Live-Ansicht mit Anfragen, Erfolgsquote, Pool und den letzten Verbindungen
 
 Im Test: 20 von 20 HTTPS-Anfragen erfolgreich, über 15 verschiedene Exit-IPs. Im Assistenten gibt es dafür **Sofort als Proxy-Server**.
 

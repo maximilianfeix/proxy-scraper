@@ -142,6 +142,9 @@ def test_outage_mid_run_rechecks_and_keeps_stats_clean(tmp_path):
         async def confirm(self, r):
             return True
 
+        async def tampers(self, r):
+            return False
+
         async def enrich(self, r):
             r.https = True
 
@@ -196,6 +199,9 @@ def test_check_that_fails_after_the_switch_is_rechecked_not_counted(tmp_path):
         async def confirm(self, r):
             return True
 
+        async def tampers(self, r):
+            return False
+
         async def enrich(self, r):
             r.https = True
 
@@ -247,6 +253,9 @@ def test_failures_before_the_last_good_probe_stay_counted(tmp_path):
         async def confirm(self, r):
             return True
 
+        async def tampers(self, r):
+            return False
+
     async def go():
         stats = LiveStats({"http": len(jobs)})
         writer = output.ResultWriter(run_dir=tmp_path / "run")
@@ -289,6 +298,9 @@ def test_second_switch_only_rechecks_failures_under_the_new_target(tmp_path):
 
         async def confirm(self, r):
             return True
+
+        async def tampers(self, r):
+            return False
 
     async def go():
         stats = LiveStats({"http": len(jobs)})

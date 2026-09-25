@@ -119,6 +119,7 @@ class LiveStats:
         self.anonymity: Counter = Counter()
         self.passing = 0
         self.fakes = 0  # bestanden die Basisprüfung, aber nicht die Bestätigung
+        self.tampered = 0  # bestätigt, aber veränderten eine bekannte Seite (Skripte, Werbung)
         self.details_saved = 0  # HTTPS-Tests, die dank Filter entfallen konnten
         self.targets_ok: Counter = Counter()  # Zielseiten-URL -> Anzahl Proxys, die sie erreichen
         self.recent: Deque[CheckResult] = deque(maxlen=8)
@@ -306,6 +307,8 @@ class CheckDashboard:
 
         footer = Text("  Strg+C beendet und speichert", style=MUTED)
         footer.append(f"  ·  {fmt(self.concurrency)} parallel", style=MUTED)
+        if s.tampered:
+            footer.append(f"  ·  {fmt(s.tampered)} manipulierend aussortiert", style=WARN)
         if self.judge:
             footer.append(f"  ·  Ziel {self.judge}", style=MUTED)
         if self.judge_note:

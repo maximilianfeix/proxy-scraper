@@ -22,6 +22,7 @@ from .checker import (
     JUDGE_HOST,
     Checker,
     CheckResult,
+    integrity_reference,
     probe_confirm_target,
 )
 from .compat import on_interrupt, raise_fd_limit
@@ -121,7 +122,7 @@ def is_network_blocked(stats: LiveStats) -> bool:
     Fake-Proxys zählen mit: Sie bestehen die Basisprüfung, die Verbindung klappt also – ein Netz
     voller Honeypots ist kein blockiertes Netz, und aus dem Lauf soll trotzdem gelernt werden.
     """
-    reached = stats.found + stats.fakes
+    reached = stats.found + stats.fakes + stats.tampered
     return stats.checked >= 1000 and reached < stats.checked * BLOCKED_HIT_RATE
 
 
@@ -153,6 +154,7 @@ class Run:
         self.history = ProxyHistory()
         self.scraped: Optional[ScrapeResult] = None
         self.judges: List[JudgeProbe] = []  # erreichbare Prüfziele, schnellstes zuerst
+        self.integrity: Optional[bytes] = None  # Hash der Vergleichsseite (siehe Checker.tampers)
         self.confirm_ip: Optional[str] = None
         self.targets: List[Tuple[Target, str]] = []
         self.own_ips: List[str] = []
@@ -196,6 +198,8 @@ class Run:
         if not await self.resolve_targets():
             return False
         self.confirm_ip = await confirm_target()
+        if self.confirm_ip:  # Vergleichsseite für die Prüfung auf veränderte Inhalte
+            self.integrity = await integrity_reference(self.confirm_ip, timeout=8)
         best, reserve = self.judges[0], [j.judge.host for j in self.judges[1:]]
         info("Prüfziel", Text.assemble(
             (f"{best.judge.host} ({best.ip}, {best.latency} ms)", MUTED),
@@ -303,7 +307,8 @@ class Run:
         checker = Checker(judge.ip, self.own_ips, opts.check_timeout, opts.check_connect_timeout,
                           self.confirm_ip, detail_timeout=opts.timeout,
                           detail_connect_timeout=opts.connect_timeout, targets=self.targets,
-                          https_test=not opts.fast or opts.filters.https_only, judge=judge.judge)
+                          https_test=not opts.fast or opts.filters.https_only, judge=judge.judge,
+                          integrity_reference=self.integrity)
         watch = JudgeWatch(self.judges, lambda new: checker.use_judge(new.judge, new.ip))
         dashboard.judge = judge.judge.host
         # Länder-Datenbank sofort aus data/ (2 ms); ist sie alt oder fehlt, im Hintergrund neu laden –
@@ -404,6 +409,9 @@ class Run:
         if run.judge_switches:
             note(f"Prüfziel ausgefallen, gewechselt: {', '.join(run.judge_switches)}. {fmt(run.rechecked)} Proxys "
                  "wurden erneut geprüft und zählen nicht für die Quellen-Statistik.", WARN, "⚠")
+        if stats.tampered:
+            note(f"{fmt(stats.tampered)} Proxys haben eine Testseite verändert (meist mit eingeschleusten Skripten) "
+                 "und wurden aussortiert.", WARN, "⚠")
         if run.reached_goal:
             note(f"Ziel von {fmt(opts.want)} Treffern erreicht – vorzeitig beendet.", GOOD, "✔")
         elif run.interrupted:

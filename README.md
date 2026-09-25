@@ -182,7 +182,7 @@ Started without arguments, the tool asks what you need using the arrow keys – 
 <td valign="top">
 
 **🔐 Real verification**<br>
-Every hit has to fetch two independent pages – that weeds out **honeypots** that only answer check requests (in some runs 5 out of 6 “hits”). Plus: HTTPS through a tunnel with **verified TLS**, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
+Every hit has to fetch two independent pages – that weeds out **honeypots** that only answer check requests (in some runs 5 out of 6 “hits”). A third request catches proxies that **tamper with content**: in our measurements one in five working proxies injected a script into a plain HTML page. Plus: HTTPS through a tunnel with **verified TLS**, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
 
 </td>
 <td valign="top">
@@ -244,6 +244,7 @@ macOS, Linux and Windows, Python 3.9 to 3.13. Only two dependencies: `rich` and 
 |---|:---:|:---:|
 | Proxies checked right before you use them | ❌ | ✅ |
 | Honeypots that fake a successful check filtered out | ❌ | ✅ |
+| Proxies that inject scripts or ads filtered out | ❌ | ✅ |
 | HTTPS tested with verified TLS | rarely | ✅ |
 | Anonymity level and country per proxy | sometimes | ✅ |
 | Only proxies that reach *your* target site | ❌ | ✅ `--target` |
@@ -321,7 +322,7 @@ flowchart LR
 1. **Sources** – the curated list in [`sources.json`](proxyscraper/sources.json), meta sources (other projects that maintain lists of proxy sources) and, every three days, a GitHub search for actively maintained repos.
 2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads 0 MB instead of ~160 MB.
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
-4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here.
+4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here. Finally a static HTML page has to arrive byte for byte as it does without a proxy – anyone injecting ads or scripts is out.
 5. **Countries** – looked up offline in the free DB-IP database (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
 6. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
 

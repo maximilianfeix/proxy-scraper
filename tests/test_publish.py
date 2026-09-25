@@ -111,7 +111,41 @@ def test_website_ships_with_the_package():
 def test_stats_count_datacenter_exits(tmp_path):
     rows = [CheckResult(f"http 1.1.1.{i}:80", "http", f"1.1.1.{i}:80", 100, "9.9.9.9", True, "elite", "DE")
             for i in range(4)]
-    rows[0].hosting = True
+    ResultWriter(run_dir=tmp_path / "run").finalize(rows)
+    publish.publish(tmp_path / "run", tmp_path / "noprov", minimum=2)
+    assert json.loads((tmp_path / "noprov" / "stats.json").read_text())["datacenter"] is None  # keine Daten
+    for r in rows:
+        r.org = "Some ISP"
+    rows[0].hosting, rows[0].org = True, "Hetzner Online GmbH"
     ResultWriter(run_dir=tmp_path / "run").finalize(rows)
     publish.publish(tmp_path / "run", tmp_path / "public", minimum=2)
     assert json.loads((tmp_path / "public" / "stats.json").read_text())["datacenter"] == 1
+
+
+def test_streaks_count_consecutive_runs(tmp_path):
+    previous = tmp_path / "streaks.json"
+    previous.write_text(json.dumps({"socks5://2.2.2.2:1080": 5, "http://1.1.1.0:80": 1, "http://7.7.7.7:80": 9,
+                                    "kaputt": "x"}))
+    out = tmp_path / "public"
+    publish.publish(run_dir(tmp_path), out, minimum=2, streaks=previous)
+    streaks = json.loads((out / "streaks.json").read_text())
+    assert streaks["socks5://2.2.2.2:1080"] == 6       # war dabei -> weiterzählen
+    assert streaks["http://1.1.1.0:80"] == 2
+    assert streaks["http://1.1.1.2:80"] == 1           # neu
+    assert "http://7.7.7.7:80" not in streaks          # diesmal nicht dabei -> Serie vorbei
+    rows = {r["url"]: r for r in json.loads((out / "proxies.json").read_text())}
+    assert rows["socks5://2.2.2.2:1080"]["streak"] == 6
+    assert json.loads((out / "stats.json").read_text())["stable"] == 1  # nur der mit 6 Läufen (>= 4)
+
+
+def test_missing_or_broken_streaks_start_fresh(tmp_path):
+    broken = tmp_path / "streaks.json"
+    broken.write_text("[1, 2]")
+    publish.publish(run_dir(tmp_path), tmp_path / "public", minimum=2, streaks=broken)
+    assert set(json.loads((tmp_path / "public" / "streaks.json").read_text()).values()) == {1}
+
+
+def test_streak_values_must_be_real_numbers(tmp_path):
+    path = tmp_path / "streaks.json"
+    path.write_text(json.dumps({"a": True, "b": 3, "c": -1, "d": "4", "e": 2.0}))
+    assert publish.load_streaks(path) == {"b": 3}

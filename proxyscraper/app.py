@@ -324,7 +324,6 @@ class Run:
                           detail_connect_timeout=opts.connect_timeout, targets=self.targets,
                           https_test=not opts.fast or opts.filters.https_only, judge=judge.judge,
                           integrity_reference=self.integrity)
-                          https_test=not opts.fast or opts.filters.https_only, judge=judge.judge)
         self.checker = checker  # für den Proxy-Server: Nachprüfen ausgemusterter Proxys
         watch = JudgeWatch(self.judges, lambda new: checker.use_judge(new.judge, new.ip))
         dashboard.judge = judge.judge.host

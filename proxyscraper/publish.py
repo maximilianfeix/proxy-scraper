@@ -57,6 +57,7 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         "by_type": {t: sum(1 for r in rows if r["ptype"] == t) for t in PROXY_TYPES},
         "https": sum(1 for r in rows if r.get("https")),
         "elite": sum(1 for r in rows if r.get("anonymity") == "elite"),
+        "datacenter": sum(1 for r in rows if r.get("hosting")),
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
         "median_latency": round(statistics.median(r["latency"] for r in rows)) if rows else 0,
     }

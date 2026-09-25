@@ -50,6 +50,7 @@ from .pipeline import (
     run_checks,
     scrape,
 )
+from .publish import RAW_BASE
 from .server import ProxyPool, RotatingServer
 from .targets import Target, parse_target
 from .ui import (
@@ -121,6 +122,22 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
     return [k for k in keys if split_key(k)[0] in types]
 
 
+LIVE = "live"  # --recheck live: die öffentliche Live-Liste als Startpunkt
+LIVE_URL = f"{RAW_BASE}/all.txt"
+
+
+async def load_live_jobs(types, history: ProxyHistory, fetch=http_get) -> List[str]:
+    """Live-Liste laden (nur Adressen, die beim letzten Lauf in GitHub Actions funktioniert haben), eigene
+    Treffer aus dem Verlauf dazu – geprüft wird dann alles lokal, aus dem eigenen Netz."""
+    try:
+        text = (await fetch(LIVE_URL, timeout=30)).decode("utf-8", "replace")
+    except Exception:
+        note("Live-Liste nicht erreichbar – stattdessen letzter Lauf und Verlauf.", WARN, "⚠")
+        return load_recheck_jobs("", types, history)
+    keys = list(dict.fromkeys(parse_keys(text.splitlines()) + history.ranked_keys()))
+    return [k for k in keys if split_key(k)[0] in types]
+
+
 def is_network_blocked(stats: LiveStats) -> bool:
     """Kommt (fast) gar nichts durch, blockiert vermutlich eine Firewall Proxy-Verbindungen.
 
@@ -158,6 +175,13 @@ def pool_recheck(checker: Checker):
         checker.unreachable.discard(parse_endpoint(result.proxy).address)
         return await checker.check(result.key) is not None
     return recheck
+
+
+def is_loopback(host: str) -> bool:
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return host == "localhost"
 
 
 class Run:
@@ -264,7 +288,10 @@ class Run:
 
     async def gather_jobs(self) -> List[str]:
         opts = self.opts
-        if opts.recheck is not None:
+        if opts.recheck == LIVE:
+            jobs = await load_live_jobs(opts.types, self.history)
+            info("Recheck", f"{fmt(len(jobs))} Proxys aus der Live-Liste (alle 6 Stunden per GitHub Actions geprüft)")
+        elif opts.recheck is not None:
             jobs = load_recheck_jobs(opts.recheck, opts.types, self.history)
             info("Recheck", f"{fmt(len(jobs))} Proxys aus {opts.recheck or 'letztem Lauf + Verlauf'}")
         else:
@@ -394,7 +421,10 @@ class Run:
             note("Kein passender Proxy gefunden – der Proxy-Server startet nicht.", BAD, "✘")
             return
         pool = ProxyPool(proxies, strategy=self.opts.rotate, sticky_seconds=self.opts.sticky)
-        server = RotatingServer(pool, port=self.opts.serve, timeout=self.opts.timeout)
+        server = RotatingServer(pool, host=self.opts.serve_host, port=self.opts.serve, timeout=self.opts.timeout)
+        if not is_loopback(self.opts.serve_host):
+            note(f"Der Proxy-Server lauscht auf {self.opts.serve_host} – ohne Anmeldung. Wer ihn im Netz erreicht, "
+                 "kann ihn benutzen. Nur hinter einer Firewall oder im Container mit -p 127.0.0.1:…", WARN, "⚠")
         try:
             await server.start()
         except OSError as e:

@@ -81,6 +81,8 @@
   .type { font-weight: 700; } .type.http { color: var(--http); } .type.socks4 { color: var(--socks4); } .type.socks5 { color: var(--socks5); }
   .ok { color: var(--green); } .no { color: var(--faint); }
   .lat.fast { color: var(--green); } .lat.mid { color: var(--amber); } .lat.slow { color: var(--red); }
+  .provider { color: var(--muted); max-width: 240px; overflow: hidden; text-overflow: ellipsis; }
+  .dc { font: 700 10px/1 -apple-system, sans-serif; color: var(--amber); border: 1px solid var(--amber); border-radius: 4px; padding: 2px 4px; margin-right: 6px; vertical-align: 1px; }
   .copy { border: 0; background: none; color: var(--faint); cursor: pointer; padding: 2px 6px; border-radius: 6px; font-size: 14px; }
   .copy:hover { color: var(--accent); background: var(--accent-soft); }
   .foot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex-wrap: wrap; color: var(--muted); font-size: 13px; margin: 12px 2px 0; }
@@ -136,9 +138,10 @@
     <button class="chip socks5" data-type="socks5" aria-pressed="true">SOCKS5</button>
     <button class="chip" id="f-https" aria-pressed="false">HTTPS only</button>
     <button class="chip" id="f-elite" aria-pressed="false">Elite only</button>
+    <button class="chip" id="f-dc" aria-pressed="false" title="Datacenter exits get blocked sooner">No datacenter</button>
     <select id="f-country" aria-label="Country"><option value="">All countries</option></select>
     <label class="range">max <input type="range" id="f-lat" min="200" max="8000" step="100" value="8000"><span id="f-lat-v" class="mono">8 s</span></label>
-    <input type="search" id="f-q" placeholder="Search IP, port, country …" aria-label="Search">
+    <input type="search" id="f-q" placeholder="Search IP, port, country, provider …" aria-label="Search">
   </section>
 
   <div class="tablewrap">
@@ -146,7 +149,7 @@
       <thead><tr>
         <th data-key="ptype">Type</th><th data-key="proxy">Proxy</th><th data-key="country">Country</th>
         <th data-key="latency" aria-sort="ascending">Latency</th><th data-key="https">HTTPS</th>
-        <th data-key="anonymity" class="hide-sm">Anonymity</th><th class="hide-sm">Exit IP</th><th></th>
+        <th data-key="anonymity" class="hide-sm">Anonymity</th><th data-key="org" class="hide-sm">Provider</th><th></th>
       </tr></thead>
       <tbody id="rows"><tr><td colspan="8" class="empty">Loading the list …</td></tr></tbody>
     </table>
@@ -183,7 +186,8 @@ proxy-scraper --want 50 --https-only</pre></div>
   const fmt = (n) => Number(n).toLocaleString("en-US");
   const flag = (cc) => cc && cc.length === 2 ? String.fromCodePoint(...[...cc.toUpperCase()].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : "";
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
-  const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http","socks4","socks5"]), https: false, elite: false, country: "", maxLat: 8000, q: "" };
+  const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http","socks4","socks5"]), https: false, elite: false, noDc: false, country: "", maxLat: 8000, q: "" };
+  const short = (org) => { const s = String(org || "").replace(/,? (Inc|LLC|Ltd|GmbH|Co|Corporation|Limited|S\.?A|B\.?V)\.?$/i, ""); return s.length > 26 ? s.slice(0, 25) + "…" : s; };
 
   // Thema umschalten und merken
   const saved = (() => { try { return localStorage.getItem("theme"); } catch { return null; } })();
@@ -212,7 +216,7 @@ proxy-scraper --want 50 --https-only</pre></div>
       ["SOCKS4", fmt(st.by_type.socks4), share(st.by_type.socks4)],
       ["SOCKS5", fmt(st.by_type.socks5), share(st.by_type.socks5)],
       ["HTTPS", fmt(st.https), share(st.https)],
-      ["Median", fmt(st.median_latency) + " ms", `${fmt(st.elite)} elite`],
+      ["Median", fmt(st.median_latency) + " ms", `${fmt(st.elite)} elite` + (st.datacenter != null ? ` · ${Math.round(100 * st.datacenter / Math.max(st.total, 1))} % datacenter` : "")],
     ];
     $("#cards").innerHTML = items.map(([l, v, s]) => `<div class="card"><div class="label">${l}</div><div class="value">${v}</div><div class="sub">${s}</div></div>`).join("");
   }
@@ -237,9 +241,9 @@ proxy-scraper --want 50 --https-only</pre></div>
 
   function filtered() {
     const q = state.q.trim().toLowerCase();
-    const rows = state.rows.filter(r => state.types.has(r.ptype) && (!state.https || r.https) && (!state.elite || r.anonymity === "elite")
+    const rows = state.rows.filter(r => state.types.has(r.ptype) && (!state.https || r.https) && (!state.elite || r.anonymity === "elite") && (!state.noDc || !r.hosting)
       && (!state.country || r.country === state.country) && r.latency <= state.maxLat
-      && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.exit_ip}`.toLowerCase().includes(q)));
+      && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.exit_ip} ${r.org || ""} AS${r.asn || ""}`.toLowerCase().includes(q)));
     const k = state.sort, d = state.dir;
     return rows.sort((a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * d || a.latency - b.latency);
   }
@@ -250,7 +254,7 @@ proxy-scraper --want 50 --https-only</pre></div>
     $("#rows").innerHTML = rows.slice(0, state.shown).map(r => `<tr>
       <td class="type ${r.ptype}">${r.ptype}</td><td>${esc(r.proxy)}</td><td>${flag(r.country)} ${esc(r.country || "–")}</td>
       <td>${lat(r.latency)}</td><td class="${r.https ? "ok" : "no"}">${r.https ? "✔" : "–"}</td>
-      <td class="hide-sm">${esc(r.anonymity || "–")}</td><td class="hide-sm" style="color:var(--muted)">${esc(r.exit_ip)}</td>
+      <td class="hide-sm">${esc(r.anonymity || "–")}</td><td class="hide-sm provider" title="${esc(r.org ? `AS${r.asn} · ${r.org} · exit ${r.exit_ip}` : r.exit_ip)}">${r.hosting ? '<span class="dc">DC</span>' : ""}${esc(short(r.org) || r.exit_ip)}</td>
       <td><button class="copy" data-url="${esc(r.url)}" title="Copy ${esc(r.url)}" aria-label="Copy ${esc(r.url)}">⧉</button></td></tr>`).join("")
       || '<tr><td colspan="8" class="empty">No proxy matches these filters.</td></tr>';
     $("#count").textContent = `${fmt(Math.min(state.shown, rows.length))} of ${fmt(rows.length)} shown · ${fmt(state.rows.length)} in total`;
@@ -264,7 +268,7 @@ proxy-scraper --want 50 --https-only</pre></div>
     b.setAttribute("aria-pressed", state.types.has(t)); state.shown = PAGE; render();
   });
   const toggle = (id, key) => $(id).onclick = (e) => { state[key] = !state[key]; e.target.setAttribute("aria-pressed", state[key]); state.shown = PAGE; render(); };
-  toggle("#f-https", "https"); toggle("#f-elite", "elite");
+  toggle("#f-https", "https"); toggle("#f-elite", "elite"); toggle("#f-dc", "noDc");
   $("#f-country").onchange = (e) => { state.country = e.target.value; state.shown = PAGE; render(); };
   $("#f-lat").oninput = (e) => { state.maxLat = +e.target.value; $("#f-lat-v").textContent = state.maxLat >= 8000 ? "8 s" : fmt(state.maxLat) + " ms"; state.shown = PAGE; render(); };
   $("#f-q").oninput = (e) => { state.q = e.target.value; state.shown = PAGE; render(); };

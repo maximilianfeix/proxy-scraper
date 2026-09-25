@@ -300,3 +300,20 @@ def test_only_the_exact_status_path_answers():
 
     (ok, typo), _, _ = run_with_server([result(1)], client)
     assert ok.startswith(b"HTTP/1.1 200") and typo.startswith(b"HTTP/1.1 404")
+
+
+
+@pytest.mark.parametrize("host, loopback", [("127.0.0.1", True), ("::1", True), ("localhost", True),
+                                            ("0.0.0.0", False), ("192.168.1.5", False)])
+def test_is_loopback(host, loopback):
+    from proxyscraper.app import is_loopback
+    assert is_loopback(host) is loopback
+
+
+def test_serve_host_option_roundtrip():
+    from proxyscraper.cli import parse_args
+    from proxyscraper.options import RunOptions
+    opts = RunOptions.from_args(parse_args(["--serve", "--serve-host", "0.0.0.0"]))
+    assert opts.serve_host == "0.0.0.0" and "--serve-host" in opts.to_argv()
+    assert RunOptions.from_args(parse_args(opts.to_argv())) == opts
+    assert "--serve-host" not in RunOptions.from_args(parse_args(["--serve"])).to_argv()

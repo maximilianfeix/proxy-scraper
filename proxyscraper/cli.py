@@ -126,7 +126,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="ohne HTTPS-Test (schneller); Bestätigung und Anonymität laufen trotzdem")
     g.add_argument("--no-geo", action="store_true", help="keine Länder ermitteln")
     g.add_argument("--recheck", nargs="?", const="", metavar="DATEI",
-                   help="nur Proxys aus DATEI prüfen – ohne DATEI: letzter Lauf + Verlauf")
+                   help="nur Proxys aus DATEI prüfen – ohne DATEI: letzter Lauf + Verlauf; "
+                        "'live': die Live-Liste von GitHub (Sekunden statt Minuten, z. B. mit --serve)")
 
     f = p.add_argument_group("Filter (für die Ergebnisdateien)")
     f.add_argument("--country", metavar="CC", help="nur diese Länder, z. B. DE,AT,CH")
@@ -146,6 +147,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     v.add_argument("--rotate", choices=STRATEGIES, default="weighted",
                    help="welcher Proxy als nächster: weighted (schnell & zuverlässig bevorzugt, Standard), "
                         "random, round-robin oder fastest")
+    v.add_argument("--serve-host", default="127.0.0.1", metavar="ADRESSE",
+                   help="Adresse des Proxy-Servers (Standard: 127.0.0.1). 0.0.0.0 macht ihn von außen erreichbar – "
+                        "nur für Docker mit -p 127.0.0.1:8899:8899 oder hinter einer Firewall")
     v.add_argument("--sticky", type=non_negative_int, default=0, metavar="SEK",
                    help="dieselbe Zielseite behält so lange denselben Proxy (z. B. für Logins); "
                         "pro Anfrage geht das auch mit dem Benutzernamen session-NAME")

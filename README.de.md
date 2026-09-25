@@ -103,7 +103,7 @@ pip install -r requirements.txt
 python3 proxy_scraper.py
 ```
 
-Zu jedem [Release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) gibt es außerdem ein Wheel für `pip install <datei>.whl` und ein Multi-Arch-Image (amd64/arm64) auf `ghcr.io`. Im Container kommt der Assistent nie, der Lauf startet direkt; `--serve` lauscht nur innerhalb des Containers.
+Zu jedem [Release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) gibt es außerdem ein Wheel für `pip install <datei>.whl` und ein Multi-Arch-Image (amd64/arm64) auf `ghcr.io`. Im Container kommt der Assistent nie, der Lauf startet direkt. Für den Proxy-Server `--serve --serve-host 0.0.0.0` mit `-p 127.0.0.1:8899:8899` – dann ist der Port nur auf dem eigenen Rechner offen.
 
 Installiert liegt der gelernte Zustand im Benutzerordner (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` bzw. `~/.local/share/proxy-scraper`; änderbar mit `PROXY_SCRAPER_HOME`), Ergebnisse landen in `./results`. Aus einem Klon gestartet bleibt beides im Projekt.
 
@@ -159,6 +159,8 @@ Keine Lust, selbst zu scannen? Alle 6 Stunden läuft das Tool per **GitHub Actio
 ```bash
 curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt | head
 ```
+
+Oder das Tool startet direkt damit: `proxy-scraper --recheck live` lädt die Liste und prüft sie aus **deinem** Netz noch einmal – etwa 30 Sekunden statt eines kompletten Scans (von hier aus funktionierten 517 von 1.169). Mit `--serve` steht in unter einer Minute ein rotierender Proxy.
 
 <a id="features"></a>
 
@@ -298,7 +300,7 @@ curl -x http://session-cart42:x@127.0.0.1:8899 https://shop.example  # derselbe 
 curl http://127.0.0.1:8899/__proxy-scraper/status                # Pool und Zähler als JSON
 ```
 
-Wie bei kommerziellen rotierenden Proxys trägt der **Benutzername** die Wünsche: `country-XX`, `type-http|socks4|socks5` und `session-NAME`, kombinierbar (`country-us-type-socks5-session-a`). Das klappt über HTTP (`Proxy-Authorization`) und SOCKS5 (Benutzer/Passwort). Das Passwort ist egal – der Server lauscht nur auf `127.0.0.1`.
+Wie bei kommerziellen rotierenden Proxys trägt der **Benutzername** die Wünsche: `country-XX`, `type-http|socks4|socks5` und `session-NAME`, kombinierbar (`country-us-type-socks5-session-a`). Das klappt über HTTP (`Proxy-Authorization`) und SOCKS5 (Benutzer/Passwort). Das Passwort ist egal – standardmäßig lauscht der Server nur auf `127.0.0.1`. Mit `--serve-host` geht auch eine andere Adresse, dann kann ihn **jeder benutzen, der ihn erreicht** – also nur hinter einer Firewall oder in Docker mit `-p 127.0.0.1:…`.
 
 | Option | Was sie macht |
 |---|---|
@@ -312,7 +314,7 @@ Wie bei kommerziellen rotierenden Proxys trägt der **Benutzername** die Wünsch
 - für HTTPS nur Proxys, die den Test mit **verifiziertem TLS** bestanden haben – keine aufgebrochene Verschlüsselung
 - bleibt ein Proxy im Tunnel stumm oder liefert statt TLS eine Fehlerseite, geht dasselbe erste Paket unbemerkt an den nächsten
 - wer dreimal hintereinander scheitert, fliegt aus der Rotation – alle 5 Minuten werden die nachgeprüft und kommen zurück, wenn sie wieder funktionieren
-- lauscht nur auf `127.0.0.1`; Live-Ansicht mit Anfragen, Erfolgsquote, Pool und den letzten Verbindungen
+- lauscht nur auf `127.0.0.1` (außer mit `--serve-host`); Live-Ansicht mit Anfragen, Erfolgsquote, Pool und den letzten Verbindungen
 
 Im Test: 20 von 20 HTTPS-Anfragen erfolgreich, über 15 verschiedene Exit-IPs. Im Assistenten gibt es dafür **Sofort als Proxy-Server**.
 
@@ -450,7 +452,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--max-latency MS` | maximale Latenz |
 | `--no-datacenter` | keine Proxys mit Exit (vermutlich) in einem Rechenzentrum – die werden schneller gesperrt |
 | `--target URL` | nur Proxys, die diese Seite erreichen (mehrfach möglich) |
-| `--recheck [DATEI]` | nur Proxys aus einer Datei bzw. vom letzten Lauf prüfen |
+| `--recheck [DATEI\|live]` | nur Proxys aus einer Datei, vom letzten Lauf oder aus der öffentlichen Live-Liste prüfen |
 | `--fast` | ohne HTTPS-Test (Bestätigung und Anonymität laufen trotzdem) |
 | `--no-geo` | ohne Länder-Lookup |
 | `-c`, `--concurrency N` | gleichzeitige Prüfungen (Standard: 2000) |
@@ -458,6 +460,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--discover` | sofort neue Quellen auf GitHub suchen |
 | `--no-cache` | alle Listen neu laden (unveränderte werden sonst per ETag übersprungen) |
 | `--list-sources [N]` | Rangliste der Quellen anzeigen |
+| `--serve-host ADRESSE` | wo der Proxy-Server lauscht (Standard `127.0.0.1`; `0.0.0.0` für Docker, mit Warnung) |
 | `--rotate STRATEGIE` · `--sticky SEK` | wie der Proxy-Server Proxys auswählt, siehe [oben](#proxy-server) |
 | `--serve [PORT]` | danach als rotierender Proxy auf `127.0.0.1:PORT` bereitstellen (Standard: 8899) |
 | `-o DATEI` | zusätzlich alle Treffer in diese Datei schreiben |

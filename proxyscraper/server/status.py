@@ -61,7 +61,8 @@ def status_json(server: Any) -> str:
         "requests": {"total": st.requests, "ok": st.ok, "failed": st.failed, "active": st.active},
         "bytes": {"up": st.bytes_up, "down": st.bytes_down},
         "pool": {"total": len(pool.entries), "usable": len(pool.usable), "https": len(pool.tls_capable),
-                 "revived": server.revived},
+                 "revived": server.revived, "refilled": server.refilled,
+                 "last_refill": server.last_refill and round(server.last_refill)},
         "proxies": [
             {"url": f"{e.result.ptype}://{shown_proxy(e.result.proxy)}", "country": e.result.country,
              "latency_ms": e.result.latency, "https": e.result.https, "ok": e.ok, "fail": e.fail,

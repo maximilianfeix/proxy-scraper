@@ -125,6 +125,7 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
 
 
 LIVE = "live"  # --recheck live: the public live list as the starting point
+REFILL_CONCURRENCY = 500  # checks at once during --serve-refill, so the running server stays responsive
 LIVE_URL = f"{RAW_BASE}/all.txt"
 
 
@@ -454,19 +455,59 @@ class Run:
             return
         stop = asyncio.Event()
         widgets.console.print()
-        fresh = None
+        fresh = refills = None
         if self.checker:  # recheck disabled proxies every 5 minutes and bring them back if they work
             fresh = asyncio.ensure_future(server.keep_fresh(pool_recheck(self.checker)))
+            if self.opts.serve_refill:
+                refills = asyncio.ensure_future(self.keep_refilling(server, self.opts.serve_refill * 3600))
         try:
             with on_interrupt(asyncio.get_running_loop(), stop.set), \
                     Live(ServeDashboard(server), console=widgets.console, refresh_per_second=4):
                 await stop.wait()
         finally:
-            if fresh:
-                fresh.cancel()
+            for task in (fresh, refills):
+                if task:
+                    task.cancel()
             await server.close()
         st = server.stats
         note(f"Proxy server stopped – {fmt(st.requests)} requests, {fmt(st.ok)} successful.", GOOD, "✔")
+
+    async def keep_refilling(self, server: RotatingServer, interval: float) -> None:
+        """--serve-refill: every `interval` seconds check fresh candidates and merge the hits into the pool."""
+        while True:
+            await asyncio.sleep(interval)
+            try:
+                server.refilled += await self.refill(server.pool)
+            except Exception as e:  # noqa: BLE001 – the server keeps running with what it has
+                note(f"Refill failed ({e.__class__.__name__}: {e}) – trying again next time.", WARN, "⚠")
+            server.last_refill = time.time()
+
+    async def refill(self, pool: ProxyPool) -> int:
+        """One refill: the same checks and filters as the first run, quietly in the background. -> proxies added."""
+        opts = replace(self.opts, concurrency=min(self.opts.concurrency, REFILL_CONCURRENCY))
+        if opts.recheck == LIVE:
+            jobs = await load_live_jobs(opts.types, self.history)
+        else:
+            jobs = load_recheck_jobs("", opts.types, self.history)
+        serving = {e.result.key for e in pool.usable}  # working right now – no need to check them again
+        jobs = [k for k in jobs if k not in serving]
+        if not jobs:
+            return 0
+        self.checker.unreachable.clear()  # hours later, addresses that were down may be back
+        writer = ResultWriter(exports=opts.exports)
+        stats = LiveStats(Counter(split_key(k)[0] for k in jobs))
+        dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
+                                   opts.filters.describe(), opts.want, opts.filters.targets)
+        geo = GeoResolver(enabled=opts.geo, offline=CountryDB.load() if opts.geo else None)
+        run = await run_checks(jobs, self.checker, opts, dashboard, writer, geo,
+                               live_factory=lambda _view: contextlib.nullcontext(),
+                               providers=ProviderLookup(AsnDB.load()), blocklist=self.blocklist, quiet=True)
+        kept = [r for r in run.results if opts.filters.accepts(r)]
+        writer.finalize(kept)
+        blocked = is_network_blocked(stats)
+        self.learn(run, blocked, sources=False)  # the source ranking only learns from full scans
+        geo.save()
+        return 0 if blocked else pool.merge(kept)  # a blocked network proves nothing about the pool
 
     @staticmethod
     async def refresh_asn_db(providers: ProviderLookup) -> None:
@@ -487,9 +528,9 @@ class Run:
         if db is not None:
             geo.use_offline(db)
 
-    def learn(self, run: CheckRun, network_blocked: bool):
+    def learn(self, run: CheckRun, network_blocked: bool, sources: bool = True):
         """Update source statistics and history – on a blocked network only the hits."""
-        per_source = attribute_results(self.scraped, run.checked, run.working) if self.scraped else {}
+        per_source = attribute_results(self.scraped, run.checked, run.working) if self.scraped and sources else {}
         if not network_blocked:
             # on a blocked network every source and known proxy would wrongly count as "dead"
             self.quality.record_checks(per_source)

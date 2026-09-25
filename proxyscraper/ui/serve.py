@@ -75,8 +75,12 @@ class ServeDashboard:
         usage.add_row("Prometheus", Text(f"http://{'any:' + pw + '@' if server.password else ''}"
                                          f"{address}/__proxy-scraper/metrics"))
         mode = pool.strategy + (f" · sticky {pool.sticky_seconds:g} s" if pool.sticky_seconds else "")
-        usage.add_row("Rotation", Text(mode + (f" · {fmt(server.revived)} brought back" if server.revived else ""),
-                                       style=MUTED))
+        if server.revived:
+            mode += f" · {fmt(server.revived)} brought back"
+        if server.last_refill:
+            ago = fmt_duration(time.time() - server.last_refill)
+            mode += f" · {fmt(server.refilled)} added by refills (last {ago} ago)"
+        usage.add_row("Rotation", Text(mode, style=MUTED))
 
         cards = row(
             card("Requests", fmt(st.requests), f"{st.requests / uptime * 60:.1f} per minute"),

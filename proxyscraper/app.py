@@ -323,6 +323,12 @@ class Run:
         providers_refresh = None
         if not asn_is_current(providers.db):
             providers_refresh = asyncio.ensure_future(self.refresh_asn_db(providers))
+            if opts.filters.no_datacenter and providers.db is None:
+                # ausdrücklich ohne Rechenzentren, aber noch gar keine Datenbank: vor dem Prüfen laden –
+                # sonst gingen unbekannte Anbieter als "kein Rechenzentrum" durch und --want hörte zu früh auf
+                with widgets.console.status("Lade Anbieter-Datenbank (DB-IP) …", spinner="dots"), \
+                        contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(asyncio.shield(providers_refresh), 90)
         widgets.console.print()
         run = await run_checks(
             jobs, checker, opts, dashboard, writer, geo,
@@ -345,6 +351,8 @@ class Run:
             for r in run.results:
                 if not r.asn:
                     providers.annotate(r)
+                    if r.hosting:
+                        stats.hosting += 1  # sonst zeigten Dashboard und Hinweis zu wenig Rechenzentren
         kept = [r for r in run.results if opts.filters.accepts(r)]
         files = writer.finalize(kept)
         network_blocked = is_network_blocked(stats)

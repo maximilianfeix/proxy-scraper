@@ -17,7 +17,10 @@
   (function () {
     var html = document.documentElement, intro = false;
     html.classList.add("js");
-    try { var t = localStorage.getItem("theme"); if (t) html.dataset.theme = t; } catch (e) {}
+    // gespeicherte Wahl zuerst, sonst wie das System (dunkel, wenn es nichts sagt)
+    var t = null;
+    try { t = localStorage.getItem("theme"); } catch (e) {}
+    html.dataset.theme = t || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
     try {
       intro = !sessionStorage.getItem("seen") && !matchMedia("(prefers-reduced-motion: reduce)").matches;
       sessionStorage.setItem("seen", "1");
@@ -319,6 +322,7 @@
     .ticker { overflow-x: auto; }
     .route { height: auto; }
     .route-sticky { position: static; height: auto; padding-block: 0; }
+    .route-cam { overflow-x: auto; }
     .steps { min-height: 0; display: grid; gap: 48px; }
     .step { position: static; opacity: 1; transform: none; }
   }
@@ -643,7 +647,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     // Kamera: ist die Route breiter als der Bildschirm, bleibt das Paket ungefähr in der Mitte
     const svg = $("#route-svg"), cam = svg.parentElement;
     const extra = svg.clientWidth - (cam.clientWidth - 2 * parseFloat(getComputedStyle(cam).paddingLeft));
-    if (extra > 1) {
+    if (extra > 1 && !calm) {  // ohne Bewegung: stattdessen seitlich scrollbar
       const scale = svg.clientWidth / 1200;
       const shift = Math.min(extra, Math.max(0, pt.x * scale - cam.clientWidth / 2));
       svg.style.transform = `translateX(${-shift}px)`;

@@ -161,17 +161,21 @@ def register_commands(bot: ProxyBot) -> None:
     @tree.command(name="proxies", description="Working proxies from the last run, filtered and fastest first")
     @app_commands.describe(type="protocol", country="two-letter country code, e.g. DE or US",
                            https="only proxies that tunnel HTTPS", elite="only elite anonymity",
-                           no_datacenter="skip exits in datacenters", count="how many to show (1–25)")
+                           no_datacenter="skip exits in datacenters",
+                           not_blocklisted="skip exit IPs on the SpamCop blocklist (fewer captchas)",
+                           count="how many to show (1–25)")
     async def proxies(interaction: discord.Interaction, type: TypeChoice = "any", country: str = "",
                       https: bool = False, elite: bool = False, no_datacenter: bool = False,
-                      count: app_commands.Range[int, 1, 25] = 10) -> None:
+                      not_blocklisted: bool = False, count: app_commands.Range[int, 1, 25] = 10) -> None:
         snap = await current(interaction)
         if snap is None:
             return
         ptype = "" if type == "any" else type
-        matches = select(snap.proxies, ptype, country, https, elite, no_datacenter)
+        matches = select(snap.proxies, ptype, country, https, elite, no_datacenter,
+                         not_blocklisted=not_blocklisted)
         criteria = ", ".join(x for x in (ptype, country.upper(), "HTTPS" if https else "", "elite" if elite else "",
-                                         "no datacenter" if no_datacenter else "") if x) or "none"
+                                         "no datacenter" if no_datacenter else "",
+                                         "not blocklisted" if not_blocklisted else "") if x) or "none"
         kwargs = {}
         if len(matches) > count:
             kwargs["file"] = messages.text_file(matches, "proxies.txt")

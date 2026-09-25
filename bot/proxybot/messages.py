@@ -88,6 +88,8 @@ def single(proxy: Optional[Proxy]) -> discord.Embed:
         embed.add_field(name="Anonymity", value=proxy.anonymity)
     if proxy.org:
         embed.add_field(name="Provider", value=proxy.org + (" (datacenter)" if proxy.hosting else ""), inline=False)
+    if proxy.blocklisted is not None:
+        embed.add_field(name="Blocklist", value="on SpamCop" if proxy.blocklisted else "not listed")
     scheme = "socks5h" if proxy.ptype == "socks5" else proxy.ptype
     embed.add_field(name="Try it", value=f"`curl -x {scheme}://{proxy.address} https://api.ipify.org`", inline=False)
     return embed
@@ -112,7 +114,7 @@ def about() -> discord.Embed:
         "**#http**, **#socks4**, **#socks5** the current list per protocol, updated every run\n"
         "**#commands** ask the bot"), inline=False)
     embed.add_field(name="Commands", value=(
-        "`/proxies` filter by type, country, HTTPS, elite, datacenter\n"
+        "`/proxies` filter by type, country, HTTPS, elite, datacenter, blocklist\n"
         "`/proxy` one fast proxy to try\n"
         "`/stats` numbers of the last run\n"
         "`/about` this message"), inline=False)

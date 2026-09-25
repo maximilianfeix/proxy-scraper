@@ -26,7 +26,15 @@ from .http import (
 )
 from .pool import ANY, ProxyPool, Selection
 from .socks import SOCKS5_VERSION, Socks5Refused, socks5_accept, socks5_reply
-from .status import STATUS_PATH, STATUS_PREFIX, selection_from_headers, status_json
+from .status import (
+    METRICS_PATH,
+    METRICS_TYPE,
+    STATUS_PATH,
+    STATUS_PREFIX,
+    metrics_text,
+    selection_from_headers,
+    status_json,
+)
 from .upstream import UpstreamError, open_upstream
 
 MAX_ATTEMPTS = 3            # so viele Proxys pro Anfrage, bevor der Client einen Fehler bekommt
@@ -381,11 +389,14 @@ class RotatingServer:
 
     async def _serve_status(self, writer, head: bytes) -> None:
         target = head.split(b" ", 2)[1].split(b"?", 1)[0]
+        kind = b"application/json"
         if target == STATUS_PATH:
             status, body = b"200 OK", status_json(self).encode()
-        else:  # nur genau dieser Pfad – Tippfehler sollen nicht still den Status liefern
-            status, body = b"404 Not Found", b'{"error": "unknown path, try /__proxy-scraper/status"}'
-        writer.write(b"HTTP/1.1 " + status + b"\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n"
+        elif target == METRICS_PATH:
+            status, body, kind = b"200 OK", metrics_text(self).encode(), METRICS_TYPE
+        else:  # nur genau diese Pfade – Tippfehler sollen nicht still den Status liefern
+            status, body = b"404 Not Found", b'{"error": "unknown path, try /__proxy-scraper/status or /metrics"}'
+        writer.write(b"HTTP/1.1 " + status + b"\r\nContent-Type: " + kind + b"\r\nCache-Control: no-store\r\n"
                      b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body)
         await writer.drain()
 

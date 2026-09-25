@@ -365,8 +365,8 @@ class RotatingServer:
         HTTP ("country-de-session-abc"). Danach läuft alles wie bei CONNECT, inklusive Wechsel bei Fehlern."""
         try:
             host, port, username = await asyncio.wait_for(socks5_accept(reader, writer), self.timeout)
-        except Socks5Refused:
-            return
+        except (Socks5Refused, asyncio.IncompleteReadError, asyncio.TimeoutError, ValueError, UnicodeError):
+            return  # abgelehnt, mittendrin aufgelegt, zu langsam oder kaputte Adresse – Verbindung schließen
         self.stats.requests += 1
         started = time.perf_counter()
 

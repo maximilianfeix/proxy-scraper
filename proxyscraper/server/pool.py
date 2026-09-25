@@ -129,8 +129,11 @@ class ProxyPool:
         if self.strategy == "random":
             return self.rng.choice(candidates)
         if self.strategy == "fastest":
-            # schnellster zuerst, bei Gleichstand der zuverlässigere; wenig beschäftigte bevorzugen
-            return min(candidates, key=lambda e: (e.result.latency + 200 * e.active, -e.weight))
+            # der schnellste freie; sind alle beschäftigt, der am wenigsten beschäftigte (dann der schnellere)
+            idle = [e for e in candidates if not e.active]
+            if idle:
+                return min(idle, key=lambda e: (e.result.latency, -e.weight))
+            return min(candidates, key=lambda e: (e.active, e.result.latency))
         if self.strategy == "round-robin":
             ordered = sorted(candidates, key=lambda e: e.result.key)
             entry = ordered[self._next % len(ordered)]

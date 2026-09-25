@@ -50,8 +50,12 @@ def test_fastest_takes_the_fastest_and_spreads_load():
     pool = ProxyPool([result(1, latency=900), result(2, latency=100), result(3, latency=400)], strategy="fastest")
     first = pool.pick(set())
     assert first.result.proxy == "10.0.0.2:80"
-    first.active = 5  # stark beschäftigt -> der nächstschnellere ist dran
+    first.active = 1  # beschäftigt -> der schnellste freie ist dran, auch wenn er viel langsamer ist
     assert pool.pick(set()).result.proxy == "10.0.0.3:80"
+    for e in pool.entries:
+        e.active = 2
+    pool.entries[0].active = 1  # alle beschäftigt -> der am wenigsten beschäftigte
+    assert pool.pick(set()) is pool.entries[0]
 
 
 def test_random_strategy_uses_everyone():
@@ -258,3 +262,25 @@ def test_pool_recheck_ignores_the_unreachable_cache():
 
     checker = Checker()
     assert asyncio.run(pool_recheck(checker)(result(1))) is True
+
+
+@pytest.mark.parametrize("greeting", [b"\x05\x02\x00", b"\x05\x01\x00\x05\x01\x00\x03\x05ab", b"\x05"])
+def test_broken_socks5_clients_are_closed_quietly(greeting):
+    errors = []
+
+    async def go():
+        loop = asyncio.get_running_loop()
+        loop.set_exception_handler(lambda _loop, ctx: errors.append(ctx))
+        rotating = RotatingServer(ProxyPool([result(1)]), port=0, timeout=0.5)
+        await rotating.start()
+        try:
+            _reader, writer = await asyncio.open_connection("127.0.0.1", rotating.port)
+            writer.write(greeting)
+            await writer.drain()
+            writer.close()  # mitten im Handshake auflegen
+            await asyncio.sleep(0.8)
+        finally:
+            await rotating.close()
+
+    asyncio.run(go())
+    assert errors == []

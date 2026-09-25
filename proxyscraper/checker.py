@@ -93,6 +93,11 @@ class CheckResult:
     org: str = ""
     hosting: Optional[bool] = None  # Exit vermutlich in einem Rechenzentrum? None = unbekannt
 
+    @property
+    def url(self) -> str:
+        """'socks5://1.2.3.4:1080' – so, wie es curl, requests & Co. erwarten."""
+        return f"{self.ptype}://{self.proxy}"
+
 
 class Checker:
     def __init__(self, judge_ip: str, own_ips: Iterable[str], timeout: float, connect_timeout: float,

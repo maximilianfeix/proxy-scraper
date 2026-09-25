@@ -287,6 +287,20 @@ proxy-scraper --list-sources
 
 Running from a clone? Replace `proxy-scraper` with `python3 proxy_scraper.py`.
 
+### From Python
+
+```python
+from proxyscraper import check_proxies, find_proxies
+
+if __name__ == "__main__":  # needed on macOS/Windows, the parser uses a process pool
+    for p in find_proxies(want=20, https=True, countries=["DE", "NL"], no_datacenter=True):
+        print(p.url, p.latency, p.country, p.org)
+
+    alive = check_proxies(["socks5://1.2.3.4:1080", "5.6.7.8:3128"])  # your own list
+```
+
+Same run as the command line – sources, learning, every check, result files – just without terminal output. Each result has `url`, `latency`, `exit_ip`, `https`, `anonymity`, `country`, `asn`, `org` and `hosting`. There's an async version of both (`find_proxies_async`, `check_proxies_async`).
+
 <a id="proxy-server"></a>
 
 ## 🔁 Rotating proxy server
@@ -564,7 +578,7 @@ Shipped in [v1.4](../../milestone/4): exports for proxychains/Clash/curl, proxie
 
 ## 🤝 Contributing
 
-Bug reports, new sources and pull requests are very welcome – see [CONTRIBUTING.md](CONTRIBUTING.md). The short version:
+Bug reports, new sources and pull requests are very welcome – see [CONTRIBUTING.md](CONTRIBUTING.md), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together. The short version:
 
 ```bash
 pip install -e ".[dev]"
@@ -598,6 +612,7 @@ proxyscraper/
 ├── output.py           result files
 ├── exporters.py        proxychains, Clash and curl formats (--export)
 ├── server/             rotating proxy server (--serve): pool · http · upstream · socks · status · core
+├── api.py              find_proxies() / check_proxies() for Python
 ├── publish.py          live list for GitHub Actions
 ├── paths.py            where state and results are stored
 ├── compat.py           differences between Unix and Windows

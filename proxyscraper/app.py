@@ -195,6 +195,7 @@ class Run:
         self.judges: List[JudgeProbe] = []  # erreichbare Prüfziele, schnellstes zuerst
         self.integrity: Optional[bytes] = None  # Hash der Vergleichsseite (siehe Checker.tampers)
         self.checker: Optional[Checker] = None
+        self.kept: List[CheckResult] = []  # Treffer, die alle Filter erfüllen (für die Python-API)
         self.confirm_ip: Optional[str] = None
         self.targets: List[Tuple[Target, str]] = []
         self.own_ips: List[str] = []
@@ -402,6 +403,7 @@ class Run:
                     if r.hosting:
                         stats.hosting += 1  # sonst zeigten Dashboard und Hinweis zu wenig Rechenzentren
         kept = [r for r in run.results if opts.filters.accepts(r)]
+        self.kept = kept
         files = writer.finalize(kept)
         network_blocked = is_network_blocked(stats)
         per_source = self.learn(run, network_blocked)

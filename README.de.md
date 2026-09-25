@@ -277,14 +277,27 @@ proxy-scraper --recheck --serve     # letzte Treffer prüfen, dann los – dauer
 ```
 
 ```bash
-curl -x http://127.0.0.1:8899 https://api.ipify.org     # jedes Mal eine andere IP
+curl -x http://127.0.0.1:8899 https://api.ipify.org              # jedes Mal eine andere IP
+curl -x socks5h://127.0.0.1:8899 https://api.ipify.org           # SOCKS5 auf demselben Port
+curl -x http://country-de:x@127.0.0.1:8899 https://api.ipify.org # nur deutsche Exits
+curl -x http://session-cart42:x@127.0.0.1:8899 https://shop.example  # derselbe Proxy für diese Session
+curl http://127.0.0.1:8899/__proxy-scraper/status                # Pool und Zähler als JSON
 ```
 
-- jede Verbindung läuft über einen anderen gefundenen Proxy, schnelle und bewährte werden bevorzugt
+Wie bei kommerziellen rotierenden Proxys trägt der **Benutzername** die Wünsche: `country-XX`, `type-http|socks4|socks5` und `session-NAME`, kombinierbar (`country-us-type-socks5-session-a`). Das klappt über HTTP (`Proxy-Authorization`) und SOCKS5 (Benutzer/Passwort). Das Passwort ist egal – der Server lauscht nur auf `127.0.0.1`.
+
+| Option | Was sie macht |
+|---|---|
+| `--rotate weighted` | Standard: schnelle und bewährte Proxys öfter, alle bekommen eine Chance |
+| `--rotate random` / `round-robin` | gleichmäßig, zufällig oder reihum |
+| `--rotate fastest` | immer der schnellste, der gerade nicht ausgelastet ist |
+| `--sticky 300` | dieselbe Seite behält 5 Minuten lang ihren Proxy (Logins, Warenkörbe) |
+
+- jede Verbindung läuft über einen anderen gefundenen Proxy (außer mit Sticky), schnelle und bewährte werden bevorzugt
 - `CONNECT` für HTTPS und normale HTTP-Anfragen; dahinter können HTTP-, SOCKS4- und SOCKS5-Proxys stecken (SOCKS5 mit DNS über den Proxy)
 - für HTTPS nur Proxys, die den Test mit **verifiziertem TLS** bestanden haben – keine aufgebrochene Verschlüsselung
 - bleibt ein Proxy im Tunnel stumm oder liefert statt TLS eine Fehlerseite, geht dasselbe erste Paket unbemerkt an den nächsten
-- wer dreimal hintereinander scheitert, fliegt aus der Rotation
+- wer dreimal hintereinander scheitert, fliegt aus der Rotation – alle 5 Minuten werden die nachgeprüft und kommen zurück, wenn sie wieder funktionieren
 - lauscht nur auf `127.0.0.1`; Live-Ansicht mit Anfragen, Erfolgsquote, Pool und den letzten Verbindungen
 
 Im Test: 20 von 20 HTTPS-Anfragen erfolgreich, über 15 verschiedene Exit-IPs. Im Assistenten gibt es dafür **Sofort als Proxy-Server**.
@@ -430,6 +443,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--discover` | sofort neue Quellen auf GitHub suchen |
 | `--no-cache` | alle Listen neu laden (unveränderte werden sonst per ETag übersprungen) |
 | `--list-sources [N]` | Rangliste der Quellen anzeigen |
+| `--rotate STRATEGIE` · `--sticky SEK` | wie der Proxy-Server Proxys auswählt, siehe [oben](#proxy-server) |
 | `--serve [PORT]` | danach als rotierender Proxy auf `127.0.0.1:PORT` bereitstellen (Standard: 8899) |
 | `-o DATEI` | zusätzlich alle Treffer in diese Datei schreiben |
 | `--export FORMATE` | Zusatzdateien für andere Tools: `proxychains`, `clash`, `curl` oder `all` |
@@ -550,7 +564,7 @@ proxyscraper/
 ├── targets.py          Zielseiten für --target
 ├── output.py           Ergebnisdateien
 ├── exporters.py        Formate für proxychains, Clash und curl (--export)
-├── server.py           rotierender Proxy-Server (--serve)
+├── server/             rotierender Proxy-Server (--serve): pool · http · upstream · socks · status · core
 ├── publish.py          Live-Liste für GitHub Actions aufbereiten
 ├── paths.py            wo Zustand und Ergebnisse liegen
 ├── compat.py           Unterschiede zwischen Unix und Windows

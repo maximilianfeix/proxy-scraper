@@ -11,6 +11,7 @@ from .checker import ANONYMITY_RANK, CheckResult
 from .exporters import EXPORTERS
 from .parsing import PROXY_TYPES
 from .paths import is_checkout
+from .server.pool import STRATEGIES
 from .targets import target_label
 
 DEFAULT_CONCURRENCY = 2000
@@ -100,6 +101,8 @@ class RunOptions:
     all_sources: bool = False
     no_cache: bool = False  # alle Listen neu laden statt unveränderte aus dem Cache
     serve: int = 0  # Port des rotierenden Proxy-Servers nach dem Lauf, 0 = aus
+    rotate: str = "weighted"  # Strategie des Proxy-Servers, siehe server/pool.py
+    sticky: int = 0  # Sekunden, die eine Zielseite denselben Proxy behält (0 = jede Verbindung neu)
 
     def __post_init__(self) -> None:
         unknown = set(self.types) - set(PROXY_TYPES)
@@ -120,6 +123,10 @@ class RunOptions:
         if unknown_exports:
             raise ValueError(f"unbekannte Exportformate: {', '.join(sorted(unknown_exports))}")
         self.exports = [e for e in EXPORTERS if e in self.exports]
+        if self.rotate not in STRATEGIES:
+            raise ValueError(f"unbekannte Strategie: {self.rotate}")
+        if self.sticky < 0:
+            raise ValueError("--sticky darf nicht negativ sein")
         if not 0 <= self.serve <= 65535:
             raise ValueError("Port muss zwischen 1 und 65535 liegen")
 
@@ -171,6 +178,8 @@ class RunOptions:
             all_sources=args.all_sources,
             no_cache=args.no_cache,
             serve=args.serve,
+            rotate=args.rotate,
+            sticky=args.sticky,
         )
 
     def to_argv(self) -> List[str]:
@@ -209,6 +218,9 @@ class RunOptions:
         _flag(argv, "--no-cache", self.no_cache)
         if self.serve:
             argv += ["--serve"] if self.serve == DEFAULT_SERVE_PORT else ["--serve", str(self.serve)]
+        if self.rotate != "weighted":
+            argv += ["--rotate", self.rotate]
+        _opt(argv, "--sticky", self.sticky, 0)
         return argv
 
     def to_command(self, program: Optional[str] = None) -> str:

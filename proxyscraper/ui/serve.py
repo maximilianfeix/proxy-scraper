@@ -57,8 +57,14 @@ class ServeDashboard:
         usage.add_column(style=MUTED, no_wrap=True)
         usage.add_column(overflow="fold")
         usage.add_row("Testen", Text(f"curl -x http://{address} https://api.ipify.org", style="bold"))
+        usage.add_row("SOCKS5", Text(f"curl -x socks5h://{address} https://api.ipify.org"))
+        usage.add_row("Nur ein Land", Text(f"curl -x http://country-de:x@{address} https://api.ipify.org"))
+        usage.add_row("Feste Session", Text(f"curl -x http://session-abc:x@{address} …  (bleibt beim selben Proxy)"))
         usage.add_row("Terminal", Text(f"export http_proxy=http://{address} https_proxy=http://{address}"))
-        usage.add_row("Browser/System", Text(f"HTTP-Proxy {server.host}, Port {server.port} (gilt auch für HTTPS)"))
+        usage.add_row("Status (JSON)", Text(f"curl http://{address}/__proxy-scraper/status"))
+        mode = pool.strategy + (f" · sticky {pool.sticky_seconds:g} s" if pool.sticky_seconds else "")
+        usage.add_row("Rotation", Text(mode + (f" · {fmt(server.revived)} zurückgeholt" if server.revived else ""),
+                                       style=MUTED))
 
         cards = row(
             card("Anfragen", fmt(st.requests), f"{st.requests / uptime * 60:.1f} pro Minute".replace(".", ",")),

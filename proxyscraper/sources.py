@@ -309,6 +309,7 @@ STALE_AFTER = 7 * DAY       # content unchanged for a week -> the list is no lon
 DEAD_MIN_CHECKED = 300      # this many checks without a hit -> the source counts as dead
 UNREACHABLE_STREAK = 3      # failed to load this many times in a row -> pause
 UNREACHABLE_PAUSE = 2 * DAY
+STALE_RECHECK = 3 * DAY     # an outdated list is still looked at this often – it may be maintained again
 
 
 @dataclass
@@ -360,10 +361,22 @@ class SourceStats:
             return "dead"
         return None
 
+    def skip_now(self, url: str, now: Optional[float] = None) -> Optional[str]:
+        """Like skip_reason, but an outdated list still gets fetched every STALE_RECHECK – it may be
+        maintained again. skip_reason stays the status for display, so it doesn't flip back and forth."""
+        now = time.time() if now is None else now
+        reason = self.skip_reason(url, now)
+        if reason == "outdated" and now - self.records[url].last_fetch >= STALE_RECHECK:
+            return None
+        return reason
+
     def record_fetch(self, url: str, data: Optional[bytes], count: int, now: Optional[float] = None,
-                     unchanged: bool = False) -> None:
+                     unchanged: bool = False, parsed: Optional[int] = None) -> None:
         """unchanged=True: the server answered 304 – reachable, same content as last time.
-        Hash and last_change stay as they are, so the outdated detection keeps working normally."""
+        Hash and last_change stay as they are, so the outdated detection keeps working normally.
+
+        count: proxies of the types this run wants; parsed: proxies of any type. A list that has proxies,
+        just none of the requested types (e.g. --types http on a socks5-only list), did answer fine."""
         now = time.time() if now is None else now
         rec = self.records.setdefault(url, SourceRecord(first_seen=now))
         rec.last_fetch = now
@@ -371,7 +384,7 @@ class SourceStats:
             rec.fail_streak = 0
             rec.count = count
             return
-        if data is None or count == 0:
+        if data is None or (count if parsed is None else parsed) == 0:
             rec.fail_streak += 1
             return
         rec.fail_streak = 0

@@ -81,7 +81,7 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
     if not opts.all_sources:
         active = {}
         for url, ptype in sources.items():
-            reason = quality.skip_reason(url)
+            reason = quality.skip_now(url)
             if reason:
                 skipped[reason] += 1
             else:
@@ -110,8 +110,9 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
     """
     res = ScrapeResult(list(sources))
     cache = cache or FetchCache(enabled=False)
-    # always parse every type for the cache, filtering only happens when sorting them in
-    parse_types = PROXY_TYPES if cache.enabled else tuple(types)
+    # always parse every type, filtering only happens when sorting them in: the cache stores all types, and
+    # the statistics must be able to tell "no proxies at all" from "none of the requested types"
+    parse_types = PROXY_TYPES
     prefixes = tuple(f"{t} " for t in types)
     loop = asyncio.get_running_loop()
     sem = asyncio.Semaphore(DOWNLOAD_CONCURRENCY)

@@ -55,7 +55,22 @@ def test_outdated_lists_get_another_look_now_and_then(tmp_path):
     st = srcs.SourceStats(tmp_path / "stats.json")
     st.record_fetch("s", b"a", 1, now=1 * DAY)
     st.record_fetch("s", b"a", 1, now=10 * DAY)         # unchanged for 9 days
-    assert st.skip_reason("s", now=11 * DAY) == "outdated"
-    assert st.skip_reason("s", now=14 * DAY) is None     # three days later it is fetched again …
-    st.record_fetch("s", b"b", 1, now=14 * DAY)          # … and it changed: maintained again
+    assert st.skip_now("s", now=11 * DAY) == "outdated"
+    assert st.skip_now("s", now=14 * DAY) is None        # three days later it is fetched again …
+    assert st.skip_reason("s", now=14 * DAY) == "outdated"  # … while the status shown stays the same
+    st.record_fetch("s", b"b", 1, now=14 * DAY)          # it changed: maintained again
     assert st.skip_reason("s", now=15 * DAY) is None
+
+
+def test_without_the_cache_other_types_still_count_as_content(tmp_path, monkeypatch):
+    from proxyscraper.fetchcache import FetchCache
+    from proxyscraper.ui import CollectView
+
+    async def fake_request(url, timeout=None, headers=None):
+        return 200, {}, b"socks5://1.2.3.4:1080\n"
+
+    monkeypatch.setattr(pipeline, "http_request", fake_request)
+    url = "https://example.org/list.txt"
+    st = srcs.SourceStats(tmp_path / "stats.json")
+    asyncio.run(pipeline.scrape({url: "auto"}, ["http"], st, CollectView(1, 0.0), FetchCache(enabled=False)))
+    assert st.get(url).fail_streak == 0  # it answered with socks5 proxies, --types http just doesn't want them

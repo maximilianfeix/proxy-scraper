@@ -355,12 +355,20 @@ class SourceStats:
         now = time.time() if now is None else now
         if rec.fail_streak >= UNREACHABLE_STREAK and now - rec.last_fetch < UNREACHABLE_PAUSE:
             return "unreachable"
-        if rec.last_change and now - rec.last_change > STALE_AFTER and now - rec.first_seen > STALE_AFTER \
-                and now - rec.last_fetch < STALE_RECHECK:
+        if rec.last_change and now - rec.last_change > STALE_AFTER and now - rec.first_seen > STALE_AFTER:
             return "outdated"
         if rec.runs >= 2 and rec.checked >= DEAD_MIN_CHECKED and rec.working < 0.5:
             return "dead"
         return None
+
+    def skip_now(self, url: str, now: Optional[float] = None) -> Optional[str]:
+        """Like skip_reason, but an outdated list still gets fetched every STALE_RECHECK – it may be
+        maintained again. skip_reason stays the status for display, so it doesn't flip back and forth."""
+        now = time.time() if now is None else now
+        reason = self.skip_reason(url, now)
+        if reason == "outdated" and now - self.records[url].last_fetch >= STALE_RECHECK:
+            return None
+        return reason
 
     def record_fetch(self, url: str, data: Optional[bytes], count: int, now: Optional[float] = None,
                      unchanged: bool = False, parsed: Optional[int] = None) -> None:

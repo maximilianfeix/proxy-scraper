@@ -26,7 +26,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .handshake import Endpoint, parse_endpoint, socks4, socks5, socks5_ipv4, stream_io, with_proxy_auth
 from .judges import DEFAULT_JUDGE, Judge
-from .netio import USER_AGENT, dechunk, read_response, ssl_context
+from .netio import USER_AGENT, dechunk, http_request, read_response, ssl_context
 from .parsing import normalize_public_ip, split_key
 from .targets import Target
 
@@ -437,22 +437,15 @@ def page_hash(body: bytes) -> bytes:
     return hashlib.sha256(body).digest()
 
 
-async def integrity_reference(ip: str, timeout: float, port: int = CONFIRM_PORT) -> Optional[bytes]:
-    """Hash der Vergleichsseite, direkt (ohne Proxy) über genau die IP geholt, die auch die Proxys nutzen."""
-    async def fetch() -> Optional[bytes]:
-        reader, writer = await asyncio.open_connection(ip, port)
-        try:
-            writer.write(INTEGRITY_REQUEST)
-            await writer.drain()
-            return await _read_http_200(reader)
-        finally:
-            writer.close()
-
+async def integrity_reference(timeout: float, fetch=None) -> Optional[bytes]:
+    """Hash der Vergleichsseite, direkt geholt – über verifiziertes HTTPS. Über HTTP könnte ein Captive Portal
+    oder ein Filter im eigenen Netz schon die Referenz verfälschen. Beide Wege liefern dieselben Bytes."""
     try:
-        body = await wait_for(fetch(), timeout)
+        status, _, body = await (fetch or http_request)(f"https://{CONFIRM_HOST}/html", timeout=timeout,
+                                                        max_redirects=0, insecure_fallback=False)
     except Exception:
         return None
-    return page_hash(body) if body else None
+    return page_hash(body) if status == 200 and body else None
 
 
 def _is_ipv4(text: str) -> bool:

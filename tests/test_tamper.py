@@ -73,7 +73,7 @@ def test_missing_reference_is_reported(monkeypatch):
     async def confirm():
         return "4.4.4.4"
 
-    async def no_reference(ip, timeout):
+    async def no_reference(timeout):
         return None
 
     notes = []
@@ -84,3 +84,51 @@ def test_missing_reference_is_reported(monkeypatch):
     monkeypatch.setattr(app, "note", lambda text, *a: notes.append(text))
     assert asyncio.run(app.Run(RunOptions(no_geo=True), show_banner=False).prepare_network())
     assert any("Inhalte verändern" in n for n in notes)
+
+
+def test_reference_needs_verified_https():
+    calls = []
+
+    async def fetch(url, **kw):
+        calls.append((url, kw))
+        return 200, {}, PAGE
+
+    assert asyncio.run(ck.integrity_reference(timeout=1, fetch=fetch)) == REFERENCE
+    url, kw = calls[0]
+    assert url == "https://httpbin.org/html" and kw["insecure_fallback"] is False
+
+
+def test_tampering_proxies_are_dropped_and_counted(tmp_path):
+    import contextlib
+
+    from proxyscraper import output, pipeline
+    from proxyscraper.geo import GeoResolver
+    from proxyscraper.options import RunOptions
+    from proxyscraper.ui import CheckDashboard, LiveStats
+
+    class Checker:
+        async def check(self, key):
+            ptype, proxy = key.split(" ")
+            return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
+
+        async def confirm(self, r):
+            return True
+
+        async def tampers(self, r):
+            return r.proxy.startswith("2.")  # 2.x schleust etwas ein
+
+        async def enrich(self, r):
+            r.https = True
+
+    async def go():
+        jobs = ["http 1.1.1.1:80", "http 2.2.2.2:80"]
+        stats = LiveStats({"http": 2})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, 2, True)
+        run = await pipeline.run_checks(jobs, Checker(), RunOptions(no_geo=True), dashboard, writer,
+                                        GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext())
+        return run, stats
+
+    run, stats = asyncio.run(go())
+    assert run.working == {"http 1.1.1.1:80"} and stats.tampered == 1
+    assert "http 2.2.2.2:80" in run.checked  # zählt für die Quelle als Fehlschlag

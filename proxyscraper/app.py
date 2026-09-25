@@ -199,7 +199,7 @@ class Run:
             return False
         self.confirm_ip = await confirm_target()
         if self.confirm_ip:  # Vergleichsseite für die Prüfung auf veränderte Inhalte
-            self.integrity = await integrity_reference(self.confirm_ip, timeout=8)
+            self.integrity = await integrity_reference(timeout=8)
         best, reserve = self.judges[0], [j.judge.host for j in self.judges[1:]]
         info("Prüfziel", Text.assemble(
             (f"{best.judge.host} ({best.ip}, {best.latency} ms)", MUTED),

@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ipaddress
 import socket
 import time
@@ -15,6 +16,8 @@ from rich.live import Live
 from rich.text import Text
 
 from . import sources as srcs
+from .asndb import AsnDB, ProviderLookup, load_asn_db
+from .asndb import is_current as asn_is_current
 from .checker import (
     CONFIRM_HOST,
     CONFIRM_PORT,
@@ -22,12 +25,14 @@ from .checker import (
     JUDGE_HOST,
     Checker,
     CheckResult,
+    integrity_reference,
     probe_confirm_target,
 )
 from .compat import on_interrupt, raise_fd_limit
 from .fetchcache import FetchCache
 from .geo import GeoResolver
 from .geodb import CountryDB, is_current, load_country_db
+from .handshake import parse_endpoint
 from .history import ProxyHistory
 from .judges import JudgeProbe, JudgeWatch, rank_judges
 from .netio import INSECURE_HOSTS, http_get
@@ -62,6 +67,7 @@ from .ui import (
     fmt_duration,
     info,
     note,
+    pct,
     render_summary,
     section,
     section_end,
@@ -121,7 +127,7 @@ def is_network_blocked(stats: LiveStats) -> bool:
     Fake-Proxys zählen mit: Sie bestehen die Basisprüfung, die Verbindung klappt also – ein Netz
     voller Honeypots ist kein blockiertes Netz, und aus dem Lauf soll trotzdem gelernt werden.
     """
-    reached = stats.found + stats.fakes
+    reached = stats.found + stats.fakes + stats.tampered
     return stats.checked >= 1000 and reached < stats.checked * BLOCKED_HIT_RATE
 
 
@@ -144,6 +150,16 @@ def next_steps(opts: RunOptions, kept: List[CheckResult]) -> List[Tuple[str, str
     return steps
 
 
+def pool_recheck(checker: Checker):
+    """Nachprüfung für ausgemusterte Proxys des Proxy-Servers: die normale Prüfung, aber am Cache vorbei."""
+    async def recheck(result: CheckResult) -> bool:
+        # der Checker merkt sich unerreichbare Adressen für den Rest des Laufs – genau das soll hier nochmal
+        # versucht werden
+        checker.unreachable.discard(parse_endpoint(result.proxy).address)
+        return await checker.check(result.key) is not None
+    return recheck
+
+
 class Run:
     def __init__(self, opts: RunOptions, show_banner: bool = True):
         self.opts = opts
@@ -153,6 +169,8 @@ class Run:
         self.history = ProxyHistory()
         self.scraped: Optional[ScrapeResult] = None
         self.judges: List[JudgeProbe] = []  # erreichbare Prüfziele, schnellstes zuerst
+        self.integrity: Optional[bytes] = None  # Hash der Vergleichsseite (siehe Checker.tampers)
+        self.checker: Optional[Checker] = None
         self.kept: List[CheckResult] = []  # Treffer, die alle Filter erfüllen (für die Python-API)
         self.confirm_ip: Optional[str] = None
         self.targets: List[Tuple[Target, str]] = []
@@ -197,12 +215,17 @@ class Run:
         if not await self.resolve_targets():
             return False
         self.confirm_ip = await confirm_target()
+        if self.confirm_ip:  # Vergleichsseite für die Prüfung auf veränderte Inhalte
+            self.integrity = await integrity_reference(timeout=8)
         best, reserve = self.judges[0], [j.judge.host for j in self.judges[1:]]
         info("Prüfziel", Text.assemble(
             (f"{best.judge.host} ({best.ip}, {best.latency} ms)", MUTED),
             (f"  ·  Reserve: {', '.join(reserve)}", MUTED) if reserve else "",
             (f"  ·  Bestätigung über {CONFIRM_HOST}", MUTED) if self.confirm_ip else "",
         ))
+        if self.confirm_ip and self.integrity is None:
+            note(f"Vergleichsseite von {CONFIRM_HOST} nicht erreichbar – Proxys, die Inhalte verändern, "
+                 "werden in diesem Lauf nicht erkannt.")
         if not self.confirm_ip:
             note(f"{CONFIRM_HOST} nicht erreichbar – ohne zweite Bestätigung können Fake-Proxys "
                  "(Honeypots) durchrutschen, und die Anonymität bleibt unbekannt.")
@@ -304,7 +327,9 @@ class Run:
         checker = Checker(judge.ip, self.own_ips, opts.check_timeout, opts.check_connect_timeout,
                           self.confirm_ip, detail_timeout=opts.timeout,
                           detail_connect_timeout=opts.connect_timeout, targets=self.targets,
-                          https_test=not opts.fast or opts.filters.https_only, judge=judge.judge)
+                          https_test=not opts.fast or opts.filters.https_only, judge=judge.judge,
+                          integrity_reference=self.integrity)
+        self.checker = checker  # für den Proxy-Server: Nachprüfen ausgemusterter Proxys
         watch = JudgeWatch(self.judges, lambda new: checker.use_judge(new.judge, new.ip))
         dashboard.judge = judge.judge.host
         # Länder-Datenbank sofort aus data/ (2 ms); ist sie alt oder fehlt, im Hintergrund neu laden –
@@ -314,15 +339,42 @@ class Run:
         refresh = None
         if opts.geo and not is_current(country_db):
             refresh = asyncio.ensure_future(self.refresh_country_db(geo))
+        # Anbieter der Exit-IPs genauso: sofort aus data/, alt oder fehlend -> im Hintergrund neu laden.
+        # Unabhängig von --no-geo – das betrifft nur die Länder, die Anbieter kommen ohnehin aus der Datei.
+        providers = ProviderLookup(AsnDB.load())
+        providers_refresh = None
+        if not asn_is_current(providers.db):
+            providers_refresh = asyncio.ensure_future(self.refresh_asn_db(providers))
+            if opts.filters.no_datacenter and providers.db is None:
+                # ausdrücklich ohne Rechenzentren, aber noch gar keine Datenbank: vor dem Prüfen laden –
+                # sonst gingen unbekannte Anbieter als "kein Rechenzentrum" durch und --want hörte zu früh auf
+                with widgets.console.status("Lade Anbieter-Datenbank (DB-IP) …", spinner="dots"), \
+                        contextlib.suppress(asyncio.TimeoutError):
+                    await asyncio.wait_for(asyncio.shield(providers_refresh), 90)
         widgets.console.print()
         run = await run_checks(
             jobs, checker, opts, dashboard, writer, geo,
             live_factory=lambda renderable: Live(renderable, console=widgets.console, refresh_per_second=6),
             watch=watch,
+            providers=providers,
         )
 
         if refresh and not refresh.done():
-            refresh.cancel()  # Download läuft noch – beim nächsten Lauf wieder
+            refresh.cancel()  # Länder-Download läuft noch – beim nächsten Lauf wieder (ip-api hat übernommen)
+        if providers_refresh and not providers_refresh.done():
+            # Anbieter-Datenbank lädt noch (erster Lauf oder neuer Monat): kurz warten und nachtragen –
+            # sonst fehlen die Anbieter in den Dateien und --no-datacenter ließe Rechenzentren durch
+            with widgets.console.status("Lade Anbieter-Datenbank (DB-IP) …", spinner="dots"), \
+                    contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(providers_refresh), 30)
+            if not providers_refresh.done():
+                providers_refresh.cancel()  # dauert zu lange – dann eben beim nächsten Lauf
+        if providers.db:
+            for r in run.results:
+                if not r.asn:
+                    providers.annotate(r)
+                    if r.hosting:
+                        stats.hosting += 1  # sonst zeigten Dashboard und Hinweis zu wenig Rechenzentren
         kept = [r for r in run.results if opts.filters.accepts(r)]
         self.kept = kept
         files = writer.finalize(kept)
@@ -341,7 +393,8 @@ class Run:
         if not proxies:
             note("Kein passender Proxy gefunden – der Proxy-Server startet nicht.", BAD, "✘")
             return
-        server = RotatingServer(ProxyPool(proxies), port=self.opts.serve, timeout=self.opts.timeout)
+        pool = ProxyPool(proxies, strategy=self.opts.rotate, sticky_seconds=self.opts.sticky)
+        server = RotatingServer(pool, port=self.opts.serve, timeout=self.opts.timeout)
         try:
             await server.start()
         except OSError as e:
@@ -350,14 +403,28 @@ class Run:
             return
         stop = asyncio.Event()
         widgets.console.print()
+        fresh = None
+        if self.checker:  # ausgemusterte Proxys alle 5 Minuten nachprüfen und bei Erfolg zurückholen
+            fresh = asyncio.ensure_future(server.keep_fresh(pool_recheck(self.checker)))
         try:
             with on_interrupt(asyncio.get_running_loop(), stop.set), \
                     Live(ServeDashboard(server), console=widgets.console, refresh_per_second=4):
                 await stop.wait()
         finally:
+            if fresh:
+                fresh.cancel()
             await server.close()
         st = server.stats
         note(f"Proxy-Server beendet – {fmt(st.requests)} Anfragen, {fmt(st.ok)} erfolgreich.", GOOD, "✔")
+
+    @staticmethod
+    async def refresh_asn_db(providers: ProviderLookup) -> None:
+        try:
+            db = await load_asn_db()
+        except Exception:
+            return
+        if db is not None:
+            providers.db = db
 
     @staticmethod
     async def refresh_country_db(geo: GeoResolver) -> None:
@@ -406,6 +473,13 @@ class Run:
         if run.judge_switches:
             note(f"Prüfziel ausgefallen, gewechselt: {', '.join(run.judge_switches)}. {fmt(run.rechecked)} Proxys "
                  "wurden erneut geprüft und zählen nicht für die Quellen-Statistik.", WARN, "⚠")
+        if stats.tampered:
+            note(f"{fmt(stats.tampered)} Proxys haben eine Testseite verändert (meist mit eingeschleusten Skripten) "
+                 "und wurden aussortiert.", WARN, "⚠")
+        if stats.hosting and run.results and not opts.filters.no_datacenter:
+            note(f"{fmt(stats.hosting)} von {fmt(len(run.results))} Treffern ({pct(stats.hosting, len(run.results))}) "
+                 "liegen vermutlich in Rechenzentren – die werden oft schneller gesperrt. "
+                 "Nur andere: --no-datacenter", MUTED, "ℹ")
         if run.reached_goal:
             note(f"Ziel von {fmt(opts.want)} Treffern erreicht – vorzeitig beendet.", GOOD, "✔")
         elif run.interrupted:

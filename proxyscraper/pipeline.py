@@ -12,6 +12,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from . import sources as srcs
+from .asndb import ProviderLookup
 from .checker import Checker, CheckResult
 from .compat import on_interrupt
 from .fetchcache import FetchCache
@@ -265,6 +266,7 @@ async def run_checks(
     geo: GeoResolver,
     live_factory: Callable,
     watch: Optional[JudgeWatch] = None,
+    providers: Optional[ProviderLookup] = None,
 ) -> CheckRun:
     """Prüft `jobs` mit `opts.concurrency` parallelen Workern bis alles durch, das Ziel erreicht
     oder Strg+C gedrückt ist.
@@ -367,6 +369,12 @@ async def run_checks(
             if not await checker.confirm(r):
                 stats.fakes += 1
                 continue
+            # Dritte Anfrage: kommt eine bekannte Seite unverändert an? Sonst schleust der Proxy etwas ein
+            if await checker.tampers(r):
+                stats.tampered += 1
+                continue
+            if providers:
+                providers.annotate(r)
             run.results.append(r)
             run.working.add(key)
             by_exit_ip.setdefault(r.exit_ip, []).append(r)

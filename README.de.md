@@ -134,6 +134,10 @@ Bedienung: <kbd>↑</kbd><kbd>↓</kbd> auswählen · <kbd>Leertaste</kbd> an/au
 
 Keine Lust, selbst zu scannen? Alle 6 Stunden läuft das Tool per **GitHub Actions** und veröffentlicht die Treffer auf dem Branch [`proxy-list`](../../tree/proxy-list) – jeder Eintrag hat beim letzten Lauf wirklich funktioniert, schnellste zuerst.
 
+**→ [Auf der Website durchsuchen](https://maximilianfeix.github.io/proxy-scraper/)** – suchen, nach Typ, Land, HTTPS und Latenz filtern, genau die passenden Proxys kopieren oder herunterladen.
+
+<div align="center"><a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="docs/website.png" alt="Die Website der Live-Liste" width="860"></a></div>
+
 <div align="center">
 
 [![Proxys](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json&style=for-the-badge)](../../tree/proxy-list)
@@ -179,7 +183,7 @@ Ohne Argumente gestartet fragt das Tool per Pfeiltasten, was du suchst – Schne
 <td valign="top">
 
 **🔐 Echte Detailprüfung**<br>
-Jeder Treffer muss zwei unabhängige Seiten abrufen – das sortiert **Honeypots** aus, die nur auf Prüfanfragen antworten (in manchen Läufen 5 von 6 „Treffern“). Dazu: HTTPS über einen Tunnel mit **verifiziertem TLS**, Anonymitätsstufe *elite / anonymous / transparent* und das Land der Exit-IP.
+Jeder Treffer muss zwei unabhängige Seiten abrufen – das sortiert **Honeypots** aus, die nur auf Prüfanfragen antworten (in manchen Läufen 5 von 6 „Treffern“). Eine dritte Anfrage erwischt Proxys, die **Inhalte verändern**: In unseren Messungen schleuste jeder fünfte funktionierende Proxy ein Skript in eine einfache HTML-Seite ein. Dazu: HTTPS über einen Tunnel mit **verifiziertem TLS**, Anonymitätsstufe *elite / anonymous / transparent* und das Land der Exit-IP.
 
 </td>
 <td valign="top">
@@ -273,14 +277,27 @@ proxy-scraper --recheck --serve     # letzte Treffer prüfen, dann los – dauer
 ```
 
 ```bash
-curl -x http://127.0.0.1:8899 https://api.ipify.org     # jedes Mal eine andere IP
+curl -x http://127.0.0.1:8899 https://api.ipify.org              # jedes Mal eine andere IP
+curl -x socks5h://127.0.0.1:8899 https://api.ipify.org           # SOCKS5 auf demselben Port
+curl -x http://country-de:x@127.0.0.1:8899 https://api.ipify.org # nur deutsche Exits
+curl -x http://session-cart42:x@127.0.0.1:8899 https://shop.example  # derselbe Proxy für diese Session
+curl http://127.0.0.1:8899/__proxy-scraper/status                # Pool und Zähler als JSON
 ```
 
-- jede Verbindung läuft über einen anderen gefundenen Proxy, schnelle und bewährte werden bevorzugt
+Wie bei kommerziellen rotierenden Proxys trägt der **Benutzername** die Wünsche: `country-XX`, `type-http|socks4|socks5` und `session-NAME`, kombinierbar (`country-us-type-socks5-session-a`). Das klappt über HTTP (`Proxy-Authorization`) und SOCKS5 (Benutzer/Passwort). Das Passwort ist egal – der Server lauscht nur auf `127.0.0.1`.
+
+| Option | Was sie macht |
+|---|---|
+| `--rotate weighted` | Standard: schnelle und bewährte Proxys öfter, alle bekommen eine Chance |
+| `--rotate random` / `round-robin` | gleichmäßig, zufällig oder reihum |
+| `--rotate fastest` | immer der schnellste, der gerade nicht ausgelastet ist |
+| `--sticky 300` | dieselbe Seite behält 5 Minuten lang ihren Proxy (Logins, Warenkörbe) |
+
+- jede Verbindung läuft über einen anderen gefundenen Proxy (außer mit Sticky), schnelle und bewährte werden bevorzugt
 - `CONNECT` für HTTPS und normale HTTP-Anfragen; dahinter können HTTP-, SOCKS4- und SOCKS5-Proxys stecken (SOCKS5 mit DNS über den Proxy)
 - für HTTPS nur Proxys, die den Test mit **verifiziertem TLS** bestanden haben – keine aufgebrochene Verschlüsselung
 - bleibt ein Proxy im Tunnel stumm oder liefert statt TLS eine Fehlerseite, geht dasselbe erste Paket unbemerkt an den nächsten
-- wer dreimal hintereinander scheitert, fliegt aus der Rotation
+- wer dreimal hintereinander scheitert, fliegt aus der Rotation – alle 5 Minuten werden die nachgeprüft und kommen zurück, wenn sie wieder funktionieren
 - lauscht nur auf `127.0.0.1`; Live-Ansicht mit Anfragen, Erfolgsquote, Pool und den letzten Verbindungen
 
 Im Test: 20 von 20 HTTPS-Anfragen erfolgreich, über 15 verschiedene Exit-IPs. Im Assistenten gibt es dafür **Sofort als Proxy-Server**.
@@ -303,8 +320,8 @@ flowchart LR
 1. **Quellen** – die kuratierte Liste in [`sources.json`](proxyscraper/sources.json), Meta-Quellen (andere Projekte, die selbst Listen von Proxy-Quellen pflegen) und alle drei Tage eine Suche auf GitHub nach aktiv gepflegten Repos.
 2. **Sammeln** – Text, HTML-Tabellen, JSON-APIs und `typ://ip:port`-Zeilen werden erkannt, private und reservierte Adressbereiche verworfen. Listen, die sich seit dem letzten Lauf nicht geändert haben, antworten mit `304` und kommen aus einem lokalen Cache – ein zweiter Lauf direkt danach lädt 0 MB statt ~160 MB.
 3. **Priorisieren** – bekannte funktionierende Proxys zuerst, dann nach gelernter Trefferquote ihrer Quellen.
-4. **Prüfen** – jeder Proxy muss seine Exit-IP von einem Prüfziel abrufen (`checkip.amazonaws.com`, als Reserve `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` und `ident.me` – keins davon hinter Cloudflare) und eine gültige, *fremde* IP zurückliefern. Fällt das Ziel mitten im Lauf aus, wechselt das Tool und prüft die betroffenen Proxys erneut – die Statistik lernt so nicht aus einem Ausfall. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier.
-5. **Länder** – offline aus der freien DB-IP-Datenbank (einmal im Monat geladen, ~2 µs pro Abfrage); ip-api.com wird nur noch für die wenigen Adressen gefragt, die dort fehlen.
+4. **Prüfen** – jeder Proxy muss seine Exit-IP von einem Prüfziel abrufen (`checkip.amazonaws.com`, als Reserve `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` und `ident.me` – keins davon hinter Cloudflare) und eine gültige, *fremde* IP zurückliefern. Fällt das Ziel mitten im Lauf aus, wechselt das Tool und prüft die betroffenen Proxys erneut – die Statistik lernt so nicht aus einem Ausfall. Wer deine IP durchreicht, fliegt raus. Danach die **Bestätigung** über `httpbin.org`: Fake-Proxys, die nur auf die erste Prüfanfrage mit „200 + IP“ antworten, scheitern hier. Zum Schluss muss eine statische HTML-Seite Byte für Byte so ankommen wie ohne Proxy – wer Werbung oder Skripte einschleust, fliegt raus.
+5. **Länder und Anbieter** – offline aus den freien DB-IP-Datenbanken, dazu der Anbieter (ASN) und ob es vermutlich ein Rechenzentrum ist (bei etwa 45 % der funktionierenden Proxys) (einmal im Monat geladen, ~2 µs pro Abfrage); ip-api.com wird nur noch für die wenigen Adressen gefragt, die dort fehlen.
 6. **Lernen** – Trefferquoten und Verlauf landen in `data/`. Quellen ohne Treffer, mit seit einer Woche unverändertem Inhalt oder dauerhaft unerreichbar werden übersprungen.
 
 <details>
@@ -417,6 +434,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--https-only` | nur Proxys, die HTTPS tunneln können |
 | `--anonymity elite` | Mindest-Anonymität (`anonymous` oder `elite`) |
 | `--max-latency MS` | maximale Latenz |
+| `--no-datacenter` | keine Proxys mit Exit (vermutlich) in einem Rechenzentrum – die werden schneller gesperrt |
 | `--target URL` | nur Proxys, die diese Seite erreichen (mehrfach möglich) |
 | `--recheck [DATEI]` | nur Proxys aus einer Datei bzw. vom letzten Lauf prüfen |
 | `--fast` | ohne HTTPS-Test (Bestätigung und Anonymität laufen trotzdem) |
@@ -426,6 +444,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--discover` | sofort neue Quellen auf GitHub suchen |
 | `--no-cache` | alle Listen neu laden (unveränderte werden sonst per ETag übersprungen) |
 | `--list-sources [N]` | Rangliste der Quellen anzeigen |
+| `--rotate STRATEGIE` · `--sticky SEK` | wie der Proxy-Server Proxys auswählt, siehe [oben](#proxy-server) |
 | `--serve [PORT]` | danach als rotierender Proxy auf `127.0.0.1:PORT` bereitstellen (Standard: 8899) |
 | `-o DATEI` | zusätzlich alle Treffer in diese Datei schreiben |
 | `--export FORMATE` | Zusatzdateien für andere Tools: `proxychains`, `clash`, `curl` oder `all` |
@@ -542,11 +561,12 @@ proxyscraper/
 ├── parsing.py          Proxys in Text, HTML und JSON finden
 ├── history.py          Verlauf funktionierender Proxys
 ├── geo.py              Länder: erst offline, ip-api.com als Reserve
+├── asndb.py            DB-IP-Anbieterdatenbank, Rechenzentrum-Heuristik
 ├── geodb.py            DB-IP-Länderdatenbank (monatlich, Binärsuche)
 ├── targets.py          Zielseiten für --target
 ├── output.py           Ergebnisdateien
 ├── exporters.py        Formate für proxychains, Clash und curl (--export)
-├── server.py           rotierender Proxy-Server (--serve)
+├── server/             rotierender Proxy-Server (--serve): pool · http · upstream · socks · status · core
 ├── publish.py          Live-Liste für GitHub Actions aufbereiten
 ├── paths.py            wo Zustand und Ergebnisse liegen
 ├── compat.py           Unterschiede zwischen Unix und Windows

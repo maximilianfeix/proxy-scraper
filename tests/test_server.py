@@ -36,7 +36,7 @@ def result(ptype, port, latency=100):
 class OrderedPool(ProxyPool):
     """Nimmt die Proxys in fester Reihenfolge – macht Ausfalltests unabhängig vom Zufall."""
 
-    def pick(self, exclude, tls=False):
+    def pick(self, exclude, tls=False, **_):
         return next((e for e in self.usable if e.result.key not in exclude), None)
 
 
@@ -341,7 +341,7 @@ def test_connect_on_other_ports_prefers_https_verified_proxies():
     seen = []
 
     class RecordingPool(OrderedPool):
-        def pick(self, exclude, tls=False):
+        def pick(self, exclude, tls=False, **_):
             seen.append(tls)
             return super().pick(exclude, tls)
 

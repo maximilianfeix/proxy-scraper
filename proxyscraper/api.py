@@ -2,11 +2,16 @@
 
     from proxyscraper import find_proxies
 
-    for p in find_proxies(want=20, https=True, countries=["DE", "NL"]):
-        print(p.url, p.latency, p.country)
+    if __name__ == "__main__":  # wichtig unter macOS/Windows, siehe unten
+        for p in find_proxies(want=20, https=True, countries=["DE", "NL"]):
+            print(p.url, p.latency, p.country)
 
 Dahinter läuft genau dasselbe wie in der Kommandozeile (Quellen, Lernen, Honeypot- und
 Manipulationsprüfung, Ergebnisdateien unter results/), nur ohne Ausgabe im Terminal.
+
+Große Listen werden in einem Prozess-Pool geparst. Unter macOS und Windows startet der die
+Unterprozesse mit "spawn" und lädt dabei das aufrufende Skript neu – wie bei jedem Code mit
+multiprocessing gehört der Aufruf deshalb hinter `if __name__ == "__main__":`.
 """
 
 from __future__ import annotations
@@ -78,7 +83,10 @@ async def find_proxies_async(*, types: Iterable[str] = PROXY_TYPES, want: int = 
     with _quiet(verbose):
         run = Run(opts, show_banner=verbose)
         await run.execute()
-    return sorted(run.kept, key=lambda r: r.latency)
+    found = sorted(run.kept, key=lambda r: r.latency)
+    # Beim Abbruch nach `want` laufen die gerade offenen Prüfungen noch zu Ende – die CLI schreibt alle in die
+    # Dateien, die API gibt genau so viele zurück wie verlangt (die schnellsten)
+    return found[:want] if want else found
 
 
 def find_proxies(**kwargs) -> List[CheckResult]:

@@ -85,7 +85,7 @@ async def socks5(send: Send, recv_exact: RecvExact, ep: Endpoint, address: bytes
             return False
         await send(b"\x01" + bytes([len(user)]) + user + bytes([len(password)]) + password)
         if (await recv_exact(2))[1] != 0x00:
-            return False  # Login abgelehnt
+            return False  # login refused
     elif reply[1] != SOCKS5_NO_AUTH:
         return False
     await send(b"\x05\x01\x00" + address + port.to_bytes(2, "big"))

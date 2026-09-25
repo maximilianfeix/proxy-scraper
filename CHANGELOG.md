@@ -14,6 +14,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Discord bot (`bot/`): posts every run of the live list with the fastest proxies and the full lists as files, sets up its own read-only channels, and answers `/proxies`, `/proxy`, `/stats` and `/about`. A GitHub Action tests it and deploys it to a server as a hardened systemd service ([#74](https://github.com/maximilianfeix/proxy-scraper/issues/74), [#75](https://github.com/maximilianfeix/proxy-scraper/issues/75))
 
 ### Fixed
+- Proxy server: a target that is down no longer gets working proxies disabled (a refused tunnel only counts against a proxy if another proxy reaches the same target), a client leaving in the middle of a request body no longer prints a traceback, a slow TLS ClientHello keeps the part that already arrived, and IPv6 targets work over HTTP CONNECT and SOCKS5 ([#82](https://github.com/maximilianfeix/proxy-scraper/issues/82))
 - A `--recheck` file that is missing now gives a message instead of a traceback, `http://` lines without an address no longer crash the parser, your own IP must match a whole address before a proxy counts as transparent, `gh` is only asked for a token when discovery can run, and the last German strings are gone ([#84](https://github.com/maximilianfeix/proxy-scraper/issues/84))
 
 ## [1.5.0] – 2026-09-25

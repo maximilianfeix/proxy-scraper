@@ -340,7 +340,7 @@ flowchart LR
 2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads 0 MB instead of ~160 MB.
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
 4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here. Finally a static HTML page has to arrive byte for byte as it does without a proxy – anyone injecting ads or scripts is out.
-5. **Countries** – looked up offline in the free DB-IP database (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
+5. **Countries and providers** – looked up offline in the free DB-IP databases, including the provider (ASN) and whether it's probably a datacenter (about 45 % of working proxies are) (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
 6. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
 
 <details>
@@ -453,6 +453,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--https-only` | only proxies that can tunnel HTTPS |
 | `--anonymity elite` | minimum anonymity (`anonymous` or `elite`) |
 | `--max-latency MS` | maximum latency |
+| `--no-datacenter` | skip proxies whose exit is (probably) in a datacenter – those get blocked sooner |
 | `--target URL` | only proxies that reach this site (repeatable) |
 | `--recheck [FILE]` | only check proxies from a file or the last run |
 | `--fast` | skip the HTTPS test (confirmation and anonymity still run) |
@@ -587,6 +588,7 @@ proxyscraper/
 ├── parsing.py          find proxies in text, HTML and JSON
 ├── history.py          history of working proxies
 ├── geo.py              countries: offline first, ip-api.com as fallback
+├── asndb.py            DB-IP provider database, datacenter heuristic
 ├── geodb.py            DB-IP country database (monthly, binary search)
 ├── targets.py          target sites for --target
 ├── output.py           result files

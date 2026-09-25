@@ -54,10 +54,10 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
     n_curated = len(sources)
 
     age = srcs.discovered_age_days()
-    token = srcs.github_token() if (opts.discover or not opts.no_discover) else None
-    run_discovery = opts.discover or (
-        not opts.no_discover and token is not None and (age is None or age > AUTO_DISCOVER_AFTER_DAYS)
-    )
+    due = not opts.no_discover and (age is None or age > AUTO_DISCOVER_AFTER_DAYS)
+    # asking gh for a token takes up to 5 s – only when discovery can actually run, and off the event loop
+    token = await asyncio.to_thread(srcs.github_token) if (opts.discover or due) else None
+    run_discovery = opts.discover or (due and token is not None)
     if run_discovery:
         max_repos = opts.discover_repos if token else min(opts.discover_repos, 40)
         with widgets.console.status(f"[bold {ACCENT}]Searching GitHub for new proxy lists …", spinner="dots") as status:

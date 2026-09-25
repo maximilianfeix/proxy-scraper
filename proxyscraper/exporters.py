@@ -34,7 +34,7 @@ def proxychains(rows: Sequence[CheckResult], now: datetime) -> str:
         entries.append(" ".join([r.ptype, ep.host, str(ep.port), *creds]))
     lines = [
         f"# proxy-scraper, {now:%Y-%m-%d %H:%M}, {len(entries)} proxies (fastest first, HTTP only with CONNECT)",
-        "# Nutzung: proxychains4 -f proxychains.conf curl https://api.ipify.org",
+        "# usage: proxychains4 -f proxychains.conf curl https://api.ipify.org",
         "random_chain",
         "chain_len = 1",
         "proxy_dns",

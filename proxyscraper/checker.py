@@ -464,9 +464,14 @@ def _is_ipv4(text: str) -> bool:
         return False
 
 
+def _contains_ip(body: bytes, ip: str) -> bool:
+    """The whole address, not a piece of a longer one: 1.2.3.4 is not in 11.2.3.45."""
+    return re.search(rb"(?<![\d.])" + re.escape(ip.encode()) + rb"(?![\d.])", body) is not None
+
+
 def classify_anonymity(body: bytes, own_ips: Iterable[str]) -> Optional[str]:
     """Response from httpbin.org (with "headers") -> transparent / anonymous / elite."""
-    if any(ip and ip.encode() in body for ip in own_ips):
+    if any(ip and _contains_ip(body, ip) for ip in own_ips):
         return "transparent"
     try:
         headers = json.loads(body).get("headers", {})

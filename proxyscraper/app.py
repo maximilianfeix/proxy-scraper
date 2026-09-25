@@ -292,7 +292,12 @@ class Run:
             jobs = await load_live_jobs(opts.types, self.history)
             info("Recheck", f"{fmt(len(jobs))} proxies from the live list (checked every 6 hours by GitHub Actions)")
         elif opts.recheck is not None:
-            jobs = load_recheck_jobs(opts.recheck, opts.types, self.history)
+            try:
+                jobs = load_recheck_jobs(opts.recheck, opts.types, self.history)
+            except (OSError, UnicodeDecodeError) as e:
+                reason = e.strerror if isinstance(e, OSError) and e.strerror else "not a text file"
+                note(f"Can't read {opts.recheck}: {reason}.", BAD, "✘")
+                return []
             info("Recheck", f"{fmt(len(jobs))} proxies from {opts.recheck or 'the last run + history'}")
         else:
             jobs = await self._scrape_jobs()

@@ -166,7 +166,10 @@ def parse_proxy_line(line: str, default_type: Optional[str] = None) -> Optional[
         ptype = TYPE_ALIASES.get(scheme.lower())
     if ptype not in PROXY_TYPES:
         return None
-    line = line.split()[0]
+    parts = line.split()
+    if not parts:  # "http://" with nothing after it
+        return None
+    line = parts[0]
     auth, _, line = line.rpartition("@")
     ip, _, port = line.partition(":")
     port = port.rstrip("/")

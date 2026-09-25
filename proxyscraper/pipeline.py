@@ -152,8 +152,9 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
                     cache.store(url, headers, keys, sources[url])
             except Exception:  # source unreachable/broken – counts as a failure in the statistics
                 pass
-            n = 0
+            n = parsed = 0
             if keys:
+                parsed = keys.count("\n") + 1  # every type, also the ones this run doesn't want
                 for key in keys.split("\n"):
                     if not key.startswith(prefixes):
                         continue
@@ -163,7 +164,7 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
                     else:
                         owners.append(i)
                     n += 1
-            quality.record_fetch(url, data, n, unchanged=unchanged)
+            quality.record_fetch(url, data, n, unchanged=unchanged, parsed=parsed)
             if n:
                 res.ok_sources += 1
                 view.ok += 1
@@ -360,21 +361,26 @@ async def run_checks(
             if r is None and is_suspect(gen, started):
                 requeue([key])  # only finished after the switch – still a victim of the outage
                 continue
-            run.checked.append(key)
             if r is None:
+                run.checked.append(key)
                 if watch:
                     recent_failures.append((gen, started, key))
                 continue
+            # A hit only counts as checked once the verdict is in: a worker cancelled during the next requests
+            # (--want reached, Ctrl+C) must not record a proxy that just worked as a failure.
             # second, independent request – honeypots often pass the first check by chance
             if not await checker.confirm(r):
+                run.checked.append(key)
                 stats.fakes += 1
                 continue
             # third request: does a known page arrive unchanged? Otherwise the proxy injects something
             if await checker.tampers(r):
+                run.checked.append(key)
                 stats.tampered += 1
                 continue
             if providers:
                 providers.annotate(r)
+            run.checked.append(key)
             run.results.append(r)
             run.working.add(key)
             by_exit_ip.setdefault(r.exit_ip, []).append(r)

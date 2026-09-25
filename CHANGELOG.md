@@ -14,6 +14,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Discord bot (`bot/`): posts every run of the live list with the fastest proxies and the full lists as files, sets up its own read-only channels, and answers `/proxies`, `/proxy`, `/stats` and `/about`. A GitHub Action tests it and deploys it to a server as a hardened systemd service ([#74](https://github.com/maximilianfeix/proxy-scraper/issues/74), [#75](https://github.com/maximilianfeix/proxy-scraper/issues/75))
 
 ### Fixed
+- Learning: proxies still being confirmed when `--want` is reached or Ctrl+C is pressed no longer count as dead, a list with none of the requested `--types` is no longer paused as unreachable, and outdated lists get another look every 3 days instead of never ([#83](https://github.com/maximilianfeix/proxy-scraper/issues/83))
 - A `--recheck` file that is missing now gives a message instead of a traceback, `http://` lines without an address no longer crash the parser, your own IP must match a whole address before a proxy counts as transparent, `gh` is only asked for a token when discovery can run, and the last German strings are gone ([#84](https://github.com/maximilianfeix/proxy-scraper/issues/84))
 
 ## [1.5.0] – 2026-09-25

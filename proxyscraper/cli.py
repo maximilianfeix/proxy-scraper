@@ -14,6 +14,7 @@ from . import __version__
 from . import sources as srcs
 from .app import Run
 from .compat import ensure_utf8_output
+from .completion import CompletionAction
 from .exporters import EXPORTERS, parse_exports
 from .history import ProxyHistory
 from .options import (
@@ -103,6 +104,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         ),
     )
     p.add_argument("-V", "--version", action="version", version=f"proxy-scraper {__version__}")
+    p.add_argument("--completion", action=CompletionAction, metavar="SHELL",
+                   help="Tab-Vervollständigung für bash, zsh oder fish ausgeben, z. B. eval \"$(proxy-scraper "
+                        "--completion zsh)\"")
     m = p.add_argument_group("Start")
     m.add_argument("-i", "--interactive", action="store_true",
                    help="Einrichtungsassistent: per Pfeiltasten auswählen, was gesucht wird "

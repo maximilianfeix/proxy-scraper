@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Changed
+- Terminal: the final report shows the datacenter and blocklist shares next to HTTPS and anonymity, the wizard panel no longer repeats the name from the banner ([#91](https://github.com/maximilianfeix/proxy-scraper/issues/91))
 - Website: WCAG 2.1 AA fixes (3:1 borders on controls, a pause button for the ticker, keyboard-accessible copying, sort buttons, table caption, skip link), link previews with an image, a touch icon, a section documenting the JSON files, and `/` to jump to the search ([#79](https://github.com/maximilianfeix/proxy-scraper/issues/79), [#80](https://github.com/maximilianfeix/proxy-scraper/issues/80))
 - README redesigned to match the website: brand-colored badges and buttons, the five checks as a diagram, headings without emojis, a section for the Discord bot. The German README is gone, everything is English now ([#73](https://github.com/maximilianfeix/proxy-scraper/issues/73))
 - Everything is in English now: terminal UI, CLI help, messages, code comments, tests and the generated proxy-list README. Numbers use English formatting (12,345 and 1.5%), and the terminal uses the lime brand color ([#72](https://github.com/maximilianfeix/proxy-scraper/issues/72))

@@ -97,6 +97,10 @@ def render_summary(
             letter, style = ANON_STYLE[level]
             proto.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(stats.anonymity[level]), "",
                           pct(stats.anonymity[level], found))
+        if stats.hosting:
+            proto.add_row(Text("▣ Datacenter", style=MUTED), fmt(stats.hosting), "", pct(stats.hosting, found))
+        if stats.blocklisted:
+            proto.add_row(Text("⊘ Blocklisted", style=MUTED), fmt(stats.blocklisted), "", pct(stats.blocklisted, found))
         if stats.details_saved:
             proto.add_row(Text("⏭ HTTPS tests skipped", style=MUTED), fmt(stats.details_saved), "", "")
 

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Render the README banner (docs/banner-dark.svg, docs/banner-light.svg) and the logo (docs/logo.svg).
+"""Render the README banner and check diagram (dark and light) and the logo (docs/logo.svg).
 
 Same look as the website: the logo is a route through a proxy node that forms a check mark,
 and the banner shows that route through the five checks every proxy has to pass.
@@ -86,9 +86,53 @@ def render(c: dict) -> str:
 """
 
 
+STEPS = [
+    ("700+ lists", ("read every 6 hours,", "most entries are dead")),
+    ("A real handshake", ("HTTP, SOCKS4 or SOCKS5,", "not just an open port")),
+    ("Two sites, one IP", ("honeypots that fake a", "response drop out")),
+    ("Nothing injected", ("a static page has to", "arrive byte for byte")),
+    ("The details", ("HTTPS with verified TLS,", "anonymity, country, provider")),
+]
+
+
+def checks(c: dict) -> str:
+    """The five checks every proxy on the list has passed – the same route as on the website."""
+    xs = [128 + i * 256 for i in range(len(STEPS))]
+    ys = [150, 96, 158, 100, 140]
+    route = smooth([(20, 160), *zip(xs, ys), (1260, 118)])
+    gates = []
+    for i, ((title, lines), x, y) in enumerate(zip(STEPS, xs, ys)):
+        caption = "".join(
+            f'<text x="{x}" y="{226 + 20 * k}" text-anchor="middle" fill="{c["muted"]}" font-family="{SANS}" font-size="15">{escape(line)}</text>'
+            for k, line in enumerate(lines))
+        gates.append(f"""
+    <g class="gate" style="animation-delay:{0.3 + 0.2 * i:.1f}s">
+      <circle cx="{x}" cy="{y}" r="11" fill="{SIGNAL}" stroke="{c["route"]}" stroke-width="2"/>
+      <text x="{x}" y="{y - 24}" text-anchor="middle" fill="{c["muted"]}" font-family="{SANS}" font-size="13">step {i + 1}</text>
+      <text x="{x}" y="204" text-anchor="middle" fill="{c["text"]}" font-family="{SANS}" font-size="19" font-weight="600" letter-spacing="-0.4">{escape(title)}</text>
+      {caption}
+    </g>""")
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 290" width="1280" height="290" role="img" aria-label="Every proxy passed five checks: 700+ lists, a real handshake, two sites with one IP, nothing injected, and the details.">
+  <style>
+    .route {{ stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw 1.8s cubic-bezier(.16,1,.3,1) .1s forwards; }}
+    .gate {{ animation: fade .6s cubic-bezier(.16,1,.3,1) both; }}
+    @keyframes fade {{ from {{ opacity: 0; transform: translateY(6px); }} to {{ opacity: 1; transform: none; }} }}
+    @keyframes draw {{ to {{ stroke-dashoffset: 0; }} }}
+    @media (prefers-reduced-motion: reduce) {{ .gate {{ animation: none; }} .route {{ animation: none; stroke-dashoffset: 0; }} }}
+  </style>
+  <defs><clipPath id="frame"><rect width="1280" height="290" rx="24"/></clipPath></defs>
+  <g clip-path="url(#frame)"><rect width="1280" height="290" fill="{c["bg"]}"/></g>
+  <path d="{route}" fill="none" stroke="{c["line"]}" stroke-width="2"/>
+  <path class="route" pathLength="100" d="{route}" fill="none" stroke="{c["route"]}" stroke-width="3" stroke-linecap="round"/>
+  {"".join(gates)}
+</svg>
+"""
+
+
 def main() -> None:
     for name, colors in THEMES.items():
         (DOCS / f"banner-{name}.svg").write_text(render(colors), encoding="utf-8")
+        (DOCS / f"checks-{name}.svg").write_text(checks(colors), encoding="utf-8")
     (DOCS / "logo.svg").write_text(logo(), encoding="utf-8")
 
 

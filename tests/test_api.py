@@ -108,8 +108,8 @@ def test_waiting_call_can_be_cancelled():
             waiter = asyncio.ensure_future(api.find_proxies_async())
             await asyncio.sleep(0.1)
             waiter.cancel()
-            with pytest.raises(asyncio.CancelledError):
-                await waiter
+            await asyncio.wait([waiter])
+            assert waiter.cancelled()
         assert api._RUN_LOCK.acquire(blocking=False)  # keine hängende Sperre
         api._RUN_LOCK.release()
 

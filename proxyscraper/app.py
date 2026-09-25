@@ -29,6 +29,7 @@ from .compat import on_interrupt, raise_fd_limit
 from .fetchcache import FetchCache
 from .geo import GeoResolver
 from .geodb import CountryDB, is_current, load_country_db
+from .handshake import parse_endpoint
 from .history import ProxyHistory
 from .judges import JudgeProbe, JudgeWatch, rank_judges
 from .netio import INSECURE_HOSTS, http_get
@@ -145,6 +146,16 @@ def next_steps(opts: RunOptions, kept: List[CheckResult]) -> List[Tuple[str, str
     return steps
 
 
+def pool_recheck(checker: Checker):
+    """Nachprüfung für ausgemusterte Proxys des Proxy-Servers: die normale Prüfung, aber am Cache vorbei."""
+    async def recheck(result: CheckResult) -> bool:
+        # der Checker merkt sich unerreichbare Adressen für den Rest des Laufs – genau das soll hier nochmal
+        # versucht werden
+        checker.unreachable.discard(parse_endpoint(result.proxy).address)
+        return await checker.check(result.key) is not None
+    return recheck
+
+
 class Run:
     def __init__(self, opts: RunOptions, show_banner: bool = True):
         self.opts = opts
@@ -155,6 +166,7 @@ class Run:
         self.scraped: Optional[ScrapeResult] = None
         self.judges: List[JudgeProbe] = []  # erreichbare Prüfziele, schnellstes zuerst
         self.integrity: Optional[bytes] = None  # Hash der Vergleichsseite (siehe Checker.tampers)
+        self.checker: Optional[Checker] = None
         self.confirm_ip: Optional[str] = None
         self.targets: List[Tuple[Target, str]] = []
         self.own_ips: List[str] = []
@@ -312,6 +324,7 @@ class Run:
                           detail_connect_timeout=opts.connect_timeout, targets=self.targets,
                           https_test=not opts.fast or opts.filters.https_only, judge=judge.judge,
                           integrity_reference=self.integrity)
+        self.checker = checker  # für den Proxy-Server: Nachprüfen ausgemusterter Proxys
         watch = JudgeWatch(self.judges, lambda new: checker.use_judge(new.judge, new.ip))
         dashboard.judge = judge.judge.host
         # Länder-Datenbank sofort aus data/ (2 ms); ist sie alt oder fehlt, im Hintergrund neu laden –
@@ -347,7 +360,8 @@ class Run:
         if not proxies:
             note("Kein passender Proxy gefunden – der Proxy-Server startet nicht.", BAD, "✘")
             return
-        server = RotatingServer(ProxyPool(proxies), port=self.opts.serve, timeout=self.opts.timeout)
+        pool = ProxyPool(proxies, strategy=self.opts.rotate, sticky_seconds=self.opts.sticky)
+        server = RotatingServer(pool, port=self.opts.serve, timeout=self.opts.timeout)
         try:
             await server.start()
         except OSError as e:
@@ -356,11 +370,16 @@ class Run:
             return
         stop = asyncio.Event()
         widgets.console.print()
+        fresh = None
+        if self.checker:  # ausgemusterte Proxys alle 5 Minuten nachprüfen und bei Erfolg zurückholen
+            fresh = asyncio.ensure_future(server.keep_fresh(pool_recheck(self.checker)))
         try:
             with on_interrupt(asyncio.get_running_loop(), stop.set), \
                     Live(ServeDashboard(server), console=widgets.console, refresh_per_second=4):
                 await stop.wait()
         finally:
+            if fresh:
+                fresh.cancel()
             await server.close()
         st = server.stats
         note(f"Proxy-Server beendet – {fmt(st.requests)} Anfragen, {fmt(st.ok)} erfolgreich.", GOOD, "✔")

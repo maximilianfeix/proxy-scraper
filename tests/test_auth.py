@@ -180,7 +180,6 @@ def test_next_steps_never_print_a_password():
     assert PASSWORD not in command and "alice:•••@1.2.3.4:80" in command
 
 
-
 async def split_407_proxy(reader, writer):
     """Schickt das 407 in zwei TCP-Stücken – "HTTP/1.1 4" und den Rest."""
     await reader.readuntil(b"\r\n\r\n")
@@ -196,7 +195,6 @@ async def split_407_proxy(reader, writer):
 def test_407_split_across_reads_is_still_caught(request_):
     reply = through_server("http", split_407_proxy, AUTH, request_)
     assert b"407" not in reply and b"502" in reply
-
 
 
 @pytest.mark.parametrize("chunks, forwarded, verdict", [
@@ -238,13 +236,11 @@ def test_407_after_100_continue_does_not_reach_the_client():
     assert b"407" not in reply and b"502" in reply
 
 
-
 @pytest.mark.parametrize("request_", [plain, chunked_post])
 def test_407_after_100_continue_is_caught_on_both_paths(request_):
     # plain = gepufferter Body (Wechsel möglich), chunked = gestreamt
     reply = through_server("http", continue_then_407_proxy, AUTH, request_)
     assert b"407" not in reply and b"502" in reply
-
 
 
 async def continue_then_hang_up_proxy(reader, writer):
@@ -258,7 +254,6 @@ async def continue_then_hang_up_proxy(reader, writer):
 def test_hanging_up_after_an_interim_response_is_a_failure(request_):
     reply = through_server("http", continue_then_hang_up_proxy, AUTH, request_)
     assert b"502" in reply
-
 
 
 def test_huge_interim_response_counts_as_failed():

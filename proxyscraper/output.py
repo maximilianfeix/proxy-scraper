@@ -121,13 +121,12 @@ def latest_run_dir(results_dir: Path = RESULTS_DIR) -> Optional[Path]:
         name = pointer.read_text(encoding="utf-8").strip()
     except (OSError, UnicodeDecodeError):  # fehlt, keine Rechte oder kaputt -> Symlink versuchen
         name = ""
-    if name:
-        # Nur ein Ordnername direkt unter results/ – leer, "..", oder Pfade wie "a/../.." würden
-        # sonst auf results/ selbst oder außerhalb zeigen
-        if name not in (".", "..") and Path(name).name == name:
-            run_dir = results_dir / name
-            if run_dir.is_dir():
-                return run_dir
+    # Nur ein Ordnername direkt unter results/ – leer, "..", oder Pfade wie "a/../.." würden
+    # sonst auf results/ selbst oder außerhalb zeigen
+    if name and name not in (".", "..") and Path(name).name == name:
+        run_dir = results_dir / name
+        if run_dir.is_dir():
+            return run_dir
     link = results_dir / "latest"
     return link if link.is_dir() else None  # Läufe aus älteren Versionen ohne latest.txt
 

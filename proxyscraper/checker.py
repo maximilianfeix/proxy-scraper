@@ -343,6 +343,7 @@ class Checker:
                 head += chunk
             first = head.split(b"\r\n", 1)[0]
             return first.startswith(b"HTTP/") and b" 200" in first
+
         async def send(data: bytes) -> None:
             await loop.sock_sendall(sock, data)
 
@@ -360,6 +361,7 @@ async def _read_status(reader) -> int:
     head = await reader.readuntil(b"\r\n\r\n")
     parts = head.split(b"\r\n", 1)[0].split()
     return int(parts[1]) if len(parts) > 1 and parts[0].startswith(b"HTTP/") and parts[1].isdigit() else 0
+
 
 def confirmation_origins(body: bytes) -> Optional[List[str]]:
     """IPs aus einer httpbin-Antwort ("origin": "1.2.3.4" oder "1.2.3.4, 5.6.7.8"), None wenn unbrauchbar."""

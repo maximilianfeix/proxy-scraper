@@ -58,8 +58,11 @@ line-length = 120
 target-version = "py39"
 
 [tool.ruff.lint]
-# Fehler, Warnungen, Bugbear (echte Fallstricke) und sortierte Importe
-select = ["E", "F", "W", "B", "I"]
+# Fehler, Warnungen, Bugbear (echte Fallstricke), sortierte Importe, dazu Vereinfachungen und ein paar
+# Ruff-Regeln, die echte Fehler finden (implizites Optional, ungenutzte Variablen beim Entpacken)
+select = ["E", "F", "W", "B", "I", "C4", "PIE", "SIM", "PERF", "RUF005", "RUF013", "RUF022", "RUF059"]
+# try/except in Schleifen ist hier Absicht (Fallbacks nacheinander probieren)
+ignore = ["PERF203"]
 
 [tool.ruff.lint.isort]
 known-first-party = ["proxyscraper"]

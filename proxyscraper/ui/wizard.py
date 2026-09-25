@@ -99,7 +99,7 @@ class _ListStep(Step):
             self.cursor = n - 1
         elif len(key) == 1 and key.isalpha() and key not in "jkq":
             # Tippen springt zum nächsten Eintrag mit diesem Anfangsbuchstaben
-            order = list(range(self.cursor + 1, n)) + list(range(0, self.cursor + 1))
+            order = list(range(self.cursor + 1, n)) + list(range(self.cursor + 1))
             hit = next((i for i in order if self.options[i].search_text.startswith(key.lower())), None)
             if hit is None:
                 return False
@@ -162,8 +162,8 @@ class SelectStep(_ListStep):
 
     numbered = True
 
-    def __init__(self, title, subtitle, options, read: Callable[[RunOptions], Any] = None,
-                 write: Callable[[RunOptions, Any], None] = None):
+    def __init__(self, title, subtitle, options, read: Optional[Callable[[RunOptions], Any]] = None,
+                 write: Optional[Callable[[RunOptions, Any], None]] = None):
         super().__init__(title, subtitle, options)
         self.read, self.write = read, write
 

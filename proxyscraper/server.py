@@ -9,6 +9,7 @@ fliegt aus der Rotation.
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import random
 import re
 import socket
@@ -108,7 +109,7 @@ class ServerStats:
 def parse_request_head(head: bytes) -> Tuple[str, str, int, bytes, List[Tuple[bytes, bytes]]]:
     """-> (Methode, Host, Port, Pfad, Header). Unterstützt CONNECT host:port und absolute URLs."""
     lines = head.split(b"\r\n")
-    method, target, version = lines[0].split(b" ", 2)
+    method, target, _version = lines[0].split(b" ", 2)
     headers = []
     for line in lines[1:]:
         if line:
@@ -146,7 +147,7 @@ def forward_request(method: str, path: bytes, host: str, port: int, headers: Lis
     """Anfrage an einen HTTP-Upstream-Proxy: absolute URL wie vom Client, nur ohne Proxy-Header."""
     authority = host if port == 80 else f"{host}:{port}"
     request = origin_request(method, path, host, port, headers)
-    first_line, rest = request.split(b"\r\n", 1)
+    rest = request.split(b"\r\n", 1)[1]  # erste Zeile wird durch die absolute URL ersetzt
     return f"{method} http://{authority}".encode() + path + b" HTTP/1.1\r\n" + rest
 
 
@@ -516,10 +517,8 @@ class RotatingServer:
             # keine endgültige Antwort (Upstream bricht z. B. per RST ab, weil unser Body ungelesen im Puffer
             # lag), ist das genauso ein Fehlschlag wie ein sauberes Auflegen.
             if screen:
-                try:
+                with contextlib.suppress(ConnectionError, OSError):
                     await self._bad_gateway(writer)
-                except (ConnectionError, OSError):
-                    pass
                 return -1
         finally:
             try:

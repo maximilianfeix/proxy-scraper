@@ -9,10 +9,10 @@ from pathlib import Path
 DOCS = Path(__file__).resolve().parent
 
 THEMES = {
-    "dark": dict(bg1="#0B1622", bg2="#0F2233", grid="#16293B", glow="#38BDF8", text="#E6EDF3", muted="#8BA3B8",
-                 faint="#5E7B94", accent="#38BDF8", accent2="#34D399", bar="#132638", border="#24405A"),
-    "light": dict(bg1="#F6F9FC", bg2="#EAF2F8", grid="#DCE7F0", glow="#0284C7", text="#10243A", muted="#43647E",
-                  faint="#6B879E", accent="#0284C7", accent2="#10B981", bar="#FFFFFF", border="#D3E1EC"),
+    "dark": {"bg1": "#0B1622", "bg2": "#0F2233", "grid": "#16293B", "glow": "#38BDF8", "text": "#E6EDF3", "muted": "#8BA3B8",
+                 "faint": "#5E7B94", "accent": "#38BDF8", "accent2": "#34D399", "bar": "#132638", "border": "#24405A"},
+    "light": {"bg1": "#F6F9FC", "bg2": "#EAF2F8", "grid": "#DCE7F0", "glow": "#0284C7", "text": "#10243A", "muted": "#43647E",
+                  "faint": "#6B879E", "accent": "#0284C7", "accent2": "#10B981", "bar": "#FFFFFF", "border": "#D3E1EC"},
 }
 
 # funnel: label, detail, bar width

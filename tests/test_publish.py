@@ -64,7 +64,6 @@ def test_num():
     assert publish.num(1234567) == "1.234.567"
 
 
-
 def test_proxies_with_credentials_are_never_published(tmp_path):
     rows = [CheckResult(f"http 1.1.1.{i}:80", "http", f"1.1.1.{i}:80", 100, "9.9.9.9", True, "elite", "DE")
             for i in range(3)]

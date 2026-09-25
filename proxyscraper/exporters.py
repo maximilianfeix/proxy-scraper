@@ -18,8 +18,6 @@ from .handshake import parse_endpoint
 Exporter = Callable[[Sequence[CheckResult], datetime], str]
 
 
-
-
 def tunnels(r: CheckResult) -> bool:
     """proxychains und Clash reden mit HTTP-Proxys nur per CONNECT. Wer den HTTPS-Test nicht
     bestanden hat, kann das in der Regel nicht – SOCKS geht immer, ungetestet (--fast) bleibt drin."""

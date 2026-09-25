@@ -120,6 +120,7 @@ class RunOptions:
     rotate: str = "weighted"  # strategy of the proxy server, see server/pool.py
     sticky: int = 0  # seconds a target site keeps the same proxy (0 = new one for every connection)
     serve_host: str = "127.0.0.1"  # address of the proxy server; anything else is reachable from outside
+    serve_password: str = field(default="", repr=False)  # required from clients if set; never written to argv
 
     def __post_init__(self) -> None:
         unknown = set(self.types) - set(PROXY_TYPES)
@@ -201,6 +202,7 @@ class RunOptions:
             rotate=args.rotate,
             sticky=args.sticky,
             serve_host=args.serve_host,
+            serve_password=args.serve_password,
         )
 
     def to_argv(self) -> List[str]:

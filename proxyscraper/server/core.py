@@ -23,6 +23,7 @@ from .http import (
     origin_request,
     parse_request_head,
     plausible_answer,
+    request_body_length,
 )
 from .pool import ANY, ProxyPool, Selection
 from .socks import SOCKS5_VERSION, Socks5Refused, socks5_accept, socks5_reply
@@ -32,6 +33,7 @@ from .status import (
     STATUS_PATH,
     STATUS_PREFIX,
     metrics_text,
+    password_ok,
     selection_from_headers,
     status_json,
 )
@@ -67,8 +69,10 @@ class ServerStats:
 
 
 class RotatingServer:
-    def __init__(self, pool: ProxyPool, host: str = "127.0.0.1", port: int = 8899, timeout: float = 10.0):
+    def __init__(self, pool: ProxyPool, host: str = "127.0.0.1", port: int = 8899, timeout: float = 10.0,
+                 password: str = ""):
         self.pool = pool
+        self.password = password  # empty = no authentication (fine on 127.0.0.1)
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -101,6 +105,11 @@ class RotatingServer:
                     await self._serve_status(writer, head)
                     return
                 method, host, port, path, headers = parse_request_head(head)
+                if not password_ok(headers, self.password):
+                    writer.write(b"HTTP/1.1 407 Proxy Authentication Required\r\n"
+                                 b'Proxy-Authenticate: Basic realm="proxy-scraper"\r\n'
+                                 b"Content-Length: 0\r\nConnection: close\r\n\r\n")
+                    return
             except (ValueError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, asyncio.TimeoutError,
                     UnicodeDecodeError):
                 writer.write(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
@@ -179,11 +188,11 @@ class RotatingServer:
                 up_writer.write(first_out)
                 await up_writer.drain()
                 return await self._relay(reader, writer, client, host, port, started, len(tried), entry,
-                                         up_reader, up_writer, first_out, b"")
+                                         up_reader, up_writer, first_out, b"", upload=request_body_length(headers))
             first_in = await self._exchange(up_reader, up_writer, first_out)
             if first_in is not None:
                 await self._relay(reader, writer, client, host, port, started, len(tried), entry,
-                                  up_reader, up_writer, first_out, first_in)
+                                  up_reader, up_writer, first_out, first_in, upload=0)
                 return True
             self._give_up(entry, up_writer)
         self._log(client, host, port, None, False, started, len(tried))
@@ -251,9 +260,13 @@ class RotatingServer:
         return b"" if verdict == "407" else out
 
     async def _relay(self, reader, writer, client, host, port, started, attempts, entry,
-                     up_reader, up_writer, first_out: bytes, first_in: bytes) -> bool:
+                     up_reader, up_writer, first_out: bytes, first_in: bytes, upload=None) -> bool:
         """Pass both directions through. Success only counts once the upstream has answered – for
-        streamed bodies (first_in empty) that means once any data comes back at all."""
+        streamed bodies (first_in empty) that means once any data comes back at all.
+
+        upload: for plain HTTP only the rest of this request's body may go up (a byte count or a ChunkedEnd).
+        Whatever the client sends after it – a second keep-alive request with its Proxy-Authorization,
+        for example – never reaches the free proxy. None = tunnel, everything goes through."""
         if first_in:
             self._account(client, host, port, entry, True, started, attempts)
         try:
@@ -263,7 +276,8 @@ class RotatingServer:
                 writer.write(first_in)
                 await writer.drain()
             _, received = await asyncio.gather(
-                self._pipe(reader, up_writer, up=True),
+                self._pipe(reader, up_writer, up=True) if upload is None
+                else self._send_body(reader, up_writer, upload),
                 # without a first response up front (streamed body) watch for a 407 from the proxy here
                 self._pipe(up_reader, writer, up=False, reject_proxy_auth=not first_in),
             )
@@ -331,6 +345,26 @@ class RotatingServer:
                      b"Connection: close\r\n\r\nNo proxy from the pool answered.\n")
         await writer.drain()
 
+    async def _send_body(self, reader, writer, body) -> int:
+        """Pass exactly the rest of one request body upstream, then stop reading from the client."""
+        total = 0
+        with contextlib.suppress(ConnectionError, OSError, ValueError):
+            while body:
+                data = await reader.read(min(body, 65536) if isinstance(body, int) else 65536)
+                if not data:
+                    break
+                if isinstance(body, int):
+                    body -= len(data)
+                else:
+                    end = body.feed(data)
+                    if end is not None:
+                        data, body = data[:end], 0
+                total += len(data)
+                self.stats.bytes_up += len(data)
+                writer.write(data)
+                await writer.drain()
+        return total
+
     async def _pipe(self, reader, writer, up: bool, reject_proxy_auth: bool = False) -> int:
         """Pass data through until one side stops; returns the number of bytes.
 
@@ -389,7 +423,7 @@ class RotatingServer:
         """SOCKS5 on the same port. Authentication optional – the user name carries the same wishes as with
         HTTP ("country-de-session-abc"). After that everything works like CONNECT, including switching on errors."""
         try:
-            host, port, username = await asyncio.wait_for(socks5_accept(reader, writer), self.timeout)
+            host, port, username = await asyncio.wait_for(socks5_accept(reader, writer, self.password), self.timeout)
         except (Socks5Refused, asyncio.IncompleteReadError, asyncio.TimeoutError, ValueError, UnicodeError):
             return  # refused, hung up half-way, too slow or a broken address – close the connection
         self.stats.requests += 1
@@ -407,6 +441,13 @@ class RotatingServer:
     async def _serve_status(self, writer, head: bytes) -> None:
         target = head.split(b" ", 2)[1].split(b"?", 1)[0]
         kind = b"application/json"
+        headers = [tuple(part.strip() for part in line.split(b":", 1)) for line in head.split(b"\r\n")[1:]
+                   if b":" in line]
+        if not password_ok(headers, self.password, b"authorization"):
+            writer.write(b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"proxy-scraper\"\r\n"
+                         b"Content-Length: 0\r\nConnection: close\r\n\r\n")
+            await writer.drain()
+            return
         if target == STATUS_PATH:
             status, body = b"200 OK", status_json(self).encode()
         elif target == METRICS_PATH:

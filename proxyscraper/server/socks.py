@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import hmac
 import socket
 from typing import Tuple
 
@@ -20,11 +21,11 @@ def socks5_reply(code: int) -> bytes:
     return bytes([5, code, 0, ATYP_IPV4]) + b"\x00" * 6
 
 
-async def socks5_accept(reader, writer) -> Tuple[str, int, str]:
+async def socks5_accept(reader, writer, password: str = "") -> Tuple[str, int, str]:
     """After the first byte (0x05): negotiate methods, authenticate if needed, read CONNECT.
 
-    -> (target host, target port, user name). The user name is not password protection – the server only
-    listens on 127.0.0.1 – but carries wishes like "country-de" (see pool.Selection)."""
+    -> (target host, target port, user name). The user name carries wishes like "country-de" (see
+    pool.Selection). With `password` set, username/password auth is mandatory and the password must match."""
     count = (await reader.readexactly(1))[0]
     methods = await reader.readexactly(count)
     username = ""
@@ -33,9 +34,13 @@ async def socks5_accept(reader, writer) -> Tuple[str, int, str]:
         await writer.drain()
         await reader.readexactly(1)  # version of the sub-negotiation
         username = (await reader.readexactly((await reader.readexactly(1))[0])).decode("utf-8", "replace")
-        await reader.readexactly((await reader.readexactly(1))[0])  # Passwort – egal
+        given = await reader.readexactly((await reader.readexactly(1))[0])
+        if password and not hmac.compare_digest(given, password.encode()):
+            writer.write(b"\x01\x01")
+            await writer.drain()
+            raise Socks5Refused("wrong password")
         writer.write(b"\x01\x00")
-    elif NO_AUTH in methods:
+    elif NO_AUTH in methods and not password:
         writer.write(bytes([5, NO_AUTH]))
     else:
         writer.write(bytes([5, NO_METHOD]))

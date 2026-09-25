@@ -1,0 +1,38 @@
+# A rotating proxy that starts from the live list, reachable only from this machine.
+#
+#   echo "PROXY_PASSWORD=$(openssl rand -hex 16)" > .env
+#   docker compose up -d
+#   curl -x "http://any:$(grep -o '[^=]*$' .env)@127.0.0.1:8899" https://api.ipify.org
+#
+# Free proxies die over the day. The server re-checks disabled ones every 5 minutes, but it doesn't pick up
+# new ones – `docker compose restart` (e.g. every 6 hours from cron) starts again from the fresh live list.
+
+services:
+  proxy:
+    image: ghcr.io/maximilianfeix/proxy-scraper:latest
+    command: ["--recheck", "live", "--want", "200", "--serve", "--serve-host", "0.0.0.0"]
+    environment:
+      # clients have to send this password in the proxy login (HTTP and SOCKS5)
+      PROXY_SCRAPER_SERVE_PASSWORD: ${PROXY_PASSWORD:?put PROXY_PASSWORD=... into .env}
+    ports:
+      - "127.0.0.1:8899:8899"   # remove 127.0.0.1: only if others should reach it – the password protects it
+    volumes:
+      - proxy-data:/data        # learned statistics and history survive restarts
+    restart: unless-stopped
+    healthcheck:
+      test:
+        - CMD
+        - python
+        - -c
+        - >-
+          import base64, os, urllib.request as u;
+          auth = base64.b64encode(("any:" + os.environ["PROXY_SCRAPER_SERVE_PASSWORD"]).encode()).decode();
+          u.urlopen(u.Request("http://127.0.0.1:8899/__proxy-scraper/status",
+          headers={"Authorization": "Basic " + auth}), timeout=5)
+      interval: 60s
+      timeout: 10s
+      start_period: 3m        # the recheck runs before the server starts
+      retries: 3
+
+volumes:
+  proxy-data:

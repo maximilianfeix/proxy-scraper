@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 
 from rich import box
@@ -60,13 +61,19 @@ class ServeDashboard:
         usage = Table.grid(padding=(0, 2))
         usage.add_column(style=MUTED, no_wrap=True)
         usage.add_column(overflow="fold")
-        usage.add_row("Test", Text(f"curl -x http://{address} https://api.ipify.org", style="bold"))
-        usage.add_row("SOCKS5", Text(f"curl -x socks5h://{address} https://api.ipify.org"))
-        usage.add_row("One country", Text(f"curl -x http://country-de:x@{address} https://api.ipify.org"))
-        usage.add_row("Fixed session", Text(f"curl -x http://session-abc:x@{address} …  (keeps the same proxy)"))
-        usage.add_row("Terminal", Text(f"export http_proxy=http://{address} https_proxy=http://{address}"))
-        usage.add_row("Status (JSON)", Text(f"curl http://{address}/__proxy-scraper/status"))
-        usage.add_row("Prometheus", Text(f"http://{address}/__proxy-scraper/metrics"))
+        # with a password every example needs the login; the password itself is never shown
+        from_env = server.password and os.environ.get("PROXY_SCRAPER_SERVE_PASSWORD") == server.password
+        pw = "$PROXY_SCRAPER_SERVE_PASSWORD" if from_env else "PASSWORD" if server.password else "x"
+        login = f"any:{pw}@" if server.password else ""
+        usage.add_row("Test", Text(f"curl -x http://{login}{address} https://api.ipify.org", style="bold"))
+        usage.add_row("SOCKS5", Text(f"curl -x socks5h://{login}{address} https://api.ipify.org"))
+        usage.add_row("One country", Text(f"curl -x http://country-de:{pw}@{address} https://api.ipify.org"))
+        usage.add_row("Fixed session", Text(f"curl -x http://session-abc:{pw}@{address} …  (keeps the same proxy)"))
+        usage.add_row("Terminal", Text(f"export http_proxy=http://{login}{address} https_proxy=http://{login}{address}"))
+        usage.add_row("Status (JSON)", Text(f"curl {'-u any:' + pw + ' ' if server.password else ''}"
+                                            f"http://{address}/__proxy-scraper/status"))
+        usage.add_row("Prometheus", Text(f"http://{'any:' + pw + '@' if server.password else ''}"
+                                         f"{address}/__proxy-scraper/metrics"))
         mode = pool.strategy + (f" · sticky {pool.sticky_seconds:g} s" if pool.sticky_seconds else "")
         usage.add_row("Rotation", Text(mode + (f" · {fmt(server.revived)} brought back" if server.revived else ""),
                                        style=MUTED))

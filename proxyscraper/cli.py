@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import os
 import sys
 from collections import Counter
 from typing import List, Optional
@@ -158,6 +159,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     v.add_argument("--serve-host", default="127.0.0.1", metavar="ADDRESS",
                    help="address of the proxy server (default: 127.0.0.1). 0.0.0.0 makes it reachable from outside – "
                         "only for Docker with -p 127.0.0.1:8899:8899 or behind a firewall")
+    v.add_argument("--serve-password", default=os.environ.get("PROXY_SCRAPER_SERVE_PASSWORD", ""), metavar="SECRET",
+                   help="clients must send this password in the proxy login (HTTP and SOCKS5); better set "
+                        "PROXY_SCRAPER_SERVE_PASSWORD, so it doesn't show up in the process list")
     v.add_argument("--sticky", type=non_negative_int, default=0, metavar="SEC",
                    help="the same target site keeps the same proxy for this long (e.g. for logins); "
                         "per request this also works with the user name session-NAME")

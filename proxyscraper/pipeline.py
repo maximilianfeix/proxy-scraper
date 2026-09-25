@@ -13,6 +13,7 @@ from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
 
 from . import sources as srcs
 from .asndb import ProviderLookup
+from .blocklist import Blocklist
 from .checker import Checker, CheckResult
 from .compat import on_interrupt
 from .fetchcache import FetchCache
@@ -269,6 +270,7 @@ async def run_checks(
     live_factory: Callable,
     watch: Optional[JudgeWatch] = None,
     providers: Optional[ProviderLookup] = None,
+    blocklist: Optional[Blocklist] = None,
 ) -> CheckRun:
     """Checks `jobs` with `opts.concurrency` parallel workers until everything is done, the goal is
     reached or Ctrl+C is pressed.
@@ -381,6 +383,8 @@ async def run_checks(
                 continue
             if providers:
                 providers.annotate(r)
+            if blocklist:
+                r.blocklisted = await blocklist.lookup(r.exit_ip)
             run.checked.append(key)
             run.results.append(r)
             run.working.add(key)

@@ -18,6 +18,7 @@ from rich.text import Text
 from . import sources as srcs
 from .asndb import AsnDB, ProviderLookup, load_asn_db
 from .asndb import is_current as asn_is_current
+from .blocklist import Blocklist
 from .checker import (
     CONFIRM_HOST,
     CONFIRM_PORT,
@@ -199,6 +200,7 @@ class Run:
         self.confirm_ip: Optional[str] = None
         self.targets: List[Tuple[Target, str]] = []
         self.own_ips: List[str] = []
+        self.blocklist: Optional[Blocklist] = None
 
     async def execute(self) -> int:
         if self.show_banner:
@@ -222,7 +224,11 @@ class Run:
     # ------------------------------------------------------------------ phase 0: network
 
     async def prepare_network(self) -> bool:
-        self.judges, self.own_ips = await asyncio.gather(rank_judges(), get_own_ips())
+        blocklist = Blocklist() if not self.opts.no_dnsbl else None
+        self.judges, self.own_ips, _ = await asyncio.gather(
+            rank_judges(), get_own_ips(), blocklist.probe() if blocklist else asyncio.sleep(0))
+        if blocklist and blocklist.usable:
+            self.blocklist = blocklist
         if not self.judges:
             note("No check target reachable (checkip.amazonaws.com, ifconfig.me, …) – check your internet connection.",
                  BAD, "✘")
@@ -255,6 +261,10 @@ class Run:
                  "can slip through, and anonymity stays unknown.")
         if not ips:
             note("Own IP unknown – transparent proxies (they reveal your IP) won't be filtered out.")
+        if blocklist and not blocklist.usable:
+            note("SpamCop doesn't answer through your DNS resolver (large public resolvers are refused) – "
+                 "blocklist info is skipped" + (", so --no-blocklisted can't filter anything." if
+                                                self.opts.filters.no_blocklisted else "."), MUTED, "ℹ")
         return True
 
     async def resolve_targets(self) -> bool:
@@ -389,6 +399,7 @@ class Run:
             live_factory=lambda renderable: Live(renderable, console=widgets.console, refresh_per_second=6),
             watch=watch,
             providers=providers,
+            blocklist=self.blocklist,
         )
 
         if refresh and not refresh.done():
@@ -515,6 +526,11 @@ class Run:
             note(f"{fmt(stats.hosting)} of {fmt(len(run.results))} hits ({pct(stats.hosting, len(run.results))}) "
                  "probably exit from datacenters – those often get blocked sooner. "
                  "Only the others: --no-datacenter", MUTED, "ℹ")
+        if stats.blocklisted and run.results and not opts.filters.no_blocklisted:
+            share = pct(stats.blocklisted, len(run.results))
+            note(f"{fmt(stats.blocklisted)} of {fmt(len(run.results))} hits ({share}) "
+                 "exit from an IP on the SpamCop blocklist – sites that use it show captchas or block them. "
+                 "Only the others: --no-blocklisted", MUTED, "ℹ")
         if run.reached_goal:
             note(f"Goal of {fmt(opts.want)} hits reached – stopped early.", GOOD, "✔")
         elif run.interrupted:

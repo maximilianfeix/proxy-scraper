@@ -231,6 +231,7 @@
   .quiet { color: var(--muted); }
   .tag { display: inline-block; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 6px; border-radius: 6px; margin-right: 8px;
          color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); vertical-align: 1px; }
+  .tag.bl { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
   .stable-badge { color: var(--signal-ink); font-weight: 500; }
   .provider { max-width: 240px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
   .icon-btn { width: 34px; height: 34px; border-radius: 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; display: inline-grid; place-items: center;
@@ -464,6 +465,7 @@
       <button class="chip" type="button" id="f-elite" aria-pressed="false">Elite</button>
       <button class="chip" type="button" id="f-dc" aria-pressed="false" title="Exits in datacenters get blocked sooner">No datacenter</button>
       <button class="chip" type="button" id="f-stable" aria-pressed="false" title="Worked in every run for at least 24 hours">Stable 24 h+</button>
+      <button class="chip" type="button" id="f-bl" aria-pressed="false" title="Exit IP not on the SpamCop blocklist – fewer captchas">Not blocklisted</button>
       <select class="field" id="f-country" aria-label="Country"><option value="">All countries</option></select>
       <label class="range">Up to <input type="range" id="f-lat" min="200" max="8000" step="100" value="8000" aria-label="Maximum latency"><output id="f-lat-v" for="f-lat">any</output></label>
       <input class="field" type="search" id="f-q" placeholder="Search IP, port, country or provider    /" aria-label="Search" aria-keyshortcuts="/">
@@ -579,6 +581,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   "asn": 14061,
   "org": "DigitalOcean, LLC",
   "hosting": true,
+  "blocklisted": false,
   "streak": 5
 }</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the example"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
     </div>
@@ -621,7 +624,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   };
   const latency = (ms) => `<span class="${ms < 1000 ? "fast" : ms < 3000 ? "mid" : "slow"}">${fmt(ms)} ms</span>`;
   const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http", "socks4", "socks5"]),
-                  https: false, elite: false, noDc: false, stable: false, country: "", maxLat: 8000, q: "" };
+                  https: false, elite: false, noDc: false, noBl: false, stable: false, country: "", maxLat: 8000, q: "" };
 
   // Theme
   const themeBtn = $("#theme");
@@ -741,7 +744,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   function filtered() {
     const q = state.q.trim().toLowerCase();
     const rows = state.rows.filter(r => state.types.has(r.ptype) && (!state.https || r.https) && (!state.elite || r.anonymity === "elite")
-      && (!state.noDc || !r.hosting) && (!state.stable || (r.streak || 0) >= STABLE) && (!state.country || r.country === state.country)
+      && (!state.noDc || !r.hosting) && (!state.noBl || !r.blocklisted) && (!state.stable || (r.streak || 0) >= STABLE) && (!state.country || r.country === state.country)
       && (state.maxLat >= 8000 || r.latency <= state.maxLat)  // all the way right = no limit
       && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.exit_ip} ${r.org || ""} AS${r.asn || ""}`.toLowerCase().includes(q)));
     const k = state.sort, d = state.dir;
@@ -757,7 +760,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       <td class="hide-sm">${r.https ? "Yes" : '<span class="quiet">No</span>'}</td>
       <td class="hide-sm">${uptime(r.streak)}</td>
       <td class="hide-sm">${esc(r.anonymity || "–")}</td>
-      <td class="hide-sm provider" title="${esc(r.org ? `AS${r.asn} ${r.org}, exit ${r.exit_ip}` : r.exit_ip)}">${r.hosting ? '<span class="tag" title="Datacenter">DC</span>' : ""}${esc(short(r.org) || r.exit_ip)}</td></tr>`).join("")
+      <td class="hide-sm provider" title="${esc(r.org ? `AS${r.asn} ${r.org}, exit ${r.exit_ip}` : r.exit_ip)}">${r.hosting ? '<span class="tag" title="Datacenter">DC</span>' : ""}${r.blocklisted ? '<span class="tag bl" title="Exit IP on the SpamCop blocklist">BL</span>' : ""}${esc(short(r.org) || r.exit_ip)}</td></tr>`).join("")
       || '<tr><td colspan="8" class="empty">No proxy matches these filters. Try a higher latency limit or fewer filters.</td></tr>';
     $("#count").textContent = rows.length ? `Showing ${fmt(Math.min(state.shown, rows.length))} of ${fmt(rows.length)} matching proxies` : "";
     $("#more").hidden = rows.length <= state.shown;
@@ -769,7 +772,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     b.setAttribute("aria-pressed", state.types.has(t)); refresh();
   });
   const toggle = (id, key) => { const b = $(id); b.onclick = () => { state[key] = !state[key]; b.setAttribute("aria-pressed", state[key]); refresh(); }; };
-  toggle("#f-https", "https"); toggle("#f-elite", "elite"); toggle("#f-dc", "noDc"); toggle("#f-stable", "stable");
+  toggle("#f-https", "https"); toggle("#f-elite", "elite"); toggle("#f-dc", "noDc"); toggle("#f-stable", "stable"); toggle("#f-bl", "noBl");
   $("#f-country").onchange = (e) => { state.country = e.target.value; refresh(); };
   $("#f-lat").oninput = (e) => { state.maxLat = +e.target.value; $("#f-lat-v").textContent = state.maxLat >= 8000 ? "any" : `${fmt(state.maxLat)} ms`; refresh(); };
   $("#f-q").oninput = (e) => { state.q = e.target.value; refresh(); };

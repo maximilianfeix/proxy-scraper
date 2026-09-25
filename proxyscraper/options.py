@@ -34,6 +34,7 @@ class Filters:
     max_latency: int = 0
     targets: List[str] = field(default_factory=list)  # target sites every proxy has to reach
     no_datacenter: bool = False  # only exits that are not (recognizably) in a datacenter
+    no_blocklisted: bool = False  # only exits that are not on the SpamCop blocklist
 
     @property
     def needs_details(self) -> bool:
@@ -43,7 +44,7 @@ class Filters:
     @property
     def active(self) -> bool:
         return bool(self.countries or self.https_only or self.min_anonymity or self.max_latency or self.targets
-                    or self.no_datacenter)
+                    or self.no_datacenter or self.no_blocklisted)
 
     def accepts(self, r: CheckResult) -> bool:
         if self.max_latency and r.latency > self.max_latency:
@@ -55,6 +56,8 @@ class Filters:
         if self.countries and r.country not in self.countries:
             return False
         if self.no_datacenter and r.hosting:
+            return False
+        if self.no_blocklisted and r.blocklisted:
             return False
         return all(r.targets.get(url) for url in self.targets)  # reached every requested target site
 
@@ -68,6 +71,8 @@ class Filters:
         if self.min_anonymity and ANONYMITY_RANK.get(r.anonymity, -1) < ANONYMITY_RANK[self.min_anonymity]:
             return False
         if self.no_datacenter and r.hosting:
+            return False
+        if self.no_blocklisted and r.blocklisted:
             return False
         # country still unknown -> may still match
         return not self.countries or not r.country or r.country in self.countries
@@ -86,6 +91,8 @@ class Filters:
             parts.append("target " + ", ".join(target_label(u, self.targets) for u in self.targets))
         if self.no_datacenter:
             parts.append("no datacenters")
+        if self.no_blocklisted:
+            parts.append("not blocklisted")
         return " · ".join(parts)
 
 
@@ -99,7 +106,7 @@ class RunOptions:
     no_geo: bool = False
     recheck: Optional[str] = None
     output: Optional[str] = None
-    exports: List[str] = field(default_factory=list)  # Zusatzformate, siehe exporters.py
+    exports: List[str] = field(default_factory=list)  # extra formats, see exporters.py
     concurrency: int = DEFAULT_CONCURRENCY
     timeout: float = DEFAULT_TIMEOUT
     connect_timeout: float = DEFAULT_CONNECT_TIMEOUT
@@ -108,6 +115,7 @@ class RunOptions:
     discover_repos: int = DEFAULT_DISCOVER_REPOS
     all_sources: bool = False
     no_cache: bool = False  # reload every list instead of taking unchanged ones from the cache
+    no_dnsbl: bool = False  # skip the blocklist lookup of the exit IPs
     serve: int = 0  # port of the rotating proxy server after the run, 0 = off
     rotate: str = "weighted"  # strategy of the proxy server, see server/pool.py
     sticky: int = 0  # seconds a target site keeps the same proxy (0 = new one for every connection)
@@ -171,6 +179,7 @@ class RunOptions:
                 max_latency=args.max_latency,
                 targets=list(dict.fromkeys(args.target or [])),
                 no_datacenter=args.no_datacenter,
+                no_blocklisted=args.no_blocklisted,
             ),
             want=args.want,
             limit=args.limit,
@@ -187,6 +196,7 @@ class RunOptions:
             discover_repos=args.discover_repos,
             all_sources=args.all_sources,
             no_cache=args.no_cache,
+            no_dnsbl=args.no_dnsbl,
             serve=args.serve,
             rotate=args.rotate,
             sticky=args.sticky,
@@ -210,6 +220,7 @@ class RunOptions:
         for url in f.targets:
             argv += ["--target", url]
         _flag(argv, "--no-datacenter", f.no_datacenter)
+        _flag(argv, "--no-blocklisted", f.no_blocklisted)
         _opt(argv, "--want", self.want, 0)
         _opt(argv, "--limit", self.limit, 0)
         _flag(argv, "--fast", self.fast)
@@ -228,6 +239,7 @@ class RunOptions:
         _opt(argv, "--discover-repos", self.discover_repos, DEFAULT_DISCOVER_REPOS)
         _flag(argv, "--all-sources", self.all_sources)
         _flag(argv, "--no-cache", self.no_cache)
+        _flag(argv, "--no-dnsbl", self.no_dnsbl)
         if self.serve:
             argv += ["--serve"] if self.serve == DEFAULT_SERVE_PORT else ["--serve", str(self.serve)]
         if self.rotate != "weighted":

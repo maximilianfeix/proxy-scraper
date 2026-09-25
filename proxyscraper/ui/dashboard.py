@@ -119,6 +119,7 @@ class LiveStats:
         self.anonymity: Counter = Counter()
         self.passing = 0
         self.fakes = 0  # bestanden die Basisprüfung, aber nicht die Bestätigung
+        self.hosting = 0  # Treffer mit Exit (vermutlich) in einem Rechenzentrum
         self.details_saved = 0  # HTTPS-Tests, die dank Filter entfallen konnten
         self.targets_ok: Counter = Counter()  # Zielseiten-URL -> Anzahl Proxys, die sie erreichen
         self.recent: Deque[CheckResult] = deque(maxlen=8)
@@ -139,6 +140,8 @@ class LiveStats:
         """Bestätigter Treffer – die Anonymität ist ab hier bekannt."""
         if r.anonymity:
             self.anonymity[r.anonymity] += 1
+        if r.hosting:
+            self.hosting += 1
         self.working_by_type[r.ptype] += 1
         self.latency_sum += r.latency
         self.fastest = r.latency if self.fastest is None else min(self.fastest, r.latency)
@@ -261,6 +264,8 @@ class CheckDashboard:
         for level in ("elite", "anonymous", "transparent"):
             letter, style = ANON_STYLE[level]
             side.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(s.anonymity[level]))
+        if s.hosting:
+            side.add_row(Text("▣ Rechenzentrum", style=MUTED), fmt(s.hosting))
         if s.details_saved:
             side.add_row(Text("⏭ gespart", style=MUTED), fmt(s.details_saved))
         for cc, n in s.countries.most_common(max(len(LATENCY_LABELS) - side.row_count, 0)):

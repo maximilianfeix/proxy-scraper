@@ -83,6 +83,9 @@ class CheckResult:
     anonymity: str = ""
     country: str = ""
     targets: Dict[str, bool] = field(default_factory=dict)  # Zielseiten-URL -> erreichbar?
+    asn: int = 0            # Anbieter der Exit-IP (DB-IP), 0 = unbekannt
+    org: str = ""
+    hosting: Optional[bool] = None  # Exit vermutlich in einem Rechenzentrum? None = unbekannt
 
 
 class Checker:

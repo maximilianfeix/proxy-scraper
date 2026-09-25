@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- Provider (ASN and name) for every proxy from the offline DB-IP ASN database, a guess whether it's a datacenter, and `--no-datacenter` to skip those. About 45 % of working proxies exit from datacenters ([#49](https://github.com/maximilianfeix/proxy-scraper/issues/49))
+
 ## [1.4.0] – 2026-09-25
 
 ### Added

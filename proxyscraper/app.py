@@ -15,6 +15,8 @@ from rich.live import Live
 from rich.text import Text
 
 from . import sources as srcs
+from .asndb import AsnDB, ProviderLookup, load_asn_db
+from .asndb import is_current as asn_is_current
 from .checker import (
     CONFIRM_HOST,
     CONFIRM_PORT,
@@ -62,6 +64,7 @@ from .ui import (
     fmt_duration,
     info,
     note,
+    pct,
     render_summary,
     section,
     section_end,
@@ -313,15 +316,22 @@ class Run:
         refresh = None
         if opts.geo and not is_current(country_db):
             refresh = asyncio.ensure_future(self.refresh_country_db(geo))
+        # Anbieter der Exit-IPs genauso: sofort aus data/, alt oder fehlend -> im Hintergrund neu laden
+        providers = ProviderLookup(AsnDB.load() if opts.geo or opts.filters.no_datacenter else None)
+        providers_refresh = None
+        if (opts.geo or opts.filters.no_datacenter) and not asn_is_current(providers.db):
+            providers_refresh = asyncio.ensure_future(self.refresh_asn_db(providers))
         widgets.console.print()
         run = await run_checks(
             jobs, checker, opts, dashboard, writer, geo,
             live_factory=lambda renderable: Live(renderable, console=widgets.console, refresh_per_second=6),
             watch=watch,
+            providers=providers,
         )
 
-        if refresh and not refresh.done():
-            refresh.cancel()  # Download läuft noch – beim nächsten Lauf wieder
+        for task in (refresh, providers_refresh):
+            if task and not task.done():
+                task.cancel()  # Download läuft noch – beim nächsten Lauf wieder
         kept = [r for r in run.results if opts.filters.accepts(r)]
         files = writer.finalize(kept)
         network_blocked = is_network_blocked(stats)
@@ -356,6 +366,15 @@ class Run:
             await server.close()
         st = server.stats
         note(f"Proxy-Server beendet – {fmt(st.requests)} Anfragen, {fmt(st.ok)} erfolgreich.", GOOD, "✔")
+
+    @staticmethod
+    async def refresh_asn_db(providers: ProviderLookup) -> None:
+        try:
+            db = await load_asn_db()
+        except Exception:
+            return
+        if db is not None:
+            providers.db = db
 
     @staticmethod
     async def refresh_country_db(geo: GeoResolver) -> None:
@@ -404,6 +423,10 @@ class Run:
         if run.judge_switches:
             note(f"Prüfziel ausgefallen, gewechselt: {', '.join(run.judge_switches)}. {fmt(run.rechecked)} Proxys "
                  "wurden erneut geprüft und zählen nicht für die Quellen-Statistik.", WARN, "⚠")
+        if stats.hosting and run.results and not opts.filters.no_datacenter:
+            note(f"{fmt(stats.hosting)} von {fmt(len(run.results))} Treffern ({pct(stats.hosting, len(run.results))}) "
+                 "liegen vermutlich in Rechenzentren – die werden oft schneller gesperrt. "
+                 "Nur andere: --no-datacenter", MUTED, "ℹ")
         if run.reached_goal:
             note(f"Ziel von {fmt(opts.want)} Treffern erreicht – vorzeitig beendet.", GOOD, "✔")
         elif run.interrupted:

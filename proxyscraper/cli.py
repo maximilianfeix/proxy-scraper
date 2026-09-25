@@ -133,6 +133,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     f.add_argument("--anonymity", choices=["anonymous", "elite"], help="Mindest-Anonymität")
     f.add_argument("--max-latency", type=non_negative_int, default=0, metavar="MS",
                    help="nur Proxys bis zu dieser Latenz")
+    f.add_argument("--no-datacenter", action="store_true",
+                   help="keine Proxys mit Exit in Rechenzentren (Cloud/Hoster) – die werden oft schneller gesperrt")
     f.add_argument("--target", action="append", type=target_url, metavar="URL",
                    help="nur Proxys, die diese Seite erreichen (mehrfach möglich), z. B. --target google.com")
 

@@ -127,3 +127,40 @@ def test_about_mentions_every_channel_and_command():
     for name in [c.name for c in layout.CHANNELS if c.name != "about"] + ["/proxies", "/proxy", "/stats"]:
         assert name in text, name
     assert isinstance(messages.LIME, int) and discord.Colour(messages.LIME)
+
+
+class FakeChannel:
+    def __init__(self, name, fail=False):
+        self.name, self.fail, self.sent = name, fail, []
+        self.category = type("Category", (), {"name": layout.CATEGORY})()
+
+    async def send(self, **kwargs):
+        if self.fail:
+            raise discord.HTTPException(type("Response", (), {"status": 403, "reason": "Forbidden"})(), "no")
+        self.sent.append(kwargs)
+
+    def history(self, limit=50):
+        async def empty():
+            return
+            yield
+        return empty()
+
+
+def test_a_broken_protocol_channel_does_not_repeat_the_summary(tmp_path, snap):
+    import asyncio
+
+    from proxybot.bot import ProxyBot
+
+    async def go():
+        bot = ProxyBot(Settings(token="x", state_file=tmp_path / "state.json"))
+        bot._post_lock = asyncio.Lock()
+        channels = [FakeChannel("live-feed"), FakeChannel("http"), FakeChannel("socks4", fail=True),
+                    FakeChannel("socks5")]
+        guild = type("Guild", (), {"id": 1, "name": "test", "text_channels": channels, "me": object()})()
+        await bot.post_run(guild, snap)
+        await bot.post_run(guild, snap)  # the next poll with the same run
+        return channels
+
+    feed, http, _, socks5 = asyncio.run(go())
+    assert len(feed.sent) == 1                      # summary once, not on every poll
+    assert len(http.sent) == 1 and len(socks5.sent) == 1  # the other channels still got their list

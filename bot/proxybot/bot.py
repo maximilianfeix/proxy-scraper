@@ -32,12 +32,15 @@ class ProxyBot(discord.Client):
         self.state = State(settings.state_file)
         self.snapshot: Optional[Snapshot] = None
         self.http_session: Optional[aiohttp.ClientSession] = None
-        self._post_lock = asyncio.Lock()
         self._prepared: set = set()  # guild ids set up in this process (on_ready fires again after reconnects)
-        self._layout_done = asyncio.Event()
+        # created in setup_hook: on Python 3.9 asyncio objects bind to the loop that exists when they are made
+        self._post_lock: Optional[asyncio.Lock] = None
+        self._layout_done: Optional[asyncio.Event] = None
         register_commands(self)
 
     async def setup_hook(self) -> None:
+        self._post_lock = asyncio.Lock()
+        self._layout_done = asyncio.Event()
         self.http_session = aiohttp.ClientSession(timeout=aiohttp.ClientTimeout(total=30),
                                                   headers={"User-Agent": "proxy-scraper-discord-bot"})
         self.watch.change_interval(seconds=self.settings.poll_seconds)
@@ -56,10 +59,12 @@ class ProxyBot(discord.Client):
                 await self.user.edit(avatar=LOGO_FILE.read_bytes())
             except discord.HTTPException as e:  # avatar changes are rate limited – not worth failing over
                 log.warning("could not set the avatar: %s", e)
-        for guild in self.guilds:
-            if guild.id not in self._prepared:
-                await self.prepare_guild(guild)
-        self._layout_done.set()
+        try:
+            for guild in self.guilds:
+                if guild.id not in self._prepared:
+                    await self.prepare_guild(guild)
+        finally:
+            self._layout_done.set()  # never block posting for everyone because one server failed
 
     async def on_guild_join(self, guild: discord.Guild) -> None:
         log.info("joined %s", guild.name)
@@ -73,6 +78,9 @@ class ProxyBot(discord.Client):
             await self.tree.sync(guild=guild)  # per server: shows up instantly instead of after up to an hour
         except discord.Forbidden:
             log.error("%s: missing permissions – re-invite the bot with the link from bot/README.md", guild.name)
+            return
+        except discord.HTTPException as e:  # limits, rate limits, Discord hiccups: try again on the next start
+            log.error("%s: setup failed: %s", guild.name, e)
             return
         self._prepared.add(guild.id)
         if self.snapshot:
@@ -108,7 +116,7 @@ class ProxyBot(discord.Client):
         stats, rows = await asyncio.gather(get("stats.json"), get("proxies.json"))
         try:
             history = await get("history.json")
-        except (aiohttp.ClientError, ValueError):
+        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
             history = []  # only needed for the trend
         return parse_snapshot(stats, rows, history if isinstance(history, list) else [])
 
@@ -122,18 +130,22 @@ class ProxyBot(discord.Client):
             try:
                 await channels["live-feed"].send(embed=messages.summary(snap),
                                                  file=messages.text_file(snap.proxies, "all.txt"))
-                for ptype in TYPES:
-                    channel = channels.get(ptype)
-                    if channel is None:
-                        continue
+            except discord.HTTPException as e:
+                log.error("%s: posting the summary failed: %s", guild.name, e)
+                return  # nothing posted yet – the next poll tries again
+            # the summary is out: count the run as posted, so a broken protocol channel can't repeat it every poll
+            self.state.mark(guild.id, snap.run_id)
+            for ptype in TYPES:
+                channel = channels.get(ptype)
+                if channel is None:
+                    continue
+                of_type = [p for p in snap.proxies if p.ptype == ptype]
+                try:
                     await layout.clear_own_messages(channel, guild.me)
-                    of_type = [p for p in snap.proxies if p.ptype == ptype]
                     await channel.send(embed=messages.type_post(snap, ptype),
                                        file=messages.text_file(of_type, f"{ptype}.txt"))
-            except discord.HTTPException as e:
-                log.error("%s: posting failed: %s", guild.name, e)
-                return
-            self.state.mark(guild.id, snap.run_id)
+                except discord.HTTPException as e:
+                    log.error("%s: posting to #%s failed: %s", guild.name, ptype, e)
             log.info("%s: posted run %s (%d proxies)", guild.name, snap.run_id, len(snap.proxies))
 
 

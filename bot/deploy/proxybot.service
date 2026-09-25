@@ -1,0 +1,35 @@
+[Unit]
+Description=proxy-scraper Discord bot
+Documentation=https://github.com/maximilianfeix/proxy-scraper/tree/main/bot
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=proxybot
+Group=proxybot
+WorkingDirectory=/opt/proxybot/app
+# DISCORD_TOKEN, written by the deploy workflow (root only, mode 600)
+EnvironmentFile=/etc/proxybot.env
+Environment=PROXYBOT_STATE=/var/lib/proxybot/state.json
+Environment=PYTHONUNBUFFERED=1
+ExecStart=/opt/proxybot/venv/bin/python -m proxybot
+Restart=always
+RestartSec=10
+
+# the bot only needs the network and its own state directory
+StateDirectory=proxybot
+NoNewPrivileges=yes
+ProtectSystem=strict
+ProtectHome=yes
+PrivateTmp=yes
+PrivateDevices=yes
+ProtectKernelTunables=yes
+ProtectKernelModules=yes
+ProtectControlGroups=yes
+RestrictSUIDSGID=yes
+LockPersonality=yes
+RestrictAddressFamilies=AF_INET AF_INET6 AF_UNIX
+
+[Install]
+WantedBy=multi-user.target

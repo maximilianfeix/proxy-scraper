@@ -251,7 +251,7 @@ proxy-scraper --want 50 --https-only</pre></div>
       <td class="type ${r.ptype}">${r.ptype}</td><td>${esc(r.proxy)}</td><td>${flag(r.country)} ${esc(r.country || "–")}</td>
       <td>${lat(r.latency)}</td><td class="${r.https ? "ok" : "no"}">${r.https ? "✔" : "–"}</td>
       <td class="hide-sm">${esc(r.anonymity || "–")}</td><td class="hide-sm" style="color:var(--muted)">${esc(r.exit_ip)}</td>
-      <td><button class="copy" data-url="${esc(r.url)}" title="Copy ${esc(r.url)}">⧉</button></td></tr>`).join("")
+      <td><button class="copy" data-url="${esc(r.url)}" title="Copy ${esc(r.url)}" aria-label="Copy ${esc(r.url)}">⧉</button></td></tr>`).join("")
       || '<tr><td colspan="8" class="empty">No proxy matches these filters.</td></tr>';
     $("#count").textContent = `${fmt(Math.min(state.shown, rows.length))} of ${fmt(rows.length)} shown · ${fmt(state.rows.length)} in total`;
     $("#more").hidden = rows.length <= state.shown;

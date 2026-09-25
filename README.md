@@ -137,6 +137,10 @@ Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</
 
 Don't want to scan yourself? Every 6 hours **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, fastest first.
 
+**→ [Browse it on the website](https://maximilianfeix.github.io/proxy-scraper/)** – search, filter by type, country, HTTPS and latency, copy or download exactly the proxies you need.
+
+<div align="center"><a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="docs/website.png" alt="The live list website" width="860"></a></div>
+
 <div align="center">
 
 [![Proxies](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json&style=for-the-badge)](../../tree/proxy-list)

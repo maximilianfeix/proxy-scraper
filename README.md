@@ -296,14 +296,27 @@ proxy-scraper --recheck --serve     # recheck the last hits, then go – takes s
 ```
 
 ```bash
-curl -x http://127.0.0.1:8899 https://api.ipify.org     # a different IP every time
+curl -x http://127.0.0.1:8899 https://api.ipify.org              # a different IP every time
+curl -x socks5h://127.0.0.1:8899 https://api.ipify.org           # SOCKS5 on the same port
+curl -x http://country-de:x@127.0.0.1:8899 https://api.ipify.org # only German exits
+curl -x http://session-cart42:x@127.0.0.1:8899 https://shop.example  # same proxy for this session
+curl http://127.0.0.1:8899/__proxy-scraper/status                # pool and counters as JSON
 ```
 
-- every connection goes through a different proxy; fast and proven ones are preferred
+Like commercial rotating proxies, the **username** carries what you want: `country-XX`, `type-http|socks4|socks5` and `session-NAME`, combinable (`country-us-type-socks5-session-a`). It works for HTTP (`Proxy-Authorization`) and SOCKS5 (username/password auth). The password is ignored – the server only listens on `127.0.0.1`.
+
+| Option | What it does |
+|---|---|
+| `--rotate weighted` | default: fast and proven proxies more often, everyone gets a chance |
+| `--rotate random` / `round-robin` | evenly, at random or in turn |
+| `--rotate fastest` | always the fastest one that isn't busy |
+| `--sticky 300` | the same site keeps its proxy for 5 minutes (logins, carts) |
+
+- every connection goes through a different proxy (unless sticky); fast and proven ones are preferred
 - `CONNECT` for HTTPS and plain HTTP requests; HTTP, SOCKS4 and SOCKS5 proxies can sit behind it (SOCKS5 with DNS through the proxy)
 - HTTPS only uses proxies that passed the test with **verified TLS** – no broken encryption
 - if a proxy stays silent inside the tunnel or returns an error page instead of TLS, the same first packet quietly goes to the next one
-- three failures in a row and a proxy leaves the rotation
+- three failures in a row and a proxy leaves the rotation – every 5 minutes those get re-checked and come back if they work again
 - listens on `127.0.0.1` only; live view with requests, success rate, pool and the latest connections
 
 In testing: 20 of 20 HTTPS requests succeeded, over 15 different exit IPs. In the wizard this is **Sofort als Proxy-Server**.
@@ -327,7 +340,7 @@ flowchart LR
 2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads 0 MB instead of ~160 MB.
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
 4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here. Finally a static HTML page has to arrive byte for byte as it does without a proxy – anyone injecting ads or scripts is out.
-5. **Countries** – looked up offline in the free DB-IP database (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
+5. **Countries and providers** – looked up offline in the free DB-IP databases, including the provider (ASN) and whether it's probably a datacenter (about 45 % of working proxies are) (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
 6. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
 
 <details>
@@ -440,6 +453,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--https-only` | only proxies that can tunnel HTTPS |
 | `--anonymity elite` | minimum anonymity (`anonymous` or `elite`) |
 | `--max-latency MS` | maximum latency |
+| `--no-datacenter` | skip proxies whose exit is (probably) in a datacenter – those get blocked sooner |
 | `--target URL` | only proxies that reach this site (repeatable) |
 | `--recheck [FILE]` | only check proxies from a file or the last run |
 | `--fast` | skip the HTTPS test (confirmation and anonymity still run) |
@@ -449,6 +463,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--discover` | search GitHub for new sources right now |
 | `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
 | `--list-sources [N]` | show the source ranking |
+| `--rotate STRATEGY` · `--sticky SEC` | how the proxy server picks proxies, see [above](#proxy-server) |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
 | `-o FILE` | also write all hits to this file |
 | `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `curl` or `all` |
@@ -573,11 +588,12 @@ proxyscraper/
 ├── parsing.py          find proxies in text, HTML and JSON
 ├── history.py          history of working proxies
 ├── geo.py              countries: offline first, ip-api.com as fallback
+├── asndb.py            DB-IP provider database, datacenter heuristic
 ├── geodb.py            DB-IP country database (monthly, binary search)
 ├── targets.py          target sites for --target
 ├── output.py           result files
 ├── exporters.py        proxychains, Clash and curl formats (--export)
-├── server.py           rotating proxy server (--serve)
+├── server/             rotating proxy server (--serve): pool · http · upstream · socks · status · core
 ├── publish.py          live list for GitHub Actions
 ├── paths.py            where state and results are stored
 ├── compat.py           differences between Unix and Windows

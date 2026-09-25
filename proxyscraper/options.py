@@ -11,6 +11,7 @@ from .checker import ANONYMITY_RANK, CheckResult
 from .exporters import EXPORTERS
 from .parsing import PROXY_TYPES
 from .paths import is_checkout
+from .server.pool import STRATEGIES
 from .targets import target_label
 
 DEFAULT_CONCURRENCY = 2000
@@ -32,6 +33,7 @@ class Filters:
     min_anonymity: str = ""
     max_latency: int = 0
     targets: List[str] = field(default_factory=list)  # Zielseiten, die jeder Proxy erreichen muss
+    no_datacenter: bool = False  # nur Exits, die nicht (erkennbar) in einem Rechenzentrum liegen
 
     @property
     def needs_details(self) -> bool:
@@ -40,7 +42,8 @@ class Filters:
 
     @property
     def active(self) -> bool:
-        return bool(self.countries or self.https_only or self.min_anonymity or self.max_latency or self.targets)
+        return bool(self.countries or self.https_only or self.min_anonymity or self.max_latency or self.targets
+                    or self.no_datacenter)
 
     def accepts(self, r: CheckResult) -> bool:
         if self.max_latency and r.latency > self.max_latency:
@@ -50,6 +53,8 @@ class Filters:
         if self.min_anonymity and ANONYMITY_RANK.get(r.anonymity, -1) < ANONYMITY_RANK[self.min_anonymity]:
             return False
         if self.countries and r.country not in self.countries:
+            return False
+        if self.no_datacenter and r.hosting:
             return False
         return all(r.targets.get(url) for url in self.targets)  # jede gewünschte Zielseite erreicht
 
@@ -61,6 +66,8 @@ class Filters:
         if self.max_latency and r.latency > self.max_latency:
             return False
         if self.min_anonymity and ANONYMITY_RANK.get(r.anonymity, -1) < ANONYMITY_RANK[self.min_anonymity]:
+            return False
+        if self.no_datacenter and r.hosting:
             return False
         # Land noch unbekannt -> kann noch passen
         return not self.countries or not r.country or r.country in self.countries
@@ -77,6 +84,8 @@ class Filters:
             parts.append(f"≤ {self.max_latency} ms")
         if self.targets:
             parts.append("Ziel " + ", ".join(target_label(u, self.targets) for u in self.targets))
+        if self.no_datacenter:
+            parts.append("ohne Rechenzentren")
         return " · ".join(parts)
 
 
@@ -100,6 +109,8 @@ class RunOptions:
     all_sources: bool = False
     no_cache: bool = False  # alle Listen neu laden statt unveränderte aus dem Cache
     serve: int = 0  # Port des rotierenden Proxy-Servers nach dem Lauf, 0 = aus
+    rotate: str = "weighted"  # Strategie des Proxy-Servers, siehe server/pool.py
+    sticky: int = 0  # Sekunden, die eine Zielseite denselben Proxy behält (0 = jede Verbindung neu)
 
     def __post_init__(self) -> None:
         unknown = set(self.types) - set(PROXY_TYPES)
@@ -120,6 +131,10 @@ class RunOptions:
         if unknown_exports:
             raise ValueError(f"unbekannte Exportformate: {', '.join(sorted(unknown_exports))}")
         self.exports = [e for e in EXPORTERS if e in self.exports]
+        if self.rotate not in STRATEGIES:
+            raise ValueError(f"unbekannte Strategie: {self.rotate}")
+        if self.sticky < 0:
+            raise ValueError("--sticky darf nicht negativ sein")
         if not 0 <= self.serve <= 65535:
             raise ValueError("Port muss zwischen 1 und 65535 liegen")
 
@@ -154,6 +169,7 @@ class RunOptions:
                 min_anonymity=args.anonymity or "",
                 max_latency=args.max_latency,
                 targets=list(dict.fromkeys(args.target or [])),
+                no_datacenter=args.no_datacenter,
             ),
             want=args.want,
             limit=args.limit,
@@ -171,6 +187,8 @@ class RunOptions:
             all_sources=args.all_sources,
             no_cache=args.no_cache,
             serve=args.serve,
+            rotate=args.rotate,
+            sticky=args.sticky,
         )
 
     def to_argv(self) -> List[str]:
@@ -189,6 +207,7 @@ class RunOptions:
             argv += ["--max-latency", str(f.max_latency)]
         for url in f.targets:
             argv += ["--target", url]
+        _flag(argv, "--no-datacenter", f.no_datacenter)
         _opt(argv, "--want", self.want, 0)
         _opt(argv, "--limit", self.limit, 0)
         _flag(argv, "--fast", self.fast)
@@ -209,6 +228,9 @@ class RunOptions:
         _flag(argv, "--no-cache", self.no_cache)
         if self.serve:
             argv += ["--serve"] if self.serve == DEFAULT_SERVE_PORT else ["--serve", str(self.serve)]
+        if self.rotate != "weighted":
+            argv += ["--rotate", self.rotate]
+        _opt(argv, "--sticky", self.sticky, 0)
         return argv
 
     def to_command(self, program: Optional[str] = None) -> str:

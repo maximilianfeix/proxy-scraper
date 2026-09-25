@@ -279,7 +279,7 @@ async def discover_github(
                 tree = []
         done += 1
         if on_progress:
-            on_progress(f"{done}/{len(chosen)} Repos durchsucht")
+            on_progress(f"{done}/{len(chosen)} repos searched")
         files = []
         for entry in tree:
             if entry.get("type") == "blob" and entry.get("size", 0) >= 200:

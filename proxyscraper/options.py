@@ -116,7 +116,7 @@ class RunOptions:
     def __post_init__(self) -> None:
         unknown = set(self.types) - set(PROXY_TYPES)
         if unknown:
-            raise ValueError(f"unbekannte Proxy-Typen: {', '.join(sorted(unknown))}")
+            raise ValueError(f"unknown proxy types: {', '.join(sorted(unknown))}")
         # the types are really a set: fixed order, no duplicates.
         # Otherwise "--types socks5 http" and "--types http socks5" would give different settings.
         self.types = [t for t in PROXY_TYPES if t in self.types]
@@ -130,10 +130,10 @@ class RunOptions:
             raise ValueError("amounts and latency must not be negative")
         unknown_exports = set(self.exports) - set(EXPORTERS)
         if unknown_exports:
-            raise ValueError(f"unbekannte Exportformate: {', '.join(sorted(unknown_exports))}")
+            raise ValueError(f"unknown export formats: {', '.join(sorted(unknown_exports))}")
         self.exports = [e for e in EXPORTERS if e in self.exports]
         if self.rotate not in STRATEGIES:
-            raise ValueError(f"unbekannte Strategie: {self.rotate}")
+            raise ValueError(f"unknown strategy: {self.rotate}")
         if self.sticky < 0:
             raise ValueError("--sticky must not be negative")
         if not 0 <= self.serve <= 65535:

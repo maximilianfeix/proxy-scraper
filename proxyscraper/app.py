@@ -160,6 +160,13 @@ def pool_recheck(checker: Checker):
     return recheck
 
 
+def is_loopback(host: str) -> bool:
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return host == "localhost"
+
+
 class Run:
     def __init__(self, opts: RunOptions, show_banner: bool = True):
         self.opts = opts
@@ -392,7 +399,10 @@ class Run:
             note("Kein passender Proxy gefunden – der Proxy-Server startet nicht.", BAD, "✘")
             return
         pool = ProxyPool(proxies, strategy=self.opts.rotate, sticky_seconds=self.opts.sticky)
-        server = RotatingServer(pool, port=self.opts.serve, timeout=self.opts.timeout)
+        server = RotatingServer(pool, host=self.opts.serve_host, port=self.opts.serve, timeout=self.opts.timeout)
+        if not is_loopback(self.opts.serve_host):
+            note(f"Der Proxy-Server lauscht auf {self.opts.serve_host} – ohne Anmeldung. Wer ihn im Netz erreicht, "
+                 "kann ihn benutzen. Nur hinter einer Firewall oder im Container mit -p 127.0.0.1:…", WARN, "⚠")
         try:
             await server.start()
         except OSError as e:

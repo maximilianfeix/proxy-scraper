@@ -106,7 +106,7 @@ pip install -r requirements.txt
 python3 proxy_scraper.py
 ```
 
-Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) also ships a wheel you can install with `pip install <file>.whl`, and a multi-arch image (amd64/arm64) on `ghcr.io`. In the container the wizard never shows up, it runs straight away; `--serve` only listens inside the container.
+Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) also ships a wheel you can install with `pip install <file>.whl`, and a multi-arch image (amd64/arm64) on `ghcr.io`. In the container the wizard never shows up, it runs straight away. For the proxy server use `--serve --serve-host 0.0.0.0` with `-p 127.0.0.1:8899:8899`, so the port is only open on your own machine.
 
 Installed, the learned state lives in your user data folder (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` or `~/.local/share/proxy-scraper`; override with `PROXY_SCRAPER_HOME`) and results go to `./results`. Run from a clone, both stay inside the project.
 
@@ -303,7 +303,7 @@ curl -x http://session-cart42:x@127.0.0.1:8899 https://shop.example  # same prox
 curl http://127.0.0.1:8899/__proxy-scraper/status                # pool and counters as JSON
 ```
 
-Like commercial rotating proxies, the **username** carries what you want: `country-XX`, `type-http|socks4|socks5` and `session-NAME`, combinable (`country-us-type-socks5-session-a`). It works for HTTP (`Proxy-Authorization`) and SOCKS5 (username/password auth). The password is ignored – the server only listens on `127.0.0.1`.
+Like commercial rotating proxies, the **username** carries what you want: `country-XX`, `type-http|socks4|socks5` and `session-NAME`, combinable (`country-us-type-socks5-session-a`). It works for HTTP (`Proxy-Authorization`) and SOCKS5 (username/password auth). The password is ignored – by default the server only listens on `127.0.0.1`. With `--serve-host` it can listen elsewhere, and then **anyone who reaches it can use it**, so only do that behind a firewall or in Docker with `-p 127.0.0.1:…`.
 
 | Option | What it does |
 |---|---|
@@ -317,7 +317,7 @@ Like commercial rotating proxies, the **username** carries what you want: `count
 - HTTPS only uses proxies that passed the test with **verified TLS** – no broken encryption
 - if a proxy stays silent inside the tunnel or returns an error page instead of TLS, the same first packet quietly goes to the next one
 - three failures in a row and a proxy leaves the rotation – every 5 minutes those get re-checked and come back if they work again
-- listens on `127.0.0.1` only; live view with requests, success rate, pool and the latest connections
+- listens on `127.0.0.1` only (unless `--serve-host` says otherwise); live view with requests, success rate, pool and the latest connections
 
 In testing: 20 of 20 HTTPS requests succeeded, over 15 different exit IPs. In the wizard this is **Sofort als Proxy-Server**.
 
@@ -463,6 +463,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--discover` | search GitHub for new sources right now |
 | `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
 | `--list-sources [N]` | show the source ranking |
+| `--serve-host ADDR` | where the proxy server listens (default `127.0.0.1`; `0.0.0.0` for Docker, with a warning) |
 | `--rotate STRATEGY` · `--sticky SEC` | how the proxy server picks proxies, see [above](#proxy-server) |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
 | `-o FILE` | also write all hits to this file |

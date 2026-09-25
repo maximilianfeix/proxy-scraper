@@ -57,8 +57,6 @@ def test_network_blocked_counts_fakes_as_reachable(found, fakes, expected):
 
 
 def test_recheck_live_loads_the_public_list(tmp_path):
-    import asyncio
-
     from proxyscraper import app
     from proxyscraper.history import ProxyHistory
 
@@ -73,8 +71,6 @@ def test_recheck_live_loads_the_public_list(tmp_path):
 
 
 def test_recheck_live_falls_back_when_offline(tmp_path, monkeypatch):
-    import asyncio
-
     from proxyscraper import app
     from proxyscraper.history import ProxyHistory
 

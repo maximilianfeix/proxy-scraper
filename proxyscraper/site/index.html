@@ -517,7 +517,7 @@
         <article class="step"><p class="which">Step 4 of 5</p><h3>Nothing may be changed on the way.</h3>
           <p>A static page has to arrive byte for byte. When we measured it, 54 of 270 working proxies slipped a script into the page. None of those make the list.</p></article>
         <article class="step"><p class="which">Step 5 of 5</p><h3>Then the details.</h3>
-          <p id="step5">HTTPS with verified TLS, anonymity, country and provider are checked for everything that's left.</p></article>
+          <p id="step5">HTTPS with verified TLS, anonymity, country, provider and whether the exit IP is on a spam blocklist are checked for everything that's left.</p></article>
         <article class="step final"><h3><span id="final-n">–</span> made it.</h3>
           <p>That's the list above. In 6 hours it starts over, and anything that stopped working is gone.</p></article>
       </div>
@@ -865,8 +865,9 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     countTo($("#n-elite"), pct(st.elite, st.total));
     countTo($("#n-lat"), st.median_latency / 1000, 1);
     $("#final-n").textContent = fmt(st.total);
-    const dc = st.datacenter != null ? ` ${pct(st.datacenter, st.total)} % exit from a datacenter.` : "";
-    $("#step5").textContent = `HTTPS with verified TLS, anonymity, country and provider. This time ${fmt(st.https)} tunnel HTTPS and ${fmt(st.elite)} are elite.${dc}`;
+    const dc = st.datacenter != null ? ` ${pct(st.datacenter, st.total)} % exit from a datacenter` : "";
+    const bl = st.blocklisted != null ? `${dc ? "," : ""} ${pct(st.blocklisted, st.total)} % from an IP on a spam blocklist` : "";
+    $("#step5").textContent = `HTTPS with verified TLS, anonymity, country, provider and spam blocklists. This time ${fmt(st.https)} tunnel HTTPS and ${fmt(st.elite)} are elite.${dc}${bl}${dc || bl ? "." : ""}`;
     ticker(rows);
     trend(history);
     const byCountry = {};

@@ -111,6 +111,7 @@ class RunOptions:
     serve: int = 0  # Port des rotierenden Proxy-Servers nach dem Lauf, 0 = aus
     rotate: str = "weighted"  # Strategie des Proxy-Servers, siehe server/pool.py
     sticky: int = 0  # Sekunden, die eine Zielseite denselben Proxy behält (0 = jede Verbindung neu)
+    serve_host: str = "127.0.0.1"  # Adresse des Proxy-Servers; alles andere ist von außen erreichbar
 
     def __post_init__(self) -> None:
         unknown = set(self.types) - set(PROXY_TYPES)
@@ -189,6 +190,7 @@ class RunOptions:
             serve=args.serve,
             rotate=args.rotate,
             sticky=args.sticky,
+            serve_host=args.serve_host,
         )
 
     def to_argv(self) -> List[str]:
@@ -230,6 +232,8 @@ class RunOptions:
             argv += ["--serve"] if self.serve == DEFAULT_SERVE_PORT else ["--serve", str(self.serve)]
         if self.rotate != "weighted":
             argv += ["--rotate", self.rotate]
+        if self.serve_host != "127.0.0.1":
+            argv += ["--serve-host", self.serve_host]
         _opt(argv, "--sticky", self.sticky, 0)
         return argv
 

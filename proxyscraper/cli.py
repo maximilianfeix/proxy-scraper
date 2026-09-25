@@ -147,6 +147,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     v.add_argument("--rotate", choices=STRATEGIES, default="weighted",
                    help="welcher Proxy als nächster: weighted (schnell & zuverlässig bevorzugt, Standard), "
                         "random, round-robin oder fastest")
+    v.add_argument("--serve-host", default="127.0.0.1", metavar="ADRESSE",
+                   help="Adresse des Proxy-Servers (Standard: 127.0.0.1). 0.0.0.0 macht ihn von außen erreichbar – "
+                        "nur für Docker mit -p 127.0.0.1:8899:8899 oder hinter einer Firewall")
     v.add_argument("--sticky", type=non_negative_int, default=0, metavar="SEK",
                    help="dieselbe Zielseite behält so lange denselben Proxy (z. B. für Logins); "
                         "pro Anfrage geht das auch mit dem Benutzernamen session-NAME")

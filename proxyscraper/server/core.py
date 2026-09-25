@@ -35,7 +35,7 @@ from .status import (
     selection_from_headers,
     status_json,
 )
-from .upstream import UpstreamError, open_upstream
+from .upstream import TargetError, Unsupported, UpstreamError, open_upstream
 
 MAX_ATTEMPTS = 3            # this many proxies per request before the client gets an error
 FIRST_CHUNK_WAIT = 5.0      # how long to wait for the client's first packet in the tunnel
@@ -107,8 +107,8 @@ class RotatingServer:
                 return
             selection = selection_from_headers(headers)
             await self._serve_request(reader, writer, client, method, host, port, path, headers, selection)
-        except (ConnectionError, OSError):
-            pass  # client hung up
+        except (ConnectionError, OSError, asyncio.IncompleteReadError):
+            pass  # client hung up (also in the middle of a request body)
         finally:
             self.stats.active -= 1
             writer.close()
@@ -192,7 +192,11 @@ class RotatingServer:
 
     async def _open_next(self, tried: Set[str], host: str, port: int, tls: bool, tunnel: bool,
                          selection: Selection = ANY):
-        """Open the next proxy from the pool (at most MAX_ATTEMPTS per request). None = none left."""
+        """Open the next proxy from the pool (at most MAX_ATTEMPTS per request). None = none left.
+
+        A proxy that is reachable but can't reach the target is only blamed once another proxy reaches it:
+        if every attempt fails that way, the target is the problem and nobody in the pool gets disabled."""
+        refused = []  # proxies that answered but couldn't open the connection to the target
         while len(tried) < MAX_ATTEMPTS:
             entry = self.pool.pick(tried, tls=tls, selection=selection, target=f"{host}:{port}")
             if entry is None:
@@ -203,10 +207,19 @@ class RotatingServer:
             entry.active += 1
             try:
                 up_reader, up_writer = await open_upstream(entry, host, port, self.timeout, tunnel=tunnel)
+            except Unsupported:
+                entry.active -= 1  # this type can't do this target – not a failure of the proxy
+                continue
+            except TargetError:
+                entry.active -= 1
+                refused.append(entry)
+                continue
             except UpstreamError:
                 entry.active -= 1
                 self.pool.report(entry, False)
                 continue
+            for other in refused:  # the target is reachable after all – those proxies were the problem
+                self.pool.report(other, False)
             return entry, up_reader, up_writer
         return None
 
@@ -298,13 +311,17 @@ class RotatingServer:
 
     async def _complete_tls_record(self, reader, data: bytes) -> bytes:
         """Collect the first TLS record completely – it can be spread over several TCP packets, and when
-        switching proxies not just a fragment of the ClientHello should go out."""
+        switching proxies not just a fragment of the ClientHello should go out. If the rest is slow, what
+        arrived so far goes out anyway – dropping it would break the handshake for good."""
         while True:
             # first the 5-byte header, then the length is known (at most one buffer full)
             needed = 5 if len(data) < 5 else min(5 + int.from_bytes(data[3:5], "big"), 65536)
             if len(data) >= needed:
                 return data
-            more = await asyncio.wait_for(reader.read(needed - len(data)), FIRST_CHUNK_WAIT)
+            try:
+                more = await asyncio.wait_for(reader.read(needed - len(data)), FIRST_CHUNK_WAIT)
+            except asyncio.TimeoutError:
+                return data
             if not more:
                 return data
             data += more

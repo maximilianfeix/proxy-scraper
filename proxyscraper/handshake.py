@@ -66,14 +66,37 @@ def with_proxy_auth(request: bytes, ep: Endpoint) -> bytes:
     return request[:-2] + header + b"\r\n" if header else request
 
 
+class ProxyRefused(Exception):
+    """The proxy answered, but the CONNECT to the target was refused – it spoke the protocol fine."""
+
+
 async def socks4(send: Send, recv_exact: RecvExact, ep: Endpoint, ip_bytes: bytes, port: int) -> bool:
     """SOCKS4 CONNECT; the user name goes into the user ID field (SOCKS4 has no password)."""
+    return await socks4_connect(send, recv_exact, ep, ip_bytes, port, strict=False)
+
+
+async def socks4_connect(send: Send, recv_exact: RecvExact, ep: Endpoint, ip_bytes: bytes, port: int,
+                         strict: bool = True) -> bool:
+    """strict: a proper SOCKS4 reply that refuses the CONNECT (0x5B–0x5D) raises ProxyRefused,
+    anything that isn't a SOCKS4 reply at all returns False."""
     await send(b"\x04\x01" + port.to_bytes(2, "big") + ip_bytes + ep.user.encode()[:255] + b"\x00")
-    return (await recv_exact(8))[1] == 0x5A
+    reply = await recv_exact(8)
+    if reply[1] == 0x5A:
+        return True
+    if strict and reply[0] == 0x00 and reply[1] in (0x5B, 0x5C, 0x5D):
+        raise ProxyRefused(f"SOCKS4 reply 0x{reply[1]:02x}")
+    return False
 
 
 async def socks5(send: Send, recv_exact: RecvExact, ep: Endpoint, address: bytes, port: int) -> bool:
     """SOCKS5 CONNECT to address (ATYP + address, see socks5_ipv4/socks5_domain)."""
+    return await socks5_connect(send, recv_exact, ep, address, port, strict=False)
+
+
+async def socks5_connect(send: Send, recv_exact: RecvExact, ep: Endpoint, address: bytes, port: int,
+                         strict: bool = True) -> bool:
+    """strict: greeting and login are the proxy's part (False on failure); a refused CONNECT after a
+    successful greeting raises ProxyRefused, because then the proxy works and only the target failed."""
     methods = bytes([SOCKS5_NO_AUTH, SOCKS5_USER_PASS]) if ep.has_auth else bytes([SOCKS5_NO_AUTH])
     await send(b"\x05" + bytes([len(methods)]) + methods)
     reply = await recv_exact(2)
@@ -85,11 +108,15 @@ async def socks5(send: Send, recv_exact: RecvExact, ep: Endpoint, address: bytes
             return False
         await send(b"\x01" + bytes([len(user)]) + user + bytes([len(password)]) + password)
         if (await recv_exact(2))[1] != 0x00:
-            return False  # Login abgelehnt
+            return False  # login refused
     elif reply[1] != SOCKS5_NO_AUTH:
         return False
     await send(b"\x05\x01\x00" + address + port.to_bytes(2, "big"))
-    return await socks5_reply_ok(recv_exact)
+    if await socks5_reply_ok(recv_exact):
+        return True
+    if strict:
+        raise ProxyRefused("SOCKS5 refused the CONNECT")
+    return False
 
 
 def socks5_ipv4(ip_bytes: bytes) -> bytes:

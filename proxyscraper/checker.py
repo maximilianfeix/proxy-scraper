@@ -26,7 +26,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 from .handshake import Endpoint, parse_endpoint, socks4, socks5, socks5_ipv4, stream_io, with_proxy_auth
 from .judges import DEFAULT_JUDGE, Judge
 from .netio import USER_AGENT, dechunk, read_response, ssl_context
-from .parsing import split_key
+from .parsing import normalize_public_ip, split_key
 from .targets import Target
 
 # Prüfziel: liefert die IP zurück, die beim Server ankommt (nur Text, sehr klein).
@@ -147,6 +147,8 @@ class Checker:
             ipaddress.IPv4Address(exit_ip)
         except ValueError:
             return None  # Proxy liefert Müll/Werbung/Login-Seite -> unbrauchbar
+        if normalize_public_ip(exit_ip.encode()) != exit_ip:
+            return None  # 127.0.0.1, 10.x & Co. sind keine echte Exit-IP – der Proxy antwortet selbst
         if exit_ip in self.own_ips:
             return None  # transparenter Proxy verrät deine echte IP
         return CheckResult(key, ptype, proxy, round((time.perf_counter() - start) * 1000), exit_ip)

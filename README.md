@@ -7,45 +7,29 @@
 </picture>
 
 [![tests](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml)
-[![codeql](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml)
-[![Release](https://img.shields.io/github/v/release/maximilianfeix/proxy-scraper?color=38BDF8)](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
-![Python](https://img.shields.io/badge/python-3.9%20–%203.13-3776AB?logo=python&logoColor=white)
-![Platform](https://img.shields.io/badge/macOS%20·%20Linux%20·%20Windows-lightgrey)
-[![License: MIT](https://img.shields.io/badge/license-MIT-green)](LICENSE)
-[![Live proxies](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json)](#live-list)
+[![Release](https://img.shields.io/github/v/release/maximilianfeix/proxy-scraper?style=flat-square&color=D4F77A&labelColor=121113)](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
+[![Live proxies](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json&style=flat-square&labelColor=121113)](#live-list)
+[![Python](https://img.shields.io/badge/python-3.9–3.13-D4F77A?style=flat-square&labelColor=121113)](pyproject.toml)
+[![License](https://img.shields.io/badge/license-MIT-D4F77A?style=flat-square&labelColor=121113)](LICENSE)
 
-**English** · [Deutsch](README.de.md)
+<a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="https://img.shields.io/badge/Browse_the_live_list-D4F77A?style=for-the-badge&labelColor=121113" alt="Browse the live list"></a>
+<a href="#install"><img src="https://img.shields.io/badge/Install-121113?style=for-the-badge" alt="Install"></a>
+<a href="#from-python"><img src="https://img.shields.io/badge/Python_API-121113?style=for-the-badge" alt="Python API"></a>
+<a href="bot/"><img src="https://img.shields.io/badge/Discord_bot-121113?style=for-the-badge" alt="Discord bot"></a>
 
-[Install](#install) · [Live list](#live-list) · [Recipes](#recipes) · [Proxy server](#proxy-server) · [How it works](#how-it-works) · [Options](#options) · [FAQ](#faq)
+[Install](#install) · [Live list](#live-list) · [Proxy server](#proxy-server) · [How it works](#how-it-works) · [Recipes](#recipes) · [Options](#options) · [FAQ](#faq)
 
 </div>
 
 ---
 
-Most free proxy lists are 95 % dead. **proxy-scraper** doesn't blindly try everything – it learns. Proxies that worked before are checked first, then those from sources with a good hit rate. Dead and abandoned lists are dropped automatically, new ones are discovered on GitHub, and every hit has to do more than answer a ping: it must fetch a real page, tunnel HTTPS and show how anonymous it is.
+Most free proxy lists are 95 % dead, and a good part of the rest are honeypots or proxies that inject scripts into your pages. **proxy-scraper** collects public HTTP, SOCKS4 and SOCKS5 proxies from 700+ sources and keeps only the ones that pass every check. It learns with every run which sources are worth it, and it can turn the result into a single rotating proxy.
 
-<table>
-<tr>
-<td width="33%" valign="top">
-
-**🔐 Verified, not pinged**<br>
-Every hit fetches two independent sites through the proxy. That filters out honeypots, which can be most of the “working” proxies in a run.
-
-</td>
-<td width="33%" valign="top">
-
-**🧠 Gets better every run**<br>
-Hit rates per source and a history of working proxies decide what gets checked first. Dead lists drop out, new ones are found on GitHub.
-
-</td>
-<td width="33%" valign="top">
-
-**🔁 One proxy that always works**<br>
-`--serve` turns the results into a local rotating proxy with automatic failover – point any tool at `127.0.0.1:8899`.
-
-</td>
-</tr>
-</table>
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/checks-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/checks-light.svg">
+  <img src="docs/checks-dark.svg" alt="The five checks: 700+ lists, a real handshake, two sites with one IP, nothing injected, the details" width="100%">
+</picture>
 
 <div align="center">
 <img src="docs/demo.svg" alt="Animated demo: setup wizard, collecting, live dashboard and final report" width="880">
@@ -60,6 +44,7 @@ Hit rates per source and a history of working proxies decide what gets checked f
 - [Examples](#examples)
 - [Recipes](#recipes)
 - [Rotating proxy server](#proxy-server)
+- [Discord bot](#discord-bot)
 - [How it works](#how-it-works)
 - [Output](#output)
 - [Options](#options)
@@ -71,7 +56,7 @@ Hit rates per source and a history of working proxies decide what gets checked f
 
 <a id="install"></a>
 
-## 🚀 Install
+## Install
 
 **With [pipx](https://pipx.pypa.io/)** (recommended – gives you a `proxy-scraper` command in its own environment):
 
@@ -138,7 +123,7 @@ Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</
 
 <a id="live-list"></a>
 
-## 📡 Live proxy list
+## Live proxy list
 
 Don't want to scan yourself? Every 6 hours **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, fastest first.
 
@@ -172,19 +157,19 @@ Or let the tool start from it: `proxy-scraper --recheck live` downloads the list
 
 <a id="features"></a>
 
-## ✨ Features
+## Features
 
 <table>
 <tr>
 <td width="50%" valign="top">
 
-**🧭 Setup wizard**<br>
+**Setup wizard**<br>
 Started without arguments, the tool asks what you need using the arrow keys – a preset or step by step. At the end it shows the matching command line.
 
 </td>
 <td width="50%" valign="top">
 
-**⚡ Fast**<br>
+**Fast**<br>
 700+ sources fetched in parallel, large lists parsed on all CPU cores, hand-written HTTP/SOCKS handshakes directly on `asyncio` with 2000+ checks at once.
 
 </td>
@@ -192,13 +177,13 @@ Started without arguments, the tool asks what you need using the arrow keys – 
 <tr>
 <td valign="top">
 
-**🔐 Real verification**<br>
+**Real verification**<br>
 Every hit has to fetch two independent pages – that weeds out **honeypots** that only answer check requests (in some runs 5 out of 6 “hits”). A third request catches proxies that **tamper with content**: in our measurements one in five working proxies injected a script into a plain HTML page. Plus: HTTPS through a tunnel with **verified TLS**, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
 
 </td>
 <td valign="top">
 
-**🧠 Learns with every run**<br>
+**Learns with every run**<br>
 Hit rate per source, history of working proxies, automatic removal of dead and stale lists. With `-l 5000` you get the *best* 5000 candidates, not just any.
 
 </td>
@@ -206,13 +191,13 @@ Hit rate per source, history of working proxies, automatic removal of dead and s
 <tr>
 <td valign="top">
 
-**🔎 Finds new sources by itself**<br>
+**Finds new sources by itself**<br>
 Searches GitHub for actively maintained proxy lists and reads source lists maintained by others. Spam clone farms and plain mirrors are detected.
 
 </td>
 <td valign="top">
 
-**🎯 Filters & target sites**<br>
+**Filters & target sites**<br>
 With `--target google.com` a proxy only counts if it really reaches the site – many public proxies are blocked by Google, Discord & co. Filter by country, HTTPS, anonymity and latency, and stop with `--want 50` as soon as enough matching proxies are found. Filters even speed things up: with `--max-latency 1000` slow proxies are given up after 1 s instead of 8 s.
 
 </td>
@@ -220,13 +205,13 @@ With `--target google.com` a proxy only counts if it really reaches the site –
 <tr>
 <td valign="top">
 
-**📊 Live dashboard**<br>
+**Live dashboard**<br>
 Speed chart, latency histogram, protocols, countries and the latest hits in real time. <kbd>Ctrl</kbd>+<kbd>C</kbd> stops at any time and saves everything.
 
 </td>
 <td valign="top">
 
-**🔁 Rotating proxy server**<br>
+**Rotating proxy server**<br>
 `--serve` turns the hits into a local proxy that sends every connection through a different one – with automatic failover when one hangs.
 
 </td>
@@ -234,14 +219,14 @@ Speed chart, latency histogram, protocols, countries and the latest hits in real
 <tr>
 <td valign="top">
 
-**💻 Runs everywhere**<br>
+**Runs everywhere**<br>
 macOS, Linux and Windows, Python 3.9 to 3.13. Only two dependencies: `rich` and `certifi`. It even notices when a firewall blocks proxies.
 
 </td>
 <td valign="top">
 
-**🧪 Thoroughly tested**<br>
-360+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11 and 3.13.
+**Thoroughly tested**<br>
+450+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11 and 3.13.
 
 </td>
 </tr>
@@ -265,7 +250,7 @@ macOS, Linux and Windows, Python 3.9 to 3.13. Only two dependencies: `rich` and 
 
 <a id="examples"></a>
 
-## 💡 Examples
+## Examples
 
 ```bash
 # 50 proxies that can do HTTPS – then stop
@@ -292,6 +277,8 @@ proxy-scraper --list-sources
 
 Running from a clone? Replace `proxy-scraper` with `python3 proxy_scraper.py`.
 
+<a id="from-python"></a>
+
 ### From Python
 
 ```python
@@ -308,7 +295,7 @@ Same run as the command line – sources, learning, every check, result files �
 
 <a id="proxy-server"></a>
 
-## 🔁 Rotating proxy server
+## Rotating proxy server
 
 A list is nice – but usually you just want to enter **one** proxy that always works:
 
@@ -341,11 +328,17 @@ Like commercial rotating proxies, the **username** carries what you want: `count
 - three failures in a row and a proxy leaves the rotation – every 5 minutes those get re-checked and come back if they work again
 - listens on `127.0.0.1` only (unless `--serve-host` says otherwise); live view with requests, success rate, pool and the latest connections
 
-In testing: 20 of 20 HTTPS requests succeeded, over 15 different exit IPs. In the wizard this is **Sofort als Proxy-Server**.
+In testing: 20 of 20 HTTPS requests succeeded, over 15 different exit IPs. In the wizard this is **Proxy server right away**.
+
+<a id="discord-bot"></a>
+
+## Discord bot
+
+The live list can also come to you: [`bot/`](bot/) is a Discord bot that posts every run into a server – a summary with the fastest proxies, the full lists per protocol as files, and slash commands like `/proxies type:socks5 country:DE https:true`. It sets up its own read-only channels when you invite it, and a GitHub Action deploys it to a server as a systemd service. Setup in [bot/README.md](bot/README.md).
 
 <a id="how-it-works"></a>
 
-## 🔬 How it works
+## How it works
 
 ```mermaid
 flowchart LR
@@ -377,7 +370,7 @@ flowchart LR
 
 <a id="output"></a>
 
-## 📦 Output
+## Output
 
 Every run gets its own folder; `results/latest.txt` always names the newest one (on macOS/Linux there is also the symlink `results/latest`):
 
@@ -393,7 +386,7 @@ results/2026-09-24_18-42-07/
 
 <a id="recipes"></a>
 
-## 🧪 Recipes
+## Recipes
 
 **Use the fastest proxy from the last run** – free proxies die quickly, so `--recheck` first if the run is older than a few minutes
 
@@ -458,7 +451,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 
 <a id="options"></a>
 
-## ⚙️ Options
+## Options
 
 <details>
 <summary><b>Show all options</b></summary>
@@ -502,7 +495,7 @@ Everything else: `proxy-scraper --help`
 
 <a id="github-actions"></a>
 
-## 🤖 GitHub Actions
+## GitHub Actions
 
 The repo does part of the work itself:
 
@@ -514,11 +507,12 @@ The repo does part of the work itself:
 | [**proxy list**](../../actions/workflows/proxy-list.yml) | every 6 hours: collect, check, publish to `proxy-list`. The learned statistics live in the Actions cache, so the tool keeps getting better in the cloud too |
 | [**docker**](../../actions/workflows/docker.yml) | builds the image on every change and runs a real scan inside it; on a version tag it publishes `linux/amd64` + `linux/arm64` to `ghcr.io` |
 | [**release**](../../actions/workflows/release.yml) | on a version tag: test, build, smoke-test and publish a GitHub release with the wheel |
+| [**discord bot**](../../actions/workflows/bot.yml) | tests the bot and deploys it to the server on every change in `bot/` |
 | **Dependabot** | keeps the action versions up to date |
 
 <a id="faq"></a>
 
-## ❓ FAQ
+## FAQ
 
 <details>
 <summary><b>Almost nothing gets through.</b></summary>
@@ -570,7 +564,7 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 <a id="roadmap"></a>
 
-## 🗺️ Roadmap
+## Roadmap
 
 What's next is tracked in the milestone [**v1.6**](../../milestone/6) – ideas and wishes are welcome as an [issue](../../issues/new/choose).
 
@@ -582,7 +576,7 @@ Shipped in [v1.5](../../milestone/5): content tampering check, live list website
 
 <a id="contributing"></a>
 
-## 🤝 Contributing
+## Contributing
 
 Bug reports, new sources and pull requests are very welcome – see [CONTRIBUTING.md](CONTRIBUTING.md), and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) for how the pieces fit together. The short version:
 
@@ -598,6 +592,7 @@ python3 docs/make_demo.py  # regenerate the images in this README
 
 ```
 proxy_scraper.py        entry point when run from a clone
+bot/                    Discord bot for the live list (own requirements, deployed by GitHub Actions)
 proxyscraper/
 ├── cli.py              arguments, wizard or direct start
 ├── app.py              one run in phases: network → jobs → check → learn & report
@@ -630,7 +625,7 @@ proxyscraper/
 
 <a id="acknowledgements"></a>
 
-## 🙏 Acknowledgements
+## Acknowledgements
 
 proxy-scraper stands on the work of the people who publish free proxy lists. Thanks to everyone listed in [`sources.json`](proxyscraper/sources.json), and especially to
 
@@ -639,7 +634,7 @@ proxy-scraper stands on the work of the people who publish free proxy lists. Tha
 - [IP Geolocation by DB-IP](https://db-ip.com) – the free country database (CC BY 4.0) used for offline country lookups
 - [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) and [ip-api.com](https://ip-api.com), used as check targets and for country lookups
 
-## ⚠️ Disclaimer
+## Disclaimer
 
 This tool only collects publicly listed proxies and checks whether they work. You are responsible for how you use them – respect the terms of the sites you visit and the laws where you live.
 

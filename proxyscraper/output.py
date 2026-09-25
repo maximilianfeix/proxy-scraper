@@ -10,13 +10,14 @@ and results/latest.txt (or the symlink results/latest) always points to the newe
 
 from __future__ import annotations
 
+import contextlib
 import csv
 import json
 import os
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
-from typing import Dict, Iterable, List, Optional, Sequence
+from typing import Dict, Iterable, List, Optional, Sequence, TextIO
 
 from .checker import CheckResult
 from .exporters import EXPORTERS
@@ -41,10 +42,11 @@ def new_run_dir(base: Path) -> Path:
 
 class ResultWriter:
     def __init__(self, run_dir: Optional[Path] = None, extra_file: Optional[Path] = None,
-                 exports: Sequence[str] = ()):
+                 exports: Sequence[str] = (), stdout: Optional[TextIO] = None):
         self.run_dir = run_dir or new_run_dir(RESULTS_DIR)
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.extra_file = extra_file
+        self.stdout = stdout  # -o -: the hits also go here, one type://ip:port per line
         self.exports = list(exports)
         self.live_path = self.run_dir / "all.txt"
         self._live = self.live_path.open("w", encoding="utf-8")
@@ -90,6 +92,10 @@ class ResultWriter:
             self.extra_file.parent.mkdir(parents=True, exist_ok=True)
             self.extra_file.write_text(lines, encoding="utf-8")
             files["Extra file (-o)"] = self.extra_file
+        if self.stdout is not None:
+            with contextlib.suppress(BrokenPipeError):  # `| head` may stop reading early
+                self.stdout.write(lines)
+                self.stdout.flush()
 
         _point_latest(self.run_dir)
         return files

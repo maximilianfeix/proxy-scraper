@@ -9,6 +9,7 @@ import sys
 from collections import Counter
 from typing import List, Optional
 
+from rich.console import Console
 from rich.text import Text
 
 from . import __version__
@@ -24,6 +25,7 @@ from .options import (
     DEFAULT_DISCOVER_REPOS,
     DEFAULT_SERVE_PORT,
     DEFAULT_TIMEOUT,
+    STDOUT,
     RunOptions,
 )
 from .output import has_latest_results
@@ -167,7 +169,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                         "per request this also works with the user name session-NAME")
 
     o = p.add_argument_group("Output")
-    o.add_argument("-o", "--output", help="also write all hits as type://ip:port to this file")
+    o.add_argument("-o", "--output", metavar="FILE",
+                   help="also write all hits as type://ip:port to this file; - prints them to stdout "
+                        "(the interface moves to stderr then)")
     o.add_argument("--export", type=export_list, metavar="FORMATS",
                    help=f"extra formats in the results folder: {', '.join(EXPORTERS)} or all "
                         "(e.g. --export proxychains,clash)")
@@ -232,6 +236,8 @@ def run(argv: Optional[List[str]] = None) -> int:
     if args.list_sources is not None:
         return list_sources(args.list_sources)
     opts = RunOptions.from_args(args)
+    if opts.output == STDOUT:
+        widgets.console = Console(highlight=False, stderr=True)  # stdout only carries the hits
     use_wizard = wants_wizard(args, argv)
     if use_wizard:
         if not is_interactive():

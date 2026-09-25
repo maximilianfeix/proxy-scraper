@@ -12,6 +12,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - New website design and a real logo: the route through a proxy that forms a check mark. Big live numbers, a ticker with the fastest proxies, a scroll scene through the five checks, smooth scrolling, light and dark theme. The README banner uses the same look
 
 ### Added
+- `-o -` prints the hits to stdout for pipes, the interface goes to stderr then ([#105](../../issues/105))
 - `--serve-password` / `PROXY_SCRAPER_SERVE_PASSWORD`: the rotating server can require a password (HTTP, SOCKS5 and the status page), plus a `compose.yaml` that runs it in Docker ([#103](../../issues/103))
 - Discord bot: `/proxies not_blocklisted:true` and the blocklist status in `/proxy`
 - Release workflow can publish to PyPI with trusted publishing (no token in the repo), switched on with the repository variable `PYPI_PUBLISH`; Dependabot also watches the Python dependencies of the tool and the bot ([#42](https://github.com/maximilianfeix/proxy-scraper/issues/42))

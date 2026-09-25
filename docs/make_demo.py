@@ -75,7 +75,8 @@ def live_stats(seed: int, checked_total: int, found: int, elapsed: float) -> das
         latency = int(min(rng.lognormvariate(6.9, 0.75), 7900))
         anonymity = "elite" if t != "http" else rng.choices(("elite", "anonymous", "transparent"), (5, 3, 1))[0]
         r = CheckResult(f"{t} x{i}", t, f"{ip(rng)}:{rng.choice(PORTS[t])}", latency, ip(rng),
-                        rng.random() < 0.46, anonymity, rng.choices(codes, weights)[0])
+                        rng.random() < 0.46, anonymity, rng.choices(codes, weights)[0],
+                        hosting=rng.random() < 0.45, blocklisted=rng.random() < 0.13)  # shares as measured
         s.add_working(r)
         s.add_details(r)
         s.countries[r.country] += 1

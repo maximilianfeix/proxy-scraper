@@ -568,7 +568,7 @@ class Wizard:
         )
         panel = Panel(
             content, box=box.ROUNDED, border_style=ACCENT, padding=(1, 2),
-            title=Text.assemble(("◆ PROXY SCRAPER", f"bold {ACCENT}"), (" · setup", MUTED)),
+            title=Text(" Setup ", style=f"bold {ACCENT}"),  # the banner above already says what this is
             title_align="left",
         )
         help_line = Text("  " + step.keys_help, style=MUTED)

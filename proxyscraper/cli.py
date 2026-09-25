@@ -126,7 +126,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="ohne HTTPS-Test (schneller); Bestätigung und Anonymität laufen trotzdem")
     g.add_argument("--no-geo", action="store_true", help="keine Länder ermitteln")
     g.add_argument("--recheck", nargs="?", const="", metavar="DATEI",
-                   help="nur Proxys aus DATEI prüfen – ohne DATEI: letzter Lauf + Verlauf")
+                   help="nur Proxys aus DATEI prüfen – ohne DATEI: letzter Lauf + Verlauf; "
+                        "'live': die Live-Liste von GitHub (Sekunden statt Minuten, z. B. mit --serve)")
 
     f = p.add_argument_group("Filter (für die Ergebnisdateien)")
     f.add_argument("--country", metavar="CC", help="nur diese Länder, z. B. DE,AT,CH")

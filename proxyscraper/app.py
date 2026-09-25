@@ -50,6 +50,7 @@ from .pipeline import (
     run_checks,
     scrape,
 )
+from .publish import RAW_BASE
 from .server import ProxyPool, RotatingServer
 from .targets import Target, parse_target
 from .ui import (
@@ -118,6 +119,22 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
     else:
         keys = parse_keys(latest_results()) + history.ranked_keys()
         keys = list(dict.fromkeys(keys))
+    return [k for k in keys if split_key(k)[0] in types]
+
+
+LIVE = "live"  # --recheck live: die öffentliche Live-Liste als Startpunkt
+LIVE_URL = f"{RAW_BASE}/all.txt"
+
+
+async def load_live_jobs(types, history: ProxyHistory, fetch=http_get) -> List[str]:
+    """Live-Liste laden (nur Adressen, die beim letzten Lauf in GitHub Actions funktioniert haben), eigene
+    Treffer aus dem Verlauf dazu – geprüft wird dann alles lokal, aus dem eigenen Netz."""
+    try:
+        text = (await fetch(LIVE_URL, timeout=30)).decode("utf-8", "replace")
+    except Exception:
+        note("Live-Liste nicht erreichbar – stattdessen letzter Lauf und Verlauf.", WARN, "⚠")
+        return load_recheck_jobs("", types, history)
+    keys = list(dict.fromkeys(parse_keys(text.splitlines()) + history.ranked_keys()))
     return [k for k in keys if split_key(k)[0] in types]
 
 
@@ -270,7 +287,10 @@ class Run:
 
     async def gather_jobs(self) -> List[str]:
         opts = self.opts
-        if opts.recheck is not None:
+        if opts.recheck == LIVE:
+            jobs = await load_live_jobs(opts.types, self.history)
+            info("Recheck", f"{fmt(len(jobs))} Proxys aus der Live-Liste (alle 6 Stunden per GitHub Actions geprüft)")
+        elif opts.recheck is not None:
             jobs = load_recheck_jobs(opts.recheck, opts.types, self.history)
             info("Recheck", f"{fmt(len(jobs))} Proxys aus {opts.recheck or 'letztem Lauf + Verlauf'}")
         else:

@@ -163,6 +163,8 @@ Don't want to scan yourself? Every 6 hours **GitHub Actions** runs the tool and 
 curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt | head
 ```
 
+Or let the tool start from it: `proxy-scraper --recheck live` downloads the list and checks it again from **your** network – about 30 seconds instead of a full scan (517 of 1,169 worked from here). With `--serve` you have a rotating proxy in under a minute.
+
 <a id="features"></a>
 
 ## ✨ Features
@@ -455,7 +457,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--max-latency MS` | maximum latency |
 | `--no-datacenter` | skip proxies whose exit is (probably) in a datacenter – those get blocked sooner |
 | `--target URL` | only proxies that reach this site (repeatable) |
-| `--recheck [FILE]` | only check proxies from a file or the last run |
+| `--recheck [FILE\|live]` | only check proxies from a file, the last run, or the public live list |
 | `--fast` | skip the HTTPS test (confirmation and anonymity still run) |
 | `--no-geo` | skip the country lookup |
 | `-c`, `--concurrency N` | simultaneous checks (default: 2000) |

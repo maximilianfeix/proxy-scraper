@@ -18,7 +18,7 @@ THEMES = {
     "light": {"bg": "#EFEFEC", "line": "#DAD9D4", "text": "#121113", "muted": "#5F5C66", "route": "#3F5A00"},
 }
 
-# 64×64: Quelle → Proxy-Knoten → Ziel, zusammen ein Haken
+# 64×64: source → proxy node → target, together a check mark
 MARK = f"""<rect width="64" height="64" rx="18" fill="{SIGNAL}"/>
     <path d="M13 31.5 26.5 44.5 51 18" fill="none" stroke="{INK}" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
     <circle cx="13" cy="31.5" r="4.6" fill="{INK}"/><circle cx="51" cy="18" r="4.6" fill="{INK}"/>
@@ -28,7 +28,7 @@ GATES = [("Lists", 700, 250), ("Handshake", 820, 170), ("Honeypots", 950, 262), 
 
 
 def smooth(points) -> str:
-    """Weiche Kurve genau durch alle Punkte (Catmull-Rom als kubische Bézier-Stücke)."""
+    """Smooth curve exactly through every point (Catmull-Rom as cubic Bézier pieces)."""
     d = f"M{points[0][0]} {points[0][1]}"
     for i in range(1, len(points)):
         x0, y0 = points[i - 2] if i > 1 else points[i - 1]

@@ -58,7 +58,7 @@ def test_parse_proxy_lines_from_result_files():
 
 
 def test_response_respects_content_length_without_eof():
-    # keep-alive-Server schließen nicht – es darf nur Content-Length gelesen werden
+    # keep-alive servers don't close – only Content-Length may be read
     async def go():
         reader = asyncio.StreamReader()
         reader.feed_data(b"HTTP/1.1 200 \r\nContent-Length: 5\r\nConnection: keep-alive\r\n\r\nhello")
@@ -81,10 +81,10 @@ def test_response_chunked():
 
 @pytest.mark.parametrize("line, key", [
     ("socks5://alice:s3cret@1.2.3.4:1080", "socks5 alice:s3cret@1.2.3.4:1080"),
-    ("http://alice:p%40ss%3Aword@1.2.3.4:80", "http alice:p%40ss%3Aword@1.2.3.4:80"),  # schon kodiert
-    ("socks4://bob@1.2.3.4:1080", "socks4 bob@1.2.3.4:1080"),                         # nur Benutzer
-    ("socks5://:nouser@1.2.3.4:1080", "socks5 1.2.3.4:1080"),                          # ohne Benutzer: weg
-    ("alice:pw@1.2.3.4:3128", "http alice:pw@1.2.3.4:3128"),                           # ohne Schema
+    ("http://alice:p%40ss%3Aword@1.2.3.4:80", "http alice:p%40ss%3Aword@1.2.3.4:80"),  # already encoded
+    ("socks4://bob@1.2.3.4:1080", "socks4 bob@1.2.3.4:1080"),                         # user only
+    ("socks5://:nouser@1.2.3.4:1080", "socks5 1.2.3.4:1080"),                          # without a user: gone
+    ("alice:pw@1.2.3.4:3128", "http alice:pw@1.2.3.4:3128"),                           # without a scheme
 ])
 def test_credentials_are_kept_and_normalized(line, key):
     assert p.parse_proxy_line(line, "http") == key
@@ -92,5 +92,5 @@ def test_credentials_are_kept_and_normalized(line, key):
 
 def test_credentials_in_lists():
     data = b"socks5://alice:pw@1.2.3.4:1080\nsocks5://1.2.3.4:1080\n"
-    # mit und ohne Login sind zwei verschiedene Proxys
+    # with and without a login are two different proxies
     assert parse(data, "auto") == ["socks5 1.2.3.4:1080", "socks5 alice:pw@1.2.3.4:1080"]

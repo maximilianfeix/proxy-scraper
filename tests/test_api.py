@@ -1,4 +1,4 @@
-"""Python-API: Optionen landen richtig im Lauf, die Ausgabe bleibt still, want wird eingehalten."""
+"""Python API: options reach the run correctly, output stays quiet, want is respected."""
 
 import asyncio
 
@@ -18,7 +18,7 @@ class FakeRun:
                      for i in range(4)]
 
     async def execute(self):
-        widgets.console.print("das darf niemand sehen")
+        widgets.console.print("nobody should see this")
         return 0
 
 
@@ -32,9 +32,9 @@ def test_find_proxies_passes_filters_and_keeps_quiet(monkeypatch, capsys):
     assert opts.types == ["socks5"] and opts.want == 2
     f = opts.filters
     assert f.https_only and f.countries == {"DE", "AT"} and f.min_anonymity == "elite" and f.no_datacenter
-    assert f.targets == ["https://example.com/"]  # wie in der CLI normalisiert, doppelte raus
-    assert [r.latency for r in result] == [200, 300]  # schnellste zuerst, genau `want` Stück
-    assert "niemand" not in capsys.readouterr().out
+    assert f.targets == ["https://example.com/"]  # normalized like in the CLI, duplicates dropped
+    assert [r.latency for r in result] == [200, 300]  # fastest first, exactly `want` of them
+    assert "nobody" not in capsys.readouterr().out
 
 
 def test_check_proxies_writes_a_temporary_list(monkeypatch):
@@ -53,7 +53,7 @@ def test_check_proxies_writes_a_temporary_list(monkeypatch):
     assert seen["lines"] == ["socks5://1.2.3.4:1080", "http://5.6.7.8:3128"]
     assert len(result) == 4
     import os
-    assert not os.path.exists(seen["path"])  # aufgeräumt
+    assert not os.path.exists(seen["path"])  # cleaned up
 
 
 def test_url_property():
@@ -62,7 +62,7 @@ def test_url_property():
 
 
 def test_lazy_exports():
-    # in einem frischen Prozess: hier ist api längst importiert
+    # in a fresh process: api is long imported here
     import subprocess
     import sys
     code = ("import sys, proxyscraper; assert 'proxyscraper.api' not in sys.modules; "
@@ -87,7 +87,7 @@ def test_overlapping_calls_run_one_after_another(monkeypatch, capsys):
             running[0] += 1
             most[0] = max(most[0], running[0])
             await asyncio.sleep(0.1)
-            widgets.console.print("das darf niemand sehen")
+            widgets.console.print("nobody should see this")
             running[0] -= 1
             return 0
 
@@ -99,7 +99,7 @@ def test_overlapping_calls_run_one_after_another(monkeypatch, capsys):
     original = widgets.console
     assert all(len(r) == 4 for r in asyncio.run(go()))
     assert most[0] == 1 and widgets.console is original
-    assert capsys.readouterr().out.count("niemand") == 1  # nur der Aufruf mit verbose=True
+    assert capsys.readouterr().out.count("nobody") == 1  # only the call with verbose=True
 
 
 def test_waiting_call_can_be_cancelled():
@@ -110,7 +110,7 @@ def test_waiting_call_can_be_cancelled():
             waiter.cancel()
             await asyncio.wait([waiter])
             assert waiter.cancelled()
-        assert api._RUN_LOCK.acquire(blocking=False)  # keine hängende Sperre
+        assert api._RUN_LOCK.acquire(blocking=False)  # no lock left hanging
         api._RUN_LOCK.release()
 
     asyncio.run(go())

@@ -37,7 +37,7 @@ def test_defaults_match_argparse():
     ["--types", "http", "socks5", "--country", "AT,DE", "--https-only", "--want", "50"],
     ["--anonymity", "elite", "--max-latency", "1500", "--fast", "--no-geo"],
     ["--recheck"],
-    ["--recheck", "meine liste.txt", "--limit", "200", "--timeout", "5.5"],
+    ["--recheck", "my list.txt", "--limit", "200", "--timeout", "5.5"],
     ["--concurrency", "500", "--connect-timeout", "2", "--no-discover", "--all-sources", "-o", "out.txt"],
     ["--recheck", "--serve"],
     ["--serve", "9000"],
@@ -68,7 +68,7 @@ def test_invalid_numbers_are_rejected_by_argparse(argv, capsys):
     with pytest.raises(SystemExit):
         parse_args(argv)
     err = capsys.readouterr().err
-    assert "muss" in err or "keine Zahl" in err or "höchstens" in err
+    assert "must be" in err or "not a number" in err
 
 
 @pytest.mark.parametrize("changes", [
@@ -81,8 +81,8 @@ def test_invalid_numbers_are_rejected_by_run_options(changes):
 
 
 def test_to_command_quotes_arguments():
-    opts = RunOptions(recheck="meine liste.txt", types=["socks5"])
-    assert opts.to_command() == "python3 proxy_scraper.py --types socks5 --recheck 'meine liste.txt'"
+    opts = RunOptions(recheck="my list.txt", types=["socks5"])
+    assert opts.to_command() == "python3 proxy_scraper.py --types socks5 --recheck 'my list.txt'"
 
 
 def test_details_and_geo_are_forced_by_filters():
@@ -95,7 +95,7 @@ def test_details_and_geo_are_forced_by_filters():
 def test_check_timeout_follows_latency_limit():
     opts = RunOptions(timeout=8, connect_timeout=4, filters=Filters(max_latency=1500))
     assert (opts.check_timeout, opts.check_connect_timeout) == (1.5, 1.5)
-    assert RunOptions(timeout=8, filters=Filters(max_latency=20000)).check_timeout == 8  # Limit über Timeout
+    assert RunOptions(timeout=8, filters=Filters(max_latency=20000)).check_timeout == 8  # limit above the timeout
     assert (RunOptions().check_timeout, RunOptions().check_connect_timeout) == (8.0, 4.0)
 
 
@@ -103,8 +103,8 @@ def test_check_timeout_follows_latency_limit():
     (Filters(min_anonymity="elite"), result(anonymity="anonymous"), False),
     (Filters(min_anonymity="anonymous"), result(anonymity="elite"), True),
     (Filters(countries={"AT"}), result(country="DE"), False),
-    (Filters(countries={"AT"}), result(country=""), True),       # Land noch unbekannt -> könnte passen
-    (Filters(https_only=True), result(https=None), True),         # HTTPS wird ja erst geprüft
+    (Filters(countries={"AT"}), result(country=""), True),       # country still unknown -> could match
+    (Filters(https_only=True), result(https=None), True),         # HTTPS is only checked later
     (Filters(max_latency=400), result(latency=500), False),
 ])
 def test_may_pass(filters, r, expected):

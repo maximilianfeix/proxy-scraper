@@ -1,4 +1,4 @@
-"""Live-Ansicht des rotierenden Proxy-Servers (--serve)."""
+"""Live view of the rotating proxy server (--serve)."""
 
 from __future__ import annotations
 
@@ -31,7 +31,7 @@ from .widgets import (
 
 
 def _mb(n: int) -> str:
-    return f"{n / 2**20:.1f} MB".replace(".", ",")
+    return f"{n / 2**20:.1f} MB"
 
 
 class ServeDashboard:
@@ -40,10 +40,10 @@ class ServeDashboard:
 
     def __rich__(self):
         server, st, pool = self.server, self.server.stats, self.server.pool
-        # lauscht er auf allen Adressen (Docker), ist er lokal trotzdem über 127.0.0.1 erreichbar
+        # if it listens on all addresses (Docker), it can still be reached locally via 127.0.0.1
         shown_host = {"0.0.0.0": "127.0.0.1", "": "127.0.0.1", "::": "[::1]"}.get(server.host, server.host)
         if ":" in shown_host and not shown_host.startswith("["):
-            shown_host = f"[{shown_host}]"  # IPv6 in URLs nur in Klammern
+            shown_host = f"[{shown_host}]"  # IPv6 in URLs only in brackets
         address = f"{shown_host}:{server.port}"
         width = widgets.console.size.width
         uptime = max(time.perf_counter() - st.started, 1e-6)
@@ -53,42 +53,42 @@ class ServeDashboard:
         title.add_column()
         title.add_column(justify="right")
         title.add_row(
-            Text.assemble(("● ", f"bold {GOOD}"), ("Proxy-Server läuft auf ", "bold"), (address, f"bold {ACCENT}")),
+            Text.assemble(("● ", f"bold {GOOD}"), ("Proxy server running on ", "bold"), (address, f"bold {ACCENT}")),
             Text(f"⏱ {fmt_duration(uptime)}", style=MUTED),
         )
 
         usage = Table.grid(padding=(0, 2))
         usage.add_column(style=MUTED, no_wrap=True)
         usage.add_column(overflow="fold")
-        usage.add_row("Testen", Text(f"curl -x http://{address} https://api.ipify.org", style="bold"))
+        usage.add_row("Test", Text(f"curl -x http://{address} https://api.ipify.org", style="bold"))
         usage.add_row("SOCKS5", Text(f"curl -x socks5h://{address} https://api.ipify.org"))
-        usage.add_row("Nur ein Land", Text(f"curl -x http://country-de:x@{address} https://api.ipify.org"))
-        usage.add_row("Feste Session", Text(f"curl -x http://session-abc:x@{address} …  (bleibt beim selben Proxy)"))
+        usage.add_row("One country", Text(f"curl -x http://country-de:x@{address} https://api.ipify.org"))
+        usage.add_row("Fixed session", Text(f"curl -x http://session-abc:x@{address} …  (keeps the same proxy)"))
         usage.add_row("Terminal", Text(f"export http_proxy=http://{address} https_proxy=http://{address}"))
         usage.add_row("Status (JSON)", Text(f"curl http://{address}/__proxy-scraper/status"))
         usage.add_row("Prometheus", Text(f"http://{address}/__proxy-scraper/metrics"))
         mode = pool.strategy + (f" · sticky {pool.sticky_seconds:g} s" if pool.sticky_seconds else "")
-        usage.add_row("Rotation", Text(mode + (f" · {fmt(server.revived)} zurückgeholt" if server.revived else ""),
+        usage.add_row("Rotation", Text(mode + (f" · {fmt(server.revived)} brought back" if server.revived else ""),
                                        style=MUTED))
 
         cards = row(
-            card("Anfragen", fmt(st.requests), f"{st.requests / uptime * 60:.1f} pro Minute".replace(".", ",")),
-            card("Erfolgreich", pct(st.ok, st.requests) if st.requests else "–",
-                 f"{fmt(st.failed)} fehlgeschlagen", f"bold {GOOD}" if not st.failed else f"bold {WARN}"),
-            card("Aktiv", fmt(st.active), "offene Verbindungen", f"bold {ACCENT}"),
+            card("Requests", fmt(st.requests), f"{st.requests / uptime * 60:.1f} per minute"),
+            card("Successful", pct(st.ok, st.requests) if st.requests else "–",
+                 f"{fmt(st.failed)} failed", f"bold {GOOD}" if not st.failed else f"bold {WARN}"),
+            card("Active", fmt(st.active), "open connections", f"bold {ACCENT}"),
             card("Pool", f"{fmt(len(usable))} / {fmt(len(pool.entries))}",
-                 f"{fmt(len(pool.tls_capable))} für HTTPS · {fmt(len(pool.entries) - len(usable))} raus"),
+                 f"{fmt(len(pool.tls_capable))} for HTTPS · {fmt(len(pool.entries) - len(usable))} out"),
             card("Traffic", _mb(st.bytes_down), f"↑ {_mb(st.bytes_up)}"),
         )
 
         recent = table()
         recent.add_column("", width=1)
-        recent.add_column("Ziel", ratio=2, no_wrap=True, overflow="ellipsis")
-        recent.add_column("über Proxy", ratio=2, no_wrap=True, overflow="ellipsis")
+        recent.add_column("Target", ratio=2, no_wrap=True, overflow="ellipsis")
+        recent.add_column("via proxy", ratio=2, no_wrap=True, overflow="ellipsis")
         if width >= 100:
             recent.add_column("Client", style=MUTED, no_wrap=True)
-        recent.add_column("Versuche", justify="right", width=8)
-        recent.add_column("Dauer", justify="right", width=8)
+        recent.add_column("Attempts", justify="right", width=8)
+        recent.add_column("Time", justify="right", width=8)
         for log in reversed(st.recent):
             ptype = log.via.split("://", 1)[0]
             cells = [
@@ -104,28 +104,28 @@ class ServeDashboard:
         busiest = table()
         busiest.add_column("Proxy", no_wrap=True, overflow="ellipsis")
         busiest.add_column("OK", justify="right", style=GOOD)
-        busiest.add_column("Fehler", justify="right", style=MUTED)
-        busiest.add_column("Latenz", justify="right")
+        busiest.add_column("Errors", justify="right", style=MUTED)
+        busiest.add_column("Latency", justify="right")
         for entry in sorted(pool.entries, key=lambda e: (-e.ok, e.result.latency))[:5]:
             r = entry.result
             style = MUTED if entry.disabled else TYPE_STYLE.get(r.ptype, "")
             name = Text(f"{r.ptype}://{shown_proxy(r.proxy)}", style=style)
             busiest.add_row(name, fmt(entry.ok), fmt(entry.fail), f"{fmt(r.latency)} ms")
 
-        waiting = Align.center(Text("warte auf die erste Verbindung …", style=MUTED))
+        waiting = Align.center(Text("waiting for the first connection …", style=MUTED))
         return Group(
             Panel(Group(title, Text(""), usage), box=box.HEAVY, border_style=ACCENT, padding=(0, 1)),
             cards,
             row(
-                widgets.panel(recent if st.recent else waiting, "Letzte Verbindungen", GOOD),
-                widgets.panel(busiest, "Meistgenutzte Proxys"),
+                widgets.panel(recent if st.recent else waiting, "Recent connections", GOOD),
+                widgets.panel(busiest, "Most used proxies"),
                 ratios=(3, 2),
             ),
-            Text("  Strg+C beendet den Server · nur von diesem Rechner erreichbar", style=MUTED),
+            Text("  Ctrl+C stops the server", style=MUTED),
         )
 
 
 def shown_via(via: str) -> str:
-    """'socks5://user:pass@1.2.3.4:1080' -> Passwort maskiert; '–' (kein Proxy) bleibt."""
+    """'socks5://user:pass@1.2.3.4:1080' -> password masked; '–' (no proxy) stays."""
     scheme, sep, proxy = via.partition("://")
     return f"{scheme}://{shown_proxy(proxy)}" if sep else via

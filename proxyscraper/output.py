@@ -1,11 +1,11 @@
-"""Ergebnisdateien.
+"""Result files.
 
-Jeder Lauf bekommt einen eigenen Ordner results/<datum>/ mit
-  all.txt         typ://ip:port, schnellste zuerst (auch live während des Laufs)
-  http.txt …      ip:port pro Protokoll – direkt für Tools, die nur eine Liste wollen
-  proxies.json    alle Details (Latenz, Land, HTTPS, Anonymität, Exit-IP)
-  proxies.csv     dasselbe als Tabelle
-und results/latest.txt (bzw. der Symlink results/latest) zeigt immer auf den neuesten Lauf.
+Every run gets its own folder results/<date>/ with
+  all.txt         type://ip:port, fastest first (also live during the run)
+  http.txt …      ip:port per protocol – ready for tools that just want a list
+  proxies.json    every detail (latency, country, HTTPS, anonymity, exit IP)
+  proxies.csv     the same as a table
+and results/latest.txt (or the symlink results/latest) always points to the newest run.
 """
 
 from __future__ import annotations
@@ -26,7 +26,7 @@ from .targets import target_label
 
 
 def new_run_dir(base: Path) -> Path:
-    """Ordner mit Zeitstempel; zwei Läufe in derselben Sekunde bekommen -2, -3 … statt sich zu überschreiben."""
+    """Folder with a timestamp; two runs in the same second get -2, -3 … instead of overwriting each other."""
     stamp = f"{datetime.now():%Y-%m-%d_%H-%M-%S}"
     base.mkdir(parents=True, exist_ok=True)
     for n in range(1, 1000):
@@ -36,7 +36,7 @@ def new_run_dir(base: Path) -> Path:
         except FileExistsError:
             continue
         return path
-    raise FileExistsError(f"zu viele Läufe in einer Sekunde: {stamp}")
+    raise FileExistsError(f"too many runs in one second: {stamp}")
 
 
 class ResultWriter:
@@ -60,7 +60,7 @@ class ResultWriter:
 
         lines = "".join(f"{r.ptype}://{r.proxy}\n" for r in rows)
         self.live_path.write_text(lines, encoding="utf-8")
-        files["Alle (typ://ip:port)"] = self.live_path
+        files["All (type://ip:port)"] = self.live_path
         for t in PROXY_TYPES:
             of_type = [r.proxy for r in rows if r.ptype == t]
             if of_type:
@@ -89,7 +89,7 @@ class ResultWriter:
         if self.extra_file:
             self.extra_file.parent.mkdir(parents=True, exist_ok=True)
             self.extra_file.write_text(lines, encoding="utf-8")
-            files["Zusatzdatei (-o)"] = self.extra_file
+            files["Extra file (-o)"] = self.extra_file
 
         _point_latest(self.run_dir)
         return files
@@ -103,9 +103,9 @@ def _row(r: CheckResult) -> dict:
 
 
 def _csv_row(r: CheckResult) -> dict:
-    """Wie _row, aber flach: Zielseiten als "google.com:ok;discord.com:nein"."""
+    """Like _row, but flat: target sites as "google.com:ok;discord.com:no"."""
     d = _row(r)
-    d["targets"] = ";".join(f"{target_label(u, r.targets)}:{'ok' if ok else 'nein'}" for u, ok in r.targets.items())
+    d["targets"] = ";".join(f"{target_label(u, r.targets)}:{'ok' if ok else 'no'}" for u, ok in r.targets.items())
     return d
 
 
@@ -113,10 +113,10 @@ LATEST_POINTER = "latest.txt"
 
 
 def _point_latest(run_dir: Path) -> None:
-    """results/latest.txt nennt immer den neuesten Lauf; results/latest ist zusätzlich ein Symlink.
+    """results/latest.txt always names the newest run; results/latest is also a symlink.
 
-    Der Symlink ist bequem zum Reinschauen, braucht unter Windows aber Admin- oder
-    Entwicklerrechte – die Zeigerdatei funktioniert überall.
+    The symlink is handy for looking around, but on Windows it needs admin or developer
+    rights – the pointer file works everywhere.
     """
     atomic_write(run_dir.parent / LATEST_POINTER, run_dir.name + "\n")
     latest = run_dir.parent / "latest"
@@ -126,27 +126,27 @@ def _point_latest(run_dir: Path) -> None:
         if not latest.exists():
             os.symlink(run_dir.name, latest, target_is_directory=True)
     except OSError:
-        pass  # keine Symlinks erlaubt – latest.txt reicht
+        pass  # no symlinks allowed – latest.txt is enough
 
 
 def latest_run_dir(results_dir: Path = RESULTS_DIR) -> Optional[Path]:
     pointer = results_dir / LATEST_POINTER
     try:
         name = pointer.read_text(encoding="utf-8").strip()
-    except (OSError, UnicodeDecodeError):  # fehlt, keine Rechte oder kaputt -> Symlink versuchen
+    except (OSError, UnicodeDecodeError):  # missing, no permission or broken -> try the symlink
         name = ""
-    # Nur ein Ordnername direkt unter results/ – leer, "..", oder Pfade wie "a/../.." würden
-    # sonst auf results/ selbst oder außerhalb zeigen
+    # only a folder name directly under results/ – empty, "..", or paths like "a/../.." would
+    # otherwise point to results/ itself or outside of it
     if name and name not in (".", "..") and Path(name).name == name:
         run_dir = results_dir / name
         if run_dir.is_dir():
             return run_dir
     link = results_dir / "latest"
-    return link if link.is_dir() else None  # Läufe aus älteren Versionen ohne latest.txt
+    return link if link.is_dir() else None  # runs from older versions without latest.txt
 
 
 def has_latest_results(results_dir: Path = RESULTS_DIR) -> bool:
-    """Gibt es einen letzten Lauf mit Treffern? Liest dafür nicht die ganze Datei."""
+    """Is there a last run with hits? Doesn't read the whole file for that."""
     run_dir = latest_run_dir(results_dir)
     try:
         return run_dir is not None and (run_dir / "all.txt").stat().st_size > 0
@@ -155,7 +155,7 @@ def has_latest_results(results_dir: Path = RESULTS_DIR) -> bool:
 
 
 def latest_results(results_dir: Path = RESULTS_DIR) -> List[str]:
-    """Proxys des letzten Laufs für --recheck ohne Datei."""
+    """Proxies of the last run for --recheck without a file."""
     run_dir = latest_run_dir(results_dir)
     path = run_dir / "all.txt" if run_dir else None
     return path.read_text(encoding="utf-8").splitlines() if path and path.exists() else []

@@ -1,4 +1,4 @@
-"""Proxys, die Inhalte verändern: ehrlicher Proxy, Skript-Einschleuser, Fehlerseite, keine Referenz."""
+"""Proxies that modify content: honest proxy, script injector, error page, no reference."""
 
 import asyncio
 
@@ -51,7 +51,7 @@ def test_emptied_page_is_caught():
 
 @pytest.mark.parametrize("status", [b"403 Forbidden", b"502 Bad Gateway"])
 def test_error_pages_are_not_called_tampering(status):
-    # sagt nichts über Manipulation – darum kümmern sich Bestätigung und Zielseiten
+    # says nothing about tampering – confirmation and target sites take care of that
     assert tampers(fake_proxy(b"blocked", status)) is False
 
 
@@ -83,7 +83,7 @@ def test_missing_reference_is_reported(monkeypatch):
     monkeypatch.setattr(app, "integrity_reference", no_reference)
     monkeypatch.setattr(app, "note", lambda text, *a: notes.append(text))
     assert asyncio.run(app.Run(RunOptions(no_geo=True), show_banner=False).prepare_network())
-    assert any("Inhalte verändern" in n for n in notes)
+    assert any("modify content" in n for n in notes)
 
 
 def test_reference_needs_verified_https():
@@ -115,7 +115,7 @@ def test_tampering_proxies_are_dropped_and_counted(tmp_path):
             return True
 
         async def tampers(self, r):
-            return r.proxy.startswith("2.")  # 2.x schleust etwas ein
+            return r.proxy.startswith("2.")  # 2.x injects something
 
         async def enrich(self, r):
             r.https = True
@@ -131,4 +131,4 @@ def test_tampering_proxies_are_dropped_and_counted(tmp_path):
 
     run, stats = asyncio.run(go())
     assert run.working == {"http 1.1.1.1:80"} and stats.tampered == 1
-    assert "http 2.2.2.2:80" in run.checked  # zählt für die Quelle als Fehlschlag
+    assert "http 2.2.2.2:80" in run.checked  # counts as a failure for the source

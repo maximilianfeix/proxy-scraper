@@ -1,4 +1,4 @@
-"""Merkt sich die letzte Auswahl aus dem Einrichtungsassistenten (als Kommandozeilen-Argumente)."""
+"""Remembers the last choice from the setup wizard (as command line arguments)."""
 
 from __future__ import annotations
 

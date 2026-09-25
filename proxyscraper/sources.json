@@ -1,5 +1,5 @@
 {
- "_info": "Proxy-Quellen. Typ-Schlüssel: http, socks4, socks5, auto (= Zeilen im Format typ://ip:port). Stand der Auswahl: 2026-09-24 – nur Listen, die in den letzten 3 Tagen aktualisiert wurden, ohne reine Spiegel. Das Tool lernt pro Quelle die Trefferquote (source_stats.json) und überspringt tote/veraltete Quellen automatisch.",
+ "_info": "Proxy sources. Type keys: http, socks4, socks5, auto (= lines in the format type://ip:port). Selection as of 2026-09-24 – only lists updated in the last 3 days, no pure mirrors. The tool learns the hit rate of every source (source_stats.json) and skips dead/outdated sources automatically.",
  "meta": [
   {
    "url": "https://raw.githubusercontent.com/gfpcom/free-proxy-list/main/sources/http.txt",

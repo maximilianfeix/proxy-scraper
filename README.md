@@ -24,9 +24,6 @@
 
 Most free proxy lists are 95 % dead. **proxy-scraper** doesn't blindly try everything – it learns. Proxies that worked before are checked first, then those from sources with a good hit rate. Dead and abandoned lists are dropped automatically, new ones are discovered on GitHub, and every hit has to do more than answer a ping: it must fetch a real page, tunnel HTTPS and show how anonymous it is.
 
-> [!NOTE]
-> The terminal interface is in German. Commands, options and output files are the same in every language.
-
 <table>
 <tr>
 <td width="33%" valign="top">
@@ -127,14 +124,15 @@ Started without arguments, a wizard asks what you are looking for:
 
 | Preset | What it does |
 |---|---|
-| **Alles finden** · find everything | all protocols, maximum yield |
-| **Surfen & Web** · browsing | HTTP + SOCKS5, HTTPS-capable, at least anonymous, under 3 s |
-| **Maximal anonym** · max anonymity | elite SOCKS5 with HTTPS only |
-| **Schnell & stabil** · fast & stable | proxies under 1 s only |
-| **Sofort ein paar** · a few right now | stops after 25 hits |
-| **Letzte Treffer neu prüfen** · recheck | no collecting, takes seconds |
-| **Wie letztes Mal** · same as last time | your previous choice |
-| **Eigene Auswahl …** · custom | protocols, countries, anonymity, HTTPS, target site, latency, amount, check mode |
+| **Find everything** | all protocols, maximum yield |
+| **Browsing & web** | HTTP + SOCKS5, HTTPS-capable, at least anonymous, under 3 s |
+| **Maximum anonymity** | elite SOCKS5 with HTTPS only |
+| **Fast & stable** | proxies under 1 s only |
+| **A few right now** | stops after 25 hits |
+| **Recheck the last hits** | no collecting, takes seconds |
+| **Proxy server right away** | recheck the last hits, then serve them on :8899 |
+| **Same as last time** | your previous choice |
+| **Custom …** | protocols, countries, anonymity, HTTPS, target site, latency, amount, check mode |
 
 Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</kbd>–<kbd>9</kbd> jump · <kbd>Enter</kbd> next · <kbd>Esc</kbd> back · <kbd>q</kbd> quit. In scripts and cron jobs the wizard never shows up – pass options or `-y`.
 

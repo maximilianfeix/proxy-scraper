@@ -1,4 +1,4 @@
-"""Anbieter (ASN) offline: CSV mit Kommas im Namen, Rechenzentrum-Heuristik, Speichern, Filter."""
+"""Providers (ASN) offline: CSV with commas in names, datacenter heuristic, saving, filter."""
 
 import asyncio
 import gzip
@@ -28,10 +28,10 @@ def test_parse_and_lookup():
     db = AsnDB.from_csv(CSV, "2026-09")
     assert len(db) == 4
     cf = db.lookup("1.0.0.1")
-    assert (cf.asn, cf.org, cf.hosting) == (13335, "Cloudflare, Inc.", True)  # Komma im Namen überlebt
+    assert (cf.asn, cf.org, cf.hosting) == (13335, "Cloudflare, Inc.", True)  # a comma in the name survives
     assert db.lookup("68.1.2.3").hosting is False
     assert db.lookup("8.8.8.8").org == "Google LLC" and db.lookup("8.8.8.8").hosting
-    assert db.lookup("5.5.5.5") is None and db.lookup("kein.ip") is None
+    assert db.lookup("5.5.5.5") is None and db.lookup("not.an.ip") is None
 
 
 @pytest.mark.parametrize("org, expected", [
@@ -51,7 +51,7 @@ def test_save_load_roundtrip_and_broken_files(tmp_path):
     data = (tmp_path / "asn.bin").read_bytes()
     (tmp_path / "asn.bin").write_bytes(data[:-3])
     assert AsnDB.load(tmp_path / "asn.bin") is None
-    assert AsnDB.load(tmp_path / "fehlt.bin") is None
+    assert AsnDB.load(tmp_path / "missing.bin") is None
 
 
 def test_download_new_month(tmp_path):
@@ -73,13 +73,13 @@ def test_annotate_and_no_datacenter_filter():
     assert (dc.asn, dc.hosting) == (15169, True) and home.hosting is False and unknown.hosting is None
     f = Filters(no_datacenter=True)
     assert not f.accepts(dc) and not f.may_pass(dc)
-    assert f.accepts(home) and f.accepts(unknown)  # unbekannt wird nicht aussortiert
-    ProviderLookup(None).annotate(unknown)  # ohne Datenbank passiert einfach nichts
+    assert f.accepts(home) and f.accepts(unknown)  # unknown isn't filtered out
+    ProviderLookup(None).annotate(unknown)  # without a database nothing happens
 
 
 def test_no_datacenter_option_roundtrip():
     opts = RunOptions.from_args(parse_args(["--no-datacenter", "--want", "5"]))
-    assert opts.filters.no_datacenter and "ohne Rechenzentren" in opts.filters.describe()
+    assert opts.filters.no_datacenter and "no datacenters" in opts.filters.describe()
     assert RunOptions.from_args(parse_args(opts.to_argv())) == opts
 
 
@@ -88,7 +88,7 @@ def test_non_string_providers_invalidate_the_file(tmp_path):
     import json
     import struct
     db = AsnDB.from_csv(CSV, "2026-09")
-    db.orgs = [123 for _ in db.orgs]  # kaputte Tabelle mit Zahlen statt Namen
+    db.orgs = [123 for _ in db.orgs]  # broken table with numbers instead of names
     table = json.dumps(db.orgs).encode()
     with (tmp_path / "asn.bin").open("wb") as fh:
         fh.write(b"PSASN1" + b"2026-09" + struct.pack("!II", len(db), len(table)))
@@ -99,8 +99,8 @@ def test_non_string_providers_invalidate_the_file(tmp_path):
 
 
 def test_slow_provider_download_does_not_break_the_run(monkeypatch, tmp_path):
-    """Erster Lauf ohne ASN-Datei: der Download läuft noch, wenn die Prüfung fertig ist – der Lauf muss trotzdem
-    sauber zu Ende gehen und die Anbieter nachtragen."""
+    """First run without an ASN file: the download is still running when checking is done – the run still has
+    to finish cleanly and fill in the providers afterwards."""
     from proxyscraper import app
     from proxyscraper import output as out_mod
 
@@ -132,7 +132,7 @@ def test_slow_provider_download_does_not_break_the_run(monkeypatch, tmp_path):
     import json
     rows = json.loads((out_mod.latest_run_dir(tmp_path) / "proxies.json").read_text())
     assert rows[0]["org"] == "Google LLC" and rows[0]["hosting"] is True
-    assert seen_stats[0].hosting == 1  # auch der Zähler für Dashboard und Hinweis
+    assert seen_stats[0].hosting == 1  # also the counter for the dashboard and the note
 
 
 def test_no_datacenter_waits_for_the_database_before_checking(monkeypatch, tmp_path):

@@ -1,9 +1,9 @@
-"""Ablageorte.
+"""Where things are stored.
 
-- Quellenliste: im Paket (proxyscraper/sources.json)
-- aus einem geklonten Repo: gelernter Zustand in data/, Ergebnisse in results/ – beides im Projekt
-- installiert (pip/pipx): gelernter Zustand im Benutzerordner des Systems, Ergebnisse im aktuellen Ordner
-- PROXY_SCRAPER_HOME überschreibt den Ordner für den gelernten Zustand
+- source list: in the package (proxyscraper/sources.json)
+- from a cloned repo: learned state in data/, results in results/ – both inside the project
+- installed (pip/pipx): learned state in the system's user data folder, results in the current folder
+- PROXY_SCRAPER_HOME overrides the folder for the learned state
 """
 
 from __future__ import annotations
@@ -19,12 +19,12 @@ APP_NAME = "proxy-scraper"
 
 
 def is_checkout(project_dir: Path = PROJECT_DIR) -> bool:
-    """Läuft das Programm direkt aus dem Repo (statt aus einer Installation)?"""
+    """Is the program running straight from the repo (instead of an installation)?"""
     return (project_dir / "pyproject.toml").is_file() and (project_dir / "proxy_scraper.py").is_file()
 
 
 def user_data_dir(platform: str = sys.platform, env=os.environ, home: Optional[Path] = None) -> Path:
-    """Üblicher Ordner für Anwendungsdaten des jeweiligen Systems."""
+    """The usual folder for application data on this system."""
     home = home or Path.home()
     if platform == "darwin":
         return home / "Library" / "Application Support" / APP_NAME
@@ -48,7 +48,7 @@ RESULTS_DIR = results_dir()
 
 
 def atomic_write(path: Path, text: str) -> None:
-    # Erst temporär schreiben, dann umbenennen – ein Abbruch hinterlässt keine halbe Datei
+    # write to a temporary file first, then rename – an interruption leaves no half-written file
     path.parent.mkdir(parents=True, exist_ok=True)
     tmp = path.with_suffix(path.suffix + ".tmp")
     tmp.write_text(text, encoding="utf-8")

@@ -1,2 +1,2 @@
-Selbst signiertes Zertifikat für `localhost` / `127.0.0.1` – **nur für die Tests** (lokaler HTTPS-Zielserver).
-Es ist nirgends vertrauenswürdig und schützt nichts; der Schlüssel liegt deshalb bewusst im Repo.
+Self-signed certificate for `localhost` / `127.0.0.1` – **for the tests only** (local HTTPS target server).
+It isn't trusted anywhere and protects nothing, which is why the key is deliberately in the repo.

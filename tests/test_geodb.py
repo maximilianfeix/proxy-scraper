@@ -1,4 +1,4 @@
-"""Offline-Länder: DB-IP-CSV einlesen, speichern, monatlich erneuern, Rückfall auf ip-api."""
+"""Offline countries: read the DB-IP CSV, save it, renew it monthly, fall back to ip-api."""
 
 import asyncio
 import gzip
@@ -18,20 +18,20 @@ kaputt
 
 
 def big_csv(n=2000):
-    """Genug Bereiche, um die Plausibilitätsprüfung (> 1000) zu bestehen."""
+    """Enough ranges to pass the plausibility check (> 1000)."""
     return "\n".join(f"10.{i // 256}.{i % 256}.0,10.{i // 256}.{i % 256}.127,{'DE' if i % 2 else 'AT'}"
                      for i in range(n)) + "\n"
 
 
 def test_parse_lookup_and_merge():
     db = CountryDB.from_csv(CSV, "2026-09")
-    assert len(db) == 4  # IPv6 und kaputte Zeile raus, die zwei CN-Nachbarn zusammengefasst
+    assert len(db) == 4  # IPv6 and the broken line dropped, the two CN neighbors merged
     assert db.lookup("1.0.0.1") == "AU"
     assert db.lookup("1.0.5.5") == "CN" and db.lookup("1.0.2.2") == "CN"
     assert db.lookup("8.8.8.8") == "US"
     assert db.lookup("0.1.2.3") == ""       # ZZ = reserviert
-    assert db.lookup("5.5.5.5") == ""       # Lücke
-    assert db.lookup("kein.ip") == ""
+    assert db.lookup("5.5.5.5") == ""       # gap
+    assert db.lookup("not.an.ip") == ""
 
 
 def test_save_and_load_roundtrip(tmp_path):
@@ -44,7 +44,7 @@ def test_save_and_load_roundtrip(tmp_path):
 def test_broken_file_is_ignored(tmp_path):
     (tmp_path / "geo.bin").write_bytes(b"PSGEO1" + b"2026-09" + b"\xff\xff\xff\xff")
     assert CountryDB.load(tmp_path / "geo.bin") is None
-    assert CountryDB.load(tmp_path / "fehlt.bin") is None
+    assert CountryDB.load(tmp_path / "missing.bin") is None
 
 
 class Fetch:
@@ -75,7 +75,7 @@ def test_new_month_is_downloaded(tmp_path):
 
 
 def test_early_in_the_month_the_previous_file_is_fine(tmp_path):
-    fetch = Fetch({"2026-08": big_csv()})  # September noch nicht veröffentlicht
+    fetch = Fetch({"2026-08": big_csv()})  # September not published yet
     db = asyncio.run(load_country_db(tmp_path / "geo.bin", date(2026, 9, 1), fetch))
     assert db.month == "2026-08"
 
@@ -93,13 +93,13 @@ def test_implausibly_small_download_is_rejected(tmp_path):
 
 
 def test_resolver_asks_offline_first_then_falls_back_to_the_api():
-    async def make():  # GeoResolver legt ein asyncio.Event an – unter Python 3.9 nur in einer Loop
+    async def make():  # GeoResolver creates an asyncio.Event – on Python 3.9 only inside a loop
         return GeoResolver(offline=CountryDB.from_csv(CSV, "2026-09"))
 
     resolver = asyncio.run(make())
     resolver.cache = {}
     assert resolver.request("8.8.8.8") == "US" and resolver.pending == []
-    assert resolver.request("5.5.5.5") == "" and resolver.pending == ["5.5.5.5"]  # nicht in der Datenbank
+    assert resolver.request("5.5.5.5") == "" and resolver.pending == ["5.5.5.5"]  # not in the database
     assert resolver.offline_hits == 1
 
 
@@ -148,34 +148,34 @@ def test_switching_to_offline_resolves_waiting_ips_consistently():
         resolved = {}
         resolver = GeoResolver(on_resolved=lambda ip, cc: resolved.setdefault(ip, cc))
         resolver.cache = {}
-        resolver.request("8.8.8.8")   # noch keine Datenbank -> wartet auf ip-api
+        resolver.request("8.8.8.8")   # no database yet -> waits for ip-api
         resolver.request("5.5.5.5")
         resolver.use_offline(CountryDB.from_csv(CSV, "2026-09"))
         return resolver, resolved
 
     resolver, resolved = asyncio.run(go())
-    assert resolved == {"8.8.8.8": "US"}           # sofort aus der Datenbank gemeldet
-    assert resolver.pending == ["5.5.5.5"]          # nur was die Datenbank nicht kennt, bleibt für ip-api
+    assert resolved == {"8.8.8.8": "US"}           # reported right away from the database
+    assert resolver.pending == ["5.5.5.5"]          # only what the database doesn't know is left for ip-api
 
 
 def test_one_country_per_exit_ip_even_when_sources_disagree():
     async def go():
         resolver = GeoResolver()
         resolver.cache = {}
-        first = resolver.request("8.8.8.8")          # noch keine Datenbank -> ip-api
-        resolver.cache["8.8.8.8"] = ["NL", 9e9]       # ip-api sagt NL ...
+        first = resolver.request("8.8.8.8")          # no database yet -> ip-api
+        resolver.cache["8.8.8.8"] = ["NL", 9e9]       # ip-api says NL ...
         resolver._assign("8.8.8.8", "NL")
-        resolver.use_offline(CountryDB.from_csv(CSV, "2026-09"))  # ... die Datenbank sagt US
+        resolver.use_offline(CountryDB.from_csv(CSV, "2026-09"))  # ... the database says US
         return first, resolver.request("8.8.8.8")
 
     first, later = asyncio.run(go())
-    assert first == "" and later == "NL"  # innerhalb des Laufs bleibt es bei der ersten Einordnung
+    assert first == "" and later == "NL"  # within the run the first classification stays
 
 
 def test_non_letter_country_codes_invalidate_the_file(tmp_path):
     db = CountryDB.from_csv(CSV, "2026-09")
     db.save(tmp_path / "geo.bin")
     data = bytearray((tmp_path / "geo.bin").read_bytes())
-    data[-1] = 0xFF  # letzter Ländercode kaputt, Größe unverändert
+    data[-1] = 0xFF  # last country code broken, size unchanged
     (tmp_path / "geo.bin").write_bytes(bytes(data))
     assert CountryDB.load(tmp_path / "geo.bin") is None

@@ -1,4 +1,4 @@
-"""Live-Ansichten während des Sammelns und Prüfens."""
+"""Live views while collecting and checking."""
 
 from __future__ import annotations
 
@@ -59,7 +59,7 @@ from .widgets import (
 )
 
 # --------------------------------------------------------------------------- #
-# Phase 2: Sammeln
+# Phase 2: collecting
 # --------------------------------------------------------------------------- #
 
 
@@ -69,11 +69,11 @@ class CollectView:
         self.ok = 0
         self.failed = 0
         self.bytes = 0
-        self.cached = 0  # Listen, die per ETag unverändert waren
+        self.cached = 0  # lists that were unchanged per ETag
         self.unique = 0
         self.progress = Progress(
             SpinnerColumn(style=ACCENT),
-            TextColumn("[bold]Lade & parse Quellen"),
+            TextColumn("[bold]Loading & parsing sources"),
             BarColumn(bar_width=None, complete_style=ACCENT, finished_style=GOOD),
             CountColumn(),
             TimeElapsedColumn(),
@@ -87,21 +87,21 @@ class CollectView:
     def __rich__(self):
         elapsed = max(time.perf_counter() - self.started, 1e-6)
         stats = row(
-            card("Quellen OK", fmt(self.ok), f"{fmt(self.failed)} fehlgeschlagen", f"bold {GOOD}"),
-            card("Geladen", f"{self.bytes / 2**20:,.0f} MB".replace(",", "."),
+            card("Sources OK", fmt(self.ok), f"{fmt(self.failed)} failed", f"bold {GOOD}"),
+            card("Loaded", f"{self.bytes / 2**20:,.0f} MB",
                  f"{self.bytes / 2**20 / elapsed:.1f} MB/s"
-                 + (f" · {fmt(self.cached)} aus Cache" if self.cached else "")),
-            card("Proxys", fmt(self.unique), "einzigartig", f"bold {ACCENT}"),
+                 + (f" · {fmt(self.cached)} from cache" if self.cached else "")),
+            card("Proxies", fmt(self.unique), "unique", f"bold {ACCENT}"),
         )
         return Group(
             header(1, self.started),
             Panel(Group(self.progress, stats), box=box.ROUNDED, border_style=ACCENT,
-                  title=panel_title("Sammeln", ACCENT), title_align="left"),
+                  title=panel_title("Collecting", ACCENT), title_align="left"),
         )
 
 
 # --------------------------------------------------------------------------- #
-# Phase 3: Prüfen
+# Phase 3: checking
 # --------------------------------------------------------------------------- #
 
 class LiveStats:
@@ -118,11 +118,11 @@ class LiveStats:
         self.https_ok = 0
         self.anonymity: Counter = Counter()
         self.passing = 0
-        self.fakes = 0  # bestanden die Basisprüfung, aber nicht die Bestätigung
-        self.tampered = 0  # bestätigt, aber veränderten eine bekannte Seite (Skripte, Werbung)
-        self.hosting = 0  # Treffer mit Exit (vermutlich) in einem Rechenzentrum
-        self.details_saved = 0  # HTTPS-Tests, die dank Filter entfallen konnten
-        self.targets_ok: Counter = Counter()  # Zielseiten-URL -> Anzahl Proxys, die sie erreichen
+        self.fakes = 0  # passed the basic check, but not the confirmation
+        self.tampered = 0  # confirmed, but modified a known page (scripts, ads)
+        self.hosting = 0  # hits that (probably) exit from a datacenter
+        self.details_saved = 0  # HTTPS tests that could be skipped thanks to filters
+        self.targets_ok: Counter = Counter()  # target site URL -> number of proxies that reach it
         self.recent: Deque[CheckResult] = deque(maxlen=8)
         self.start = time.perf_counter()
         self.speed: Deque[float] = deque(maxlen=60)
@@ -138,7 +138,7 @@ class LiveStats:
         self.checked_by_type[ptype] += 1
 
     def add_working(self, r: CheckResult) -> None:
-        """Bestätigter Treffer – die Anonymität ist ab hier bekannt."""
+        """Confirmed hit – the anonymity is known from here on."""
         if r.anonymity:
             self.anonymity[r.anonymity] += 1
         if r.hosting:
@@ -153,7 +153,7 @@ class LiveStats:
         if r.https:
             self.https_ok += 1
         for url, ok in r.targets.items():
-            # auch 0 zählen: eine Zielseite, die kein Proxy erreicht, soll im Bericht sichtbar bleiben
+            # count 0 too: a target site that no proxy reaches should stay visible in the report
             self.targets_ok[url] += int(ok)
 
     def sample_speed(self) -> float:
@@ -165,10 +165,10 @@ class LiveStats:
 
 
 def hit_line(found: int, checked: int, fakes: int) -> Text:
-    """"1,5 % Treffer" – mit aussortierten Fake-Proxys kurz genug für schmale Karten: "1,5 % · 638 Fakes"."""
+    """"1.5% hits" – with filtered fake proxies short enough for narrow cards: "1.5% · 638 fakes"."""
     if not fakes:
-        return Text(f"{pct(found, checked)} Treffer", style=MUTED)
-    return Text.assemble((f"{pct(found, checked)} · ", MUTED), (f"{fmt(fakes)} Fakes", WARN))
+        return Text(f"{pct(found, checked)} hits", style=MUTED)
+    return Text.assemble((f"{pct(found, checked)} · ", MUTED), (f"{fmt(fakes)} fakes", WARN))
 
 
 class CheckDashboard:
@@ -185,11 +185,11 @@ class CheckDashboard:
         self.judge_note = ""
         self.rechecks = 0
         self.progress = Progress(
-            TextColumn("[bold]Fortschritt"),
+            TextColumn("[bold]Progress"),
             BarColumn(bar_width=None, complete_style=ACCENT, finished_style=GOOD),
             TaskProgressColumn(text_format=f"[bold {ACCENT}]{{task.percentage:>3.0f}}%"),
             CountColumn(),
-            TextColumn(f"[{MUTED}]· noch"),
+            TextColumn(f"[{MUTED}]· left"),
             TimeRemainingColumn(),
             expand=True,
         )
@@ -199,12 +199,12 @@ class CheckDashboard:
         self.progress.advance(self.task)
 
     def judge_changed(self, host: str) -> None:
-        """Prüfziel ist ausgefallen und wurde gewechselt."""
+        """The check target went down and was switched."""
         self.judge = host
-        self.judge_note = f"Prüfziel gewechselt → {host}"
+        self.judge_note = f"check target switched → {host}"
 
     def add_rechecks(self, keys: Sequence[str]) -> None:
-        """Proxys, die wegen eines Ausfalls nochmal drankommen – zählen zur Gesamtmenge dazu."""
+        """Proxies that get checked again because of an outage – they add to the total."""
         for key in keys:
             self.s.total_by_type[key.split(" ", 1)[0]] += 1
         self.rechecks += len(keys)
@@ -220,17 +220,17 @@ class CheckDashboard:
 
         wide = width >= 100
         kpis = row(
-            card("Geprüft", fmt(s.checked), f"von {fmt(s.total)}"),
-            card("Gefunden", fmt(found), hit_line(found, s.checked, s.fakes), f"bold {GOOD}"),
-            card("Tempo", f"{fmt(speed or avg)}/s", sparkline(s.speed, max(width // 4 - 6, 8)), f"bold {ACCENT}"),
+            card("Checked", fmt(s.checked), f"of {fmt(s.total)}"),
+            card("Found", fmt(found), hit_line(found, s.checked, s.fakes), f"bold {GOOD}"),
+            card("Speed", f"{fmt(speed or avg)}/s", sparkline(s.speed, max(width // 4 - 6, 8)), f"bold {ACCENT}"),
             card(
-                "Ø Latenz", f"{s.latency_sum / found:,.0f} ms".replace(",", ".") if found else "–",
-                f"min. {fmt(s.fastest)} ms" if s.fastest is not None else "noch keiner",
+                "Ø latency", f"{s.latency_sum / found:,.0f} ms" if found else "–",
+                f"min. {fmt(s.fastest)} ms" if s.fastest is not None else "none yet",
                 f"bold {latency_style(s.latency_sum // found)}" if found else "bold",
             ),
         )
 
-        panel_w = width * 4 // 11  # Protokolle/Latenz bekommen je 4 von 11 Anteilen
+        panel_w = width * 4 // 11  # protocols/latency get 4 of 11 shares each
         bar_w = max(panel_w - 18, 4)
         proto = Table.grid(padding=(0, 1))
         proto.add_column()
@@ -266,38 +266,38 @@ class CheckDashboard:
             letter, style = ANON_STYLE[level]
             side.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(s.anonymity[level]))
         if s.hosting:
-            side.add_row(Text("▣ Rechenzentrum", style=MUTED), fmt(s.hosting))
+            side.add_row(Text("▣ datacenter", style=MUTED), fmt(s.hosting))
         if s.details_saved:
-            side.add_row(Text("⏭ gespart", style=MUTED), fmt(s.details_saved))
+            side.add_row(Text("⏭ skipped", style=MUTED), fmt(s.details_saved))
         for cc, n in s.countries.most_common(max(len(LATENCY_LABELS) - side.row_count, 0)):
             side.add_row(country_cell(cc), fmt(n))
         if not side.row_count:
             side.add_row(Text("–", style=MUTED), "")
 
-        height = len(LATENCY_LABELS) + 2  # alle drei gleich hoch
+        height = len(LATENCY_LABELS) + 2  # all three the same height
         middle = row(
-            Panel(proto, title=panel_title("Protokolle"), title_align="left",
-                  subtitle=Text(" Balken = geprüft ", style=MUTED),
+            Panel(proto, title=panel_title("Protocols"), title_align="left",
+                  subtitle=Text(" bar = checked ", style=MUTED),
                   subtitle_align="left", box=box.ROUNDED, border_style=BORDER, height=height),
-            Panel(hist, title=panel_title("Latenz"), title_align="left", box=box.ROUNDED, border_style=BORDER,
+            Panel(hist, title=panel_title("Latency"), title_align="left", box=box.ROUNDED, border_style=BORDER,
                   height=height),
-            Panel(side, title=panel_title("Details & Länder" if wide else "Details"),
+            Panel(side, title=panel_title("Details & countries" if wide else "Details"),
                   title_align="left", box=box.ROUNDED, border_style=BORDER, height=height),
             ratios=(4, 4, 3),
         )
 
         recent = table()
-        recent.add_column("Typ", width=6)
+        recent.add_column("Type", width=6)
         recent.add_column("Proxy", min_width=21, ratio=3, no_wrap=True)
-        recent.add_column("Land", width=5)
+        recent.add_column("Ctry", width=5)
         if self.details:
             recent.add_column("TLS", width=3, justify="center")
         if self.targets:
-            recent.add_column("Ziel", width=4, justify="center")
+            recent.add_column("Site", width=4, justify="center")
         recent.add_column("Anon", width=4, justify="center")
         if wide:
             recent.add_column("Exit-IP", ratio=2, style=MUTED, no_wrap=True)
-        recent.add_column("Latenz", justify="right", width=8)
+        recent.add_column("Latency", justify="right", width=8)
         for r in reversed(s.recent):
             cells = [type_badge(r.ptype), shown_proxy(r.proxy), country_cell(r.country)]
             if self.details:
@@ -310,22 +310,22 @@ class CheckDashboard:
             cells.append(Text(f"{fmt(r.latency)} ms", style=latency_style(r.latency)))
             recent.add_row(*cells)
 
-        footer = Text("  Strg+C beendet und speichert", style=MUTED)
+        footer = Text("  Ctrl+C stops and saves", style=MUTED)
         footer.append(f"  ·  {fmt(self.concurrency)} parallel", style=MUTED)
         if s.tampered:
-            footer.append(f"  ·  {fmt(s.tampered)} manipulierend aussortiert", style=WARN)
+            footer.append(f"  ·  {fmt(s.tampered)} dropped for tampering", style=WARN)
         if self.judge:
-            footer.append(f"  ·  Ziel {self.judge}", style=MUTED)
+            footer.append(f"  ·  target {self.judge}", style=MUTED)
         if self.judge_note:
-            footer.append(f"\n  ⚠ {self.judge_note}, {fmt(self.rechecks)} Proxys werden erneut geprüft", style=WARN)
+            footer.append(f"\n  ⚠ {self.judge_note}, {fmt(self.rechecks)} proxies are checked again", style=WARN)
         if self.want:
-            footer.append(f"  ·  Ziel {fmt(min(s.passing, self.want))} / {fmt(self.want)}", style=f"bold {ACCENT}")
+            footer.append(f"  ·  goal {fmt(min(s.passing, self.want))} / {fmt(self.want)}", style=f"bold {ACCENT}")
         if self.filters_text:
             footer.append(f"\n  Filter: {self.filters_text}", style=WARN)
-            footer.append(f"  ·  {fmt(s.passing)} passend", style=MUTED)
+            footer.append(f"  ·  {fmt(s.passing)} matching", style=MUTED)
         footer.append(f"\n  → {self.outfile}", style=MUTED)
         if s.checked >= 2000 and found + s.fakes + s.tampered < s.checked * BLOCKED_HIT_RATE:
-            footer.append("\n  ⚠ Kaum Treffer – blockiert dein Netz (Firewall) Proxy-Verbindungen?",
+            footer.append("\n  ⚠ Hardly any hits – is your network (firewall) blocking proxy connections?",
                           style=f"bold {WARN}")
 
         return Group(
@@ -333,7 +333,7 @@ class CheckDashboard:
             kpis,
             middle,
             Panel(self.progress, box=box.ROUNDED, border_style=ACCENT, padding=(0, 1)),
-            Panel(recent if s.recent else Align.center(Text("warte auf den ersten Treffer …", style=MUTED)),
-                  title=panel_title("Zuletzt gefunden", GOOD), title_align="left", box=box.ROUNDED, border_style=GOOD),
+            Panel(recent if s.recent else Align.center(Text("waiting for the first hit …", style=MUTED)),
+                  title=panel_title("Found recently", GOOD), title_align="left", box=box.ROUNDED, border_style=GOOD),
             footer,
         )

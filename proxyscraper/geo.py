@@ -1,9 +1,9 @@
-"""Länder der Exit-IPs.
+"""Countries of the exit IPs.
 
-Zuerst offline aus der DB-IP-Datenbank (geodb.py) – sofort und ohne Limit. Nur was dort fehlt
-(oder wenn die Datenbank nicht geladen werden konnte), geht an die Batch-API von ip-api.com
-(100 IPs pro Anfrage, 15 Anfragen/Minute, läuft im Hintergrund). API-Ergebnisse werden
-zwischengespeichert, damit bekannte IPs nie erneut abgefragt werden.
+First offline from the DB-IP database (geodb.py) – instantly and without a limit. Only what's missing
+there (or when the database couldn't be loaded) goes to the batch API of ip-api.com
+(100 IPs per request, 15 requests/minute, runs in the background). API results are cached,
+so known IPs are never queried again.
 """
 
 from __future__ import annotations
@@ -22,12 +22,12 @@ from .paths import DATA_DIR, atomic_write
 GEO_CACHE_FILE = DATA_DIR / "geo_cache.json"
 BATCH_URL = "http://ip-api.com/batch?fields=status,countryCode,query"
 BATCH_SIZE = 100
-MIN_INTERVAL = 4.2          # 60 s / 15 Anfragen, plus Puffer
+MIN_INTERVAL = 4.2          # 60 s / 15 requests, plus a buffer
 CACHE_TTL = 30 * 86400.0
 
 
 def flag(country: str) -> str:
-    """'DE' -> 🇩🇪 (aus Regional-Indicator-Zeichen zusammengesetzt)."""
+    """'DE' -> 🇩🇪 (built from regional indicator characters)."""
     if len(country) != 2 or not country.isalpha():
         return "  "
     return "".join(chr(0x1F1E6 + ord(c) - ord("A")) for c in country.upper())
@@ -39,11 +39,11 @@ class GeoResolver:
         self.enabled = enabled
         self.offline = offline
         self.offline_hits = 0
-        # Pro Lauf bekommt jede Exit-IP genau ein Land – egal ob es aus der Datenbank, dem Cache oder
-        # von ip-api kommt und ob die Datenbank erst mittendrin dazukommt
+        # per run every exit IP gets exactly one country – no matter whether it comes from the database, the cache
+        # or ip-api, and whether the database only arrives half-way through
         self.assigned: Dict[str, str] = {}
         self.on_resolved = on_resolved
-        self.cache: Dict[str, List] = {}  # ip -> [land, zeitpunkt]
+        self.cache: Dict[str, List] = {}  # ip -> [country, timestamp]
         self.pending: List[str] = []
         self._queued = set()
         self._stop = asyncio.Event()
@@ -59,8 +59,8 @@ class GeoResolver:
         return hit[0] if hit and time.time() - hit[1] < CACHE_TTL else ""
 
     def use_offline(self, db: CountryDB) -> None:
-        """Neue Datenbank mitten im Lauf übernehmen – auch für IPs, die schon auf ip-api warten,
-        damit dieselbe Exit-IP nicht einmal so und einmal anders eingeordnet wird."""
+        """Take over a new database mid-run – also for IPs already waiting for ip-api,
+        so the same exit IP isn't classified one way once and another way the next time."""
         self.offline = db
         waiting, self.pending = self.pending, []
         for ip in waiting:
@@ -79,7 +79,7 @@ class GeoResolver:
             self.on_resolved(ip, country)
 
     def request(self, ip: str) -> str:
-        """Land sofort (offline oder aus dem Cache), sonst für die nächste Batch-Anfrage vormerken."""
+        """Country right away (offline or from the cache), otherwise queue it for the next batch request."""
         if ip in self.assigned:
             return self.assigned[ip]
         country = ""
@@ -96,7 +96,7 @@ class GeoResolver:
         return country
 
     async def run(self) -> None:
-        """Hintergrundschleife – endet nach stop(), sobald nichts mehr offen ist."""
+        """Background loop – ends after stop() as soon as nothing is pending."""
         if not self.enabled:
             return
         while not (self._stop.is_set() and not self.pending):
@@ -112,13 +112,13 @@ class GeoResolver:
             await asyncio.sleep(max(wait, MIN_INTERVAL - (time.monotonic() - started)))
 
     async def _resolve(self, batch: List[str]) -> float:
-        """Eine Batch-Anfrage; gibt die nötige Wartezeit bis zur nächsten zurück."""
+        """One batch request; returns the wait time needed before the next one."""
         try:
             status, headers, body = await http_request(
                 BATCH_URL, timeout=10, method="POST", body=json.dumps(batch).encode(),
                 headers={"Content-Type": "application/json"},
             )
-        except Exception:  # API nicht erreichbar -> Länder bleiben leer, der Rest läuft weiter
+        except Exception:  # API unreachable -> countries stay empty, the rest keeps running
             self.failed = True
             return 0.0
         if status == 429:
@@ -136,8 +136,8 @@ class GeoResolver:
             if row.get("status") == "success":
                 ip, country = row["query"], row["countryCode"]
                 self.cache[ip] = [country, now]
-                self._assign(ip, country)  # schon anders eingeordnet (z. B. per Datenbank)? dann bleibt es so
-        # Wenn ip-api das Limit fast erreicht meldet, bis zum Reset warten
+                self._assign(ip, country)  # already classified otherwise (e.g. by the database)? keep it
+        # if ip-api reports the limit is almost reached, wait for the reset
         if headers.get(b"x-rl", b"1") == b"0":
             return float(headers.get(b"x-ttl", b"60") or 60)
         return 0.0

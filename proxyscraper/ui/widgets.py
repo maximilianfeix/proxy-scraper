@@ -1,4 +1,4 @@
-"""Farben, Formatierung und wiederverwendbare Bausteine für die Terminal-Oberfläche."""
+"""Colors, formatting and reusable building blocks for the terminal UI."""
 
 from __future__ import annotations
 
@@ -20,9 +20,9 @@ from ..geo import flag
 
 console = Console(highlight=False)
 
-# Eine Palette für alles (auch im Profil/README verwendet). rich rechnet sie auf Terminals mit
-# weniger Farben automatisch herunter.
-ACCENT = "#38BDF8"
+# One palette for everything (the lime is the brand color of the logo and the website). rich
+# downsamples it automatically on terminals with fewer colors.
+ACCENT = "#D4F77A"
 GOOD = "#34D399"
 WARN = "#FBBF24"
 BAD = "#F87171"
@@ -30,26 +30,26 @@ MUTED = "#8B949E"
 BORDER = "#30363D"
 TYPE_STYLE = {"http": "#60A5FA", "socks4": "#C084FC", "socks5": "#34D399"}
 ANON_STYLE = {"elite": ("E", GOOD), "anonymous": ("A", WARN), "transparent": ("T", BAD)}
-ANON_LABEL = {"elite": "Elite", "anonymous": "Anonym", "transparent": "Transp."}
-PHASES = ("Quellen", "Sammeln", "Prüfen", "Fertig")
+ANON_LABEL = {"elite": "Elite", "anonymous": "Anonymous", "transparent": "Transp."}
+PHASES = ("Sources", "Collect", "Check", "Done")
 SPARK = "▁▂▃▄▅▆▇█"
 LATENCY_EDGES = (300, 700, 1500, 3000, 6000)
-LATENCY_LABELS = ("< 0,3 s", "< 0,7 s", "< 1,5 s", "< 3 s", "< 6 s", "≥ 6 s")
-# Unter 0,2 % Treffern blockiert das Netz vermutlich Proxy-Verbindungen (Firewall)
+LATENCY_LABELS = ("< 0.3 s", "< 0.7 s", "< 1.5 s", "< 3 s", "< 6 s", "≥ 6 s")
+# below a 0.2 % hit rate the network is probably blocking proxy connections (firewall)
 BLOCKED_HIT_RATE = 0.002
 
 
 # --------------------------------------------------------------------------- #
-# Formatierung
+# Formatting
 # --------------------------------------------------------------------------- #
 
 def fmt(n: float) -> str:
-    """Tausenderpunkte wie im Deutschen: 12345 -> 12.345"""
-    return f"{n:,.0f}".replace(",", ".")
+    """Thousands separators: 12345 -> 12,345"""
+    return f"{n:,.0f}"
 
 
 def pct(part: float, whole: float) -> str:
-    return f"{part / whole * 100:.1f} %".replace(".", ",") if whole else "–"
+    return f"{part / whole * 100:.1f}%" if whole else "–"
 
 
 def fmt_duration(seconds: float) -> str:
@@ -68,7 +68,7 @@ def latency_style(ms: int) -> str:
 
 
 def bar(value: float, maximum: float, width: int, style: str) -> Text:
-    """Balken mit Achtelschritten für feine Auflösung auf wenig Platz."""
+    """Bar with eighth steps for fine resolution in little space."""
     width = max(width, 1)
     filled = 0 if maximum <= 0 else min(value / maximum, 1.0) * width
     full = int(filled)
@@ -116,14 +116,14 @@ def short_url(url: str) -> str:
 
 
 class CountColumn(ProgressColumn):
-    """12.345 / 1.000.000 statt 12345/1000000."""
+    """12,345 / 1,000,000 instead of 12345/1000000."""
 
     def render(self, task) -> Text:
         return Text.assemble((fmt(task.completed), "bold"), (f" / {fmt(task.total or 0)}", MUTED))
 
 
 # --------------------------------------------------------------------------- #
-# Bausteine
+# Building blocks
 # --------------------------------------------------------------------------- #
 
 def banner() -> Panel:
@@ -131,10 +131,10 @@ def banner() -> Panel:
     grid.add_column()
     grid.add_column(justify="right")
     grid.add_row(
-        Text.assemble(("⚡ proxy-scraper", f"bold {ACCENT}"), (f"  v{__version__}", MUTED)),
-        Text(datetime.now().strftime("%d.%m.%Y  %H:%M"), style=MUTED),
+        Text.assemble(("◆ proxy-scraper", f"bold {ACCENT}"), (f"  v{__version__}", MUTED)),
+        Text(datetime.now().strftime("%Y-%m-%d  %H:%M"), style=MUTED),
     )
-    grid.add_row(Text("Freie Proxys, die wirklich funktionieren – gesammelt, geprüft, gelernt.", style=MUTED), "")
+    grid.add_row(Text("Free proxies that actually work – collected, checked, learned.", style=MUTED), "")
     return Panel(grid, box=box.ROUNDED, border_style=ACCENT, padding=(0, 2))
 
 
@@ -164,7 +164,7 @@ _section_open = False
 
 
 def section(title: str) -> None:
-    """Beginnt einen Abschnitt; folgende info()/note()-Zeilen hängen an seiner linken Rahmenlinie."""
+    """Starts a section; the following info()/note() lines hang off its left border line."""
     global _section_open
     if _section_open:
         section_end()
@@ -185,14 +185,14 @@ def section_end() -> None:
 
 
 def _gutter() -> Text:
-    # Farbe nur für das Rahmenzeichen – nicht als Grundstil, der sonst auf die ganze Zeile abfärbt
+    # color only for the border character – not as the base style, which would bleed into the whole line
     gutter = Text()
     gutter.append("  │  " if _section_open else "  ", style=BORDER)
     return gutter
 
 
 def info(label: str, value, style: str = "") -> None:
-    """Einheitliche Info-Zeile – im Abschnitt mit Rahmenlinie, sonst eingerückt."""
+    """Uniform info line – with a border line inside a section, indented otherwise."""
     line = _gutter()
     line.append(f"{label:<14}", style=MUTED)
     line.append_text(value if isinstance(value, Text) else Text(str(value), style=style or "bold"))
@@ -204,7 +204,7 @@ def note(message: str, style: str = WARN, icon: str = "⚠") -> None:
 
 
 def card(label: str, value: str, sub, style: str = "bold") -> Panel:
-    # Alle Karten einer Reihe sollen gleich hoch bleiben – lange Untertitel werden gekürzt statt umbrochen
+    # all cards in a row should stay the same height – long subtitles are shortened instead of wrapped
     sub = sub if isinstance(sub, Text) else Text(sub, style=MUTED)
     sub.no_wrap, sub.overflow = True, "ellipsis"
     body = Group(Text(label.upper(), style=f"bold {MUTED}"), Text(value, style=style), sub)
@@ -212,13 +212,13 @@ def card(label: str, value: str, sub, style: str = "bold") -> Panel:
 
 
 def table(**kwargs) -> Table:
-    """Einheitliche, luftige Tabelle ohne Rahmenlinien (der Rahmen kommt vom Panel)."""
+    """Uniform, airy table without border lines (the frame comes from the panel)."""
     kwargs.setdefault("expand", True)
     return Table(box=None, header_style=f"bold {MUTED}", pad_edge=False, **kwargs)
 
 
 def panel_title(title: str, style: str = BORDER) -> Text:
-    """Titel lesbar halten: bei dezentem Rahmen gedämpft-hell statt in der dunklen Rahmenfarbe."""
+    """Keep titles readable: with a subtle frame, muted-light instead of the dark frame color."""
     return Text(f" {title} ", style=f"bold {MUTED if style == BORDER else style}")
 
 
@@ -240,11 +240,11 @@ def centered(text: str, style: str = MUTED) -> Align:
 
 
 def shown_proxy(proxy: str) -> str:
-    """Proxy fürs Terminal: Passwörter werden maskiert ('alice:•••@1.2.3.4:1080'), die Dateien behalten sie."""
+    """Proxy for the terminal: passwords are masked ('alice:•••@1.2.3.4:1080'), the files keep them."""
     auth, sep, address = proxy.rpartition("@")
     if not sep:
         return proxy
     user = unquote(auth.partition(":")[0])
-    # Benutzernamen kommen aus fremden Listen – Steuerzeichen (Zeilenumbruch, ESC) nie ins Terminal
+    # user names come from third-party lists – never let control characters (newline, ESC) into the terminal
     user = "".join(c if c.isprintable() else "?" for c in user)
     return f"{user}:•••@{address}"

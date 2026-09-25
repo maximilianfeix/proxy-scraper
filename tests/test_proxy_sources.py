@@ -71,7 +71,7 @@ def test_discover_github_filters_spam_owners_and_files():
     tree = {"tree": [
         {"type": "blob", "path": "http.txt", "size": 5000},
         {"type": "blob", "path": "README.md", "size": 5000},
-        {"type": "blob", "path": "socks5.txt", "size": 10},  # zu klein
+        {"type": "blob", "path": "socks5.txt", "size": 10},  # too small
     ]}
 
     async def get(url, timeout=0, headers=None):
@@ -90,24 +90,24 @@ def test_stats_skip_rules(tmp_path):
     st = srcs.SourceStats(tmp_path / "s.json")
     now = 1_000_000.0
 
-    # unerreichbar nach 3 Fehlschlägen, nach der Pause wieder erlaubt
+    # unreachable after 3 failures, allowed again after the pause
     for _ in range(3):
         st.record_fetch("u", None, 0, now=now)
-    assert st.skip_reason("u", now=now + 1) == "unerreichbar"
+    assert st.skip_reason("u", now=now + 1) == "unreachable"
     assert st.skip_reason("u", now=now + srcs.UNREACHABLE_PAUSE + 1) is None
 
-    # veraltet: Inhalt über eine Woche unverändert
+    # outdated: content unchanged for more than a week
     st.record_fetch("s", b"same", 10, now=now)
     st.record_fetch("s", b"same", 10, now=now + 8 * DAY)
-    assert st.skip_reason("s", now=now + 8 * DAY) == "veraltet"
+    assert st.skip_reason("s", now=now + 8 * DAY) == "outdated"
     st.record_fetch("s", b"new", 10, now=now + 9 * DAY)
     assert st.skip_reason("s", now=now + 9 * DAY) is None
 
-    # tot: zwei Läufe, genug Prüfungen, kein Treffer
+    # dead: two runs, enough checks, no hit
     st.record_checks({"d": (400, 0)})
-    assert st.skip_reason("d") is None  # ein Lauf reicht nicht
+    assert st.skip_reason("d") is None  # one run isn't enough
     st.record_checks({"d": (400, 0)})
-    assert st.skip_reason("d") == "tot"
+    assert st.skip_reason("d") == "dead"
 
 
 def test_stats_score_and_roundtrip(tmp_path):
@@ -124,7 +124,7 @@ def test_stats_score_and_roundtrip(tmp_path):
 def test_stats_corrupt_file_starts_fresh(tmp_path):
     path = tmp_path / "s.json"
     path.write_text("{kaputt")
-    with pytest.warns(UserWarning, match="unlesbar"):
+    with pytest.warns(UserWarning, match="unreadable"):
         assert srcs.SourceStats(path).records == {}
 
 

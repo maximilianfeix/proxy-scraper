@@ -1,7 +1,7 @@
-"""Verlauf funktionierender Proxys über Läufe hinweg.
+"""History of working proxies across runs.
 
-Ein Proxy, der gestern lief, läuft heute mit viel höherer Wahrscheinlichkeit als ein
-beliebiger Listeneintrag – deshalb werden bekannte Proxys zuerst geprüft.
+A proxy that worked yesterday is much more likely to work today than any random list
+entry – that's why known proxies are checked first.
 """
 
 from __future__ import annotations
@@ -17,7 +17,7 @@ from .paths import DATA_DIR, atomic_write
 
 HISTORY_FILE = DATA_DIR / "proxy_history.json"
 DAY = 86400.0
-FORGET_AFTER = 14 * DAY     # so lange nicht mehr funktioniert -> vergessen
+FORGET_AFTER = 14 * DAY     # not working for this long -> forget it
 MAX_FAIL_STREAK = 4         # so oft hintereinander tot -> vergessen
 
 
@@ -36,7 +36,7 @@ class ProxyRecord:
 
     @property
     def reliability(self) -> float:
-        """Anteil erfolgreicher Prüfungen, geglättet (1 von 1 ist nicht 100 %)."""
+        """Share of successful checks, smoothed (1 out of 1 is not 100 %)."""
         return (self.ok + 1) / (self.ok + self.fail + 2)
 
 
@@ -49,11 +49,11 @@ class ProxyHistory:
                 raw = json.loads(path.read_text(encoding="utf-8"))
                 self.records = {k: ProxyRecord(**v) for k, v in raw.items()}
             except (OSError, ValueError, TypeError) as e:
-                warnings.warn(f"{path.name} unlesbar ({e}), starte ohne Proxy-Verlauf", stacklevel=2)
+                warnings.warn(f"{path.name} unreadable ({e}), starting without proxy history", stacklevel=2)
 
     @staticmethod
     def exists(path: Path = HISTORY_FILE) -> bool:
-        """Gibt es einen nicht leeren Verlauf? Ohne ihn komplett zu laden."""
+        """Is there a non-empty history? Without loading all of it."""
         try:
             return path.stat().st_size > 2  # "{}" = leer
         except OSError:
@@ -69,7 +69,7 @@ class ProxyHistory:
         return self.records.get(key)
 
     def ranked_keys(self) -> List[str]:
-        """Bekannte Proxys, zuverlässigste und zuletzt erfolgreiche zuerst."""
+        """Known proxies, the most reliable and most recently successful first."""
         return sorted(self.records, key=lambda k: (-self.records[k].reliability, -self.records[k].last_ok))
 
     def record_ok(self, key: str, latency: int, exit_ip: str, now: Optional[float] = None, **details) -> None:
@@ -85,7 +85,7 @@ class ProxyHistory:
                 setattr(rec, name, value)
 
     def record_fail(self, key: str) -> None:
-        """Nur für bereits bekannte Proxys – sonst würde der Verlauf mit Millionen toter Einträge volllaufen."""
+        """Only for proxies that are already known – otherwise the history fills up with millions of dead ones."""
         rec = self.records.get(key)
         if rec:
             rec.fail += 1

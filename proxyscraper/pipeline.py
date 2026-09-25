@@ -1,4 +1,4 @@
-"""Ablauf: Quellen zusammenstellen, parallel laden & parsen, priorisieren, prüfen."""
+"""Flow: assemble sources, load & parse in parallel, prioritize, check."""
 
 from __future__ import annotations
 
@@ -26,13 +26,13 @@ from .parsing import PROXY_TYPES, parse_blob, split_key
 from .ui import ACCENT, CheckDashboard, CollectView, fmt, widgets
 
 AUTO_DISCOVER_AFTER_DAYS = 3.0
-# Kleine Listen direkt parsen – der Umweg über einen anderen Prozess kostet mehr, als er spart
+# parse small lists directly – the detour through another process costs more than it saves
 INLINE_PARSE_BYTES = 256 * 1024
 DOWNLOAD_CONCURRENCY = 64
 
 
 # --------------------------------------------------------------------------- #
-# Quellen
+# Sources
 # --------------------------------------------------------------------------- #
 
 @dataclass
@@ -49,7 +49,7 @@ class SourcePlan:
 
 
 async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> SourcePlan:
-    """Kuratierte + Meta- + entdeckte Quellen, abzüglich der gelernt schlechten."""
+    """Curated + meta + discovered sources, minus the ones learned to be bad."""
     sources, meta = srcs.load_source_file()
     n_curated = len(sources)
 
@@ -60,7 +60,7 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
     )
     if run_discovery:
         max_repos = opts.discover_repos if token else min(opts.discover_repos, 40)
-        with widgets.console.status(f"[bold {ACCENT}]Suche neue Proxy-Listen auf GitHub …", spinner="dots") as status:
+        with widgets.console.status(f"[bold {ACCENT}]Searching GitHub for new proxy lists …", spinner="dots") as status:
             found = await srcs.discover_github(
                 http_get, token, max_repos,
                 on_progress=lambda msg: status.update(f"[bold {ACCENT}]GitHub-Discovery:[/] {msg}"),
@@ -69,7 +69,7 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
             srcs.save_discovered(found)
     discovered = srcs.load_discovered()
 
-    with widgets.console.status(f"[bold {ACCENT}]Lade Meta-Quellen …", spinner="dots"):
+    with widgets.console.status(f"[bold {ACCENT}]Loading meta sources …", spinner="dots"):
         meta_found, meta_ok = await srcs.resolve_meta(meta, http_get)
     for extra in (meta_found, discovered):
         for url, ptype in extra.items():
@@ -96,21 +96,21 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
 @dataclass
 class ScrapeResult:
     urls: List[str]
-    # Proxy-Schlüssel -> Indizes der Quellen, die ihn listen (für Priorität und Statistik)
+    # proxy key -> indices of the sources that list it (for priority and statistics)
     index: Dict[str, List[int]] = field(default_factory=dict)
     ok_sources: int = 0
 
 
 async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view: CollectView,
                  cache: Optional[FetchCache] = None) -> ScrapeResult:
-    """Lädt alle Quellen und parst große Listen parallel auf allen CPU-Kernen.
+    """Loads every source and parses large lists in parallel on all CPU cores.
 
-    Die Event-Loop bleibt dadurch frei für weitere Downloads, statt minutenlang Regexe abzuarbeiten.
-    Mit Cache werden unveränderte Listen per ETag übersprungen (siehe fetchcache.py).
+    That keeps the event loop free for more downloads instead of working through regexes for minutes.
+    With the cache, unchanged lists are skipped via ETag (see fetchcache.py).
     """
     res = ScrapeResult(list(sources))
     cache = cache or FetchCache(enabled=False)
-    # Für den Cache immer alle Typen parsen, gefiltert wird erst beim Einsortieren
+    # always parse every type for the cache, filtering only happens when sorting them in
     parse_types = PROXY_TYPES if cache.enabled else tuple(types)
     prefixes = tuple(f"{t} " for t in types)
     loop = asyncio.get_running_loop()
@@ -120,7 +120,7 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
     with ProcessPoolExecutor(max_workers=max(1, (os.cpu_count() or 2) - 1)) as pool:
 
         async def download(url: str):
-            """-> (Daten, Schlüssel aus dem Cache). Genau eins von beiden ist gesetzt."""
+            """-> (data, keys from the cache). Exactly one of the two is set."""
             conditional = cache.conditional_headers(url, sources[url])
             async with sem:
                 status, headers, body = await http_request(url, timeout=30, headers=conditional or None)
@@ -128,7 +128,7 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
                 cached = cache.load(url)
                 if cached is not None:
                     return None, headers, cached
-                async with sem:  # Cache-Datei kaputt -> normal neu laden
+                async with sem:  # cache file broken -> just load it again
                     status, headers, body = await http_request(url, timeout=30)
             if status != 200:
                 raise ConnectionError(f"HTTP {status}")
@@ -150,7 +150,7 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
                     else:
                         keys = await loop.run_in_executor(pool, parse_blob, data, sources[url], parse_types)
                     cache.store(url, headers, keys, sources[url])
-            except Exception:  # Quelle nicht erreichbar/kaputt – zählt in der Statistik als Fehlschlag
+            except Exception:  # source unreachable/broken – counts as a failure in the statistics
                 pass
             n = 0
             if keys:
@@ -177,9 +177,9 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
 
 
 def prioritize(res: ScrapeResult, quality: srcs.SourceStats, history: ProxyHistory, types) -> List[str]:
-    """Reihenfolge der Prüfung: bekannte funktionierende Proxys zuerst, dann nach Qualität der Quellen.
+    """Order of checking: known working proxies first, then by quality of the sources.
 
-    Innerhalb gleicher Quellenqualität gewinnen Proxys, die in mehr Listen stehen.
+    Within the same source quality, proxies that appear in more lists win.
     """
     wanted = set(types)
     known = [k for k in history.ranked_keys() if split_key(k)[0] in wanted]
@@ -187,7 +187,7 @@ def prioritize(res: ScrapeResult, quality: srcs.SourceStats, history: ProxyHisto
 
     scores = [quality.score(u) for u in res.urls]
     keys = [k for k in res.index if k not in known_set]
-    random.shuffle(keys)  # echten Gleichstand zufällig mischen, damit alle Typen vorankommen
+    random.shuffle(keys)  # shuffle real ties so every type makes progress
     index = res.index
 
     def priority(key: str) -> float:
@@ -202,7 +202,7 @@ def prioritize(res: ScrapeResult, quality: srcs.SourceStats, history: ProxyHisto
 
 
 def attribute_results(res: ScrapeResult, checked: List[str], working: Set[str]) -> Dict[str, Tuple[int, int]]:
-    """Ergebnisse den Quellen zuordnen -> url -> (geprüft, funktionierend)."""
+    """Attribute results to the sources -> url -> (checked, working)."""
     n_checked = [0] * len(res.urls)
     n_working = [0] * len(res.urls)
     for key in checked:
@@ -222,7 +222,7 @@ def best_sources(per_source: Dict[str, Tuple[int, int]], limit: int = 10, min_ch
 
 
 # --------------------------------------------------------------------------- #
-# Prüfen
+# Checking
 # --------------------------------------------------------------------------- #
 
 @dataclass
@@ -232,15 +232,15 @@ class CheckRun:
     working: Set[str] = field(default_factory=set)
     interrupted: bool = False
     reached_goal: bool = False
-    judge_switches: List[str] = field(default_factory=list)  # "alt → neu"
-    rechecked: int = 0  # Prüfungen, die wegen eines ausgefallenen Prüfziels wiederholt wurden
+    judge_switches: List[str] = field(default_factory=list)  # "old → new"
+    rechecked: int = 0  # checks that were repeated because a check target went down
 
 
 class JobQueue:
-    """Iterator über die Jobs, der auch nach dem Leerlaufen noch Nachzügler annimmt.
+    """Iterator over the jobs that still accepts stragglers after running empty.
 
-    Ein Generator wäre nach dem ersten StopIteration für immer erschöpft – dann würde ein Proxy,
-    den ein noch laufender Worker nach einem Prüfziel-Wechsel zurücklegt, nie mehr geprüft."""
+    A generator would be exhausted forever after the first StopIteration – a proxy that a still
+    running worker puts back after a check-target switch would then never be checked again."""
 
     def __init__(self, jobs: Iterable[str]):
         self.jobs = iter(jobs)
@@ -268,31 +268,31 @@ async def run_checks(
     watch: Optional[JudgeWatch] = None,
     providers: Optional[ProviderLookup] = None,
 ) -> CheckRun:
-    """Prüft `jobs` mit `opts.concurrency` parallelen Workern bis alles durch, das Ziel erreicht
-    oder Strg+C gedrückt ist.
+    """Checks `jobs` with `opts.concurrency` parallel workers until everything is done, the goal is
+    reached or Ctrl+C is pressed.
 
-    Mit `watch` wird das Prüfziel überwacht: Fällt es aus, werden die Prüfungen seit der letzten
-    erfolgreichen Kontrolle wiederholt und zählen nicht für die Quellen-Statistik."""
+    With `watch` the check target is monitored: if it goes down, the checks since the last successful
+    probe are repeated and don't count for the source statistics."""
     loop = asyncio.get_running_loop()
     stats = dashboard.s
     filters, details, want = opts.filters, opts.details, opts.want
     run = CheckRun()
     written: Set[str] = set()
-    enriched: Set[str] = set()  # Treffer mit abgeschlossener Detailprüfung (HTTPS kann dabei offen bleiben)
+    enriched: Set[str] = set()  # hits with a finished detail check (HTTPS may stay open)
     by_exit_ip: Dict[str, List[CheckResult]] = {}
-    pending = JobQueue(jobs)  # alle Worker ziehen aus derselben Queue – in asyncio ohne Lock sicher
+    pending = JobQueue(jobs)  # all workers pull from the same queue – safe in asyncio without a lock
 
-    # Prüfziel-Ausfälle: Jede Prüfung merkt sich, mit welchem Ziel ("Generation") und als wievielte sie begann.
-    # Beim Wechsel wird die alte Generation ab der letzten guten Kontrolle verdächtig – Fehlschläge
-    # daraus werden wiederholt, auch solche, die erst nach dem Wechsel fertig werden. Treffer sind
-    # nie verdächtig (der Proxy hat ja funktioniert), so wird jede Prüfung genau einmal gewertet.
+    # Check target outages: every check remembers which target ("generation") it started with and its number.
+    # On a switch the old generation becomes suspicious from the last good probe on – failures from it
+    # are repeated, including those that only finish after the switch. Hits are never suspicious
+    # (the proxy did work), so every check is counted exactly once.
     generation = 0
-    # Reihenfolge statt Uhrzeit: jede Prüfung bekommt beim Start eine laufende Nummer. Die Uhr der Event-Loop
-    # ist unter Windows nur auf ~15 ms genau – zwei Ereignisse bekämen dort leicht denselben Zeitstempel.
+    # Order instead of clock time: every check gets a running number when it starts. The event loop clock
+    # is only accurate to ~15 ms on Windows – two events could easily get the same timestamp there.
     started_count = 0
-    last_ok = 0  # so viele Prüfungen hatten bei der letzten guten Kontrolle begonnen (0 = Lauf-Start)
-    suspect_since: Dict[int, int] = {}       # abgelöste Generation -> Prüfungen ab dieser Nummer verdächtig
-    recent_failures: List[Tuple[int, int, str]] = []  # Fehlschläge seit der letzten guten Kontrolle
+    last_ok = 0  # this many checks had started at the last good probe (0 = start of the run)
+    suspect_since: Dict[int, int] = {}       # replaced generation -> checks from this number on are suspicious
+    recent_failures: List[Tuple[int, int, str]] = []  # failures since the last good probe
 
     def is_suspect(gen: int, started: int) -> bool:
         return gen in suspect_since and started > suspect_since[gen]
@@ -311,7 +311,7 @@ async def run_checks(
         nonlocal generation, last_ok
         suspect_since[generation] = last_ok
         generation += 1
-        last_ok = started_count  # das neue Ziel wurde gerade erfolgreich geprüft – ab hier die Basislinie
+        last_ok = started_count  # the new target was just probed successfully – the baseline from here on
         failed = {key for gen, started, key in recent_failures if is_suspect(gen, started)}
         recent_failures.clear()
         if failed:
@@ -325,11 +325,11 @@ async def run_checks(
     all_workers: Optional[asyncio.Future] = None
 
     def consider(r: CheckResult) -> None:
-        """Live-Datei & Zielzähler, sobald alle für die Filter nötigen Infos da sind."""
+        """Live file & goal counter, as soon as all the info the filters need is there."""
         if r.key in written or (details and r.key not in enriched):
             return
         if filters.countries and not r.country:
-            return  # Land kommt noch – on_country ruft erneut auf
+            return  # country still coming – on_country calls again
         if filters.accepts(r):
             written.add(r.key)
             stats.passing += 1
@@ -358,18 +358,18 @@ async def run_checks(
             stats.add_checked(key.split(" ", 1)[0])
             dashboard.advance()
             if r is None and is_suspect(gen, started):
-                requeue([key])  # erst nach dem Wechsel fertig geworden – trotzdem ein Opfer des Ausfalls
+                requeue([key])  # only finished after the switch – still a victim of the outage
                 continue
             run.checked.append(key)
             if r is None:
                 if watch:
                     recent_failures.append((gen, started, key))
                 continue
-            # Zweite, unabhängige Anfrage – Honeypots bestehen die erste Prüfung oft zufällig
+            # second, independent request – honeypots often pass the first check by chance
             if not await checker.confirm(r):
                 stats.fakes += 1
                 continue
-            # Dritte Anfrage: kommt eine bekannte Seite unverändert an? Sonst schleust der Proxy etwas ein
+            # third request: does a known page arrive unchanged? Otherwise the proxy injects something
             if await checker.tampers(r):
                 stats.tampered += 1
                 continue
@@ -383,7 +383,7 @@ async def run_checks(
                 stats.countries[r.country] += 1
             stats.add_working(r)
             if details:
-                # HTTPS-Test nur, wenn der Proxy die Filter überhaupt noch erfüllen kann
+                # HTTPS test only if the proxy can still pass the filters at all
                 if filters.may_pass(r):
                     await checker.enrich(r)
                     enriched.add(r.key)
@@ -395,7 +395,7 @@ async def run_checks(
     with live_factory(dashboard):
         workers = [asyncio.ensure_future(worker()) for _ in range(min(opts.concurrency, len(jobs)))]
         all_workers = asyncio.gather(*workers)
-        # Strg+C bricht sauber ab, damit die Ergebnisse trotzdem gespeichert werden (auch unter Windows)
+        # Ctrl+C stops cleanly so the results still get saved (on Windows too)
         with on_interrupt(loop, all_workers.cancel):
             try:
                 await all_workers
@@ -404,10 +404,10 @@ async def run_checks(
 
     if watch_task:
         watch_task.cancel()
-    # Offene Länder-Abfragen noch abwarten (höchstens kurz)
+    # wait for open country lookups (briefly at most)
     geo.stop()
     if geo.pending and not geo.failed:
-        message = f"[bold {ACCENT}]Ermittle Länder für {fmt(len(geo.pending))} Exit-IPs …"
+        message = f"[bold {ACCENT}]Looking up countries for {fmt(len(geo.pending))} exit IPs …"
         with widgets.console.status(message, spinner="dots"), contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(asyncio.shield(geo_task), 30)
     geo_task.cancel()

@@ -1,11 +1,11 @@
 """
-Quellenverwaltung für den Proxy-Scraper:
+Source management for the proxy scraper:
 
-- lädt die kuratierte Quellenliste (sources.json) und per --discover gefundene Quellen,
-- löst Meta-Quellen auf (fremd gepflegte Listen von Quell-URLs),
-- findet neue Proxy-Listen auf GitHub,
-- merkt sich pro Quelle, wie viele ihrer Proxys wirklich funktionieren, und
-  überspringt tote, veraltete oder unerreichbare Quellen.
+- loads the curated source list (sources.json) and sources found with --discover,
+- resolves meta sources (lists of source URLs maintained by others),
+- finds new proxy lists on GitHub,
+- remembers per source how many of its proxies really work, and
+  skips dead, outdated or unreachable sources.
 """
 
 from __future__ import annotations
@@ -33,7 +33,7 @@ DISCOVERED_FILE = DATA_DIR / "sources_discovered.json"
 STATS_FILE = DATA_DIR / "source_stats.json"
 
 GH_RAW = "https://raw.githubusercontent.com"
-# "auto" = Liste enthält typ://ip:port-Zeilen, der Typ steht pro Zeile
+# "auto" = the list contains type://ip:port lines, the type is given per line
 SOURCE_TYPES = (*PROXY_TYPES, "auto")
 
 # url -> Typ
@@ -42,17 +42,17 @@ Getter = Callable[..., Awaitable[bytes]]
 
 
 # --------------------------------------------------------------------------- #
-# URLs & Quellenlisten
+# URLs & source lists
 # --------------------------------------------------------------------------- #
 
 _GH_BLOB_RE = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/(?:raw|blob)/(?:refs/heads/)?(.+)$")
 
 
 def normalize_url(url: str) -> Optional[str]:
-    """Vereinheitlicht Quell-URLs, damit dieselbe Datei nicht mehrfach geladen wird.
+    """Normalizes source URLs so the same file isn't loaded several times.
 
-    github.com/…/raw/… -> raw.githubusercontent.com/…, '/refs/heads/' entfällt,
-    Format-Anhänge wie ',,ColonURL' werden abgeschnitten. Vorlagen mit {…} -> None.
+    github.com/…/raw/… -> raw.githubusercontent.com/…, '/refs/heads/' is dropped,
+    format suffixes like ',,ColonURL' are cut off. Templates with {…} -> None.
     """
     url = url.strip().split(",", 1)[0].strip()
     if not url.startswith(("http://", "https://")) or "{" in url:
@@ -73,7 +73,7 @@ def _add(target: SourceMap, url: str, ptype: str) -> None:
 
 
 def load_source_file(path: Path = SOURCES_FILE) -> Tuple[SourceMap, List[dict]]:
-    """Liest sources.json -> (Quellen, Meta-Quellen)."""
+    """Reads sources.json -> (sources, meta sources)."""
     data = json.loads(path.read_text(encoding="utf-8"))
     sources: SourceMap = {}
     for ptype, urls in data.get("sources", {}).items():
@@ -96,7 +96,7 @@ def load_discovered(path: Path = DISCOVERED_FILE) -> SourceMap:
 
 
 def discovered_age_days(path: Path = DISCOVERED_FILE) -> Optional[float]:
-    """Alter der letzten Discovery in Tagen, None wenn es noch keine gab."""
+    """Age of the last discovery in days, None if there hasn't been one yet."""
     try:
         generated = json.loads(path.read_text(encoding="utf-8"))["generated"]
         return (datetime.now(timezone.utc) - datetime.fromisoformat(generated)).total_seconds() / DAY
@@ -110,11 +110,11 @@ def save_discovered(sources: SourceMap, path: Path = DISCOVERED_FILE) -> None:
 
 
 # --------------------------------------------------------------------------- #
-# Meta-Quellen: fremd gepflegte Listen von Quell-URLs
+# meta sources: lists of source URLs maintained by others
 # --------------------------------------------------------------------------- #
 
 def parse_url_list(data: bytes, ptype: str) -> SourceMap:
-    """Eine Quell-URL pro Zeile (z. B. gfpcom/free-proxy-list/sources/http.txt)."""
+    """One source URL per line (e.g. gfpcom/free-proxy-list/sources/http.txt)."""
     out: SourceMap = {}
     for line in data.decode("utf-8", "ignore").splitlines():
         line = line.strip()
@@ -128,9 +128,9 @@ _TOML_URL_RE = re.compile(r'"(https?://[^"]+)"')
 
 
 def parse_monosans_toml(data: bytes) -> SourceMap:
-    """URLs aus den [scraping.<typ>]-Abschnitten der config.toml von monosans/proxy-scraper-checker.
+    """URLs from the [scraping.<type>] sections of monosans/proxy-scraper-checker's config.toml.
 
-    Python 3.9 hat kein tomllib – für diese flache Struktur reicht ein Zeilen-Parser.
+    Python 3.9 has no tomllib – a line parser is enough for this flat structure.
     """
     out: SourceMap = {}
     section = None
@@ -154,7 +154,7 @@ META_PARSERS: Dict[str, Callable[[bytes, dict], SourceMap]] = {
 
 
 async def resolve_meta(meta: List[dict], get: Getter) -> Tuple[SourceMap, int]:
-    """Lädt alle Meta-Quellen -> (gefundene Quellen, Anzahl erfolgreich geladener Meta-Quellen)."""
+    """Loads every meta source -> (sources found, number of meta sources loaded successfully)."""
 
     async def one(entry: dict) -> Optional[SourceMap]:
         parser = META_PARSERS.get(entry.get("format", "url-list"))
@@ -162,7 +162,7 @@ async def resolve_meta(meta: List[dict], get: Getter) -> Tuple[SourceMap, int]:
             return None
         try:
             return parser(await get(entry["url"], timeout=20), entry)
-        except Exception:  # Meta-Quelle nicht erreichbar -> nur weniger Quellen, kein Abbruch
+        except Exception:  # meta source unreachable -> just fewer sources, no abort
             return None
 
     found: SourceMap = {}
@@ -190,8 +190,8 @@ DISCOVERY_QUERIES = (
     "free proxy in:name,description",
     "proxies in:name",
 )
-# Pfade, die zwar auf .txt enden, aber keine (vollständigen) Proxy-Listen sind:
-# VPN-Konfigs, Länder-/ASN-Aufteilungen (nur Teilmengen), Archive, Blocklisten …
+# paths that end in .txt but aren't (complete) proxy lists:
+# VPN configs, splits by country/ASN (subsets only), archives, blocklists …
 _PATH_REJECT_RE = re.compile(
     r"(v2ray|vmess|vless|trojan|shadowsocks|(^|[/_\-])ssr?([/_\-.]|$)|clash|mtproto|wireguard|hysteria|tuic"
     r"|readme|license|requirements|block|countr|geo|/asn/|archive|history|backup|old/|test"
@@ -200,11 +200,11 @@ _PATH_REJECT_RE = re.compile(
 _PATH_TYPE_RE = re.compile(r"(socks5|socks4|https?)")
 _FILE_GENERIC_RE = re.compile(r"(^|[/_\-.])(proxy|proxies|all)[^/]*\.txt$")
 MAX_FILES_PER_REPO = 12
-MAX_REPOS_PER_OWNER = 3  # gegen Spam-Konten mit Dutzenden identischer Klon-Repos
+MAX_REPOS_PER_OWNER = 3  # against spam accounts with dozens of identical clone repos
 
 
 def classify_path(path: str) -> Optional[str]:
-    """Proxy-Typ einer Datei anhand ihres Pfads, oder None, wenn sie nicht nach Proxy-Liste aussieht."""
+    """Proxy type of a file from its path, or None if it doesn't look like a proxy list."""
     p = path.lower()
     if not p.endswith(".txt") or p.count("/") > 3 or _PATH_REJECT_RE.search(p):
         return None
@@ -215,7 +215,7 @@ def classify_path(path: str) -> Optional[str]:
 
 
 def github_token() -> Optional[str]:
-    """Token aus GITHUB_TOKEN/GH_TOKEN oder der gh-CLI – hebt das API-Limit von 60 auf 5000 Anfragen/h."""
+    """Token from GITHUB_TOKEN/GH_TOKEN or the gh CLI – raises the API limit from 60 to 5000 requests/h."""
     for key in ("GITHUB_TOKEN", "GH_TOKEN"):
         if os.environ.get(key):
             return os.environ[key].strip()
@@ -235,7 +235,7 @@ async def discover_github(
     days: int = 3,
     on_progress: Optional[Callable[[str], None]] = None,
 ) -> SourceMap:
-    """Sucht aktiv gepflegte Proxy-Listen-Repos und deren Listendateien."""
+    """Looks for actively maintained proxy list repos and their list files."""
     headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -247,13 +247,13 @@ async def discover_github(
             query = urlencode({"q": f"{q} pushed:>{since}", "sort": "stars", "per_page": 100, "page": page})
             try:
                 data = json.loads(await get(f"https://api.github.com/search/repositories?{query}", headers=headers))
-            except Exception:  # Rate-Limit o. ä. – mit dem weitermachen, was schon da ist
+            except Exception:  # rate limit or similar – carry on with what we already have
                 break
             items = data.get("items", [])
             for it in items:
                 repos.setdefault(it["full_name"], (it["default_branch"], it["stargazers_count"]))
             if on_progress:
-                on_progress(f"{len(repos)} Repos gefunden")
+                on_progress(f"{len(repos)} repos found")
             if len(items) < 100:
                 break
 
@@ -286,7 +286,7 @@ async def discover_github(
                 ptype = classify_path(entry["path"])
                 if ptype:
                     files.append((entry["path"].count("/"), entry["path"], ptype))
-        files.sort()  # flache Pfade zuerst – die sind meist die Gesamtlisten
+        files.sort()  # shallow paths first – those are usually the complete lists
         return {
             f"{GH_RAW}/{name}/{branch}/{quote(path)}": ptype
             for _depth, path, ptype in files[:MAX_FILES_PER_REPO]
@@ -299,15 +299,15 @@ async def discover_github(
 
 
 # --------------------------------------------------------------------------- #
-# Qualität pro Quelle lernen
+# learning the quality of each source
 # --------------------------------------------------------------------------- #
 
 DAY = 86400.0
-DECAY = 0.5                 # ältere Läufe zählen je Lauf nur noch halb
-PRIOR_HITS, PRIOR_MISSES = 1.0, 30.0   # neue Quellen starten bei ~3 % Trefferquote
-STALE_AFTER = 7 * DAY       # Inhalt seit einer Woche unverändert -> Liste wird nicht mehr gepflegt
-DEAD_MIN_CHECKED = 300      # so viele Prüfungen ohne Treffer -> Quelle gilt als tot
-UNREACHABLE_STREAK = 3      # so oft hintereinander nicht ladbar -> Pause
+DECAY = 0.5                 # older runs count half as much with every run
+PRIOR_HITS, PRIOR_MISSES = 1.0, 30.0   # new sources start at a ~3 % hit rate
+STALE_AFTER = 7 * DAY       # content unchanged for a week -> the list is no longer maintained
+DEAD_MIN_CHECKED = 300      # this many checks without a hit -> the source counts as dead
+UNREACHABLE_STREAK = 3      # failed to load this many times in a row -> pause
 UNREACHABLE_PAUSE = 2 * DAY
 
 
@@ -319,13 +319,13 @@ class SourceRecord:
     count: int = 0
     content_hash: str = ""
     last_change: float = 0.0
-    checked: float = 0.0  # abklingende Summen über die Läufe
+    checked: float = 0.0  # decaying sums over the runs
     working: float = 0.0
     runs: int = 0
 
     @property
     def score(self) -> float:
-        """Geschätzte Trefferquote (Bayes-geglättet, damit 1 von 1 nicht 100 % bedeutet)."""
+        """Estimated hit rate (Bayesian smoothing, so 1 out of 1 doesn't mean 100 %)."""
         return (self.working + PRIOR_HITS) / (self.checked + PRIOR_HITS + PRIOR_MISSES)
 
 
@@ -338,8 +338,8 @@ class SourceStats:
                 raw = json.loads(path.read_text(encoding="utf-8"))
                 self.records = {url: SourceRecord(**rec) for url, rec in raw.items()}
             except (OSError, ValueError, TypeError) as e:
-                # Kaputte Statistik ist kein Grund abzubrechen – dann wird eben neu gelernt
-                warnings.warn(f"{path.name} unlesbar ({e}), starte ohne Quellen-Statistik", stacklevel=2)
+                # broken statistics are no reason to abort – we just learn again
+                warnings.warn(f"{path.name} unreadable ({e}), starting without source statistics", stacklevel=2)
 
     def get(self, url: str) -> SourceRecord:
         return self.records.get(url) or SourceRecord()
@@ -353,21 +353,21 @@ class SourceStats:
             return None
         now = time.time() if now is None else now
         if rec.fail_streak >= UNREACHABLE_STREAK and now - rec.last_fetch < UNREACHABLE_PAUSE:
-            return "unerreichbar"
+            return "unreachable"
         if rec.last_change and now - rec.last_change > STALE_AFTER and now - rec.first_seen > STALE_AFTER:
-            return "veraltet"
+            return "outdated"
         if rec.runs >= 2 and rec.checked >= DEAD_MIN_CHECKED and rec.working < 0.5:
-            return "tot"
+            return "dead"
         return None
 
     def record_fetch(self, url: str, data: Optional[bytes], count: int, now: Optional[float] = None,
                      unchanged: bool = False) -> None:
-        """unchanged=True: Server hat mit 304 geantwortet – erreichbar, Inhalt wie beim letzten Mal.
-        Dann bleiben Hash und last_change stehen, die Veraltet-Erkennung läuft also normal weiter."""
+        """unchanged=True: the server answered 304 – reachable, same content as last time.
+        Hash and last_change stay as they are, so the outdated detection keeps working normally."""
         now = time.time() if now is None else now
         rec = self.records.setdefault(url, SourceRecord(first_seen=now))
         rec.last_fetch = now
-        if unchanged:  # auch mit 0 passenden Proxys (z. B. andere --types): die Quelle hat geantwortet
+        if unchanged:  # also with 0 matching proxies (e.g. other --types): the source did answer
             rec.fail_streak = 0
             rec.count = count
             return
@@ -382,7 +382,7 @@ class SourceStats:
             rec.last_change = now
 
     def record_checks(self, results: Dict[str, Tuple[int, int]]) -> None:
-        """results: url -> (geprüft, funktionierend) in diesem Lauf."""
+        """results: url -> (checked, working) in this run."""
         for url, (checked, working) in results.items():
             if not checked:
                 continue

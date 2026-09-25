@@ -1,12 +1,12 @@
-"""Anbieter (ASN) der Exit-IPs offline – mit der freien ASN-Datenbank von DB-IP (DB-IP Lite, CC BY 4.0).
+"""Providers (ASN) of the exit IPs offline – with the free ASN database from DB-IP (DB-IP Lite, CC BY 4.0).
 
-Wie geodb.py: einmal im Monat laden (≈ 7 MB gzip, ~400.000 IPv4-Bereiche), in Arrays umwandeln,
-Lookup per Binärsuche. Dazu eine Einschätzung, ob der Anbieter ein Rechenzentrum/Hoster ist –
-Proxys mit Exit in Rechenzentren werden von vielen Seiten schneller gesperrt als solche bei
-Heim- oder Mobilfunkanschlüssen.
+Like geodb.py: load once a month (≈ 7 MB gzip, ~400,000 IPv4 ranges), turn it into arrays,
+look up by binary search. Plus a guess whether the provider is a datacenter/hoster – proxies
+that exit from datacenters get blocked by many sites sooner than those on home or mobile
+connections.
 
-Die Einschätzung ist eine Heuristik über den Anbieternamen (Cloud, Hosting, bekannte Hoster), keine
-Gewissheit. Gemessen an 316 funktionierenden Proxys lagen so ~45 % in Rechenzentren.
+The guess is a heuristic over the provider name (cloud, hosting, known hosters), not a
+certainty. Measured on 316 working proxies, ~45 % exited from datacenters this way.
 
 IP Geolocation by DB-IP: https://db-ip.com
 """
@@ -84,7 +84,7 @@ class AsnDB:
 
     @classmethod
     def from_csv(cls, text: str, month: str) -> "AsnDB":
-        """DB-IP-CSV ("start,end,asn,\\"Anbieter\\"") -> nur IPv4. Anbieternamen werden nur einmal gespeichert."""
+        """DB-IP CSV ("start,end,asn,\\"provider\\"") -> IPv4 only. Provider names are stored just once."""
         starts, ends, asns, org_index = array("I"), array("I"), array("I"), array("I")
         orgs: List[str] = []
         seen = {}
@@ -127,7 +127,7 @@ class AsnDB:
                 month = fh.read(7).decode("ascii").strip()
                 count, table_len = struct.unpack("!II", fh.read(8))
                 if size != len(MAGIC) + 7 + 8 + count * 16 + table_len:
-                    return None  # abgeschnitten oder kaputt – nicht blind Speicher reservieren
+                    return None  # truncated or broken – don't blindly allocate memory
                 arrays = []
                 for _ in range(4):
                     arr = array("I")
@@ -147,7 +147,7 @@ def is_current(db: Optional[AsnDB], today: Optional[date] = None) -> bool:
 
 
 async def load_asn_db(path: Path = DB_FILE, today: Optional[date] = None, fetch=http_get) -> Optional[AsnDB]:
-    """Datenbank aus data/ – einmal im Monat neu von DB-IP. Lädt ggf. herunter, deshalb im Hintergrund aufrufen."""
+    """Database from data/ – new from DB-IP once a month. May download, so call it in the background."""
     today = today or date.today()
     current = AsnDB.load(path)
     if is_current(current, today):
@@ -158,7 +158,7 @@ async def load_asn_db(path: Path = DB_FILE, today: Optional[date] = None, fetch=
         try:
             data = await fetch(URL.format(month=month), timeout=30)
             db = AsnDB.from_csv(gzip.decompress(data).decode("utf-8", "replace"), month)
-        except Exception:  # nicht erreichbar oder kaputt – nächsten Monat versuchen bzw. alte Datei nehmen
+        except Exception:  # unreachable or broken – try the next month or keep the old file
             continue
         if len(db) > 1000:
             db.save(path)
@@ -167,7 +167,7 @@ async def load_asn_db(path: Path = DB_FILE, today: Optional[date] = None, fetch=
 
 
 class ProviderLookup:
-    """Hält die (evtl. erst später geladene) Datenbank und trägt Anbieter in Treffer ein."""
+    """Holds the database (which may only be loaded later) and fills in the provider of hits."""
 
     def __init__(self, db: Optional[AsnDB] = None):
         self.db = db

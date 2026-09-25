@@ -21,7 +21,7 @@ def test_env_overrides_data_dir(tmp_path):
 
 
 def test_checkout_detection(tmp_path):
-    assert paths.is_checkout()  # die Tests laufen aus dem Repo
+    assert paths.is_checkout()  # the tests run from the repo
     assert not paths.is_checkout(tmp_path)
 
 

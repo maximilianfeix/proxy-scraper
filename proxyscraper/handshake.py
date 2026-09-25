@@ -1,10 +1,10 @@
-"""Verbindungsaufbau durch HTTP-, SOCKS4- und SOCKS5-Proxys – für Checker und Proxy-Server.
+"""Connecting through HTTP, SOCKS4 and SOCKS5 proxies – for the checker and the proxy server.
 
-Proxys mit Zugangsdaten stehen als "user:pass@ip:port" im Schlüssel, Benutzer und Passwort
-URL-kodiert (sonst würden ":" oder "@" im Passwort alles durcheinanderbringen).
+Proxies with credentials appear as "user:pass@ip:port" in the key, user and password
+URL-encoded (otherwise ":" or "@" in the password would mess everything up).
 
-Die Funktionen bekommen send/recv_exact statt eines Streams, weil der HTTPS-Test mit
-nackten Sockets arbeitet und der Rest mit asyncio-Streams.
+The functions get send/recv_exact instead of a stream because the HTTPS test works with
+bare sockets and everything else with asyncio streams.
 """
 
 from __future__ import annotations
@@ -38,7 +38,7 @@ class Endpoint:
 
 
 def parse_endpoint(proxy: str) -> Endpoint:
-    """'user:pass@1.2.3.4:1080' oder '1.2.3.4:1080' -> Endpoint."""
+    """'user:pass@1.2.3.4:1080' or '1.2.3.4:1080' -> Endpoint."""
     auth, _, address = proxy.rpartition("@")
     host, _, port = address.rpartition(":")
     user, _, password = auth.partition(":")
@@ -46,14 +46,14 @@ def parse_endpoint(proxy: str) -> Endpoint:
 
 
 def format_auth(user: str, password: str) -> str:
-    """Benutzer und Passwort so kodieren, wie sie im Schlüssel stehen ('' ohne Benutzer)."""
+    """Encode user and password the way they appear in the key ('' without a user)."""
     if not user:
         return ""
     return quote(user, safe="") + (":" + quote(password, safe="") if password else "")
 
 
 def proxy_authorization(ep: Endpoint) -> bytes:
-    """Header-Zeile für HTTP-Proxys (inkl. \\r\\n), leer ohne Zugangsdaten."""
+    """Header line for HTTP proxies (incl. \\r\\n), empty without credentials."""
     if not ep.has_auth:
         return b""
     token = base64.b64encode(f"{ep.user}:{ep.password}".encode()).decode()
@@ -61,19 +61,19 @@ def proxy_authorization(ep: Endpoint) -> bytes:
 
 
 def with_proxy_auth(request: bytes, ep: Endpoint) -> bytes:
-    """Hängt Proxy-Authorization an den Kopf einer fertigen HTTP-Anfrage (endet auf \\r\\n\\r\\n)."""
+    """Appends Proxy-Authorization to the head of a finished HTTP request (ends with \\r\\n\\r\\n)."""
     header = proxy_authorization(ep)
     return request[:-2] + header + b"\r\n" if header else request
 
 
 async def socks4(send: Send, recv_exact: RecvExact, ep: Endpoint, ip_bytes: bytes, port: int) -> bool:
-    """SOCKS4 CONNECT; der Benutzername landet im User-ID-Feld (ein Passwort kennt SOCKS4 nicht)."""
+    """SOCKS4 CONNECT; the user name goes into the user ID field (SOCKS4 has no password)."""
     await send(b"\x04\x01" + port.to_bytes(2, "big") + ip_bytes + ep.user.encode()[:255] + b"\x00")
     return (await recv_exact(8))[1] == 0x5A
 
 
 async def socks5(send: Send, recv_exact: RecvExact, ep: Endpoint, address: bytes, port: int) -> bool:
-    """SOCKS5 CONNECT zu address (ATYP + Adresse, siehe socks5_ipv4/socks5_domain)."""
+    """SOCKS5 CONNECT to address (ATYP + address, see socks5_ipv4/socks5_domain)."""
     methods = bytes([SOCKS5_NO_AUTH, SOCKS5_USER_PASS]) if ep.has_auth else bytes([SOCKS5_NO_AUTH])
     await send(b"\x05" + bytes([len(methods)]) + methods)
     reply = await recv_exact(2)
@@ -119,7 +119,7 @@ async def socks5_reply_ok(recv_exact: RecvExact) -> bool:
 
 
 def stream_io(reader, writer):
-    """send/recv_exact für asyncio-Streams."""
+    """send/recv_exact for asyncio streams."""
     async def send(data: bytes) -> None:
         writer.write(data)
         await writer.drain()

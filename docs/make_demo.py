@@ -1,14 +1,14 @@
-"""Erzeugt die Bilder für die README aus echten Programmansichten.
+"""Renders the README images from real program views.
 
     python3 docs/make_demo.py
 
-- docs/demo.svg       animiert: Einrichtungsassistent → Sammeln → Live-Dashboard → Bericht
-- docs/wizard.svg     Einrichtungsassistent
-- docs/dashboard.svg  Live-Dashboard
-- docs/summary.svg    Abschlussbericht
+- docs/demo.svg       animated: setup wizard → collecting → live dashboard → report
+- docs/wizard.svg     setup wizard
+- docs/dashboard.svg  live dashboard
+- docs/summary.svg    final report
 
-Alle Daten sind Beispiele; IP-Adressen stammen aus den Dokumentationsbereichen (RFC 5737).
-Flaggen-Emojis werden durch Ländercodes ersetzt, weil SVG-Schriften sie nicht darstellen.
+All data is made up; IP addresses come from the documentation ranges (RFC 5737).
+Flag emojis are replaced by country codes because SVG fonts can't show them.
 """
 
 from __future__ import annotations
@@ -32,7 +32,7 @@ from proxyscraper.options import RunOptions  # noqa: E402
 from proxyscraper.ui import dashboard, report, widgets  # noqa: E402
 from proxyscraper.ui import wizard as wizard_module  # noqa: E402
 
-# Die Bilder zeigen den Befehl, wie ihn Nutzer nach der Installation eintippen
+# the images show the command the way users type it after installing
 options_module.is_checkout = lambda: False
 
 DOCS = ROOT / "docs"
@@ -79,7 +79,7 @@ def live_stats(seed: int, checked_total: int, found: int, elapsed: float) -> das
         s.add_working(r)
         s.add_details(r)
         s.countries[r.country] += 1
-    s.results = list(s.recent)  # nur für die Demo
+    s.results = list(s.recent)  # only for the demo
     return s
 
 
@@ -87,7 +87,7 @@ def check_view(seed: int, checked: int, found: int, elapsed: float, passing: int
     s = live_stats(seed, checked, found, elapsed)
     s.passing = passing
     view = dashboard.CheckDashboard(s, Path("results/2026-09-24_18-42-07/all.txt"), 2000, True,
-                                    "nur HTTPS · mind. anonymous · ≤ 3000 ms", 50)
+                                    "HTTPS only · min. anonymous · ≤ 3000 ms", 50)
     clock = [1000.0]
     view.progress.get_time = lambda: clock[0]
     view.progress.update(view.task, completed=max(checked - 35_000, 0))
@@ -127,36 +127,36 @@ def summary_frame(seed: int):
         (0.087, 44, 506, "https://raw.githubusercontent.com/iplocate/free-proxy-list/main/protocols/socks5.txt"),
     ]
     files = {label: Path(f"results/2026-09-24_18-42-07/{name}") for label, name in (
-        ("Alle (typ://ip:port)", "all.txt"), ("http (ip:port)", "http.txt"),
+        ("All (type://ip:port)", "all.txt"), ("http (ip:port)", "http.txt"),
         ("socks5 (ip:port)", "socks5.txt"), ("Details (JSON)", "proxies.json"))}
     return s, rows, kept, best, files
 
 
 def setup_view() -> None:
-    """Vorbereitung wie im echten Lauf (Beispielwerte)."""
+    """Setup like in a real run (example values)."""
     widgets.console.print(widgets.banner())
-    widgets.section("Vorbereitung")
+    widgets.section("Setup")
     for label, value in (
-        ("Deine IP", "203.0.113.7"),
-        ("Prüfziel", "checkip.amazonaws.com  ·  Bestätigung über httpbin.org"),
-        ("Modus", "mit HTTPS-Test · Länder · Filter: nur HTTPS · stoppt bei 50 Treffern"),
-        ("Quellen", "726 aktiv  (328 kuratiert · 238 aus 5/5 Meta-Listen · 540 entdeckt)"),
-        ("Gesammelt", "1.018.830 einzigartige Proxys aus 501/501 Quellen  (162 MB in 28 s)"),
-        ("Verlauf", "644 früher funktionierende Proxys werden zuerst geprüft"),
+        ("Your IP", "203.0.113.7"),
+        ("Check target", "checkip.amazonaws.com  ·  confirmed via httpbin.org"),
+        ("Mode", "with HTTPS test · countries · filter: HTTPS only · stops at 50 hits"),
+        ("Sources", "726 active  (328 curated · 238 from 5/5 meta lists · 540 discovered)"),
+        ("Collected", "1,018,830 unique proxies from 501/501 sources  (162 MB in 28 s)"),
+        ("History", "644 proxies that worked before are checked first"),
     ):
         widgets.info(label, value)
     widgets.section_end()
 
 
 NEXT_STEPS = (
-    ("Schnellsten testen", "curl -x socks5h://198.51.100.20:1080 https://api.ipify.org"),
-    ("Als Proxy-Server", "proxy-scraper --recheck --serve"),
-    ("Später neu prüfen", "proxy-scraper --recheck"),
+    ("Test the fastest", "curl -x socks5h://198.51.100.20:1080 https://api.ipify.org"),
+    ("As a proxy server", "proxy-scraper --recheck --serve"),
+    ("Recheck later", "proxy-scraper --recheck"),
 )
 
 
 def render(renderable=None, printer=None, lines: int = 0) -> str:
-    """Rendert in eine aufzeichnende Konsole und gibt das SVG zurück (optional auf feste Zeilenzahl)."""
+    """Renders into a recording console and returns the SVG (optionally padded to a fixed number of lines)."""
     console = Console(width=WIDTH, record=True, force_terminal=True, color_system="truecolor", file=io.StringIO())
     widgets.console = console
     if printer:
@@ -177,7 +177,7 @@ def count_lines(renderable=None, printer=None) -> int:
 
 
 def animate(frames: list) -> str:
-    """Mehrere rich-SVGs zu einem animierten SVG kombinieren (reines CSS, läuft auf GitHub)."""
+    """Combines several rich SVGs into one animated SVG (plain CSS, works on GitHub)."""
     view_box = re.search(r'viewBox="([^"]+)"', frames[0]).group(1)
     n = len(frames)
     duration = n * SECONDS_PER_FRAME
@@ -204,7 +204,7 @@ def main() -> None:
     s, rows, kept, best, files = summary_frame(11)
 
     def print_summary():
-        report.render_summary(s, rows, kept[:12], best, files, True, "nur HTTPS · mind. anonymous", NEXT_STEPS)
+        report.render_summary(s, rows, kept[:12], best, files, True, "HTTPS only · min. anonymous", NEXT_STEPS)
 
     views = [
         {"renderable": start},
@@ -213,16 +213,16 @@ def main() -> None:
         {"renderable": Group(widgets.banner(), collect_view())},
         {"renderable": early},
         {"renderable": late},
-        {"printer": lambda: report.render_summary(s, rows, kept[:5], best[:2], {}, True, "nur HTTPS", NEXT_STEPS[:2])},
+        {"printer": lambda: report.render_summary(s, rows, kept[:5], best[:2], {}, True, "HTTPS only", NEXT_STEPS[:2])},
     ]
-    # Alle Frames auf die Höhe der größten Ansicht bringen, damit das Bild beim Wechsel nicht springt
+    # bring every frame to the height of the tallest view so the image doesn't jump between frames
     lines = max(count_lines(**view) for view in views)
     frames = [render(lines=lines, **view) for view in views]
     (DOCS / "demo.svg").write_text(animate(frames), encoding="utf-8")
     (DOCS / "wizard.svg").write_text(render(start), encoding="utf-8")
     (DOCS / "dashboard.svg").write_text(render(late), encoding="utf-8")
     (DOCS / "summary.svg").write_text(render(printer=print_summary), encoding="utf-8")
-    print("docs/demo.svg, wizard.svg, dashboard.svg, summary.svg geschrieben")
+    print("wrote docs/demo.svg, wizard.svg, dashboard.svg, summary.svg")
 
 
 if __name__ == "__main__":

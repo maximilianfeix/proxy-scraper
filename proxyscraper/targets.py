@@ -1,4 +1,4 @@
-"""Zielseiten für --target: Ein Proxy zählt nur, wenn er diese Seiten wirklich erreicht."""
+"""Target sites for --target: a proxy only counts if it really reaches these sites."""
 
 from __future__ import annotations
 
@@ -16,36 +16,36 @@ class Target:
 
     @property
     def host_header(self) -> str:
-        """Host-Header: mit Port, wenn er vom Standard abweicht – sonst landet man evtl. im falschen vHost."""
+        """Host header: with the port if it differs from the default – otherwise you may end up in the wrong vhost."""
         return self.host if self.port == (443 if self.tls else 80) else f"{self.host}:{self.port}"
 
     @property
     def label(self) -> str:
-        """Kurzname für Anzeigen: https://www.google.com/ -> google.com"""
+        """Short name for display: https://www.google.com/ -> google.com"""
         host = self.host[4:] if self.host.startswith("www.") else self.host
         default = 443 if self.tls else 80
         return host if self.port == default else f"{host}:{self.port}"
 
 
 def parse_target(text: str) -> Target:
-    """'google.com' -> https://google.com/ ; wirft ValueError bei Unbrauchbarem."""
+    """'google.com' -> https://google.com/ ; raises ValueError for anything unusable."""
     text = text.strip()
     if "://" not in text:
         text = "https://" + text
     u = urlsplit(text)
     if u.scheme not in ("http", "https"):
-        raise ValueError(f"nur http:// und https:// möglich, nicht {u.scheme}://")
+        raise ValueError(f"only http:// and https:// are possible, not {u.scheme}://")
     if not u.hostname:
-        raise ValueError(f"kein Host in {text!r}")
+        raise ValueError(f"no host in {text!r}")
     tls = u.scheme == "https"
     try:
         port = u.port
-    except ValueError as e:  # Port außerhalb 0–65535 o. ä.
-        raise ValueError(f"ungültiger Port in {text!r}") from e
+    except ValueError as e:  # port outside 0–65535 or similar
+        raise ValueError(f"invalid port in {text!r}") from e
     if port is None:
         port = 443 if tls else 80
-    elif port <= 0:  # ":0" nicht still durch den Standard-Port ersetzen
-        raise ValueError(f"ungültiger Port in {text!r}")
+    elif port <= 0:  # don't silently replace ":0" with the default port
+        raise ValueError(f"invalid port in {text!r}")
     path = (u.path or "/") + (f"?{u.query}" if u.query else "")
     default = 443 if tls else 80
     netloc = u.hostname if port == default else f"{u.hostname}:{port}"
@@ -53,7 +53,7 @@ def parse_target(text: str) -> Target:
 
 
 def target_label(url: str, others=()) -> str:
-    """Kurzname; bei Verwechslungsgefahr (http:// und https:// derselben Seite) mit Schema."""
+    """Short name; with the scheme when it could be confused (http:// and https:// of the same site)."""
     try:
         label = parse_target(url).label
     except ValueError:
@@ -63,7 +63,7 @@ def target_label(url: str, others=()) -> str:
     return label
 
 
-# Vorschläge für den Einrichtungsassistenten
+# suggestions for the setup wizard
 SUGGESTIONS = (
     ("Google", "https://www.google.com/"),
     ("YouTube", "https://www.youtube.com/"),

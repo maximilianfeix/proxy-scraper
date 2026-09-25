@@ -1,17 +1,17 @@
-"""Python-API: proxy-scraper aus eigenem Code benutzen.
+"""Python API: use proxy-scraper from your own code.
 
     from proxyscraper import find_proxies
 
-    if __name__ == "__main__":  # wichtig unter macOS/Windows, siehe unten
+    if __name__ == "__main__":  # important on macOS/Windows, see below
         for p in find_proxies(want=20, https=True, countries=["DE", "NL"]):
             print(p.url, p.latency, p.country)
 
-Dahinter läuft genau dasselbe wie in der Kommandozeile (Quellen, Lernen, Honeypot- und
-Manipulationsprüfung, Ergebnisdateien unter results/), nur ohne Ausgabe im Terminal.
+Behind it runs exactly the same as on the command line (sources, learning, honeypot and
+tampering checks, result files under results/), just without output in the terminal.
 
-Große Listen werden in einem Prozess-Pool geparst. Unter macOS und Windows startet der die
-Unterprozesse mit "spawn" und lädt dabei das aufrufende Skript neu – wie bei jedem Code mit
-multiprocessing gehört der Aufruf deshalb hinter `if __name__ == "__main__":`.
+Large lists are parsed in a process pool. On macOS and Windows it starts the worker processes
+with "spawn", which re-imports the calling script – as with any code that uses multiprocessing,
+the call therefore belongs behind `if __name__ == "__main__":`.
 """
 
 from __future__ import annotations
@@ -41,8 +41,8 @@ def _options(types: Iterable[str], want: int, limit: int, https: bool, countries
     if isinstance(countries, str):
         countries = parse_countries(countries)
     if anonymity not in ("", "anonymous", "elite"):
-        raise ValueError(f"anonymity muss '', 'anonymous' oder 'elite' sein, nicht {anonymity!r}")
-    # wie in der CLI: "google.com" -> "https://google.com/", doppelte raus, ungültige Ziele -> ValueError
+        raise ValueError(f"anonymity must be '', 'anonymous' or 'elite', not {anonymity!r}")
+    # like the CLI: "google.com" -> "https://google.com/", duplicates dropped, invalid targets -> ValueError
     targets = list(dict.fromkeys(parse_target(t).url for t in targets))
     return RunOptions(
         types=list(types),
@@ -52,14 +52,14 @@ def _options(types: Iterable[str], want: int, limit: int, https: bool, countries
     )
 
 
-# Ein Lauf nach dem anderen: Konsole, Verlauf und Quellen-Statistik sind global, und ein Lauf nutzt ohnehin
-# tausende Verbindungen gleichzeitig. Ein threading.Lock, damit das auch über Threads und Event-Loops hinweg gilt.
+# one run after the other: console, history and source statistics are global, and a run uses thousands
+# of connections at once anyway. A threading.Lock, so this also holds across threads and event loops.
 _RUN_LOCK = threading.Lock()
 
 
 @contextlib.asynccontextmanager
 async def _one_at_a_time():
-    # nicht blockierend warten: die Event-Loop läuft weiter, und ein Abbruch beim Warten hinterlässt keine Sperre
+    # wait without blocking: the event loop keeps running, and cancelling while waiting leaves no lock behind
     while not _RUN_LOCK.acquire(blocking=False):
         await asyncio.sleep(0.05)
     try:
@@ -70,7 +70,7 @@ async def _one_at_a_time():
 
 @contextlib.contextmanager
 def _quiet(verbose: bool):
-    """Die Oberfläche schreibt auf widgets.console – für die API in einen Puffer statt ins Terminal."""
+    """The UI writes to widgets.console – for the API into a buffer instead of the terminal."""
     if verbose:
         yield
         return
@@ -87,18 +87,18 @@ async def find_proxies_async(*, types: Iterable[str] = PROXY_TYPES, want: int = 
                              max_latency: int = 0, targets: Iterable[str] = (), no_datacenter: bool = False,
                              timeout: float = 8.0, concurrency: int = 2000, verbose: bool = False,
                              _recheck: Optional[str] = None) -> List[CheckResult]:
-    """Proxys sammeln und prüfen; gibt die Treffer zurück, die alle Filter erfüllen, schnellste zuerst.
+    """Collect and check proxies; returns the hits that pass every filter, fastest first.
 
-    want        aufhören, sobald so viele passende Proxys gefunden sind (0 = alles prüfen)
-    limit       nur die N vielversprechendsten Kandidaten prüfen (0 = alle)
-    https       nur Proxys, die HTTPS mit verifiziertem TLS tunneln
-    countries   z. B. ["DE", "AT"] oder "DE,AT"
-    anonymity   "anonymous" oder "elite" als Mindeststufe
-    max_latency in Millisekunden (0 = egal)
-    targets     Seiten, die jeder Proxy erreichen muss, z. B. ["google.com"]
-    verbose     die normale Oberfläche im Terminal zeigen
+    want        stop as soon as this many matching proxies are found (0 = check everything)
+    limit       only check the N most promising candidates (0 = all)
+    https       only proxies that tunnel HTTPS with verified TLS
+    countries   e.g. ["DE", "AT"] or "DE,AT"
+    anonymity   "anonymous" or "elite" as the minimum level
+    max_latency in milliseconds (0 = any)
+    targets     sites every proxy has to reach, e.g. ["google.com"]
+    verbose     show the normal terminal UI
     """
-    from .app import Run  # erst hier: app zieht die ganze Oberfläche nach
+    from .app import Run  # only here: app pulls in the whole UI
 
     opts = _options(types, want, limit, https, countries, anonymity, max_latency, targets, no_datacenter,
                     timeout, concurrency, _recheck)
@@ -107,19 +107,19 @@ async def find_proxies_async(*, types: Iterable[str] = PROXY_TYPES, want: int = 
             run = Run(opts, show_banner=verbose)
             await run.execute()
     found = sorted(run.kept, key=lambda r: r.latency)
-    # Beim Abbruch nach `want` laufen die gerade offenen Prüfungen noch zu Ende – die CLI schreibt alle in die
-    # Dateien, die API gibt genau so viele zurück wie verlangt (die schnellsten)
+    # when stopping after `want`, the checks still in flight finish – the CLI writes all of them to the
+    # files, the API returns exactly as many as requested (the fastest)
     return found[:want] if want else found
 
 
 def find_proxies(**kwargs) -> List[CheckResult]:
-    """Wie find_proxies_async, nur synchron (startet eine eigene Event-Loop)."""
+    """Like find_proxies_async, just synchronous (starts its own event loop)."""
     return asyncio.run(find_proxies_async(**kwargs))
 
 
 async def check_proxies_async(proxies: Iterable[str], **kwargs) -> List[CheckResult]:
-    """Eigene Proxys prüfen ("socks5://1.2.3.4:1080", "http://user:pass@…", "1.2.3.4:8080" = HTTP).
-    Nimmt dieselben Filter wie find_proxies; gesammelt wird nichts."""
+    """Check your own proxies ("socks5://1.2.3.4:1080", "http://user:pass@…", "1.2.3.4:8080" = HTTP).
+    Takes the same filters as find_proxies; nothing is collected."""
     lines = [p.strip() for p in proxies if p and p.strip()]
     lines = [p if "://" in p else f"http://{p}" for p in lines]
     fd, path = tempfile.mkstemp(prefix="proxy-scraper-", suffix=".txt")

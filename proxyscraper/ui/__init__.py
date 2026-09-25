@@ -1,7 +1,7 @@
-"""Terminal-Oberfläche: Bausteine (widgets), Live-Ansichten (dashboard) und Abschlussbericht (report).
+"""Terminal UI: building blocks (widgets), live views (dashboard) and the final report (report).
 
-Die Konsole wird bewusst nicht re-exportiert: Wer ausgibt, nutzt `widgets.console` zur Laufzeit,
-damit sie sich austauschen lässt (z. B. zum Aufzeichnen von Screenshots oder in Tests).
+The console is deliberately not re-exported: whatever prints uses `widgets.console` at runtime,
+so it can be swapped (e.g. for recording screenshots or in tests).
 """
 
 from . import widgets

@@ -1,7 +1,7 @@
-"""Findet Proxys in beliebigen Listenformaten und normalisiert sie.
+"""Finds proxies in any list format and normalizes them.
 
-Proxys werden überall als Schlüssel "typ ip:port" (ein String) geführt – das spart bei
-über einer Million Einträgen deutlich Speicher gegenüber Tupeln.
+Proxies are kept everywhere as the key "type ip:port" (one string) – with more than a million
+entries that saves a lot of memory compared to tuples.
 """
 
 from __future__ import annotations
@@ -24,36 +24,36 @@ TYPE_ALIASES = {
 _IP = rb"((?:\d{1,3}\.){3}\d{1,3})"
 # Schneller Standardfall: ip:port
 PLAIN_RE = re.compile(rb"(?<![\d.])" + _IP + rb"\s*:\s*(\d{2,5})(?![\d.])")
-# Vollständig: zusätzlich "ip port" und HTML-Tabellen wie <td>1.2.3.4</td><td>8080</td>
+# complete: additionally "ip port" and HTML tables like <td>1.2.3.4</td><td>8080</td>
 PROXY_RE = re.compile(
     rb"(?<![\d.])" + _IP + rb"(?:\s*:\s*|[ \t]+|\s*(?:<[^<>]{0,100}>\s*){1,6})(\d{2,5})(?![\d.])"
 )
-# JSON-APIs wie {"ip": "1.2.3.4", ..., "port": "8080"} – in beiden Reihenfolgen
+# JSON APIs like {"ip": "1.2.3.4", ..., "port": "8080"} – in both orders
 JSON_IP_PORT_RE = re.compile(rb'"ip"\s*:\s*"' + _IP + rb'"[^{}]{0,500}?"port"\s*:\s*"?(\d{2,5})')
 JSON_PORT_IP_RE = re.compile(rb'"port"\s*:\s*"?(\d{2,5})"?[^{}]{0,500}?"ip"\s*:\s*"' + _IP + rb'"')
-# typ://[user:pass@]ip:port – hier steht der Typ in der Zeile selbst
+# type://[user:pass@]ip:port – here the type is in the line itself
 SCHEME_RE = re.compile(
     rb"(?i)(?<![a-z0-9])(https?|socks4a?|socks5h?)://(?:([^\s@/]{1,100})@)?" + _IP + rb":(\d{2,5})(?!\d)"
 )
 SCHEME_TYPES = {k.encode(): v for k, v in TYPE_ALIASES.items() if v != "auto"}
 
-RawCandidate = Tuple[str, bytes, bytes, bytes]  # typ, ip, port, Zugangsdaten (b"" ohne)
+RawCandidate = Tuple[str, bytes, bytes, bytes]  # type, ip, port, credentials (b"" without)
 
 
 _SPACE_SEPARATED_RE = re.compile(rb"\d\.\d{1,3}[ \t]+\d{2,5}(?![\d.])")
 
 
 def _needs_full_regex(data: bytes) -> bool:
-    """Nur Leerzeichen-/HTML-Listen brauchen den langsameren Regex (Stichprobe vom Dateianfang)."""
+    """Only space/HTML lists need the slower regex (sample from the start of the file)."""
     sample = data[:8192]
     return b"<" in sample or _SPACE_SEPARATED_RE.search(sample) is not None
 
 
 def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
-    """Findet Proxys in Text, HTML-Tabellen und JSON.
+    """Finds proxies in text, HTML tables and JSON.
 
-    Zeilen mit typ://-Präfix behalten ihren eigenen Typ; alles andere bekommt den Typ der Quelle.
-    Bei Quellen vom Typ "auto" zählen nur Zeilen mit Präfix.
+    Lines with a type:// prefix keep their own type; everything else gets the type of the source.
+    For sources of type "auto" only lines with a prefix count.
     """
     out: Set[RawCandidate] = set()
     with_scheme = set()
@@ -74,9 +74,9 @@ def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
     return out
 
 
-# Nicht öffentlich erreichbare Netze (privat, Loopback, CGNAT, Doku, Multicast, reserviert …).
-# ipaddress.is_private & Co. sind pro Adresse sehr langsam, daher eine Tabelle nach erstem Oktett:
-# True = ganzes /8 gesperrt, Liste = nur diese Teilnetze prüfen, leer = alles öffentlich.
+# networks that aren't publicly reachable (private, loopback, CGNAT, documentation, multicast, reserved …).
+# ipaddress.is_private and friends are very slow per address, hence a table by first octet:
+# True = the whole /8 is blocked, list = only check these subnets, empty = everything public.
 _BLOCKED_BY_FIRST_OCTET: list = [[] for _ in range(256)]
 for _net in map(ipaddress.IPv4Network, (
     "0.0.0.0/8", "10.0.0.0/8", "100.64.0.0/10", "127.0.0.0/8", "169.254.0.0/16",
@@ -92,7 +92,7 @@ for _net in map(ipaddress.IPv4Network, (
 
 
 def normalize_public_ip(ip: bytes) -> Optional[str]:
-    """'001.2.3.4' -> '1.2.3.4'; None bei ungültigen oder nicht öffentlichen Adressen."""
+    """'001.2.3.4' -> '1.2.3.4'; None for invalid or non-public addresses."""
     a, b, c, d = map(int, ip.split(b"."))
     if a > 255 or b > 255 or c > 255 or d > 255:
         return None
@@ -107,7 +107,7 @@ def normalize_public_ip(ip: bytes) -> Optional[str]:
 
 
 def normalize_proxy(ip: bytes, port: bytes) -> Optional[str]:
-    """'001.2.3.4', b'080' -> '1.2.3.4:80'; None bei ungültigem Port oder nicht öffentlicher IP."""
+    """'001.2.3.4', b'080' -> '1.2.3.4:80'; None for an invalid port or a non-public IP."""
     p = int(port)
     if not 0 < p < 65536:
         return None
@@ -125,13 +125,13 @@ def split_key(key: str) -> Tuple[str, str]:
 
 
 def normalize_auth(auth: str) -> str:
-    """'user:p%40ss' oder 'user:p@ss' -> einheitlich kodiert ('user:p%40ss'); '' ohne Benutzer."""
+    """'user:p%40ss' or 'user:p@ss' -> encoded uniformly ('user:p%40ss'); '' without a user."""
     user, _, password = auth.partition(":")
     return format_auth(unquote(user), unquote(password))
 
 
 def validate_candidates(candidates: Iterable[RawCandidate]) -> Set[str]:
-    """{(typ, ip, port, auth)} -> {"typ [auth@]ip:port"} nur für gültige, öffentliche Adressen."""
+    """{(type, ip, port, auth)} -> {"type [auth@]ip:port"} only for valid, public addresses."""
     out = set()
     for ptype, ip, port, auth in candidates:
         proxy = normalize_proxy(ip, port)
@@ -146,17 +146,17 @@ def validate_candidates(candidates: Iterable[RawCandidate]) -> Set[str]:
 
 
 def parse_blob(data: bytes, default_type: str, wanted: Tuple[str, ...]) -> str:
-    """Kompletter Parse-Schritt einer Quelle für den Prozess-Pool.
+    """Complete parse step of a source for the process pool.
 
-    Gibt die Schlüssel als einen einzigen, durch \\n getrennten String zurück – ein Objekt
-    lässt sich zwischen Prozessen viel schneller übertragen als hunderttausende kleine.
+    Returns the keys as a single string separated by \\n – one object can be passed
+    between processes much faster than hundreds of thousands of small ones.
     """
     keys = [k for k in validate_candidates(extract_candidates(data, default_type)) if k.split(" ", 1)[0] in wanted]
     return "\n".join(keys)
 
 
 def parse_proxy_line(line: str, default_type: Optional[str] = None) -> Optional[str]:
-    """Eine Zeile aus einer Ergebnisdatei ('socks5://user:pass@1.2.3.4:1080' oder '1.2.3.4:80') -> Schlüssel."""
+    """A line from a result file ('socks5://user:pass@1.2.3.4:1080' or '1.2.3.4:80') -> key."""
     line = line.strip()
     if not line or line.startswith("#"):
         return None

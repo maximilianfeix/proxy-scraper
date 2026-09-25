@@ -20,12 +20,12 @@ jobs:
           python-version: ${{ matrix.python }}
       - run: pip install -r requirements.txt pytest
       - run: python -m pytest -q
-      # Startet das Programm einmal richtig – fängt Import-Fehler ab, die Tests nicht sehen
+      # starts the program once for real – catches import errors the tests don't see
       - run: python proxy_scraper.py --help
       - run: python proxy_scraper.py --list-sources 5
 
   package:
-    # Baut Wheel + sdist und installiert das Wheel frisch – so wie Nutzer es mit pipx bekommen
+    # builds wheel + sdist and installs the wheel fresh – the way users get it with pipx
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v7

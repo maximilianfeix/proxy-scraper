@@ -26,7 +26,7 @@ def test_prioritize_history_first_then_good_sources(tmp_path):
     quality.record_checks({"good": (100, 50), "bad": (100, 0)})
     history = ProxyHistory(tmp_path / "h.json")
     history.record_ok("socks5 7.7.7.7:1080", 100, "7.7.7.7")
-    history.record_ok("socks4 8.8.8.8:1080", 100, "8.8.8.8")  # Typ nicht gewünscht
+    history.record_ok("socks4 8.8.8.8:1080", 100, "8.8.8.8")  # type not requested
     res = pipeline.ScrapeResult(["bad", "good"], {"http 1.1.1.1:80": [0], "http 2.2.2.2:80": [1]})
     order = pipeline.prioritize(res, quality, history, ["http", "socks5"])
     assert order == ["socks5 7.7.7.7:1080", "http 2.2.2.2:80", "http 1.1.1.1:80"]
@@ -43,7 +43,7 @@ def test_history_reliability_and_pruning(tmp_path):
     h.record_ok("http 2.2.2.2:80", 300, "2.2.2.2", now=1000.0)
     for _ in range(MAX_FAIL_STREAK):
         h.record_fail("http 2.2.2.2:80")
-    h.record_fail("http 3.3.3.3:80")  # unbekannt -> wird nicht angelegt
+    h.record_fail("http 3.3.3.3:80")  # unknown -> isn't created
     assert h.ranked_keys()[0] == "http 1.1.1.1:80"
     assert h.prune(now=1001.0) == 1
     h.save()
@@ -70,7 +70,7 @@ def test_result_writer_creates_all_formats(tmp_path):
 
 def test_latest_pointer_works_without_symlinks(tmp_path, monkeypatch):
     def no_symlinks(*args, **kwargs):
-        raise OSError("symbolic links not permitted")  # Windows ohne Admin-/Entwicklerrechte
+        raise OSError("symbolic links not permitted")  # Windows without admin/developer rights
 
     monkeypatch.setattr(output.os, "symlink", no_symlinks)
     for name in ("run1", "run2"):
@@ -94,7 +94,7 @@ def test_unreadable_latest_pointer_falls_back_to_symlink(tmp_path):
     try:
         (tmp_path / "latest").symlink_to("run1", target_is_directory=True)
     except OSError:
-        pytest.skip("keine Symlinks erlaubt")
+        pytest.skip("no symlinks allowed")
     assert output.latest_run_dir(tmp_path) == tmp_path / "latest"
 
 
@@ -107,7 +107,7 @@ def test_latest_results_empty_without_runs(tmp_path):
 def test_has_latest_results(tmp_path):
     w = output.ResultWriter(run_dir=tmp_path / "run1")
     w.finalize([])
-    assert not output.has_latest_results(tmp_path)  # Lauf ohne Treffer
+    assert not output.has_latest_results(tmp_path)  # run without hits
     w = output.ResultWriter(run_dir=tmp_path / "run2")
     w.finalize([result()])
     assert output.has_latest_results(tmp_path)
@@ -125,14 +125,14 @@ def test_history_exists(tmp_path):
 
 
 def test_ui_helpers():
-    assert fmt(1234567) == "1.234.567"
-    assert pct(1, 3) == "33,3 %" and pct(1, 0) == "–"
+    assert fmt(1234567) == "1,234,567"
+    assert pct(1, 3) == "33.3%" and pct(1, 0) == "–"
     assert bar(5, 10, 4, "green").plain == "██··"
     assert flag("DE") == "🇩🇪" and flag("") == "  "
 
 
 def test_console_is_swappable_everywhere(monkeypatch):
-    """Alle Ausgaben laufen über widgets.console – keine eingefrorene Kopie per Import."""
+    """All output goes through widgets.console – no frozen copy through an import."""
     import io
 
     from rich.console import Console
@@ -145,8 +145,8 @@ def test_console_is_swappable_everywhere(monkeypatch):
     monkeypatch.setattr(widgets, "console", recorder)
     for module in (app, cli, pipeline_module):
         assert getattr(module, "console", None) is None, module.__name__
-    widgets.info("Test", "läuft")
-    assert "läuft" in recorder.file.getvalue()
+    widgets.info("Test", "running")
+    assert "running" in recorder.file.getvalue()
 
 
 def test_card_subtitle_stays_on_one_line():
@@ -157,8 +157,8 @@ def test_card_subtitle_stays_on_one_line():
     from proxyscraper.ui.widgets import card
 
     console = Console(width=24, file=io.StringIO(), color_system=None)
-    console.print(card("Gespeichert", "12", "nur HTTPS · mind. anonymous · ≤ 3000 ms"))
-    assert len(console.file.getvalue().splitlines()) == 5  # Rahmen, 3 Zeilen, Rahmen
+    console.print(card("Saved", "12", "HTTPS only · min. anonymous · ≤ 3000 ms"))
+    assert len(console.file.getvalue().splitlines()) == 5  # border, 3 lines, border
 
 
 def test_run_checks_drops_unconfirmed_proxies(tmp_path):
@@ -175,7 +175,7 @@ def test_run_checks_drops_unconfirmed_proxies(tmp_path):
             return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
 
         async def confirm(self, r):
-            return r.proxy.startswith("1.")  # 2.x.x.x ist ein "Honeypot"
+            return r.proxy.startswith("1.")  # 2.x.x.x is a "honeypot"
 
         async def tampers(self, r):
             return False
@@ -203,7 +203,7 @@ def test_anonymity_is_counted_without_https_test():
     from proxyscraper.ui import LiveStats
 
     stats = LiveStats({"http": 1})
-    stats.add_working(result(anonymity="elite"))  # kommt aus der Bestätigung, auch mit --fast
+    stats.add_working(result(anonymity="elite"))  # comes from the confirmation, also with --fast
     assert stats.anonymity["elite"] == 1 and stats.https_ok == 0
 
 
@@ -243,5 +243,5 @@ def test_run_checks_skips_https_test_when_filters_already_fail(tmp_path):
         return stats
 
     stats = asyncio.run(go())
-    assert enriched == ["http 1.1.1.1:80"]   # der nur "anonymous" Proxy braucht keinen HTTPS-Test
+    assert enriched == ["http 1.1.1.1:80"]   # the proxy that is only "anonymous" needs no HTTPS test
     assert stats.details_saved == 1 and stats.found == 2

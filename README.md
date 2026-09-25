@@ -312,7 +312,17 @@ curl http://127.0.0.1:8899/__proxy-scraper/status                # pool and coun
 curl http://127.0.0.1:8899/__proxy-scraper/metrics               # the same for Prometheus/Grafana
 ```
 
-Like commercial rotating proxies, the **username** carries what you want: `country-XX`, `type-http|socks4|socks5` and `session-NAME`, combinable (`country-us-type-socks5-session-a`). It works for HTTP (`Proxy-Authorization`) and SOCKS5 (username/password auth). The password is ignored – by default the server only listens on `127.0.0.1`. With `--serve-host` it can listen elsewhere, and then **anyone who reaches it can use it**, so only do that behind a firewall or in Docker with `-p 127.0.0.1:…`.
+Like commercial rotating proxies, the **username** carries what you want: `country-XX`, `type-http|socks4|socks5` and `session-NAME`, combinable (`country-us-type-socks5-session-a`). It works for HTTP (`Proxy-Authorization`) and SOCKS5 (username/password auth). By default the password is ignored and the server only listens on `127.0.0.1`.
+
+To reach it from other machines, give it a password – every client then has to send it, over HTTP and SOCKS5 alike, and the status page wants it as Basic auth:
+
+```bash
+export PROXY_SCRAPER_SERVE_PASSWORD=$(openssl rand -hex 16)   # the env var keeps it out of `ps`
+proxy-scraper --recheck --serve --serve-host 0.0.0.0
+curl -x "http://country-de:$PROXY_SCRAPER_SERVE_PASSWORD@your-server:8899" https://api.ipify.org
+```
+
+Without a password, `--serve-host` means **anyone who reaches the port can use it**. The ready-made [`compose.yaml`](compose.yaml) starts the server in Docker from the live list, with a password, a health check and learned state in a volume: put `PROXY_PASSWORD=…` into `.env`, then `docker compose up -d`.
 
 | Option | What it does |
 |---|---|
@@ -326,7 +336,7 @@ Like commercial rotating proxies, the **username** carries what you want: `count
 - HTTPS only uses proxies that passed the test with **verified TLS** – no broken encryption
 - if a proxy stays silent inside the tunnel or returns an error page instead of TLS, the same first packet quietly goes to the next one
 - three failures in a row and a proxy leaves the rotation – every 5 minutes those get re-checked and come back if they work again
-- listens on `127.0.0.1` only (unless `--serve-host` says otherwise); live view with requests, success rate, pool and the latest connections
+- listens on `127.0.0.1` only (unless `--serve-host` says otherwise), optionally with a password; live view with requests, success rate, pool and the latest connections
 
 In testing: 20 of 20 HTTPS requests succeeded, over 15 different exit IPs. In the wizard this is **Proxy server right away**.
 
@@ -482,6 +492,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
 | `--list-sources [N]` | show the source ranking |
 | `--serve-host ADDR` | where the proxy server listens (default `127.0.0.1`; `0.0.0.0` for Docker, with a warning) |
+| `--serve-password SECRET` | clients must send this password in the proxy login; better set `PROXY_SCRAPER_SERVE_PASSWORD` |
 | `--rotate STRATEGY` · `--sticky SEC` | how the proxy server picks proxies, see [above](#proxy-server) |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
 | `-o FILE` | also write all hits to this file |

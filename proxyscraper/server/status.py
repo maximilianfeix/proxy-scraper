@@ -5,10 +5,11 @@ from __future__ import annotations
 
 import base64
 import binascii
+import hmac
 import json
 import time
 from statistics import median
-from typing import Any, Dict, List, Tuple
+from typing import Any, Dict, List, Optional, Tuple
 
 from ..parsing import PROXY_TYPES
 from ..ui.widgets import shown_proxy
@@ -20,16 +21,32 @@ METRICS_PATH = b"/__proxy-scraper/metrics"
 METRICS_TYPE = b"text/plain; version=0.0.4; charset=utf-8"
 
 
-def selection_from_headers(headers: List[Tuple[bytes, bytes]]) -> Selection:
-    """Proxy-Authorization: Basic base64("country-de-session-abc:beliebig") -> Selection."""
+def basic_credentials(headers: List[Tuple[bytes, bytes]], header: bytes = b"proxy-authorization"
+                      ) -> Optional[Tuple[str, str]]:
+    """Basic auth from the given header -> (user, password), None if missing or broken."""
     for name, value in headers:
-        if name.lower() == b"proxy-authorization" and value[:6].lower() == b"basic ":
+        if name.lower() == header and value[:6].lower() == b"basic ":
             try:
-                user = base64.b64decode(value[6:].strip(), validate=True).decode("utf-8", "replace")
+                decoded = base64.b64decode(value[6:].strip(), validate=True).decode("utf-8", "replace")
             except (binascii.Error, ValueError):
-                return Selection()
-            return Selection.from_username(user.partition(":")[0])
-    return Selection()
+                return None
+            user, _, password = decoded.partition(":")
+            return user, password
+    return None
+
+
+def password_ok(headers: List[Tuple[bytes, bytes]], password: str, header: bytes = b"proxy-authorization") -> bool:
+    """No password configured, or the Basic auth in `header` carries exactly this password."""
+    if not password:
+        return True
+    creds = basic_credentials(headers, header)
+    return creds is not None and hmac.compare_digest(creds[1].encode(), password.encode())
+
+
+def selection_from_headers(headers: List[Tuple[bytes, bytes]]) -> Selection:
+    """Proxy-Authorization: Basic base64("country-de-session-abc:anything") -> Selection."""
+    creds = basic_credentials(headers)
+    return Selection.from_username(creds[0]) if creds else Selection()
 
 
 def status_json(server: Any) -> str:

@@ -32,6 +32,7 @@ from .status import (
     STATUS_PATH,
     STATUS_PREFIX,
     metrics_text,
+    password_ok,
     selection_from_headers,
     status_json,
 )
@@ -67,8 +68,10 @@ class ServerStats:
 
 
 class RotatingServer:
-    def __init__(self, pool: ProxyPool, host: str = "127.0.0.1", port: int = 8899, timeout: float = 10.0):
+    def __init__(self, pool: ProxyPool, host: str = "127.0.0.1", port: int = 8899, timeout: float = 10.0,
+                 password: str = ""):
         self.pool = pool
+        self.password = password  # empty = no authentication (fine on 127.0.0.1)
         self.host = host
         self.port = port
         self.timeout = timeout
@@ -101,6 +104,11 @@ class RotatingServer:
                     await self._serve_status(writer, head)
                     return
                 method, host, port, path, headers = parse_request_head(head)
+                if not password_ok(headers, self.password):
+                    writer.write(b"HTTP/1.1 407 Proxy Authentication Required\r\n"
+                                 b'Proxy-Authenticate: Basic realm="proxy-scraper"\r\n'
+                                 b"Content-Length: 0\r\nConnection: close\r\n\r\n")
+                    return
             except (ValueError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, asyncio.TimeoutError,
                     UnicodeDecodeError):
                 writer.write(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
@@ -389,7 +397,7 @@ class RotatingServer:
         """SOCKS5 on the same port. Authentication optional – the user name carries the same wishes as with
         HTTP ("country-de-session-abc"). After that everything works like CONNECT, including switching on errors."""
         try:
-            host, port, username = await asyncio.wait_for(socks5_accept(reader, writer), self.timeout)
+            host, port, username = await asyncio.wait_for(socks5_accept(reader, writer, self.password), self.timeout)
         except (Socks5Refused, asyncio.IncompleteReadError, asyncio.TimeoutError, ValueError, UnicodeError):
             return  # refused, hung up half-way, too slow or a broken address – close the connection
         self.stats.requests += 1
@@ -407,6 +415,13 @@ class RotatingServer:
     async def _serve_status(self, writer, head: bytes) -> None:
         target = head.split(b" ", 2)[1].split(b"?", 1)[0]
         kind = b"application/json"
+        headers = [tuple(part.strip() for part in line.split(b":", 1)) for line in head.split(b"\r\n")[1:]
+                   if b":" in line]
+        if not password_ok(headers, self.password, b"authorization"):
+            writer.write(b"HTTP/1.1 401 Unauthorized\r\nWWW-Authenticate: Basic realm=\"proxy-scraper\"\r\n"
+                         b"Content-Length: 0\r\nConnection: close\r\n\r\n")
+            await writer.drain()
+            return
         if target == STATUS_PATH:
             status, body = b"200 OK", status_json(self).encode()
         elif target == METRICS_PATH:

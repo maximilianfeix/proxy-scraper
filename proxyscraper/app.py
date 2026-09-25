@@ -437,10 +437,12 @@ class Run:
             note("No matching proxy found – the proxy server doesn't start.", BAD, "✘")
             return
         pool = ProxyPool(proxies, strategy=self.opts.rotate, sticky_seconds=self.opts.sticky)
-        server = RotatingServer(pool, host=self.opts.serve_host, port=self.opts.serve, timeout=self.opts.timeout)
-        if not is_loopback(self.opts.serve_host):
-            note(f"The proxy server listens on {self.opts.serve_host} – without authentication. Anyone who can reach "
-                 "it can use it. Only behind a firewall or in a container with -p 127.0.0.1:…", WARN, "⚠")
+        server = RotatingServer(pool, host=self.opts.serve_host, port=self.opts.serve, timeout=self.opts.timeout,
+                                password=self.opts.serve_password)
+        if not is_loopback(self.opts.serve_host) and not self.opts.serve_password:
+            note(f"The proxy server listens on {self.opts.serve_host} – without a password. Anyone who can reach "
+                 "it can use it. Set PROXY_SCRAPER_SERVE_PASSWORD, or keep it behind a firewall "
+                 "or in a container with -p 127.0.0.1:…", WARN, "⚠")
         try:
             await server.start()
         except OSError as e:

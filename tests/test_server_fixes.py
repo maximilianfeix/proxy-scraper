@@ -5,7 +5,7 @@ import asyncio
 from proxyscraper.checker import CheckResult
 from proxyscraper.server import ProxyPool, RotatingServer
 from proxyscraper.server import core as server_core
-from proxyscraper.server.upstream import TargetError, _handshake
+from proxyscraper.server.upstream import Unsupported, UpstreamError, _handshake
 
 from .fakes import http_forward_proxy, serve, target_server
 
@@ -100,11 +100,39 @@ def test_socks4_cant_do_ipv6_and_says_so():
     async def go():
         try:
             await _handshake("socks4", "1.2.3.4:1080", asyncio.StreamReader(), Recorder(), "2001:db8::1", 443)
-        except TargetError:
+        except Unsupported:  # never counted against the proxy
             return True
         return False
 
     assert asyncio.run(go())
+
+
+def socks5_reply(*chunks):
+    reader = asyncio.StreamReader()
+    for chunk in chunks:
+        reader.feed_data(chunk)
+    return reader
+
+
+def test_socks5_login_failure_is_the_proxys_fault_a_refused_connect_is_the_targets():
+    from proxyscraper.server.upstream import TargetError
+
+    async def attempt(reader, proxy="u:p@1.2.3.4:1080"):
+        try:
+            await _handshake("socks5", proxy, reader, Recorder(), "example.org", 443)
+        except TargetError:
+            return "target"
+        except UpstreamError:
+            return "proxy"
+        return "ok"
+
+    async def go():
+        login_refused = socks5_reply(b"\x05\x02", b"\x01\x01")
+        connect_refused = socks5_reply(b"\x05\x02", b"\x01\x00", b"\x05\x04\x00\x01" + b"\x00" * 6)
+        not_socks = socks5_reply(b"HT", b"TP/1.1 400")
+        return [await attempt(login_refused), await attempt(connect_refused), await attempt(not_socks)]
+
+    assert asyncio.run(go()) == ["proxy", "target", "proxy"]
 
 
 def test_client_leaving_mid_body_is_not_an_error():

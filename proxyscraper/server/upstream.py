@@ -6,7 +6,16 @@ import asyncio
 import ipaddress
 import socket
 
-from ..handshake import parse_endpoint, socks4, socks5, socks5_domain, socks5_ipv4, stream_io, with_proxy_auth
+from ..handshake import (
+    ProxyRefused,
+    parse_endpoint,
+    socks4_connect,
+    socks5_connect,
+    socks5_domain,
+    socks5_ipv4,
+    stream_io,
+    with_proxy_auth,
+)
 from .pool import PoolEntry
 
 
@@ -18,6 +27,10 @@ class TargetError(UpstreamError):
     """The proxy answered but couldn't open the connection to the target (refused tunnel, 502/504, target
     not resolvable). That may be the target's fault, so it only counts against the proxy if another
     proxy reaches the same target."""
+
+
+class Unsupported(UpstreamError):
+    """This proxy type can't do this target at all (SOCKS4 and IPv6). Never counts against the proxy."""
 
 
 GATEWAY_ERRORS = (b"502", b"503", b"504")
@@ -47,6 +60,13 @@ async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, 
 
 
 async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: int) -> None:
+    try:
+        await _connect_through(ptype, proxy, reader, writer, host, port)
+    except ProxyRefused as e:  # the proxy speaks the protocol fine, only the CONNECT to the target failed
+        raise TargetError(str(e)) from None
+
+
+async def _connect_through(ptype: str, proxy: str, reader, writer, host: str, port: int) -> None:
     ep = parse_endpoint(proxy)
     literal = _ip_literal(host)
     if ptype == "http":
@@ -63,10 +83,10 @@ async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: in
             raise error(first.decode("latin-1"))
     elif ptype == "socks4":
         if literal and literal.version == 6:
-            raise TargetError("SOCKS4 can't reach IPv6 targets")
+            raise Unsupported("SOCKS4 can't reach IPv6 targets")
         ip = await _resolve(host, port)  # SOCKS4 only knows IPv4 addresses
-        if not await socks4(*stream_io(reader, writer), ep, socket.inet_aton(ip), port):
-            raise TargetError("SOCKS4 refused the connection")
+        if not await socks4_connect(*stream_io(reader, writer), ep, socket.inet_aton(ip), port):
+            raise UpstreamError("no SOCKS4 answer")
     else:
         if literal and literal.version == 6:
             address = b"\x04" + literal.packed
@@ -74,8 +94,8 @@ async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: in
             address = socks5_ipv4(literal.packed)
         else:
             address = socks5_domain(host)  # host name instead of IP: resolved at the proxy (no DNS leak)
-        if not await socks5(*stream_io(reader, writer), ep, address, port):
-            raise TargetError("SOCKS5 refused the connection")
+        if not await socks5_connect(*stream_io(reader, writer), ep, address, port):
+            raise UpstreamError("SOCKS5 greeting or login failed")
 
 
 def _ip_literal(host: str):
@@ -88,6 +108,6 @@ def _ip_literal(host: str):
 async def _resolve(host: str, port: int) -> str:
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(host, port, family=socket.AF_INET)
-    except OSError as e:  # the target has no IPv4 address – nothing the proxy could do about it
-        raise TargetError(f"can't resolve {host}: {e}") from None
+    except OSError as e:  # no IPv4 address for the target – a SOCKS4 limit, not the proxy's fault
+        raise Unsupported(f"can't resolve {host} to IPv4: {e}") from None
     return infos[0][4][0]

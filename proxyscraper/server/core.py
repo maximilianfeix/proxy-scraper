@@ -35,7 +35,7 @@ from .status import (
     selection_from_headers,
     status_json,
 )
-from .upstream import TargetError, UpstreamError, open_upstream
+from .upstream import TargetError, Unsupported, UpstreamError, open_upstream
 
 MAX_ATTEMPTS = 3            # this many proxies per request before the client gets an error
 FIRST_CHUNK_WAIT = 5.0      # how long to wait for the client's first packet in the tunnel
@@ -207,6 +207,9 @@ class RotatingServer:
             entry.active += 1
             try:
                 up_reader, up_writer = await open_upstream(entry, host, port, self.timeout, tunnel=tunnel)
+            except Unsupported:
+                entry.active -= 1  # this type can't do this target – not a failure of the proxy
+                continue
             except TargetError:
                 entry.active -= 1
                 refused.append(entry)

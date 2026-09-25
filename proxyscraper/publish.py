@@ -24,7 +24,7 @@ from typing import Dict, List, Optional
 from .parsing import PROXY_TYPES
 
 SKIP_EXIT_CODE = 78
-SITE = Path(__file__).resolve().parent / "site" / "index.html"
+SITE = Path(__file__).resolve().parent / "site"  # index.html plus the images it links (logo, preview, touch icon)
 HISTORY_LIMIT = 120  # 30 days with a run every 6 hours
 RAW_BASE = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list"
 
@@ -187,7 +187,9 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
                                          "message": now.strftime("%Y-%m-%d %H:%M UTC"), "color": "grey"})
     (out / "README.md").write_text(readme(stats, counts), encoding="utf-8")
     # website: a static page that loads proxies.json/stats.json/history.json from next door
-    (out / "index.html").write_bytes(SITE.read_bytes())
+    for asset in SITE.iterdir():
+        if asset.suffix in (".html", ".png"):
+            (out / asset.name).write_bytes(asset.read_bytes())
     (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages should serve the files unchanged
     runs = [*load_history(history), history_entry(stats)][-HISTORY_LIMIT:]
     write_json(out / "history.json", runs)

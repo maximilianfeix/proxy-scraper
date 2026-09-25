@@ -21,6 +21,7 @@ import contextlib
 import io
 import os
 import tempfile
+import threading
 from typing import Iterable, List, Optional
 
 from rich.console import Console
@@ -51,30 +52,34 @@ def _options(types: Iterable[str], want: int, limit: int, https: bool, countries
     )
 
 
-_quiet_depth = 0
-_saved_console = None
+# Ein Lauf nach dem anderen: Konsole, Verlauf und Quellen-Statistik sind global, und ein Lauf nutzt ohnehin
+# tausende Verbindungen gleichzeitig. Ein threading.Lock, damit das auch über Threads und Event-Loops hinweg gilt.
+_RUN_LOCK = threading.Lock()
+
+
+@contextlib.asynccontextmanager
+async def _one_at_a_time():
+    # nicht blockierend warten: die Event-Loop läuft weiter, und ein Abbruch beim Warten hinterlässt keine Sperre
+    while not _RUN_LOCK.acquire(blocking=False):
+        await asyncio.sleep(0.05)
+    try:
+        yield
+    finally:
+        _RUN_LOCK.release()
 
 
 @contextlib.contextmanager
 def _quiet(verbose: bool):
-    """Die Oberfläche schreibt auf widgets.console – für die API in einen Puffer statt ins Terminal.
-
-    Die Konsole ist global. Laufen mehrere Aufrufe gleichzeitig, tauscht der erste sie aus und erst der
-    letzte stellt sie wieder her – sonst schriebe ein noch laufender Aufruf plötzlich wieder ins Terminal."""
-    global _quiet_depth, _saved_console
+    """Die Oberfläche schreibt auf widgets.console – für die API in einen Puffer statt ins Terminal."""
     if verbose:
         yield
         return
-    if _quiet_depth == 0:
-        _saved_console = widgets.console
-        widgets.console = Console(file=io.StringIO(), width=120)
-    _quiet_depth += 1
+    original = widgets.console
+    widgets.console = Console(file=io.StringIO(), width=120)
     try:
         yield
     finally:
-        _quiet_depth -= 1
-        if _quiet_depth == 0:
-            widgets.console, _saved_console = _saved_console, None
+        widgets.console = original
 
 
 async def find_proxies_async(*, types: Iterable[str] = PROXY_TYPES, want: int = 0, limit: int = 0,
@@ -97,9 +102,10 @@ async def find_proxies_async(*, types: Iterable[str] = PROXY_TYPES, want: int = 
 
     opts = _options(types, want, limit, https, countries, anonymity, max_latency, targets, no_datacenter,
                     timeout, concurrency, _recheck)
-    with _quiet(verbose):
-        run = Run(opts, show_banner=verbose)
-        await run.execute()
+    async with _one_at_a_time():
+        with _quiet(verbose):
+            run = Run(opts, show_banner=verbose)
+            await run.execute()
     found = sorted(run.kept, key=lambda r: r.latency)
     # Beim Abbruch nach `want` laufen die gerade offenen Prüfungen noch zu Ende – die CLI schreibt alle in die
     # Dateien, die API gibt genau so viele zurück wie verlangt (die schnellsten)

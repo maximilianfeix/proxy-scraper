@@ -2,6 +2,8 @@
 
 import asyncio
 
+import pytest
+
 from proxyscraper import api
 from proxyscraper.checker import CheckResult
 from proxyscraper.ui import widgets
@@ -60,29 +62,61 @@ def test_url_property():
 
 
 def test_lazy_exports():
-    import importlib
-
-    import pytest
-    package = importlib.import_module("proxyscraper")
-    assert package.find_proxies is api.find_proxies
-    with pytest.raises(AttributeError):
-        package.does_not_exist  # noqa: B018
+    # in einem frischen Prozess: hier ist api längst importiert
+    import subprocess
+    import sys
+    code = ("import sys, proxyscraper; assert 'proxyscraper.api' not in sys.modules; "
+            "f = proxyscraper.find_proxies; assert 'proxyscraper.api' in sys.modules; "
+            "assert not hasattr(proxyscraper, 'does_not_exist')")
+    subprocess.run([sys.executable, "-c", code], check=True)
 
 
 def test_bad_arguments_fail_early():
-    import pytest
     with pytest.raises(ValueError):
         api.find_proxies(anonymity="transparent")
     with pytest.raises(ValueError):
         api.find_proxies(targets=["ftp://example.com"])
 
 
-def test_quiet_survives_overlapping_calls():
+def test_overlapping_calls_run_one_after_another(monkeypatch, capsys):
+    from proxyscraper import app
+    running, most = [0], [0]
+
+    class Slow(FakeRun):
+        async def execute(self):
+            running[0] += 1
+            most[0] = max(most[0], running[0])
+            await asyncio.sleep(0.1)
+            widgets.console.print("das darf niemand sehen")
+            running[0] -= 1
+            return 0
+
+    async def go():
+        return await asyncio.gather(api.find_proxies_async(), api.find_proxies_async(verbose=True),
+                                    api.find_proxies_async())
+
+    monkeypatch.setattr(app, "Run", Slow)
     original = widgets.console
-    first, second = api._quiet(False), api._quiet(False)
-    first.__enter__()
-    second.__enter__()
-    first.__exit__(None, None, None)  # der erste ist fertig, der zweite läuft noch -> weiter still
-    assert widgets.console is not original
-    second.__exit__(None, None, None)
-    assert widgets.console is original
+    assert all(len(r) == 4 for r in asyncio.run(go()))
+    assert most[0] == 1 and widgets.console is original
+    assert capsys.readouterr().out.count("niemand") == 1  # nur der Aufruf mit verbose=True
+
+
+def test_waiting_call_can_be_cancelled():
+    async def go():
+        with api._RUN_LOCK:
+            waiter = asyncio.ensure_future(api.find_proxies_async())
+            await asyncio.sleep(0.1)
+            waiter.cancel()
+            with pytest.raises(asyncio.CancelledError):
+                await waiter
+        assert api._RUN_LOCK.acquire(blocking=False)  # keine hängende Sperre
+        api._RUN_LOCK.release()
+
+    asyncio.run(go())
+
+
+def test_runs_in_the_same_second_get_their_own_folder(tmp_path):
+    from proxyscraper.output import new_run_dir
+    first, second = new_run_dir(tmp_path), new_run_dir(tmp_path)
+    assert first != second and first.is_dir() and second.is_dir()

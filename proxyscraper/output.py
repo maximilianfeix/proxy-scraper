@@ -25,10 +25,24 @@ from .paths import RESULTS_DIR, atomic_write
 from .targets import target_label
 
 
+def new_run_dir(base: Path) -> Path:
+    """Ordner mit Zeitstempel; zwei Läufe in derselben Sekunde bekommen -2, -3 … statt sich zu überschreiben."""
+    stamp = f"{datetime.now():%Y-%m-%d_%H-%M-%S}"
+    base.mkdir(parents=True, exist_ok=True)
+    for n in range(1, 1000):
+        path = base / (stamp if n == 1 else f"{stamp}-{n}")
+        try:
+            path.mkdir()
+        except FileExistsError:
+            continue
+        return path
+    raise FileExistsError(f"zu viele Läufe in einer Sekunde: {stamp}")
+
+
 class ResultWriter:
     def __init__(self, run_dir: Optional[Path] = None, extra_file: Optional[Path] = None,
                  exports: Sequence[str] = ()):
-        self.run_dir = run_dir or RESULTS_DIR / f"{datetime.now():%Y-%m-%d_%H-%M-%S}"
+        self.run_dir = run_dir or new_run_dir(RESULTS_DIR)
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.extra_file = extra_file
         self.exports = list(exports)

@@ -47,7 +47,7 @@ flowchart LR
 | `api.py` | `find_proxies()` / `check_proxies()` for use from Python |
 | `ui/` | everything that draws: widgets, dashboard, report, wizard, server view |
 
-`ui/` only draws. It never decides anything, and nothing outside `ui/` prints directly – all output goes through `widgets.console`, which is also how the tests and the Python API silence it.
+`ui/` only draws. It never decides anything, and during a run nothing outside `ui/` prints directly – all output goes through `widgets.console`, which is also how the tests and the Python API silence it. (`publish.py` is the exception: it runs in GitHub Actions and just prints status lines.)
 
 ## What happens to one proxy
 

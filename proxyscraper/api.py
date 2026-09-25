@@ -28,6 +28,7 @@ from rich.console import Console
 from .checker import CheckResult
 from .options import Filters, RunOptions, parse_countries
 from .parsing import PROXY_TYPES
+from .targets import parse_target
 from .ui import widgets
 
 __all__ = ["CheckResult", "check_proxies", "check_proxies_async", "find_proxies", "find_proxies_async"]
@@ -38,26 +39,42 @@ def _options(types: Iterable[str], want: int, limit: int, https: bool, countries
              recheck: Optional[str]) -> RunOptions:
     if isinstance(countries, str):
         countries = parse_countries(countries)
+    if anonymity not in ("", "anonymous", "elite"):
+        raise ValueError(f"anonymity muss '', 'anonymous' oder 'elite' sein, nicht {anonymity!r}")
+    # wie in der CLI: "google.com" -> "https://google.com/", doppelte raus, ungültige Ziele -> ValueError
+    targets = list(dict.fromkeys(parse_target(t).url for t in targets))
     return RunOptions(
         types=list(types),
         filters=Filters(countries={c.upper() for c in countries}, https_only=https, min_anonymity=anonymity,
-                        max_latency=max_latency, targets=list(targets), no_datacenter=no_datacenter),
+                        max_latency=max_latency, targets=targets, no_datacenter=no_datacenter),
         want=want, limit=limit, timeout=timeout, concurrency=concurrency, recheck=recheck,
     )
 
 
+_quiet_depth = 0
+_saved_console = None
+
+
 @contextlib.contextmanager
 def _quiet(verbose: bool):
-    """Die Oberfläche schreibt auf widgets.console – für die API in einen Puffer statt ins Terminal."""
+    """Die Oberfläche schreibt auf widgets.console – für die API in einen Puffer statt ins Terminal.
+
+    Die Konsole ist global. Laufen mehrere Aufrufe gleichzeitig, tauscht der erste sie aus und erst der
+    letzte stellt sie wieder her – sonst schriebe ein noch laufender Aufruf plötzlich wieder ins Terminal."""
+    global _quiet_depth, _saved_console
     if verbose:
         yield
         return
-    original = widgets.console
-    widgets.console = Console(file=io.StringIO(), width=120)
+    if _quiet_depth == 0:
+        _saved_console = widgets.console
+        widgets.console = Console(file=io.StringIO(), width=120)
+    _quiet_depth += 1
     try:
         yield
     finally:
-        widgets.console = original
+        _quiet_depth -= 1
+        if _quiet_depth == 0:
+            widgets.console, _saved_console = _saved_console, None
 
 
 async def find_proxies_async(*, types: Iterable[str] = PROXY_TYPES, want: int = 0, limit: int = 0,

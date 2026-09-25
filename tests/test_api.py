@@ -2,7 +2,6 @@
 
 import asyncio
 
-import proxyscraper
 from proxyscraper import api
 from proxyscraper.checker import CheckResult
 from proxyscraper.ui import widgets
@@ -25,12 +24,13 @@ def test_find_proxies_passes_filters_and_keeps_quiet(monkeypatch, capsys):
     from proxyscraper import app
     monkeypatch.setattr(app, "Run", FakeRun)
     FakeRun.seen.clear()
-    result = proxyscraper.find_proxies(want=2, https=True, countries="de,at", types=["socks5"],
-                                       anonymity="elite", no_datacenter=True, targets=["https://example.com/"])
+    result = api.find_proxies(want=2, https=True, countries="de,at", types=["socks5"],
+                              anonymity="elite", no_datacenter=True, targets=["example.com", "https://example.com/"])
     opts = FakeRun.seen[0]
     assert opts.types == ["socks5"] and opts.want == 2
     f = opts.filters
     assert f.https_only and f.countries == {"DE", "AT"} and f.min_anonymity == "elite" and f.no_datacenter
+    assert f.targets == ["https://example.com/"]  # wie in der CLI normalisiert, doppelte raus
     assert [r.latency for r in result] == [200, 300]  # schnellste zuerst, genau `want` Stück
     assert "niemand" not in capsys.readouterr().out
 
@@ -60,7 +60,29 @@ def test_url_property():
 
 
 def test_lazy_exports():
-    assert proxyscraper.find_proxies is api.find_proxies
+    import importlib
+
     import pytest
+    package = importlib.import_module("proxyscraper")
+    assert package.find_proxies is api.find_proxies
     with pytest.raises(AttributeError):
-        proxyscraper.does_not_exist  # noqa: B018
+        package.does_not_exist  # noqa: B018
+
+
+def test_bad_arguments_fail_early():
+    import pytest
+    with pytest.raises(ValueError):
+        api.find_proxies(anonymity="transparent")
+    with pytest.raises(ValueError):
+        api.find_proxies(targets=["ftp://example.com"])
+
+
+def test_quiet_survives_overlapping_calls():
+    original = widgets.console
+    first, second = api._quiet(False), api._quiet(False)
+    first.__enter__()
+    second.__enter__()
+    first.__exit__(None, None, None)  # der erste ist fertig, der zweite läuft noch -> weiter still
+    assert widgets.console is not original
+    second.__exit__(None, None, None)
+    assert widgets.console is original

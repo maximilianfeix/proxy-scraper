@@ -11,6 +11,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - New website design and a real logo: the route through a proxy that forms a check mark. Big live numbers, a ticker with the fastest proxies, a scroll scene through the five checks, smooth scrolling, light and dark theme. The README banner uses the same look
 
 ### Added
+- Release workflow can publish to PyPI with trusted publishing (no token in the repo), switched on with the repository variable `PYPI_PUBLISH`; Dependabot also watches the Python dependencies of the tool and the bot ([#42](https://github.com/maximilianfeix/proxy-scraper/issues/42))
 - Discord bot (`bot/`): posts every run of the live list with the fastest proxies and the full lists as files, sets up its own read-only channels, and answers `/proxies`, `/proxy`, `/stats` and `/about`. A GitHub Action tests it and deploys it to a server as a hardened systemd service ([#74](https://github.com/maximilianfeix/proxy-scraper/issues/74), [#75](https://github.com/maximilianfeix/proxy-scraper/issues/75))
 
 ### Fixed

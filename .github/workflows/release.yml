@@ -27,6 +27,10 @@ jobs:
           python -m venv /tmp/clean
           /tmp/clean/bin/pip install dist/*.whl
           /tmp/clean/bin/proxy-scraper --version
+      - uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
       - name: Create the GitHub release
         env:
           GH_TOKEN: ${{ github.token }}
@@ -36,3 +40,21 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
           fi
+
+  # Trusted publishing to PyPI: no token in the repo. Switched on with the repository variable
+  # PYPI_PUBLISH=true once the project is registered on pypi.org (see issue #42).
+  pypi:
+    needs: release
+    if: vars.PYPI_PUBLISH == 'true'
+    runs-on: ubuntu-latest
+    environment:
+      name: pypi
+      url: https://pypi.org/p/${{ vars.PYPI_NAME || 'proxy-scraper' }}
+    permissions:
+      id-token: write   # the only thing trusted publishing needs
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+      - uses: pypa/gh-action-pypi-publish@release/v1

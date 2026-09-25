@@ -6,3 +6,19 @@ updates:
       interval: weekly
     commit-message:
       prefix: "ci"
+  # Python dependencies of the tool and of the Discord bot, grouped so it's one PR per week at most
+  - package-ecosystem: pip
+    directory: /
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps"
+    groups:
+      python:
+        patterns: ["*"]
+  - package-ecosystem: pip
+    directory: /bot
+    schedule:
+      interval: weekly
+    commit-message:
+      prefix: "deps(bot)"

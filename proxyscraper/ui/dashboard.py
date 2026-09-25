@@ -121,6 +121,7 @@ class LiveStats:
         self.fakes = 0  # passed the basic check, but not the confirmation
         self.tampered = 0  # confirmed, but modified a known page (scripts, ads)
         self.hosting = 0  # hits that (probably) exit from a datacenter
+        self.blocklisted = 0  # hits whose exit IP is on the SpamCop blocklist
         self.details_saved = 0  # HTTPS tests that could be skipped thanks to filters
         self.targets_ok: Counter = Counter()  # target site URL -> number of proxies that reach it
         self.recent: Deque[CheckResult] = deque(maxlen=8)
@@ -143,6 +144,8 @@ class LiveStats:
             self.anonymity[r.anonymity] += 1
         if r.hosting:
             self.hosting += 1
+        if r.blocklisted:
+            self.blocklisted += 1
         self.working_by_type[r.ptype] += 1
         self.latency_sum += r.latency
         self.fastest = r.latency if self.fastest is None else min(self.fastest, r.latency)
@@ -267,6 +270,8 @@ class CheckDashboard:
             side.add_row(Text(f"{letter} {ANON_LABEL[level]}", style=style), fmt(s.anonymity[level]))
         if s.hosting:
             side.add_row(Text("▣ datacenter", style=MUTED), fmt(s.hosting))
+        if s.blocklisted:
+            side.add_row(Text("⊘ blocklisted", style=MUTED), fmt(s.blocklisted))
         if s.details_saved:
             side.add_row(Text("⏭ skipped", style=MUTED), fmt(s.details_saved))
         for cc, n in s.countries.most_common(max(len(LATENCY_LABELS) - side.row_count, 0)):

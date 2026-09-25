@@ -356,7 +356,8 @@ flowchart LR
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
 4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here. Finally a static HTML page has to arrive byte for byte as it does without a proxy – anyone injecting ads or scripts is out.
 5. **Countries and providers** – looked up offline in the free DB-IP databases, including the provider (ASN) and whether it's probably a datacenter (about 45 % of working proxies are) (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
-6. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
+6. **Blocklists** – one DNS lookup per exit IP against SpamCop, cached for the run: about 29 % of working proxies exit from a listed IP, and sites that use the list show those captchas or block them. `--no-blocklisted` drops them. If your DNS resolver is refused by SpamCop (large public resolvers are), the lookup is skipped instead of guessing.
+7. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
 
 <details>
 <summary><b>📸 See the live dashboard and final report</b></summary>
@@ -469,6 +470,8 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--anonymity elite` | minimum anonymity (`anonymous` or `elite`) |
 | `--max-latency MS` | maximum latency |
 | `--no-datacenter` | skip proxies whose exit is (probably) in a datacenter – those get blocked sooner |
+| `--no-blocklisted` | skip proxies whose exit IP is on the SpamCop blocklist – those often get captchas |
+| `--no-dnsbl` | skip the blocklist lookup |
 | `--target URL` | only proxies that reach this site (repeatable) |
 | `--recheck [FILE\|live]` | only check proxies from a file, the last run, or the public live list |
 | `--fast` | skip the HTTPS test (confirmation and anonymity still run) |
@@ -569,7 +572,6 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 What's next is tracked in the milestone [**v1.6**](../../milestone/6) – ideas and wishes are welcome as an [issue](../../issues/new/choose).
 
 - [ ] [Publish on PyPI](../../issues/42) so it's just `pipx install proxy-scraper`
-- [ ] [Blocklist (DNSBL) info for exit IPs](../../issues/66) – measured: 29 % are on SpamCop, 59 % on DroneBL
 - [ ] [Protocol detection on the same connection](../../issues/44)
 
 Shipped in [v1.5](../../milestone/5): content tampering check, live list website with trend and stable proxies, provider/datacenter info, a much bigger proxy server (rotation strategies, sticky sessions, SOCKS5 inbound, status and Prometheus metrics), `--recheck live`, Python API, shell completion. Measured and dropped earlier: protocol detection with an extra connection ([#3](../../issues/3)) and IPv6 ([#1](../../issues/1)).

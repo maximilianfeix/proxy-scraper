@@ -57,7 +57,8 @@ def complete_bash(script, cwd, *words):
 def test_bash_completes_values(capsys, tmp_path):
     script = generate("bash", capsys)
     assert complete_bash(script, tmp_path, "proxy-scraper", "--rotate", "r") == ["random", "round-robin"]
-    assert complete_bash(script, tmp_path, "proxy-scraper", "--no-d") == ["--no-datacenter", "--no-discover"]
+    no_d = ["--no-dnsbl", "--no-datacenter", "--no-discover"]  # in the order of --help
+    assert complete_bash(script, tmp_path, "proxy-scraper", "--no-d") == no_d
 
 
 @needs_bash

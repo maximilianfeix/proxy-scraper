@@ -44,7 +44,7 @@ jobs:
           path: data
           key: proxy-data-${{ github.run_id }}
 
-      - name: Liste aufbereiten
+      - name: Prepare the list
         id: prepare
         run: |
           # history of the last runs (chart) and how long each proxy has been listed (stable proxies).
@@ -63,7 +63,7 @@ jobs:
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             rc=$?
-            [ "$rc" -eq 78 ] || exit "$rc"   # 78 = zu wenige Treffer, alte Liste bleibt
+            [ "$rc" -eq 78 ] || exit "$rc"   # 78 = too few hits, the old list stays
             echo "publish=false" >> "$GITHUB_OUTPUT"
           fi
 
@@ -77,6 +77,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -q -m "Proxy-Liste vom $(date -u +'%d.%m.%Y %H:%M UTC')"
+          git commit -q -m "Proxy list of $(date -u +'%Y-%m-%d %H:%M UTC')"
           # a single commit that gets replaced every time – the history doesn't grow
           git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" proxy-list

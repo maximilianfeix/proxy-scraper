@@ -144,8 +144,7 @@ class RotatingServer:
                 await self._relay(reader, writer, client, host, port, started, len(tried), entry,
                                   up_reader, up_writer, first_out, first_in)
                 return True
-            self.pool.report(entry, False)
-            up_writer.close()
+            self._give_up(entry, up_writer)
             opened = await self._open_next(tried, host, port, tls=tls, tunnel=True, selection=selection)
         self._log(client, host, port, None, False, started, len(tried))
         return False  # nach "200 Connection established" bleibt nur, die Verbindung zu schließen
@@ -178,8 +177,7 @@ class RotatingServer:
                 await self._relay(reader, writer, client, host, port, started, len(tried), entry,
                                   up_reader, up_writer, first_out, first_in)
                 return True
-            self.pool.report(entry, False)
-            up_writer.close()
+            self._give_up(entry, up_writer)
         self._log(client, host, port, None, False, started, len(tried))
         await self._bad_gateway(writer)
         return False
@@ -192,9 +190,13 @@ class RotatingServer:
             if entry is None:
                 return None
             tried.add(entry.result.key)
+            # schon beim Verbinden als beschäftigt zählen – sonst sähen gleichzeitige Anfragen den schnellsten
+            # Proxy als frei an (wichtig für --rotate fastest); freigegeben in _give_up bzw. am Ende von _relay
+            entry.active += 1
             try:
                 up_reader, up_writer = await open_upstream(entry, host, port, self.timeout, tunnel=tunnel)
             except UpstreamError:
+                entry.active -= 1
                 self.pool.report(entry, False)
                 continue
             return entry, up_reader, up_writer
@@ -233,7 +235,6 @@ class RotatingServer:
         gestreamten Bodies (first_in leer) also erst, wenn überhaupt Daten zurückkommen."""
         if first_in:
             self._account(client, host, port, entry, True, started, attempts)
-        entry.active += 1
         try:
             self.stats.bytes_up += len(first_out)
             self.stats.bytes_down += len(first_in)
@@ -251,6 +252,12 @@ class RotatingServer:
         if not first_in:
             self._account(client, host, port, entry, received > 0, started, attempts)
         return bool(first_in) or received > 0
+
+    def _give_up(self, entry, up_writer) -> None:
+        """Dieser Proxy hat nicht geliefert: als Fehlschlag werten, Verbindung zu, Reservierung frei."""
+        entry.active -= 1
+        self.pool.report(entry, False)
+        up_writer.close()
 
     def _account(self, client, host, port, entry, ok: bool, started, attempts) -> None:
         self.pool.report(entry, ok)

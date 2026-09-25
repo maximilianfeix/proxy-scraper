@@ -29,6 +29,7 @@ from .compat import on_interrupt, raise_fd_limit
 from .fetchcache import FetchCache
 from .geo import GeoResolver
 from .geodb import CountryDB, is_current, load_country_db
+from .handshake import parse_endpoint
 from .history import ProxyHistory
 from .judges import JudgeProbe, JudgeWatch, rank_judges
 from .netio import INSECURE_HOSTS, http_get
@@ -143,6 +144,16 @@ def next_steps(opts: RunOptions, kept: List[CheckResult]) -> List[Tuple[str, str
             steps.append(("Als Proxy-Server", f"{program} --recheck --serve"))
     steps.append(("Später neu prüfen", f"{program} --recheck"))
     return steps
+
+
+def pool_recheck(checker: Checker):
+    """Nachprüfung für ausgemusterte Proxys des Proxy-Servers: die normale Prüfung, aber am Cache vorbei."""
+    async def recheck(result: CheckResult) -> bool:
+        # der Checker merkt sich unerreichbare Adressen für den Rest des Laufs – genau das soll hier nochmal
+        # versucht werden
+        checker.unreachable.discard(parse_endpoint(result.proxy).address)
+        return await checker.check(result.key) is not None
+    return recheck
 
 
 class Run:
@@ -362,12 +373,7 @@ class Run:
         widgets.console.print()
         fresh = None
         if self.checker:  # ausgemusterte Proxys alle 5 Minuten nachprüfen und bei Erfolg zurückholen
-            checker = self.checker
-
-            async def recheck(result: CheckResult) -> bool:
-                return await checker.check(result.key) is not None
-
-            fresh = asyncio.ensure_future(server.keep_fresh(recheck))
+            fresh = asyncio.ensure_future(server.keep_fresh(pool_recheck(self.checker)))
         try:
             with on_interrupt(asyncio.get_running_loop(), stop.set), \
                     Live(ServeDashboard(server), console=widgets.console, refresh_per_second=4):

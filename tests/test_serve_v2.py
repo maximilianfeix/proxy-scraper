@@ -223,3 +223,38 @@ def test_status_endpoint_reports_the_pool():
     status = json.loads(body)
     assert status["pool"]["total"] == 2 and status["strategy"] == "weighted"
     assert {p["country"] for p in status["proxies"]} == {"DE", "US"}
+
+
+
+def test_busy_counter_goes_back_to_zero():
+    async def client(sp, tp):
+        for _ in range(3):
+            await socks5_get(sp, tp)
+
+    _, _, rotating = run_with_server([result(1), result(2)], client)
+    assert all(e.active == 0 for e in rotating.pool.entries)
+
+
+def test_busy_counter_is_released_when_a_proxy_fails():
+    pool = ProxyPool([result(1)])
+    server = RotatingServer(pool, timeout=1)
+
+    async def go():
+        # 10.0.0.1:80 ist nicht erreichbar -> UpstreamError, Reservierung muss wieder frei sein
+        return await server._open_next(set(), "example.com", 80, tls=False, tunnel=True)
+
+    assert asyncio.run(go()) is None and pool.entries[0].active == 0
+
+
+def test_pool_recheck_ignores_the_unreachable_cache():
+    from proxyscraper.app import pool_recheck
+
+    class Checker:
+        def __init__(self):
+            self.unreachable = {"10.0.0.1:80"}
+
+        async def check(self, key):
+            return None if key.split(" ")[1] in self.unreachable else object()
+
+    checker = Checker()
+    assert asyncio.run(pool_recheck(checker)(result(1))) is True

@@ -6,13 +6,10 @@ import base64
 import binascii
 import json
 import time
-from typing import TYPE_CHECKING, List, Tuple
+from typing import Any, List, Tuple
 
 from ..ui.widgets import shown_proxy
 from .pool import Selection
-
-if TYPE_CHECKING:
-    from .core import RotatingServer
 
 STATUS_PREFIX = b"GET /__proxy-scraper/"
 
@@ -29,7 +26,8 @@ def selection_from_headers(headers: List[Tuple[bytes, bytes]]) -> Selection:
     return Selection()
 
 
-def status_json(server: "RotatingServer") -> str:
+def status_json(server: Any) -> str:
+    """server: der RotatingServer (nicht importiert, sonst hingen core und status im Kreis voneinander ab)."""
     st, pool = server.stats, server.pool
     entries = sorted(pool.entries, key=lambda e: (e.disabled, -e.ok, e.result.latency))
     payload = {

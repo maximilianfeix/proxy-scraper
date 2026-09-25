@@ -1,59 +1,47 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="proxy-scraper – free proxies that actually work. 700+ sources, about a million candidates, checked and confirmed, verified proxies.">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="proxy-scraper – free proxies that actually work. Every proxy passes five checks: lists, handshake, honeypots, content and details.">
   <style>
-    .grow, .fade { animation: fade .7s ease-out both; }
-    .bolt { animation: glow 3s ease-in-out infinite; }
+    .fade { animation: fade .8s cubic-bezier(.16,1,.3,1) both; }
+    .route { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw 1.6s cubic-bezier(.16,1,.3,1) .2s forwards; }
+    .gate { animation: fade .6s cubic-bezier(.16,1,.3,1) both; }
     @keyframes fade { from { opacity: 0; transform: translateY(8px); } to { opacity: 1; transform: none; } }
-    @keyframes glow { 0%, 100% { opacity: 1; } 50% { opacity: .7; } }
-    @media (prefers-reduced-motion: reduce) { .grow, .fade, .bolt { animation: none; } }
+    @keyframes draw { to { stroke-dashoffset: 0; } }
+    @media (prefers-reduced-motion: reduce) { .fade, .gate { animation: none; } .route { animation: none; stroke-dashoffset: 0; } }
   </style>
-  <defs>
-    <linearGradient id="bg" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#0B1622"/><stop offset="1" stop-color="#0F2233"/>
-    </linearGradient>
-    <radialGradient id="glow" cx="0.8" cy="0.5" r="0.55">
-      <stop offset="0" stop-color="#38BDF8" stop-opacity=".14"/><stop offset="1" stop-color="#38BDF8" stop-opacity="0"/>
-    </radialGradient>
-    <linearGradient id="accent" x1="0" y1="0" x2="1" y2="1">
-      <stop offset="0" stop-color="#38BDF8"/><stop offset="1" stop-color="#34D399"/>
-    </linearGradient>
-    <pattern id="grid" width="32" height="32" patternUnits="userSpaceOnUse">
-      <path d="M32 0H0V32" fill="none" stroke="#16293B"/>
-    </pattern>
-    <clipPath id="frame"><rect width="1280" height="360" rx="20"/></clipPath>
-  </defs>
-  <g clip-path="url(#frame)">
-    <rect width="1280" height="360" fill="url(#bg)"/>
-    <rect width="1280" height="360" fill="url(#grid)" opacity=".5"/>
-    <rect width="1280" height="360" fill="url(#glow)"/>
-  </g>
+  <defs><clipPath id="frame"><rect width="1280" height="360" rx="24"/></clipPath></defs>
+  <g clip-path="url(#frame)"><rect width="1280" height="360" fill="#121113"/></g>
 
   <g class="fade">
-    <rect x="72" y="92" width="76" height="76" rx="20" fill="url(#accent)"/>
-    <path class="bolt" d="M116 104 L94 138 H110 L104 158 L128 122 H112 Z" fill="#FFFFFF"/>
-    <text x="168" y="148" fill="#E6EDF3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="54" font-weight="800" letter-spacing="-1">proxy-scraper</text>
-    <text x="74" y="222" fill="#E6EDF3" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="28" font-weight="600">Free proxies that actually work.</text>
-    <text x="74" y="258" fill="#8BA3B8" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="18">Scraped from hundreds of sources, verified for real, smarter with every run.</text>
-    <text x="74" y="300" fill="#5E7B94" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="14">$ pipx install git+https://github.com/maximilianfeix/proxy-scraper.git</text>
+    <svg x="72" y="70" width="56" height="56" viewBox="0 0 64 64"><rect width="64" height="64" rx="18" fill="#D4F77A"/>
+    <path d="M13 31.5 26.5 44.5 51 18" fill="none" stroke="#121113" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="13" cy="31.5" r="4.6" fill="#121113"/><circle cx="51" cy="18" r="4.6" fill="#121113"/>
+    <circle cx="26.5" cy="44.5" r="7.6" fill="#D4F77A" stroke="#121113" stroke-width="5"/></svg>
+    <text x="144" y="110" fill="#EDEBE6" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="30" font-weight="600" letter-spacing="-1">proxy-scraper</text>
+    <text x="70" y="206" fill="#EDEBE6" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="66" font-weight="600" letter-spacing="-3.4">Free proxies that</text>
+    <text x="70" y="270" fill="#EDEBE6" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="66" font-weight="600" letter-spacing="-3.4">actually work.</text>
+    <text x="72" y="312" fill="#9A97A0" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17">700+ sources, five checks, a fresh list every 6 hours.</text>
   </g>
+
+  <path d="M640 262 C 650.0 260.0 670.0 265.3 700 250 C 730.0 234.7 778.3 168.0 820 170 C 861.7 172.0 908.3 261.0 950 262 C 991.7 263.0 1030.0 181.0 1070 176 C 1110.0 171.0 1163.3 225.7 1190 232 C 1216.7 238.3 1223.3 217.0 1230 214" fill="none" stroke="#2B292F" stroke-width="2"/>
+  <path class="route" pathLength="100" d="M640 262 C 650.0 260.0 670.0 265.3 700 250 C 730.0 234.7 778.3 168.0 820 170 C 861.7 172.0 908.3 261.0 950 262 C 991.7 263.0 1030.0 181.0 1070 176 C 1110.0 171.0 1163.3 225.7 1190 232 C 1216.7 238.3 1223.3 217.0 1230 214" fill="none" stroke="#D4F77A" stroke-width="3" stroke-linecap="round"/>
   
-    <g class="grow" style="animation-delay:0.20s">
-      <rect x="760" y="70" width="440" height="44" rx="10" fill="#132638" stroke="#24405A"/>
-      <text x="980" y="90" text-anchor="middle" fill="#E6EDF3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700">700+ sources</text>
-      <text x="980" y="106" text-anchor="middle" fill="#5E7B94" fill-opacity="1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">lists · APIs · GitHub discovery</text>
+    <g class="gate" style="animation-delay:0.35s">
+      <circle cx="700" cy="250" r="10" fill="#D4F77A" stroke="#D4F77A" stroke-width="2"/>
+      <text x="700" y="284" text-anchor="middle" fill="#9A97A0" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">Lists</text>
     </g>
-    <g class="grow" style="animation-delay:0.35s">
-      <rect x="800" y="128" width="360" height="44" rx="10" fill="#132638" stroke="#24405A"/>
-      <text x="980" y="148" text-anchor="middle" fill="#E6EDF3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700">~1M candidates</text>
-      <text x="980" y="164" text-anchor="middle" fill="#5E7B94" fill-opacity="1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">parsed on all cores</text>
+    <g class="gate" style="animation-delay:0.53s">
+      <circle cx="820" cy="170" r="10" fill="#D4F77A" stroke="#D4F77A" stroke-width="2"/>
+      <text x="820" y="148" text-anchor="middle" fill="#9A97A0" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">Handshake</text>
     </g>
-    <g class="grow" style="animation-delay:0.50s">
-      <rect x="840" y="186" width="280" height="44" rx="10" fill="#132638" stroke="#24405A"/>
-      <text x="980" y="206" text-anchor="middle" fill="#E6EDF3" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700">checked &amp; confirmed</text>
-      <text x="980" y="222" text-anchor="middle" fill="#5E7B94" fill-opacity="1" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">two sites · same exit IP</text>
+    <g class="gate" style="animation-delay:0.71s">
+      <circle cx="950" cy="262" r="10" fill="#D4F77A" stroke="#D4F77A" stroke-width="2"/>
+      <text x="950" y="296" text-anchor="middle" fill="#9A97A0" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">Honeypots</text>
     </g>
-    <g class="grow" style="animation-delay:0.65s">
-      <rect x="880" y="244" width="200" height="44" rx="10" fill="url(#accent)" stroke="none"/>
-      <text x="980" y="264" text-anchor="middle" fill="#FFFFFF" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="15" font-weight="700">verified proxies</text>
-      <text x="980" y="280" text-anchor="middle" fill="#FFFFFF" fill-opacity="0.85" font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, monospace" font-size="11">HTTPS · anonymity · country</text>
+    <g class="gate" style="animation-delay:0.89s">
+      <circle cx="1070" cy="176" r="10" fill="#D4F77A" stroke="#D4F77A" stroke-width="2"/>
+      <text x="1070" y="154" text-anchor="middle" fill="#9A97A0" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">Content</text>
+    </g>
+    <g class="gate" style="animation-delay:1.07s">
+      <circle cx="1190" cy="232" r="10" fill="#D4F77A" stroke="#D4F77A" stroke-width="2"/>
+      <text x="1190" y="266" text-anchor="middle" fill="#9A97A0" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="15">Details</text>
     </g>
 </svg>

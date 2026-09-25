@@ -27,6 +27,7 @@ class Option:
     choices: Tuple[str, ...]
     is_file: bool
     extra: Tuple[str, ...] = ()  # Wörter, die statt einer Datei gehen (--recheck live)
+    multi: bool = False  # nargs="+": mehrere Werte hintereinander (--types http socks5)
 
     @property
     def long(self) -> Optional[str]:
@@ -57,22 +58,28 @@ def options(parser: argparse.ArgumentParser) -> List[Option]:
             choices=tuple(str(c) for c in action.choices or ()),
             is_file=takes_value and any(f in FILE_OPTIONS for f in action.option_strings),
             extra=next((FILE_OPTIONS[f] for f in action.option_strings if f in FILE_OPTIONS), ()),
+            multi=action.nargs in ("+", "*"),
         ))
     return found
 
 
 def bash(opts: List[Option]) -> str:
     words = " ".join(f for o in opts for f in o.flags)
-    cases = []
+    cases, multi = [], []
     for o in opts:
         if not o.takes_value or o.optional_value and not o.is_file:
             continue
         pattern = "|".join(o.flags)
         if o.choices:
-            cases.append(f'        {pattern}) COMPREPLY=($(compgen -W "{" ".join(o.choices)}" -- "$cur")); return ;;')
+            reply = f'COMPREPLY=($(compgen -W "{" ".join(o.choices)}" -- "$cur")); return ;;'
+            cases.append(f"        {pattern}) {reply}")
+            if o.multi:
+                multi.append(f"                {pattern}) {reply}")
         elif o.is_file:
+            # Zeile für Zeile, damit "Datei mit Leerzeichen" ein Eintrag bleibt
             extra = f'$(compgen -W "{" ".join(o.extra)}" -- "$cur") ' if o.extra else ""
-            cases.append(f'        {pattern}) COMPREPLY=({extra}$(compgen -f -- "$cur")); return ;;')
+            cases.append(f"        {pattern}) compopt -o filenames 2>/dev/null; local IFS=$'\\n'; "
+                         f'COMPREPLY=({extra}$(compgen -f -- "$cur")); return ;;')
         else:
             cases.append(f"        {pattern}) return ;;  # freier Wert")
     return f"""# bash-Vervollständigung für {PROG}
@@ -83,6 +90,17 @@ _proxy_scraper() {{
     case "$prev" in
 {chr(10).join(cases)}
     esac
+    # weitere Werte für Optionen wie --types http socks5: die letzte Option davor zählt
+    if [[ "$cur" != -* ]]; then
+        local i
+        for ((i = COMP_CWORD - 1; i > 0; i--)); do
+            [[ "${{COMP_WORDS[i]}}" == -* ]] || continue
+            case "${{COMP_WORDS[i]}}" in
+{chr(10).join(multi)}
+            esac
+            break
+        done
+    fi
     COMPREPLY=($(compgen -W "{words}" -- "$cur"))
 }}
 complete -F _proxy_scraper {PROG}
@@ -96,7 +114,7 @@ def _zsh_escape(text: str) -> str:
 def zsh(opts: List[Option]) -> str:
     specs = []
     for o in opts:
-        repeat = "*" if o.long in ("--target", "--types") else ""
+        repeat = "*" if o.long == "--target" else ""
         # '(-c --concurrency)'{-c,--concurrency}'[…]' – die Klammer {} darf nicht in Anführungszeichen stehen
         spec = f"({' '.join(o.flags)}){repeat}'{{{','.join(o.flags)}}}'" if len(o.flags) > 1 else repeat + o.flags[0]
         spec += f"[{_zsh_escape(o.help)}]"
@@ -108,6 +126,8 @@ def zsh(opts: List[Option]) -> str:
                 action = "{_files; compadd " + " ".join(o.extra) + "}" if o.extra else "_files"
             else:
                 action = " "
+            if o.multi:
+                colon += "*-*:"  # alle Wörter bis zur nächsten Option gehören dazu
             spec += f"{colon}{o.long.lstrip('-')}:{action}"
         specs.append(f"  '{spec}'")
     body = " \\\n".join(specs)
@@ -129,7 +149,17 @@ def _fish_quote(text: str) -> str:
 def fish(opts: List[Option]) -> str:
     lines = [f"# fish-Vervollständigung für {PROG}",
              f"# einbinden: {PROG} --completion fish > ~/.config/fish/completions/{PROG}.fish",
-             f"complete -c {PROG} -f"]
+             f"complete -c {PROG} -f",
+             "# steht die letzte Option vor dem Cursor auf $argv[1]? (für mehrere Werte wie --types http socks5)",
+             "function __proxy_scraper_after",
+             "    set -l tokens (commandline -opc)",
+             "    test (count $tokens) -gt 1; or return 1",
+             "    for token in $tokens[-1..2]",
+             "        string match -q -- '-*' $token; or continue",
+             "        test $token = $argv[1]; return",
+             "    end",
+             "    return 1",
+             "end"]
     for o in opts:
         parts = [f"complete -c {PROG}"]
         if o.long:
@@ -145,6 +175,9 @@ def fish(opts: List[Option]) -> str:
         elif o.takes_value and not o.optional_value:
             parts.append("-x")
         lines.append(" ".join(parts))
+        if o.multi and o.choices:
+            lines.append(f"complete -c {PROG} -n {_fish_quote('__proxy_scraper_after ' + o.long)} "
+                         f"-xa {_fish_quote(' '.join(o.choices))}")
     return "\n".join(lines) + "\n"
 
 

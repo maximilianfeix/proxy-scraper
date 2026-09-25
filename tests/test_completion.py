@@ -1,5 +1,6 @@
 import shutil
 import subprocess
+import sys
 
 import pytest
 
@@ -31,6 +32,7 @@ def test_zsh_braces_stay_outside_the_quotes(capsys):
     out = generate("zsh", capsys)
     assert "'(-c --concurrency)'{-c,--concurrency}'[" in out
     assert "{_files; compadd live}" in out
+    assert "--types[welche Protokolle]:*-*:types:(http socks4 socks5)" in out
 
 
 def test_help_text_is_german(capsys):
@@ -38,15 +40,39 @@ def test_help_text_is_german(capsys):
     assert "Hilfe anzeigen" in out and "show this help" not in out
 
 
-@pytest.mark.skipif(not shutil.which("bash"), reason="kein bash")
+# unter Windows ist "bash" meist WSL und sieht die Windows-Pfade nicht – dort braucht es das auch nicht
+needs_bash = pytest.mark.skipif(not shutil.which("bash") or sys.platform == "win32", reason="kein bash")
+
+
+def complete_bash(script, cwd, *words):
+    """_proxy_scraper mit COMP_WORDS aufrufen, eine Zeile pro Vorschlag."""
+    quoted = " ".join("'" + w + "'" for w in words)
+    code = (script + f'\nCOMP_WORDS=({quoted}); COMP_CWORD={len(words) - 1}; _proxy_scraper; '
+            'printf "%s\\n" "${COMPREPLY[@]}"\n')
+    out = subprocess.run(["bash", "-s"], input=code, capture_output=True, text=True, check=True, cwd=cwd).stdout
+    return [line for line in out.splitlines() if line]
+
+
+@needs_bash
 def test_bash_completes_values(capsys, tmp_path):
-    script = tmp_path / "comp.bash"
-    script.write_text(generate("bash", capsys))
-    run = ('source "$1"; COMP_WORDS=(proxy-scraper --rotate r); COMP_CWORD=2; _proxy_scraper; '
-           'echo "${COMPREPLY[*]}"; COMP_WORDS=(proxy-scraper --no-d); COMP_CWORD=1; _proxy_scraper; '
-           'echo "${COMPREPLY[*]}"')
-    out = subprocess.run(["bash", "-c", run, "_", str(script)], capture_output=True, text=True, check=True).stdout
-    assert out.splitlines() == ["random round-robin", "--no-datacenter --no-discover"]
+    script = generate("bash", capsys)
+    assert complete_bash(script, tmp_path, "proxy-scraper", "--rotate", "r") == ["random", "round-robin"]
+    assert complete_bash(script, tmp_path, "proxy-scraper", "--no-d") == ["--no-datacenter", "--no-discover"]
+
+
+@needs_bash
+def test_bash_offers_more_types_after_the_first(capsys, tmp_path):
+    script = generate("bash", capsys)
+    assert complete_bash(script, tmp_path, "proxy-scraper", "--types", "http", "s") == ["socks4", "socks5"]
+    assert complete_bash(script, tmp_path, "proxy-scraper", "--types", "http", "--fa") == ["--fast"]
+
+
+@needs_bash
+def test_bash_keeps_paths_with_spaces_together(capsys, tmp_path):
+    (tmp_path / "meine liste.txt").write_text("")
+    script = generate("bash", capsys)
+    assert complete_bash(script, tmp_path, "proxy-scraper", "--recheck", "m") == ["meine liste.txt"]
+    assert complete_bash(script, tmp_path, "proxy-scraper", "--recheck", "l") == ["live"]
 
 
 @pytest.mark.skipif(not shutil.which("zsh"), reason="kein zsh")

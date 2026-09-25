@@ -108,6 +108,13 @@ python3 proxy_scraper.py
 
 Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) also ships a wheel you can install with `pip install <file>.whl`, and a multi-arch image (amd64/arm64) on `ghcr.io`. In the container the wizard never shows up, it runs straight away. For the proxy server use `--serve --serve-host 0.0.0.0` with `-p 127.0.0.1:8899:8899`, so the port is only open on your own machine.
 
+Tab completion for bash, zsh and fish:
+
+```bash
+eval "$(proxy-scraper --completion zsh)"     # in ~/.zshrc (after compinit), same for bash in ~/.bashrc
+proxy-scraper --completion fish > ~/.config/fish/completions/proxy-scraper.fish
+```
+
 Installed, the learned state lives in your user data folder (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` or `~/.local/share/proxy-scraper`; override with `PROXY_SCRAPER_HOME`) and results go to `./results`. Run from a clone, both stay inside the project.
 
 </details>
@@ -471,6 +478,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `-o FILE` | also write all hits to this file |
 | `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `curl` or `all` |
 | `-V`, `--version` | print the version |
+| `--completion SHELL` | print the tab completion script for bash, zsh or fish |
 
 Everything else: `proxy-scraper --help`
 

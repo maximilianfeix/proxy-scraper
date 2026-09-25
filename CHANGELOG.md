@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- Tab completion for bash, zsh and fish: `proxy-scraper --completion zsh` prints the script. It is generated from the options, so it never goes stale ([#62](https://github.com/maximilianfeix/proxy-scraper/issues/62))
 - `--recheck live` starts from the public live list and checks it again from your own network: about 30 s instead of a full scan ([#60](https://github.com/maximilianfeix/proxy-scraper/issues/60))
 - `--serve-host` to make the proxy server reachable from outside a Docker container, with a warning when it's not a loopback address ([#43](https://github.com/maximilianfeix/proxy-scraper/issues/43))
 - Provider (ASN and name) for every proxy from the offline DB-IP ASN database, a guess whether it's a datacenter, and `--no-datacenter` to skip those. About 45 % of working proxies exit from datacenters ([#49](https://github.com/maximilianfeix/proxy-scraper/issues/49))

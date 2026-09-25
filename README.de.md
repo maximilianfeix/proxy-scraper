@@ -105,6 +105,13 @@ python3 proxy_scraper.py
 
 Zu jedem [Release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) gibt es außerdem ein Wheel für `pip install <datei>.whl` und ein Multi-Arch-Image (amd64/arm64) auf `ghcr.io`. Im Container kommt der Assistent nie, der Lauf startet direkt. Für den Proxy-Server `--serve --serve-host 0.0.0.0` mit `-p 127.0.0.1:8899:8899` – dann ist der Port nur auf dem eigenen Rechner offen.
 
+Tab-Vervollständigung für bash, zsh und fish:
+
+```bash
+eval "$(proxy-scraper --completion zsh)"     # in ~/.zshrc (nach compinit), für bash genauso in ~/.bashrc
+proxy-scraper --completion fish > ~/.config/fish/completions/proxy-scraper.fish
+```
+
 Installiert liegt der gelernte Zustand im Benutzerordner (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` bzw. `~/.local/share/proxy-scraper`; änderbar mit `PROXY_SCRAPER_HOME`), Ergebnisse landen in `./results`. Aus einem Klon gestartet bleibt beides im Projekt.
 
 </details>
@@ -452,6 +459,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `-o DATEI` | zusätzlich alle Treffer in diese Datei schreiben |
 | `--export FORMATE` | Zusatzdateien für andere Tools: `proxychains`, `clash`, `curl` oder `all` |
 | `-V`, `--version` | Version anzeigen |
+| `--completion SHELL` | Skript für die Tab-Vervollständigung (bash, zsh oder fish) ausgeben |
 
 Alles Weitere: `proxy-scraper --help`
 

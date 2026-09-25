@@ -36,7 +36,7 @@ def test_parse_and_lookup():
 
 @pytest.mark.parametrize("org, expected", [
     ("Hetzner Online GmbH", True), ("DigitalOcean, LLC", True), ("Hangzhou Alibaba Advertising Co.,Ltd.", True),
-    ("Performive LLC", True), ("Amazon.com, Inc.", True), ("Deutsche Telekom AG", False),
+    ("Performive LLC", True), ("Amazon.com, Inc.", True), ("GTHost", True), ("Deutsche Telekom AG", False),
     ("Cox Communications Inc.", False), ("Vodafone GmbH", False),
 ])
 def test_hosting_heuristic(org, expected):

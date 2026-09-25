@@ -36,12 +36,12 @@ URL = "https://download.db-ip.com/free/dbip-asn-lite-{month}.csv.gz"
 MAGIC = b"PSASN1"
 
 HOSTING_RE = re.compile(
-    r"hosting|\bhost\b|hostinger|cloud|data ?cent|server|\bvps\b|colo|amazon|\baws\b|google|microsoft|azure|"
+    r"host|cloud|data ?cent|server|\bvps\b|colo|amazon|\baws\b|google|microsoft|azure|"
     r"digitalocean|ovh|hetzner|linode|akamai|vultr|choopa|contabo|leaseweb|m247|alibaba|tencent|oracle|"
     r"scaleway|ionos|godaddy|fastly|cloudflare|datacamp|cdn77|psychz|colocrossing|quadranet|hostwinds|"
     r"kamatera|upcloud|netcup|strato|hosteurope|constant company|g-core|gcore|stark industries|aeza|"
     r"pq hosting|serverius|worldstream|zenlayer|ucloud|huawei|baidu|kingsoft|performive|nocix|datasource|"
-    r"frantech|buyvm|ramnode|hostgator|bluehost|namecheap|ionos|dreamhost|linode|packet|equinix",
+    r"frantech|buyvm|ramnode|namecheap|dreamhost|packet|equinix|dataforest|servinga|hydra communications",
     re.IGNORECASE,
 )
 

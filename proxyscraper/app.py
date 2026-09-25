@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import contextlib
 import ipaddress
 import socket
 import time
@@ -333,6 +334,16 @@ class Run:
         for task in (refresh, providers_refresh):
             if task and not task.done():
                 task.cancel()  # Download läuft noch – beim nächsten Lauf wieder
+        if providers_refresh and not providers_refresh.done():
+            # Anbieter-Datenbank lädt noch (erster Lauf oder neuer Monat): kurz warten und nachtragen –
+            # sonst fehlen die Anbieter in den Dateien und --no-datacenter ließe Rechenzentren durch
+            with widgets.console.status("Lade Anbieter-Datenbank (DB-IP) …", spinner="dots"), \
+                    contextlib.suppress(asyncio.TimeoutError):
+                await asyncio.wait_for(asyncio.shield(providers_refresh), 30)
+        if providers.db:
+            for r in run.results:
+                if not r.asn:
+                    providers.annotate(r)
         kept = [r for r in run.results if opts.filters.accepts(r)]
         files = writer.finalize(kept)
         network_blocked = is_network_blocked(stats)

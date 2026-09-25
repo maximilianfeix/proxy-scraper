@@ -153,6 +153,7 @@ class Run:
         self.history = ProxyHistory()
         self.scraped: Optional[ScrapeResult] = None
         self.judges: List[JudgeProbe] = []  # erreichbare Prüfziele, schnellstes zuerst
+        self.kept: List[CheckResult] = []  # Treffer, die alle Filter erfüllen (für die Python-API)
         self.confirm_ip: Optional[str] = None
         self.targets: List[Tuple[Target, str]] = []
         self.own_ips: List[str] = []
@@ -323,6 +324,7 @@ class Run:
         if refresh and not refresh.done():
             refresh.cancel()  # Download läuft noch – beim nächsten Lauf wieder
         kept = [r for r in run.results if opts.filters.accepts(r)]
+        self.kept = kept
         files = writer.finalize(kept)
         network_blocked = is_network_blocked(stats)
         per_source = self.learn(run, network_blocked)

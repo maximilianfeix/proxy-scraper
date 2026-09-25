@@ -84,6 +84,11 @@ class CheckResult:
     country: str = ""
     targets: Dict[str, bool] = field(default_factory=dict)  # Zielseiten-URL -> erreichbar?
 
+    @property
+    def url(self) -> str:
+        """'socks5://1.2.3.4:1080' – so, wie es curl, requests & Co. erwarten."""
+        return f"{self.ptype}://{self.proxy}"
+
 
 class Checker:
     def __init__(self, judge_ip: str, own_ips: Iterable[str], timeout: float, connect_timeout: float,

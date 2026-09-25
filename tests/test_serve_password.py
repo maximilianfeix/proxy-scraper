@@ -122,3 +122,78 @@ def test_password_comes_from_the_environment_and_never_goes_to_argv(monkeypatch)
     assert opts.serve_password == "from-env"
     assert "from-env" not in " ".join(opts.to_argv())  # the wizard saves argv to disk
     assert "from-env" not in repr(opts)
+
+
+def recording_proxy(seen):
+    """Upstream that answers the first request and then records everything else it gets for a moment."""
+    async def handler(reader, writer):
+        seen.append(await reader.readuntil(b"\r\n\r\n"))
+        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        await writer.drain()
+        try:
+            while data := await asyncio.wait_for(reader.read(65536), 0.5):
+                seen.append(data)
+        except asyncio.TimeoutError:
+            pass
+        writer.close()
+    return handler
+
+
+def through_recording_proxy(payload):
+    seen = []
+
+    async def go():
+        proxy_srv, proxy_port = await serve(recording_proxy(seen))
+        result = CheckResult(f"http 127.0.0.1:{proxy_port}", "http", f"127.0.0.1:{proxy_port}", 100, "9.9.9.9")
+        rotating = RotatingServer(ProxyPool([result]), port=0, timeout=3, password=PASSWORD)
+        await rotating.start()
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", rotating.port)
+            writer.write(payload)
+            await writer.drain()
+            answer = await asyncio.wait_for(reader.read(65536), 5)
+            await asyncio.sleep(0.7)  # give a leak time to arrive
+            writer.close()
+            return answer
+        finally:
+            await rotating.close()
+            proxy_srv.close()
+
+    return asyncio.run(go()), b"".join(seen)
+
+
+def request(auth, extra=b"", body=b""):
+    return (b"POST http://example.test/ HTTP/1.1\r\nHost: example.test\r\nProxy-Authorization: Basic "
+            + auth.encode() + b"\r\n" + extra + b"\r\n" + body)
+
+
+def test_keep_alive_requests_never_carry_the_password_upstream():
+    secret = basic("any", PASSWORD)
+    first = request(secret, b"Content-Length: 3\r\n", b"abc")
+    answer, upstream = through_recording_proxy(first + request(secret))
+    assert answer.startswith(b"HTTP/1.1 200")
+    assert b"abc" in upstream and secret.encode() not in upstream
+
+
+def test_a_streamed_chunked_body_goes_up_whole_but_nothing_after_it():
+    secret = basic("any", PASSWORD)
+    body = b"4\r\nab\r\n\r\n0\r\nX-Trailer: 1\r\n\r\n"  # the data itself contains CRLFs
+    answer, upstream = through_recording_proxy(request(secret, b"Transfer-Encoding: chunked\r\n", body)
+                                               + request(secret))
+    assert answer.startswith(b"HTTP/1.1 200")
+    assert upstream.endswith(body) and secret.encode() not in upstream
+
+
+def test_chunked_end_parser():
+    from proxyscraper.server.http import ChunkedEnd
+
+    body = b"3;ext=1\r\nabc\r\n0\r\n\r\n"
+    parser = ChunkedEnd()
+    assert [parser.feed(body[i:i + 1]) for i in range(len(body))][-1] == 1  # byte by byte: ends on the last one
+    assert ChunkedEnd().feed(body + b"GET next") == len(body)
+    try:
+        ChunkedEnd().feed(b"zz\r\n")
+    except ValueError:
+        pass
+    else:
+        raise AssertionError("garbage must raise")

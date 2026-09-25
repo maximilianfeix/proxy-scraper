@@ -23,6 +23,7 @@ from .http import (
     origin_request,
     parse_request_head,
     plausible_answer,
+    request_body_length,
 )
 from .pool import ANY, ProxyPool, Selection
 from .socks import SOCKS5_VERSION, Socks5Refused, socks5_accept, socks5_reply
@@ -187,11 +188,11 @@ class RotatingServer:
                 up_writer.write(first_out)
                 await up_writer.drain()
                 return await self._relay(reader, writer, client, host, port, started, len(tried), entry,
-                                         up_reader, up_writer, first_out, b"")
+                                         up_reader, up_writer, first_out, b"", upload=request_body_length(headers))
             first_in = await self._exchange(up_reader, up_writer, first_out)
             if first_in is not None:
                 await self._relay(reader, writer, client, host, port, started, len(tried), entry,
-                                  up_reader, up_writer, first_out, first_in)
+                                  up_reader, up_writer, first_out, first_in, upload=0)
                 return True
             self._give_up(entry, up_writer)
         self._log(client, host, port, None, False, started, len(tried))
@@ -259,9 +260,13 @@ class RotatingServer:
         return b"" if verdict == "407" else out
 
     async def _relay(self, reader, writer, client, host, port, started, attempts, entry,
-                     up_reader, up_writer, first_out: bytes, first_in: bytes) -> bool:
+                     up_reader, up_writer, first_out: bytes, first_in: bytes, upload=None) -> bool:
         """Pass both directions through. Success only counts once the upstream has answered – for
-        streamed bodies (first_in empty) that means once any data comes back at all."""
+        streamed bodies (first_in empty) that means once any data comes back at all.
+
+        upload: for plain HTTP only the rest of this request's body may go up (a byte count or a ChunkedEnd).
+        Whatever the client sends after it – a second keep-alive request with its Proxy-Authorization,
+        for example – never reaches the free proxy. None = tunnel, everything goes through."""
         if first_in:
             self._account(client, host, port, entry, True, started, attempts)
         try:
@@ -271,7 +276,8 @@ class RotatingServer:
                 writer.write(first_in)
                 await writer.drain()
             _, received = await asyncio.gather(
-                self._pipe(reader, up_writer, up=True),
+                self._pipe(reader, up_writer, up=True) if upload is None
+                else self._send_body(reader, up_writer, upload),
                 # without a first response up front (streamed body) watch for a 407 from the proxy here
                 self._pipe(up_reader, writer, up=False, reject_proxy_auth=not first_in),
             )
@@ -338,6 +344,26 @@ class RotatingServer:
         writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
                      b"Connection: close\r\n\r\nNo proxy from the pool answered.\n")
         await writer.drain()
+
+    async def _send_body(self, reader, writer, body) -> int:
+        """Pass exactly the rest of one request body upstream, then stop reading from the client."""
+        total = 0
+        with contextlib.suppress(ConnectionError, OSError, ValueError):
+            while body:
+                data = await reader.read(min(body, 65536) if isinstance(body, int) else 65536)
+                if not data:
+                    break
+                if isinstance(body, int):
+                    body -= len(data)
+                else:
+                    end = body.feed(data)
+                    if end is not None:
+                        data, body = data[:end], 0
+                total += len(data)
+                self.stats.bytes_up += len(data)
+                writer.write(data)
+                await writer.drain()
+        return total
 
     async def _pipe(self, reader, writer, up: bool, reject_proxy_auth: bool = False) -> int:
         """Pass data through until one side stops; returns the number of bytes.

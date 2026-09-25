@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import time
 
 from rich import box
@@ -61,7 +62,8 @@ class ServeDashboard:
         usage.add_column(style=MUTED, no_wrap=True)
         usage.add_column(overflow="fold")
         # with a password every example needs the login; the password itself is never shown
-        pw = "$PROXY_SCRAPER_SERVE_PASSWORD" if server.password else "x"
+        from_env = server.password and os.environ.get("PROXY_SCRAPER_SERVE_PASSWORD") == server.password
+        pw = "$PROXY_SCRAPER_SERVE_PASSWORD" if from_env else "PASSWORD" if server.password else "x"
         login = f"any:{pw}@" if server.password else ""
         usage.add_row("Test", Text(f"curl -x http://{login}{address} https://api.ipify.org", style="bold"))
         usage.add_row("SOCKS5", Text(f"curl -x socks5h://{login}{address} https://api.ipify.org"))
@@ -70,7 +72,8 @@ class ServeDashboard:
         usage.add_row("Terminal", Text(f"export http_proxy=http://{login}{address} https_proxy=http://{login}{address}"))
         usage.add_row("Status (JSON)", Text(f"curl {'-u any:' + pw + ' ' if server.password else ''}"
                                             f"http://{address}/__proxy-scraper/status"))
-        usage.add_row("Prometheus", Text(f"http://{address}/__proxy-scraper/metrics"))
+        usage.add_row("Prometheus", Text(f"http://{'any:' + pw + '@' if server.password else ''}"
+                                         f"{address}/__proxy-scraper/metrics"))
         mode = pool.strategy + (f" · sticky {pool.sticky_seconds:g} s" if pool.sticky_seconds else "")
         usage.add_row("Rotation", Text(mode + (f" · {fmt(server.revived)} brought back" if server.revived else ""),
                                        style=MUTED))

@@ -58,6 +58,57 @@ def forward_request(method: str, path: bytes, host: str, port: int, headers: Lis
     return f"{method} http://{authority}".encode() + path + b" HTTP/1.1\r\n" + rest
 
 
+class ChunkedEnd:
+    """Finds where a chunked request body ends, fed piece by piece. feed() returns how many bytes of this
+    piece still belong to the body once the end is in it, otherwise None. Garbage raises ValueError."""
+
+    MAX_LINE = 4096
+
+    def __init__(self):
+        self.line = b""
+        self.left = 0  # bytes of chunk data (plus its CRLF) still to come
+        self.trailer = False
+
+    def feed(self, data: bytes):
+        i = 0
+        while i < len(data):
+            if self.left:
+                take = min(self.left, len(data) - i)
+                self.left -= take
+                i += take
+                continue
+            j = data.find(b"\n", i)
+            if j < 0:
+                self.line += data[i:]
+                if len(self.line) > self.MAX_LINE:
+                    raise ValueError("chunk line too long")
+                return None
+            line = (self.line + data[i:j]).rstrip(b"\r")
+            self.line = b""
+            i = j + 1
+            if self.trailer:
+                if not line:
+                    return i
+                continue
+            size = int(line.split(b";", 1)[0].strip(), 16)
+            if size < 0:
+                raise ValueError("negative chunk size")
+            if size:
+                self.left = size + 2
+            else:
+                self.trailer = True
+        return None
+
+
+def request_body_length(headers: List[Tuple[bytes, bytes]]):
+    """How much body follows the head: a byte count, or a ChunkedEnd for chunked bodies."""
+    values = {name.lower(): value for name, value in headers}
+    if b"chunked" in values.get(b"transfer-encoding", b"").lower():
+        return ChunkedEnd()
+    length = values.get(b"content-length", b"0").strip()
+    return int(length) if length.isdigit() else 0
+
+
 class ResponseScreen:
     """Checks the start of an upstream response until the final status line is there.
 

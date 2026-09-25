@@ -227,7 +227,7 @@ macOS, Linux und Windows, Python 3.9 bis 3.13. Einzige Abhängigkeiten: `rich` u
 <td valign="top">
 
 **🧪 Gründlich getestet**<br>
-240+ Tests laufen ohne Internet gegen echte Mini-Proxys und Honeypots auf `localhost` – auf Linux, macOS und Windows mit Python 3.9, 3.11 und 3.13.
+360+ Tests laufen ohne Internet gegen echte Mini-Proxys und Honeypots auf `localhost` – auf Linux, macOS und Windows mit Python 3.9, 3.11 und 3.13.
 
 </td>
 </tr>
@@ -502,10 +502,13 @@ Sie wird alle 6 Stunden neu gebaut, das Badge „Stand“ zeigt den letzten Lauf
 
 ## 🗺️ Roadmap
 
-Was als Nächstes kommt, steht in den Meilensteinen [**v1.3**](../../milestone/3) und [**v1.1**](../../milestone/1) – Ideen und Wünsche gerne als [Issue](../../issues/new/choose).
+Was als Nächstes kommt, steht im Meilenstein [**v1.5**](../../milestone/5) – Ideen und Wünsche gerne als [Issue](../../issues/new/choose).
 
-- [ ] [Proxys mit Zugangsdaten](../../issues/7) · [Zweites Prüfziel](../../issues/8) · [ETag-Cache](../../issues/9)
-- [ ] [Export für proxychains, Clash & Co.](../../issues/4) · [Docker-Image](../../issues/5) · [IPv6-Proxys](../../issues/1)
+- [ ] [Auf PyPI veröffentlichen](../../issues/42), damit einfach `pipx install proxy-scraper` reicht
+- [ ] [Rotierender Server aus dem Docker-Container erreichbar](../../issues/43)
+- [ ] [Protokollerkennung auf derselben Verbindung](../../issues/44)
+
+In [v1.4](../../milestone/4) erschienen: Exporte für proxychains/Clash/curl, Proxys mit Zugangsdaten, ETag-Cache, Ersatz-Prüfziele, Docker-Image, Länder offline. Gemessen und verworfen: Protokollerkennung mit extra Verbindung ([#3](../../issues/3)) und IPv6 ([#1](../../issues/1)).
 
 <a id="mitmachen"></a>
 

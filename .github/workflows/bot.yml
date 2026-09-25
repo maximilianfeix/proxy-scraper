@@ -1,0 +1,86 @@
+name: discord bot
+
+on:
+  push:
+    branches: [main]
+    paths: ["bot/**", ".github/workflows/bot.yml"]
+  pull_request:
+    paths: ["bot/**", ".github/workflows/bot.yml"]
+  workflow_dispatch:   # redeploy by hand, e.g. after changing the token
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: bot/requirements.txt
+      - run: pip install -r bot/requirements.txt pytest
+      - run: python -m pytest -q tests
+        working-directory: bot
+
+  deploy:
+    needs: test
+    if: github.event_name != 'pull_request' && github.ref == 'refs/heads/main'
+    runs-on: ubuntu-latest
+    concurrency: deploy-bot   # never two deploys at the same time
+    env:
+      HOST: ${{ secrets.DEPLOY_HOST }}
+      USER_AT_HOST: root@${{ secrets.DEPLOY_HOST }}   # install.sh sets up a user, a venv and a systemd unit
+    steps:
+      - name: Check the secrets
+        id: secrets
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+          TOKEN: ${{ secrets.DISCORD_TOKEN }}
+        run: |
+          missing=""
+          [ -n "$HOST" ] || missing="$missing DEPLOY_HOST"
+          [ -n "$KEY" ] || missing="$missing DEPLOY_SSH_KEY"
+          [ -n "$KNOWN" ] || missing="$missing DEPLOY_KNOWN_HOSTS"
+          [ -n "$TOKEN" ] || missing="$missing DISCORD_TOKEN"
+          if [ -n "$missing" ]; then
+            echo "::notice::Not deploying, secrets missing:$missing (see bot/README.md)"
+            echo "ready=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "ready=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - uses: actions/checkout@v4
+        if: steps.secrets.outputs.ready == 'true'
+
+      - name: Set up SSH
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          KEY: ${{ secrets.DEPLOY_SSH_KEY }}
+          KNOWN: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
+        run: |
+          install -d -m 700 ~/.ssh
+          printf '%s\n' "$KEY" > ~/.ssh/id_ed25519 && chmod 600 ~/.ssh/id_ed25519
+          # pinned host key: a server that suddenly presents a different key gets no token
+          printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
+
+      - name: Copy the bot
+        if: steps.secrets.outputs.ready == 'true'
+        run: |
+          tar -C bot --exclude tests --exclude '__pycache__' -czf - . | ssh -o BatchMode=yes "$USER_AT_HOST" \
+            'set -e; rm -rf /opt/proxybot/app.new; mkdir -p /opt/proxybot/app.new; tar -xzf - -C /opt/proxybot/app.new;
+             rm -rf /opt/proxybot/app.old; [ -d /opt/proxybot/app ] && mv /opt/proxybot/app /opt/proxybot/app.old;
+             mv /opt/proxybot/app.new /opt/proxybot/app'
+
+      - name: Write the token
+        if: steps.secrets.outputs.ready == 'true'
+        env:
+          TOKEN: ${{ secrets.DISCORD_TOKEN }}
+        run: printf 'DISCORD_TOKEN=%s\n' "$TOKEN" | ssh -o BatchMode=yes "$USER_AT_HOST" 'umask 077; cat > /etc/proxybot.env'
+
+      - name: Install and restart
+        if: steps.secrets.outputs.ready == 'true'
+        run: ssh -o BatchMode=yes "$USER_AT_HOST" 'bash /opt/proxybot/app/deploy/install.sh'

@@ -54,3 +54,34 @@ def test_network_blocked_counts_fakes_as_reachable(found, fakes, expected):
     stats.working_by_type["http"] = found
     stats.fakes = fakes
     assert app.is_network_blocked(stats) is expected
+
+
+def test_recheck_live_loads_the_public_list(tmp_path):
+    import asyncio
+
+    from proxyscraper import app
+    from proxyscraper.history import ProxyHistory
+
+    async def fetch(url, timeout):
+        assert url.endswith("/proxy-list/all.txt")
+        return b"socks5://8.8.4.4:1080\nhttp://1.1.1.1:80\nkaputt\n"
+
+    history = ProxyHistory(tmp_path / "h.json")
+    jobs = asyncio.run(app.load_live_jobs(["socks5", "http"], history, fetch=fetch))
+    assert jobs == ["socks5 8.8.4.4:1080", "http 1.1.1.1:80"]
+    assert asyncio.run(app.load_live_jobs(["http"], history, fetch=fetch)) == ["http 1.1.1.1:80"]
+
+
+def test_recheck_live_falls_back_when_offline(tmp_path, monkeypatch):
+    import asyncio
+
+    from proxyscraper import app
+    from proxyscraper.history import ProxyHistory
+
+    async def fetch(url, timeout):
+        raise ConnectionError("offline")
+
+    monkeypatch.setattr(app, "latest_results", lambda: ["http://9.9.9.9:80"])
+    monkeypatch.setattr(app, "note", lambda *a, **k: None)
+    jobs = asyncio.run(app.load_live_jobs(["http"], ProxyHistory(tmp_path / "h.json"), fetch=fetch))
+    assert jobs == ["http 9.9.9.9:80"]

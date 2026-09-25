@@ -10,9 +10,9 @@ hatte), endet es mit Code 78 und schreibt nichts – die alte Liste bleibt dann 
 from __future__ import annotations
 
 import argparse
+import csv
 import json
 import os
-import shutil
 import statistics
 import sys
 from collections import Counter
@@ -26,9 +26,15 @@ SKIP_EXIT_CODE = 78
 RAW_BASE = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list"
 
 
+def is_public(row: dict) -> bool:
+    """Proxys mit Zugangsdaten gehören nie in die öffentliche Liste – der Login stammt aus irgendeiner
+    fremden Liste, und veröffentlicht wäre er für alle sichtbar."""
+    return "@" not in row.get("proxy", "")
+
+
 def load_rows(run_dir: Path) -> List[dict]:
     rows = json.loads((run_dir / "proxies.json").read_text(encoding="utf-8"))
-    return sorted(rows, key=lambda r: r["latency"])
+    return sorted((r for r in rows if is_public(r)), key=lambda r: r["latency"])
 
 
 def num(n: int) -> str:
@@ -115,8 +121,14 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     now = now or datetime.now(timezone.utc)
     out.mkdir(parents=True, exist_ok=True)
     counts = write_lists(rows, out)
-    for name in ("proxies.json", "proxies.csv"):
-        shutil.copyfile(run_dir / name, out / name)
+    # nicht einfach kopieren: Details neu schreiben, damit auch dort nichts mit Zugangsdaten landet
+    (out / "proxies.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
+    with (run_dir / "proxies.csv").open(newline="", encoding="utf-8") as src, \
+            (out / "proxies.csv").open("w", newline="", encoding="utf-8") as dst:
+        reader = csv.DictReader(src)
+        writer = csv.DictWriter(dst, fieldnames=reader.fieldnames or ["proxy"])
+        writer.writeheader()
+        writer.writerows(r for r in reader if is_public(r))
     stats = stats_for(rows, now)
     write_json(out / "stats.json", stats, indent=1)
     badges = out / "badges"

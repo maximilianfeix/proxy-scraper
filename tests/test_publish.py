@@ -62,3 +62,17 @@ def test_median_latency_for_even_count():
 
 def test_num():
     assert publish.num(1234567) == "1.234.567"
+
+
+
+def test_proxies_with_credentials_are_never_published(tmp_path):
+    rows = [CheckResult(f"http 1.1.1.{i}:80", "http", f"1.1.1.{i}:80", 100, "9.9.9.9", True, "elite", "DE")
+            for i in range(3)]
+    rows.append(CheckResult("socks5 alice:geheim@2.2.2.2:1080", "socks5", "alice:geheim@2.2.2.2:1080", 50,
+                            "8.8.8.8", True, "elite", "US"))
+    ResultWriter(run_dir=tmp_path / "run").finalize(rows)
+    out = tmp_path / "public"
+    assert publish.publish(tmp_path / "run", out, minimum=2) == 0
+    everything = "".join(p.read_text(encoding="utf-8") for p in out.rglob("*") if p.is_file())
+    assert "geheim" not in everything and "alice" not in everything and "2.2.2.2" not in everything
+    assert (out / "http.txt").read_text().count("\n") == 3

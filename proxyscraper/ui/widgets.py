@@ -5,6 +5,7 @@ from __future__ import annotations
 import time
 from datetime import datetime
 from typing import Optional, Sequence
+from urllib.parse import unquote
 
 from rich import box
 from rich.align import Align
@@ -236,3 +237,14 @@ def row(*renderables, ratios: Optional[Sequence[int]] = None) -> Table:
 
 def centered(text: str, style: str = MUTED) -> Align:
     return Align.center(Text(text, style=style))
+
+
+def shown_proxy(proxy: str) -> str:
+    """Proxy fürs Terminal: Passwörter werden maskiert ('alice:•••@1.2.3.4:1080'), die Dateien behalten sie."""
+    auth, sep, address = proxy.rpartition("@")
+    if not sep:
+        return proxy
+    user = unquote(auth.partition(":")[0])
+    # Benutzernamen kommen aus fremden Listen – Steuerzeichen (Zeilenumbruch, ESC) nie ins Terminal
+    user = "".join(c if c.isprintable() else "?" for c in user)
+    return f"{user}:•••@{address}"

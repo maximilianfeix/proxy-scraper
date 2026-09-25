@@ -1,6 +1,7 @@
 """Echte, weiterleitende Mini-Proxys und ein Zielserver auf localhost – für Tests ohne Internet."""
 
 import asyncio
+import base64
 import socket
 import ssl
 from pathlib import Path
@@ -50,7 +51,10 @@ async def target_server(reader, writer):
 
 async def http_forward_proxy(reader, writer):
     """HTTP-Proxy: absolute URLs weiterleiten und CONNECT tunneln."""
-    head = await reader.readuntil(b"\r\n\r\n")
+    await _http_forward(await reader.readuntil(b"\r\n\r\n"), reader, writer)
+
+
+async def _http_forward(head, reader, writer):
     method, url, rest = head.split(b" ", 2)
     if method == b"CONNECT":
         host, port = url.decode().rsplit(":", 1)
@@ -70,6 +74,10 @@ async def socks5_forward_proxy(reader, writer):
     """SOCKS5-Proxy ohne Anmeldung, IPv4-Adressen und Hostnamen."""
     await reader.readexactly(3)
     writer.write(b"\x05\x00")
+    await _socks5_connect(reader, writer)
+
+
+async def _socks5_connect(reader, writer):
     head = await reader.readexactly(4)
     if head[3] == 1:
         host = socket.inet_ntoa(await reader.readexactly(4))
@@ -197,3 +205,41 @@ async def tls_record_server(reader, writer):
     writer.write(b"\x16\x03\x03\x00\x02ok")
     await writer.drain()
     writer.close()
+
+
+# Zugangsdaten der Proxys mit Login – mit Zeichen, die in URLs kodiert werden müssen
+USER, PASSWORD = "alice", "p@ss:wörd"
+
+
+async def auth_http_forward_proxy(reader, writer):
+    """HTTP-Proxy mit Pflicht-Login: ohne passenden Proxy-Authorization-Header gibt es 407."""
+    head = await reader.readuntil(b"\r\n\r\n")
+    token = base64.b64encode(f"{USER}:{PASSWORD}".encode())
+    if b"\r\nProxy-Authorization: Basic " + token + b"\r\n" not in head:
+        writer.write(b"HTTP/1.1 407 Proxy Authentication Required\r\nContent-Length: 0\r\n\r\n")
+        await writer.drain()
+        writer.close()
+        return
+    await _http_forward(head, reader, writer)
+
+
+async def auth_socks5_forward_proxy(reader, writer):
+    """SOCKS5-Proxy, der nur Benutzer/Passwort (RFC 1929) akzeptiert."""
+    _, count = await reader.readexactly(2)
+    methods = await reader.readexactly(count)
+    if 0x02 not in methods:
+        writer.write(b"\x05\xff")  # keine akzeptable Methode
+        await writer.drain()
+        writer.close()
+        return
+    writer.write(b"\x05\x02")
+    await reader.readexactly(1)
+    user = await reader.readexactly((await reader.readexactly(1))[0])
+    password = await reader.readexactly((await reader.readexactly(1))[0])
+    if (user.decode(), password.decode()) != (USER, PASSWORD):
+        writer.write(b"\x01\x01")
+        await writer.drain()
+        writer.close()
+        return
+    writer.write(b"\x01\x00")
+    await _socks5_connect(reader, writer)

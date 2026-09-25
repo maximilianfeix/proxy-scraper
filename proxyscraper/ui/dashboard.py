@@ -52,6 +52,7 @@ from .widgets import (
     panel_title,
     pct,
     row,
+    shown_proxy,
     sparkline,
     table,
     type_badge,
@@ -291,7 +292,7 @@ class CheckDashboard:
             recent.add_column("Exit-IP", ratio=2, style=MUTED, no_wrap=True)
         recent.add_column("Latenz", justify="right", width=8)
         for r in reversed(s.recent):
-            cells = [type_badge(r.ptype), r.proxy, country_cell(r.country)]
+            cells = [type_badge(r.ptype), shown_proxy(r.proxy), country_cell(r.country)]
             if self.details:
                 cells.append(https_cell(r.https))
             if self.targets:

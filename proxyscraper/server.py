@@ -10,13 +10,15 @@ from __future__ import annotations
 
 import asyncio
 import random
+import re
 import socket
 import time
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Deque, List, Optional, Set, Tuple
 
-from .checker import CheckResult, _socks5_reply_ok
+from .checker import CheckResult
+from .handshake import parse_endpoint, socks4, socks5, socks5_domain, stream_io, with_proxy_auth
 
 MAX_ATTEMPTS = 3            # so viele Proxys pro Anfrage, bevor der Client einen Fehler bekommt
 FIRST_CHUNK_WAIT = 5.0      # so lange auf das erste Paket des Clients im Tunnel warten
@@ -152,15 +154,15 @@ async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, 
     """Verbindung über den Proxy zu host:port. tunnel=False heißt: HTTP-Upstream im Weiterleitungsmodus
     (klassische Proxy-Anfrage ohne CONNECT). Wirft UpstreamError, wenn der Proxy nicht mitspielt."""
     r = entry.result
-    proxy_host, proxy_port = r.proxy.rsplit(":", 1)
+    ep = parse_endpoint(r.proxy)
     try:
-        reader, writer = await asyncio.wait_for(asyncio.open_connection(proxy_host, int(proxy_port)), timeout)
+        reader, writer = await asyncio.wait_for(asyncio.open_connection(ep.host, ep.port), timeout)
     except (OSError, asyncio.TimeoutError) as e:
         raise UpstreamError(f"Proxy nicht erreichbar: {e!r}") from None
     if r.ptype == "http" and not tunnel:
         return reader, writer
     try:
-        await asyncio.wait_for(_handshake(r.ptype, reader, writer, host, port), timeout)
+        await asyncio.wait_for(_handshake(r.ptype, r.proxy, reader, writer, host, port), timeout)
     except BaseException as e:
         writer.close()
         if isinstance(e, (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, UpstreamError, ValueError)):
@@ -169,9 +171,11 @@ async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, 
     return reader, writer
 
 
-async def _handshake(ptype: str, reader, writer, host: str, port: int) -> None:
+async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: int) -> None:
+    ep = parse_endpoint(proxy)
     if ptype == "http":
-        writer.write(f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode())
+        connect = f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode()
+        writer.write(with_proxy_auth(connect, ep))
         await writer.drain()
         head = await reader.readuntil(b"\r\n\r\n")
         first = head.split(b"\r\n", 1)[0]
@@ -181,29 +185,68 @@ async def _handshake(ptype: str, reader, writer, host: str, port: int) -> None:
             raise UpstreamError(first.decode("latin-1"))
     elif ptype == "socks4":
         ip = await _resolve(host, port)  # SOCKS4 kennt nur IPv4-Adressen
-        writer.write(b"\x04\x01" + port.to_bytes(2, "big") + socket.inet_aton(ip) + b"\x00")
-        await writer.drain()
-        if (await reader.readexactly(8))[1] != 0x5A:
+        if not await socks4(*stream_io(reader, writer), ep, socket.inet_aton(ip), port):
             raise UpstreamError("SOCKS4 abgelehnt")
     else:
-        writer.write(b"\x05\x01\x00")
-        await writer.drain()
-        if await reader.readexactly(2) != b"\x05\x00":
-            raise UpstreamError("SOCKS5-Anmeldung abgelehnt")
-        name = host.encode("idna")
         # Hostname statt IP: die Namensauflösung passiert beim Proxy (kein DNS-Leck)
-        writer.write(b"\x05\x01\x00\x03" + bytes([len(name)]) + name + port.to_bytes(2, "big"))
-        await writer.drain()
-        if not await _socks5_reply_ok(reader.readexactly):
-            raise UpstreamError("SOCKS5-Verbindung abgelehnt")
+        if not await socks5(*stream_io(reader, writer), ep, socks5_domain(host), port):
+            raise UpstreamError("SOCKS5 abgelehnt")
+
+
+PROXY_AUTH_REQUIRED = re.compile(rb"HTTP/1\.[01] 407\b")
+STATUS_LEN = len(b"HTTP/1.1 407 ")
+STATUS_RE = re.compile(rb"HTTP/1\.[01] (\d{3})[ \r\n]")  # genau drei Ziffern – "4070" ist kein 407
+SCREEN_LIMIT = 16384
+
+
+class ResponseScreen:
+    """Prüft den Anfang einer Upstream-Antwort, bis die endgültige Statuszeile da ist.
+
+    Zwischenantworten (100 Continue & Co.) gehen sofort an den Client weiter; kommt danach ein 407,
+    soll der Client das nie sehen. feed() gibt zurück, was schon weiter darf, und die Entscheidung:
+    None = noch offen, "ok" = alles Weitere einfach durchreichen, "407" = Proxy will einen Login
+    (oder schickt eine unplausibel lange Zwischenantwort – beides heißt: diesen Upstream nicht nehmen)."""
+
+    def __init__(self):
+        self.buf = b""
+
+    def feed(self, data: bytes):
+        self.buf += data
+        out = b""
+        while True:
+            head = self.buf
+            if len(head) < STATUS_LEN and b"\n" not in head and head[:5] == b"HTTP/"[:len(head[:5])]:
+                return out, None  # Statuszeile noch unvollständig
+            m = STATUS_RE.match(head)
+            if not m:
+                return out + self._flush(), "ok"  # keine HTTP-Antwort (z. B. Tunnel) – nichts zu prüfen
+            code = m.group(1)
+            if code == b"407":
+                return out, "407"
+            if not code.startswith(b"1") or code == b"101":  # 101 Switching Protocols ist endgültig
+                return out + self._flush(), "ok"
+            end = head.find(b"\r\n\r\n")
+            if end < 0:
+                if len(head) > SCREEN_LIMIT:
+                    return out, "407"  # riesige Zwischenantwort – lieber als gescheitert werten als blind durchlassen
+                return out, None  # Zwischenantwort noch nicht vollständig
+            out += head[:end + 4]
+            self.buf = head[end + 4:]
+            if not self.buf:
+                return out, None
+
+    def _flush(self) -> bytes:
+        data, self.buf = self.buf, b""
+        return data
 
 
 def plausible_answer(first_out: bytes, first_in: bytes) -> bool:
     """Passt die erste Antwort zur Anfrage? Beginnt der Client mit einem TLS-Handshake (0x16), muss die
-    Gegenseite auch TLS sprechen – manche Proxys schicken im Tunnel stattdessen eine HTTP-Fehlerseite."""
+    Gegenseite auch TLS sprechen – manche Proxys schicken im Tunnel stattdessen eine HTTP-Fehlerseite.
+    Ein 407 kommt immer vom Proxy selbst (Login fehlt oder falsch), nie von der Zielseite."""
     if first_out[:1] == TLS_HANDSHAKE:
         return first_in[:1] in (TLS_HANDSHAKE, TLS_ALERT)
-    return True
+    return not PROXY_AUTH_REQUIRED.match(first_in)
 
 
 async def _resolve(host: str, port: int) -> str:
@@ -300,8 +343,12 @@ class RotatingServer:
             if opened is None:
                 break
             entry, up_reader, up_writer = opened
-            build = forward_request if entry.result.ptype == "http" else origin_request
-            first_out = build(method, path, host, port, headers) + body
+            if entry.result.ptype == "http":
+                head = with_proxy_auth(forward_request(method, path, host, port, headers),
+                                       parse_endpoint(entry.result.proxy))
+            else:
+                head = origin_request(method, path, host, port, headers)
+            first_out = head + body
             if not replayable:
                 # Großer oder gestreamter Body: kein Wechsel möglich – Kopf senden, den Rest durchreichen
                 up_writer.write(first_out)
@@ -341,11 +388,25 @@ class RotatingServer:
                 up_writer.write(first_out)
                 await up_writer.drain()
             first_in = await asyncio.wait_for(up_reader.read(65536), self.timeout)
+            if first_in and first_out[:1] != TLS_HANDSHAKE:
+                first_in = await self._screen_first_answer(up_reader, first_in)
         except (OSError, asyncio.TimeoutError):
             return None
         if not first_in or not plausible_answer(first_out, first_in):
             return None
         return first_in
+
+    async def _screen_first_answer(self, up_reader, first_in: bytes) -> bytes:
+        """Bis zur endgültigen Statuszeile lesen (über 100 Continue & Co. hinweg). b"" = Proxy will Login."""
+        screen = ResponseScreen()
+        out, verdict = screen.feed(first_in)
+        while verdict is None:
+            more = await asyncio.wait_for(up_reader.read(65536), self.timeout)
+            if not more:
+                return b""  # aufgelegt, bevor eine endgültige Antwort kam – das ist kein Erfolg
+            data, verdict = screen.feed(more)
+            out += data
+        return b"" if verdict == "407" else out
 
     async def _relay(self, reader, writer, client, host, port, started, attempts, entry,
                      up_reader, up_writer, first_out: bytes, first_in: bytes) -> bool:
@@ -362,7 +423,8 @@ class RotatingServer:
                 await writer.drain()
             _, received = await asyncio.gather(
                 self._pipe(reader, up_writer, up=True),
-                self._pipe(up_reader, writer, up=False),
+                # ohne erste Antwort vorab (gestreamter Body) hier auf ein 407 des Proxys achten
+                self._pipe(up_reader, writer, up=False, reject_proxy_auth=not first_in),
             )
         finally:
             entry.active -= 1
@@ -418,14 +480,30 @@ class RotatingServer:
                      b"Connection: close\r\n\r\nKein Proxy aus dem Pool hat geantwortet.\n")
         await writer.drain()
 
-    async def _pipe(self, reader, writer, up: bool) -> int:
-        """Daten weiterreichen, bis eine Seite aufhört; gibt die Anzahl der Bytes zurück."""
+    async def _pipe(self, reader, writer, up: bool, reject_proxy_auth: bool = False) -> int:
+        """Daten weiterreichen, bis eine Seite aufhört; gibt die Anzahl der Bytes zurück.
+
+        reject_proxy_auth: ist die endgültige Antwort ein 407 (auch nach 100 Continue), bekommt der
+        Client stattdessen 502 und es wird -1 zurückgegeben (Proxy gilt als gescheitert)."""
         total = 0
+        screen = ResponseScreen() if reject_proxy_auth else None
         try:
             while True:
                 data = await reader.read(65536)
                 if not data:
+                    if screen:  # aufgelegt, bevor eine endgültige Antwort kam – für den Client ein 502
+                        await self._bad_gateway(writer)
+                        return -1
                     break
+                if screen:
+                    data, verdict = screen.feed(data)
+                    if verdict == "407":
+                        await self._bad_gateway(writer)
+                        return -1
+                    if verdict == "ok":
+                        screen = None
+                    if not data:
+                        continue
                 total += len(data)
                 if up:
                     self.stats.bytes_up += len(data)
@@ -433,8 +511,16 @@ class RotatingServer:
                     self.stats.bytes_down += len(data)
                 writer.write(data)
                 await writer.drain()
-        except (ConnectionError, OSError):
-            pass  # eine Seite hat aufgelegt – das beendet die Weiterleitung ganz normal
+        except (ConnectionError, OSError, asyncio.TimeoutError):
+            # eine Seite hat aufgelegt – das beendet die Weiterleitung normalerweise ganz normal. Kam aber noch
+            # keine endgültige Antwort (Upstream bricht z. B. per RST ab, weil unser Body ungelesen im Puffer
+            # lag), ist das genauso ein Fehlschlag wie ein sauberes Auflegen.
+            if screen:
+                try:
+                    await self._bad_gateway(writer)
+                except (ConnectionError, OSError):
+                    pass
+                return -1
         finally:
             try:
                 writer.write_eof()

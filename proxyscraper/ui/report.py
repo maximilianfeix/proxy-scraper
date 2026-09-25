@@ -39,6 +39,7 @@ from .widgets import (
     pct,
     row,
     short_url,
+    shown_proxy,
     table,
     type_badge,
 )
@@ -135,7 +136,8 @@ def render_summary(
             fastest.add_column("Anon", width=4, justify="center")
         fastest.add_column("Latenz", justify="right", width=8)
         for n, r in enumerate(sorted(kept, key=lambda r: r.latency)[:10], 1):
-            cells = [str(n), Text.assemble((f"{r.ptype}://", TYPE_STYLE[r.ptype]), r.proxy), country_cell(r.country)]
+            url = Text.assemble((f"{r.ptype}://", TYPE_STYLE[r.ptype]), shown_proxy(r.proxy))
+            cells = [str(n), url, country_cell(r.country)]
             if details:
                 cells += [https_cell(r.https), anon_cell(r.anonymity)]
             cells.append(Text(f"{fmt(r.latency)} ms", style=latency_style(r.latency)))

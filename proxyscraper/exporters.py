@@ -13,13 +13,11 @@ from datetime import datetime
 from typing import Callable, Dict, List, Sequence, Tuple
 
 from .checker import CheckResult
+from .handshake import parse_endpoint
 
 Exporter = Callable[[Sequence[CheckResult], datetime], str]
 
 
-def _host_port(r: CheckResult) -> Tuple[str, int]:
-    host, _, port = r.proxy.rpartition(":")
-    return host, int(port)
 
 
 def tunnels(r: CheckResult) -> bool:
@@ -29,9 +27,15 @@ def tunnels(r: CheckResult) -> bool:
 
 
 def proxychains(rows: Sequence[CheckResult], now: datetime) -> str:
-    rows = [r for r in rows if tunnels(r)]
+    entries = []
+    for r in rows:
+        ep = parse_endpoint(r.proxy)
+        creds = [ep.user, ep.password] if ep.has_auth else []
+        if not tunnels(r) or any(not c or c.split() != [c] for c in creds):
+            continue  # proxychains trennt an Leerzeichen, leere Felder gehen auch nicht
+        entries.append(" ".join([r.ptype, ep.host, str(ep.port), *creds]))
     lines = [
-        f"# proxy-scraper, {now:%Y-%m-%d %H:%M}, {len(rows)} Proxys (schnellste zuerst, HTTP nur mit CONNECT)",
+        f"# proxy-scraper, {now:%Y-%m-%d %H:%M}, {len(entries)} Proxys (schnellste zuerst, HTTP nur mit CONNECT)",
         "# Nutzung: proxychains4 -f proxychains.conf curl https://api.ipify.org",
         "random_chain",
         "chain_len = 1",
@@ -41,10 +45,7 @@ def proxychains(rows: Sequence[CheckResult], now: datetime) -> str:
         "",
         "[ProxyList]",
     ]
-    for r in rows:
-        host, port = _host_port(r)
-        lines.append(f"{r.ptype} {host} {port}")
-    return "\n".join(lines) + "\n"
+    return "\n".join(lines + entries) + "\n"
 
 
 CLASH_TYPES = {"http": "http", "socks5": "socks5"}  # SOCKS4 kennt Clash nicht
@@ -55,17 +56,25 @@ def clash(rows: Sequence[CheckResult], now: datetime) -> str:
     q = json.dumps
     usable = [r for r in rows if r.ptype in CLASH_TYPES and tunnels(r)]
     names: List[str] = []
+    taken = set()
     lines = [f"# proxy-scraper, {now:%Y-%m-%d %H:%M}, {len(usable)} Proxys (SOCKS4 kann Clash nicht)", "proxies:"]
     for r in usable:
-        host, port = _host_port(r)
-        name = f"{r.country or '??'} {r.ptype} {r.proxy}"
+        ep = parse_endpoint(r.proxy)
+        base = name = f"{r.country or '??'} {r.ptype} {ep.address}"
+        n = 1
+        while name in taken:  # derselbe Proxy mit verschiedenen Zugangsdaten
+            n += 1
+            name = f"{base} #{n}"
+        taken.add(name)
         names.append(name)
         lines += [
             f"  - name: {q(name)}",
             f"    type: {CLASH_TYPES[r.ptype]}",
-            f"    server: {q(host)}",
-            f"    port: {port}",
+            f"    server: {q(ep.host)}",
+            f"    port: {ep.port}",
         ]
+        if ep.has_auth:
+            lines += [f"    username: {q(ep.user)}", f"    password: {q(ep.password)}"]
         if r.ptype == "socks5":
             lines.append("    udp: false")
     if not usable:

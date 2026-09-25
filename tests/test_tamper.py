@@ -57,3 +57,30 @@ def test_error_pages_are_not_called_tampering(status):
 
 def test_without_reference_nothing_is_judged():
     assert tampers(fake_proxy(INJECTED), reference=None) is False
+
+
+def test_missing_reference_is_reported(monkeypatch):
+    from proxyscraper import app
+    from proxyscraper.judges import Judge, JudgeProbe
+    from proxyscraper.options import RunOptions
+
+    async def ranked():
+        return [JudgeProbe(Judge("a"), "1.1.1.1", 10, "87.150.19.11")]
+
+    async def own():
+        return ["87.150.19.11"]
+
+    async def confirm():
+        return "4.4.4.4"
+
+    async def no_reference(ip, timeout):
+        return None
+
+    notes = []
+    monkeypatch.setattr(app, "rank_judges", ranked)
+    monkeypatch.setattr(app, "get_own_ips", own)
+    monkeypatch.setattr(app, "confirm_target", confirm)
+    monkeypatch.setattr(app, "integrity_reference", no_reference)
+    monkeypatch.setattr(app, "note", lambda text, *a: notes.append(text))
+    assert asyncio.run(app.Run(RunOptions(no_geo=True), show_banner=False).prepare_network())
+    assert any("Inhalte verändern" in n for n in notes)

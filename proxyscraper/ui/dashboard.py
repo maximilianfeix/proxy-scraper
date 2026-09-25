@@ -319,7 +319,7 @@ class CheckDashboard:
             footer.append(f"\n  Filter: {self.filters_text}", style=WARN)
             footer.append(f"  ·  {fmt(s.passing)} passend", style=MUTED)
         footer.append(f"\n  → {self.outfile}", style=MUTED)
-        if s.checked >= 2000 and found + s.fakes < s.checked * BLOCKED_HIT_RATE:
+        if s.checked >= 2000 and found + s.fakes + s.tampered < s.checked * BLOCKED_HIT_RATE:
             footer.append("\n  ⚠ Kaum Treffer – blockiert dein Netz (Firewall) Proxy-Verbindungen?",
                           style=f"bold {WARN}")
 

@@ -206,6 +206,9 @@ class Run:
             (f"  ·  Reserve: {', '.join(reserve)}", MUTED) if reserve else "",
             (f"  ·  Bestätigung über {CONFIRM_HOST}", MUTED) if self.confirm_ip else "",
         ))
+        if self.confirm_ip and self.integrity is None:
+            note(f"Vergleichsseite von {CONFIRM_HOST} nicht erreichbar – Proxys, die Inhalte verändern, "
+                 "werden in diesem Lauf nicht erkannt.")
         if not self.confirm_ip:
             note(f"{CONFIRM_HOST} nicht erreichbar – ohne zweite Bestätigung können Fake-Proxys "
                  "(Honeypots) durchrutschen, und die Anonymität bleibt unbekannt.")

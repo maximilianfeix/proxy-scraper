@@ -144,7 +144,7 @@ Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</
 
 Don't want to scan yourself? Every 6 hours **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, fastest first.
 
-**→ [Browse it on the website](https://maximilianfeix.github.io/proxy-scraper/)** – search, filter by type, country, HTTPS and latency, copy or download exactly the proxies you need.
+**→ [Browse it on the website](https://maximilianfeix.github.io/proxy-scraper/)** – search, filter by type, country, HTTPS, provider and latency, see how long each proxy has been up, copy or download exactly the proxies you need. `streaks.json` on the branch has the number of runs in a row for every proxy.
 
 <div align="center"><a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="docs/website.png" alt="The live list website" width="860"></a></div>
 
@@ -310,6 +310,7 @@ curl -x socks5h://127.0.0.1:8899 https://api.ipify.org           # SOCKS5 on the
 curl -x http://country-de:x@127.0.0.1:8899 https://api.ipify.org # only German exits
 curl -x http://session-cart42:x@127.0.0.1:8899 https://shop.example  # same proxy for this session
 curl http://127.0.0.1:8899/__proxy-scraper/status                # pool and counters as JSON
+curl http://127.0.0.1:8899/__proxy-scraper/metrics               # the same for Prometheus/Grafana
 ```
 
 Like commercial rotating proxies, the **username** carries what you want: `country-XX`, `type-http|socks4|socks5` and `session-NAME`, combinable (`country-us-type-socks5-session-a`). It works for HTTP (`Proxy-Authorization`) and SOCKS5 (username/password auth). The password is ignored – by default the server only listens on `127.0.0.1`. With `--serve-host` it can listen elsewhere, and then **anyone who reaches it can use it**, so only do that behind a firewall or in Docker with `-p 127.0.0.1:…`.

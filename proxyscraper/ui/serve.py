@@ -66,6 +66,7 @@ class ServeDashboard:
         usage.add_row("Feste Session", Text(f"curl -x http://session-abc:x@{address} …  (bleibt beim selben Proxy)"))
         usage.add_row("Terminal", Text(f"export http_proxy=http://{address} https_proxy=http://{address}"))
         usage.add_row("Status (JSON)", Text(f"curl http://{address}/__proxy-scraper/status"))
+        usage.add_row("Prometheus", Text(f"http://{address}/__proxy-scraper/metrics"))
         mode = pool.strategy + (f" · sticky {pool.sticky_seconds:g} s" if pool.sticky_seconds else "")
         usage.add_row("Rotation", Text(mode + (f" · {fmt(server.revived)} zurückgeholt" if server.revived else ""),
                                        style=MUTED))

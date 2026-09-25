@@ -25,6 +25,7 @@ class Proxy:
     hosting: bool = False
     org: str = ""
     streak: int = 0
+    blocklisted: Optional[bool] = None  # exit IP on SpamCop? None = not looked up
 
     @property
     def url(self) -> str:
@@ -40,9 +41,10 @@ class Proxy:
             latency = int(row.get("latency") or 0)
         except (TypeError, ValueError):
             return None
+        blocklisted = row.get("blocklisted")
         return cls(ptype, address, latency, str(row.get("country") or ""), bool(row.get("https")),
                    str(row.get("anonymity") or ""), bool(row.get("hosting")), str(row.get("org") or ""),
-                   int(row.get("streak") or 0))
+                   int(row.get("streak") or 0), blocklisted if isinstance(blocklisted, bool) else None)
 
 
 @dataclass
@@ -72,7 +74,8 @@ def parse_snapshot(stats: dict, rows: Sequence[dict], history: Optional[Sequence
 
 
 def select(proxies: Iterable[Proxy], ptype: str = "", country: str = "", https: bool = False, elite: bool = False,
-           no_datacenter: bool = False, stable: bool = False, max_latency: int = 0) -> List[Proxy]:
+           no_datacenter: bool = False, stable: bool = False, max_latency: int = 0,
+           not_blocklisted: bool = False) -> List[Proxy]:
     """Filter like the website does, fastest first."""
     country = country.strip().upper()
     out = [p for p in proxies
@@ -81,6 +84,7 @@ def select(proxies: Iterable[Proxy], ptype: str = "", country: str = "", https: 
            and (not https or p.https)
            and (not elite or p.anonymity == "elite")
            and (not no_datacenter or not p.hosting)
+           and (not not_blocklisted or not p.blocklisted)
            and (not stable or p.streak >= 4)
            and (not max_latency or p.latency <= max_latency)]
     return sorted(out, key=lambda p: p.latency)

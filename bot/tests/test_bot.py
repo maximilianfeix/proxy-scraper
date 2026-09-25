@@ -16,7 +16,7 @@ STATS = {"updated": "2026-09-25T12:40:56+00:00", "total": 4, "by_type": {"http":
 ROWS = [
     {"ptype": "http", "proxy": "1.1.1.1:80", "latency": 900, "country": "US", "https": True, "anonymity": "elite"},
     {"ptype": "socks5", "proxy": "2.2.2.2:1080", "latency": 120, "country": "DE", "https": True,
-     "anonymity": "elite", "hosting": True, "org": "Hetzner Online GmbH", "streak": 5},
+     "anonymity": "elite", "hosting": True, "org": "DigitalOcean, LLC", "streak": 5, "blocklisted": True},
     {"ptype": "socks4", "proxy": "3.3.3.3:4145", "latency": 400, "country": "NL", "anonymity": "elite"},
     {"ptype": "http", "proxy": "4.4.4.4:3128", "latency": 3000, "country": "US", "anonymity": "anonymous"},
     {"ptype": "ftp", "proxy": "5.5.5.5:21", "latency": 1},             # unknown type
@@ -164,3 +164,13 @@ def test_a_broken_protocol_channel_does_not_repeat_the_summary(tmp_path, snap):
     feed, http, _, socks5 = asyncio.run(go())
     assert len(feed.sent) == 1                      # summary once, not on every poll
     assert len(http.sent) == 1 and len(socks5.sent) == 1  # the other channels still got their list
+
+
+def test_blocklist_filter_and_unknown_values(snap):
+    assert snap.proxies[0].blocklisted is True and snap.proxies[1].blocklisted is None
+    assert "2.2.2.2:1080" not in [p.address for p in select(snap.proxies, not_blocklisted=True)]
+    assert len(select(snap.proxies, not_blocklisted=True)) == 3  # unknown ones stay
+    weird = Proxy.from_row({"ptype": "http", "proxy": "7.7.7.7:80", "latency": 5, "blocklisted": "yes"})
+    assert weird.blocklisted is None
+    one = messages.single(snap.proxies[0])
+    assert any(f.name == "Blocklist" and f.value == "on SpamCop" for f in one.fields)

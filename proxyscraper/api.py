@@ -36,7 +36,8 @@ __all__ = ["CheckResult", "check_proxies", "check_proxies_async", "find_proxies"
 
 
 def _options(types: Iterable[str], want: int, limit: int, https: bool, countries: Iterable[str], anonymity: str,
-             max_latency: int, targets: Iterable[str], no_datacenter: bool, timeout: float, concurrency: int,
+             max_latency: int, targets: Iterable[str], no_datacenter: bool, no_blocklisted: bool, timeout: float,
+             concurrency: int,
              recheck: Optional[str]) -> RunOptions:
     if isinstance(countries, str):
         countries = parse_countries(countries)
@@ -47,7 +48,8 @@ def _options(types: Iterable[str], want: int, limit: int, https: bool, countries
     return RunOptions(
         types=list(types),
         filters=Filters(countries={c.upper() for c in countries}, https_only=https, min_anonymity=anonymity,
-                        max_latency=max_latency, targets=targets, no_datacenter=no_datacenter),
+                        max_latency=max_latency, targets=targets, no_datacenter=no_datacenter,
+                        no_blocklisted=no_blocklisted),
         want=want, limit=limit, timeout=timeout, concurrency=concurrency, recheck=recheck,
     )
 
@@ -85,6 +87,7 @@ def _quiet(verbose: bool):
 async def find_proxies_async(*, types: Iterable[str] = PROXY_TYPES, want: int = 0, limit: int = 0,
                              https: bool = False, countries: Iterable[str] = (), anonymity: str = "",
                              max_latency: int = 0, targets: Iterable[str] = (), no_datacenter: bool = False,
+                             no_blocklisted: bool = False,
                              timeout: float = 8.0, concurrency: int = 2000, verbose: bool = False,
                              _recheck: Optional[str] = None) -> List[CheckResult]:
     """Collect and check proxies; returns the hits that pass every filter, fastest first.
@@ -101,7 +104,7 @@ async def find_proxies_async(*, types: Iterable[str] = PROXY_TYPES, want: int = 
     from .app import Run  # only here: app pulls in the whole UI
 
     opts = _options(types, want, limit, https, countries, anonymity, max_latency, targets, no_datacenter,
-                    timeout, concurrency, _recheck)
+                    no_blocklisted, timeout, concurrency, _recheck)
     async with _one_at_a_time():
         with _quiet(verbose):
             run = Run(opts, show_banner=verbose)

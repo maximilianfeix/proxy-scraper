@@ -11,6 +11,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - New website design and a real logo: the route through a proxy that forms a check mark. Big live numbers, a ticker with the fastest proxies, a scroll scene through the five checks, smooth scrolling, light and dark theme. The README banner uses the same look
 
 ### Added
+- Blocklist info for every exit IP (SpamCop, one cached DNS lookup each) and `--no-blocklisted` to skip listed ones; about 29 % of working proxies are listed. Skipped with a note when the DNS resolver is refused. The website shows a BL tag and a "Not blocklisted" filter ([#66](https://github.com/maximilianfeix/proxy-scraper/issues/66))
 - Discord bot (`bot/`): posts every run of the live list with the fastest proxies and the full lists as files, sets up its own read-only channels, and answers `/proxies`, `/proxy`, `/stats` and `/about`. A GitHub Action tests it and deploys it to a server as a hardened systemd service ([#74](https://github.com/maximilianfeix/proxy-scraper/issues/74), [#75](https://github.com/maximilianfeix/proxy-scraper/issues/75))
 
 ### Fixed

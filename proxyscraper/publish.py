@@ -59,6 +59,9 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         "elite": sum(1 for r in rows if r.get("anonymity") == "elite"),
         # only with provider data – otherwise "0" would wrongly mean "no datacenters"
         "datacenter": sum(1 for r in rows if r.get("hosting")) if any(r.get("org") for r in rows) else None,
+        # only when the lookup ran – otherwise "0" would wrongly mean "none listed"
+        "blocklisted": sum(1 for r in rows if r.get("blocklisted"))
+        if any(r.get("blocklisted") is not None for r in rows) else None,
         "stable": sum(1 for r in rows if r.get("streak", 0) >= STABLE_RUNS),
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
         "median_latency": round(statistics.median(r["latency"] for r in rows)) if rows else 0,

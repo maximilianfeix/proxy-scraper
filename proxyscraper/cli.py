@@ -129,6 +129,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     g.add_argument("--fast", action="store_true",
                    help="skip the HTTPS test (faster); confirmation and anonymity still run")
     g.add_argument("--no-geo", action="store_true", help="don't look up countries")
+    g.add_argument("--no-dnsbl", action="store_true",
+                   help="don't look up whether exit IPs are on the SpamCop blocklist")
     g.add_argument("--recheck", nargs="?", const="", metavar="FILE",
                    help="only check proxies from FILE – without FILE: last run + history; "
                         "'live': the live list from GitHub (seconds instead of minutes, e.g. with --serve)")
@@ -141,6 +143,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="only proxies up to this latency")
     f.add_argument("--no-datacenter", action="store_true",
                    help="no proxies that exit from datacenters (cloud/hosting) – those often get blocked sooner")
+    f.add_argument("--no-blocklisted", action="store_true",
+                   help="no proxies whose exit IP is on the SpamCop blocklist – those often get captchas")
     f.add_argument("--target", action="append", type=target_url, metavar="URL",
                    help="only proxies that reach this site (repeatable), e.g. --target google.com")
 

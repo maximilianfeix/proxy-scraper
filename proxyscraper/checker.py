@@ -92,6 +92,7 @@ class CheckResult:
     asn: int = 0            # provider of the exit IP (DB-IP), 0 = unknown
     org: str = ""
     hosting: Optional[bool] = None  # exit probably in a datacenter? None = unknown
+    blocklisted: Optional[bool] = None  # exit IP on the SpamCop blocklist? None = unknown
 
     @property
     def url(self) -> str:

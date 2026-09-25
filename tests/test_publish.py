@@ -143,3 +143,9 @@ def test_missing_or_broken_streaks_start_fresh(tmp_path):
     broken.write_text("[1, 2]")
     publish.publish(run_dir(tmp_path), tmp_path / "public", minimum=2, streaks=broken)
     assert set(json.loads((tmp_path / "public" / "streaks.json").read_text()).values()) == {1}
+
+
+def test_streak_values_must_be_real_numbers(tmp_path):
+    path = tmp_path / "streaks.json"
+    path.write_text(json.dumps({"a": True, "b": 3, "c": -1, "d": "4", "e": 2.0}))
+    assert publish.load_streaks(path) == {"b": 3}

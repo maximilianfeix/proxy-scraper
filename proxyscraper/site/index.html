@@ -190,8 +190,9 @@ proxy-scraper --want 50 --https-only</pre></div>
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
   const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http","socks4","socks5"]), https: false, elite: false, noDc: false, stable: false, country: "", maxLat: 8000, q: "" };
   const STABLE = 4;  // Läufe in Folge = 24 Stunden
-  const uptime = (n) => { if (!n) return '<span class="no">–</span>'; const h = (n - 1) * 6;
-    const text = h < 6 ? "new" : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`;
+  // n Läufe in Folge = etwa n × 6 Stunden, damit "Stable" (4 Läufe) auch als 24 h dasteht
+  const uptime = (n) => { if (!n) return '<span class="no">–</span>'; const h = n * 6;
+    const text = n === 1 ? "new" : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`;
     return n >= STABLE ? `<span class="stable">${text}</span>` : `<span class="no">${text}</span>`; };
   const short = (org) => { const s = String(org || "").replace(/,? (Inc|LLC|Ltd|GmbH|Co|Corporation|Limited|S\.?A|B\.?V)\.?$/i, ""); return s.length > 26 ? s.slice(0, 25) + "…" : s; };
 

@@ -150,7 +150,7 @@ def load_streaks(path: Optional[Path]) -> Dict[str, int]:
         return {}
     if not isinstance(data, dict):
         return {}
-    return {k: v for k, v in data.items() if isinstance(k, str) and isinstance(v, int) and v > 0}
+    return {k: v for k, v in data.items() if isinstance(k, str) and type(v) is int and v > 0}  # bool ist auch ein int
 
 
 def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None,

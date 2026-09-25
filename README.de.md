@@ -103,7 +103,7 @@ pip install -r requirements.txt
 python3 proxy_scraper.py
 ```
 
-Zu jedem [Release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) gibt es außerdem ein Wheel für `pip install <datei>.whl` und ein Multi-Arch-Image (amd64/arm64) auf `ghcr.io`. Im Container kommt der Assistent nie, der Lauf startet direkt; `--serve` lauscht nur innerhalb des Containers.
+Zu jedem [Release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) gibt es außerdem ein Wheel für `pip install <datei>.whl` und ein Multi-Arch-Image (amd64/arm64) auf `ghcr.io`. Im Container kommt der Assistent nie, der Lauf startet direkt. Für den Proxy-Server `--serve --serve-host 0.0.0.0` mit `-p 127.0.0.1:8899:8899` – dann ist der Port nur auf dem eigenen Rechner offen.
 
 Installiert liegt der gelernte Zustand im Benutzerordner (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` bzw. `~/.local/share/proxy-scraper`; änderbar mit `PROXY_SCRAPER_HOME`), Ergebnisse landen in `./results`. Aus einem Klon gestartet bleibt beides im Projekt.
 
@@ -443,6 +443,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--discover` | sofort neue Quellen auf GitHub suchen |
 | `--no-cache` | alle Listen neu laden (unveränderte werden sonst per ETag übersprungen) |
 | `--list-sources [N]` | Rangliste der Quellen anzeigen |
+| `--serve-host ADRESSE` | wo der Proxy-Server lauscht (Standard `127.0.0.1`; `0.0.0.0` für Docker, mit Warnung) |
 | `--rotate STRATEGIE` · `--sticky SEK` | wie der Proxy-Server Proxys auswählt, siehe [oben](#proxy-server) |
 | `--serve [PORT]` | danach als rotierender Proxy auf `127.0.0.1:PORT` bereitstellen (Standard: 8899) |
 | `-o DATEI` | zusätzlich alle Treffer in diese Datei schreiben |

@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- `--serve-host` to make the proxy server reachable from outside a Docker container, with a warning when it's not a loopback address ([#43](https://github.com/maximilianfeix/proxy-scraper/issues/43))
 - Proxy server: `--rotate weighted|random|round-robin|fastest`, `--sticky SEC`, per-request choice through the username (`country-de`, `type-socks5`, `session-NAME`), SOCKS5 on the same port, a JSON status endpoint, and disabled proxies are re-checked every 5 minutes ([#48](https://github.com/maximilianfeix/proxy-scraper/issues/48))
 - The live list has a website on GitHub Pages: search, filters, copy and download, country and latency charts and a trend over the last runs ([#47](https://github.com/maximilianfeix/proxy-scraper/issues/47))
 - Proxies that tamper with content are filtered out: a static HTML page has to arrive unchanged. On 270 working proxies, 54 injected something, mostly a `<script src="http://…">` ([#46](https://github.com/maximilianfeix/proxy-scraper/issues/46))

@@ -26,7 +26,7 @@ from .http import (
 )
 from .pool import ANY, ProxyPool, Selection
 from .socks import SOCKS5_VERSION, Socks5Refused, socks5_accept, socks5_reply
-from .status import STATUS_PREFIX, selection_from_headers, status_json
+from .status import STATUS_PATH, STATUS_PREFIX, selection_from_headers, status_json
 from .upstream import UpstreamError, open_upstream
 
 MAX_ATTEMPTS = 3            # so viele Proxys pro Anfrage, bevor der Client einen Fehler bekommt
@@ -90,7 +90,7 @@ class RotatingServer:
                     return
                 head = first + await asyncio.wait_for(reader.readuntil(b"\r\n\r\n"), self.timeout)
                 if head.startswith(STATUS_PREFIX):
-                    await self._serve_status(writer)
+                    await self._serve_status(writer, head)
                     return
                 method, host, port, path, headers = parse_request_head(head)
             except (ValueError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, asyncio.TimeoutError,
@@ -379,9 +379,13 @@ class RotatingServer:
         if not served:
             self.stats.failed += 1
 
-    async def _serve_status(self, writer) -> None:
-        body = status_json(self).encode()
-        writer.write(b"HTTP/1.1 200 OK\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n"
+    async def _serve_status(self, writer, head: bytes) -> None:
+        target = head.split(b" ", 2)[1].split(b"?", 1)[0]
+        if target == STATUS_PATH:
+            status, body = b"200 OK", status_json(self).encode()
+        else:  # nur genau dieser Pfad – Tippfehler sollen nicht still den Status liefern
+            status, body = b"404 Not Found", b'{"error": "unknown path, try /__proxy-scraper/status"}'
+        writer.write(b"HTTP/1.1 " + status + b"\r\nContent-Type: application/json\r\nCache-Control: no-store\r\n"
                      b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body)
         await writer.drain()
 

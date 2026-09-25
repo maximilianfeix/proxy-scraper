@@ -284,3 +284,19 @@ def test_broken_socks5_clients_are_closed_quietly(greeting):
 
     asyncio.run(go())
     assert errors == []
+
+
+
+def test_only_the_exact_status_path_answers():
+    async def client(sp, tp):
+        out = []
+        for path in (b"/__proxy-scraper/status?x=1", b"/__proxy-scraper/status-extra"):
+            reader, writer = await asyncio.open_connection("127.0.0.1", sp)
+            writer.write(b"GET " + path + b" HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+            await writer.drain()
+            out.append(await asyncio.wait_for(reader.read(1 << 20), 5))
+            writer.close()
+        return out
+
+    (ok, typo), _, _ = run_with_server([result(1)], client)
+    assert ok.startswith(b"HTTP/1.1 200") and typo.startswith(b"HTTP/1.1 404")

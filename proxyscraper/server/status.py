@@ -12,6 +12,7 @@ from ..ui.widgets import shown_proxy
 from .pool import Selection
 
 STATUS_PREFIX = b"GET /__proxy-scraper/"
+STATUS_PATH = b"/__proxy-scraper/status"
 
 
 def selection_from_headers(headers: List[Tuple[bytes, bytes]]) -> Selection:

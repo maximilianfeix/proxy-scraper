@@ -19,6 +19,7 @@ DEFAULT_TIMEOUT = 8.0
 DEFAULT_CONNECT_TIMEOUT = 4.0
 DEFAULT_DISCOVER_REPOS = 400
 DEFAULT_SERVE_PORT = 8899
+STDOUT = "-"  # -o -: hits to stdout
 
 
 def parse_countries(value: Optional[str]) -> Set[str]:

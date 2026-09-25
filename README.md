@@ -439,6 +439,12 @@ proxychains4 -f results/latest/proxychains.conf curl https://api.ipify.org
 
 `clash.yaml` has all HTTP and SOCKS5 proxies plus a `url-test` group that always picks the fastest. Both configs leave out HTTP proxies that can't tunnel (`CONNECT`), because these tools tunnel everything.
 
+**In a pipe** – `-o -` prints the hits to stdout, the interface moves to stderr
+
+```bash
+proxy-scraper --recheck live --want 20 -y -o - | grep '^socks5://' > socks.txt
+```
+
 **Any tool, through the rotating server**
 
 ```bash
@@ -495,7 +501,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--serve-password SECRET` | clients must send this password in the proxy login; better set `PROXY_SCRAPER_SERVE_PASSWORD` |
 | `--rotate STRATEGY` · `--sticky SEC` | how the proxy server picks proxies, see [above](#proxy-server) |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
-| `-o FILE` | also write all hits to this file |
+| `-o FILE` | also write all hits to this file; `-o -` prints them to stdout |
 | `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `curl` or `all` |
 | `-V`, `--version` | print the version |
 | `--completion SHELL` | print the tab completion script for bash, zsh or fish |

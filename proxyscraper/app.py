@@ -6,6 +6,7 @@ import asyncio
 import contextlib
 import ipaddress
 import socket
+import sys
 import time
 from collections import Counter
 from dataclasses import replace
@@ -37,7 +38,7 @@ from .handshake import parse_endpoint
 from .history import ProxyHistory
 from .judges import JudgeProbe, JudgeWatch, rank_judges
 from .netio import INSECURE_HOSTS, http_get
-from .options import RunOptions
+from .options import STDOUT, RunOptions
 from .output import ResultWriter, latest_results
 from .parsing import PROXY_TYPES, parse_keys, split_key
 from .paths import is_checkout
@@ -361,7 +362,9 @@ class Run:
         fd = raise_fd_limit(self.opts.concurrency + DETAIL_CONNECTIONS + 512)
         opts = replace(self.opts, concurrency=min(self.opts.concurrency, max(fd - DETAIL_CONNECTIONS - 256, 64)))
 
-        writer = ResultWriter(extra_file=Path(opts.output) if opts.output else None, exports=opts.exports)
+        to_stdout = opts.output == STDOUT
+        writer = ResultWriter(extra_file=Path(opts.output) if opts.output and not to_stdout else None,
+                              exports=opts.exports, stdout=sys.stdout if to_stdout else None)
         stats = LiveStats(Counter(split_key(k)[0] for k in jobs))
         dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
                                    opts.filters.describe(), opts.want, opts.filters.targets)

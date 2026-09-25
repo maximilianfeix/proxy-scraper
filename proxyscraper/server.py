@@ -512,7 +512,15 @@ class RotatingServer:
                 writer.write(data)
                 await writer.drain()
         except (ConnectionError, OSError, asyncio.TimeoutError):
-            pass  # eine Seite hat aufgelegt – das beendet die Weiterleitung ganz normal
+            # eine Seite hat aufgelegt – das beendet die Weiterleitung normalerweise ganz normal. Kam aber noch
+            # keine endgültige Antwort (Upstream bricht z. B. per RST ab, weil unser Body ungelesen im Puffer
+            # lag), ist das genauso ein Fehlschlag wie ein sauberes Auflegen.
+            if screen:
+                try:
+                    await self._bad_gateway(writer)
+                except (ConnectionError, OSError):
+                    pass
+                return -1
         finally:
             try:
                 writer.write_eof()

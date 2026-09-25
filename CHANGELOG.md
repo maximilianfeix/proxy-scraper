@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.5.0] – 2026-09-25
+
 ### Added
 - Tab completion for bash, zsh and fish: `proxy-scraper --completion zsh` prints the script. It is generated from the options, so it never goes stale ([#62](https://github.com/maximilianfeix/proxy-scraper/issues/62))
 - Python API: `find_proxies()` and `check_proxies()` (plus async versions) run the same checks as the CLI and return the hits; `docs/ARCHITECTURE.md` explains how the modules fit together ([#50](https://github.com/maximilianfeix/proxy-scraper/issues/50))
@@ -69,7 +71,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.4.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.0.0...v1.2.0

@@ -72,7 +72,7 @@ def test_proxies_with_credentials_are_never_published(tmp_path):
     ResultWriter(run_dir=tmp_path / "run").finalize(rows)
     out = tmp_path / "public"
     assert publish.publish(tmp_path / "run", out, minimum=2) == 0
-    everything = "".join(p.read_text(encoding="utf-8") for p in out.rglob("*") if p.is_file())
+    everything = "".join(p.read_text(encoding="utf-8") for p in out.rglob("*") if p.is_file() and p.suffix != ".png")
     assert "geheim" not in everything and "alice" not in everything and "2.2.2.2" not in everything
     assert (out / "http.txt").read_text().count("\n") == 3
 
@@ -85,6 +85,8 @@ def test_publish_writes_the_website_and_extends_the_history(tmp_path):
     now = datetime(2026, 9, 24, 18, 0, tzinfo=timezone.utc)
     assert publish.publish(run_dir(tmp_path), out, minimum=2, now=now, history=previous) == 0
     assert (out / "index.html").read_text(encoding="utf-8").startswith("<!doctype html>")
+    for image in ("og.png", "logo.png", "apple-touch-icon.png"):  # link previews and the touch icon
+        assert (out / image).read_bytes().startswith(b"\x89PNG")
     assert (out / ".nojekyll").exists()
     runs = json.loads((out / "history.json").read_text())
     assert [r["total"] for r in runs] == [1, 2, 3, 4] and runs[-1]["updated"] == "2026-09-24T18:00:00+00:00"
@@ -104,8 +106,11 @@ def test_history_is_capped_and_survives_garbage(tmp_path):
 
 def test_website_ships_with_the_package():
     from proxyscraper.publish import SITE
-    html = SITE.read_text(encoding="utf-8")
+    html = (SITE / "index.html").read_text(encoding="utf-8")
     assert "proxies.json" in html and "history.json" in html and "<script" in html
+    for image in ("og.png", "logo.png", "apple-touch-icon.png"):  # package-data must include the images too
+        assert (SITE / image).is_file()
+    assert 'property="og:image"' in html and "apple-touch-icon.png" in html
 
 
 def test_stats_count_datacenter_exits(tmp_path):

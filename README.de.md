@@ -284,6 +284,7 @@ curl -x socks5h://127.0.0.1:8899 https://api.ipify.org           # SOCKS5 auf de
 curl -x http://country-de:x@127.0.0.1:8899 https://api.ipify.org # nur deutsche Exits
 curl -x http://session-cart42:x@127.0.0.1:8899 https://shop.example  # derselbe Proxy für diese Session
 curl http://127.0.0.1:8899/__proxy-scraper/status                # Pool und Zähler als JSON
+curl http://127.0.0.1:8899/__proxy-scraper/metrics               # dasselbe für Prometheus/Grafana
 ```
 
 Wie bei kommerziellen rotierenden Proxys trägt der **Benutzername** die Wünsche: `country-XX`, `type-http|socks4|socks5` und `session-NAME`, kombinierbar (`country-us-type-socks5-session-a`). Das klappt über HTTP (`Proxy-Authorization`) und SOCKS5 (Benutzer/Passwort). Das Passwort ist egal – standardmäßig lauscht der Server nur auf `127.0.0.1`. Mit `--serve-host` geht auch eine andere Adresse, dann kann ihn **jeder benutzen, der ihn erreicht** – also nur hinter einer Firewall oder in Docker mit `-p 127.0.0.1:…`.

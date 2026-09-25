@@ -574,13 +574,13 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 ## 🗺️ Roadmap
 
-What's next is tracked in the milestone [**v1.5**](../../milestone/5) – ideas and wishes are welcome as an [issue](../../issues/new/choose).
+What's next is tracked in the milestone [**v1.6**](../../milestone/6) – ideas and wishes are welcome as an [issue](../../issues/new/choose).
 
 - [ ] [Publish on PyPI](../../issues/42) so it's just `pipx install proxy-scraper`
-- [ ] [Rotating server reachable from a Docker container](../../issues/43)
+- [ ] [Blocklist (DNSBL) info for exit IPs](../../issues/66) – measured: 29 % are on SpamCop, 59 % on DroneBL
 - [ ] [Protocol detection on the same connection](../../issues/44)
 
-Shipped in [v1.4](../../milestone/4): exports for proxychains/Clash/curl, proxies with credentials, ETag cache, fallback check targets, Docker image, offline countries. Measured and dropped: protocol detection with an extra connection ([#3](../../issues/3)) and IPv6 ([#1](../../issues/1)).
+Shipped in [v1.5](../../milestone/5): content tampering check, live list website with trend and stable proxies, provider/datacenter info, a much bigger proxy server (rotation strategies, sticky sessions, SOCKS5 inbound, status and Prometheus metrics), `--recheck live`, Python API, shell completion. Measured and dropped earlier: protocol detection with an extra connection ([#3](../../issues/3)) and IPv6 ([#1](../../issues/1)).
 
 <a id="contributing"></a>
 

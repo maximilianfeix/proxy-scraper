@@ -547,13 +547,13 @@ Sie wird alle 6 Stunden neu gebaut, das Badge „Stand“ zeigt den letzten Lauf
 
 ## 🗺️ Roadmap
 
-Was als Nächstes kommt, steht im Meilenstein [**v1.5**](../../milestone/5) – Ideen und Wünsche gerne als [Issue](../../issues/new/choose).
+Was als Nächstes kommt, steht im Meilenstein [**v1.6**](../../milestone/6) – Ideen und Wünsche gerne als [Issue](../../issues/new/choose).
 
 - [ ] [Auf PyPI veröffentlichen](../../issues/42), damit einfach `pipx install proxy-scraper` reicht
-- [ ] [Rotierender Server aus dem Docker-Container erreichbar](../../issues/43)
+- [ ] [Blocklisten (DNSBL) für Exit-IPs anzeigen](../../issues/66) – gemessen: 29 % stehen bei SpamCop, 59 % bei DroneBL
 - [ ] [Protokollerkennung auf derselben Verbindung](../../issues/44)
 
-In [v1.4](../../milestone/4) erschienen: Exporte für proxychains/Clash/curl, Proxys mit Zugangsdaten, ETag-Cache, Ersatz-Prüfziele, Docker-Image, Länder offline. Gemessen und verworfen: Protokollerkennung mit extra Verbindung ([#3](../../issues/3)) und IPv6 ([#1](../../issues/1)).
+In [v1.5](../../milestone/5) erschienen: Prüfung auf veränderte Inhalte, Website zur Live-Liste mit Verlauf und stabilen Proxys, Anbieter/Rechenzentrum, ein deutlich größerer Proxy-Server (Rotationsstrategien, Sticky Sessions, SOCKS5, Status und Prometheus-Metriken), `--recheck live`, Python-API, Tab-Vervollständigung. Früher gemessen und verworfen: Protokollerkennung mit extra Verbindung ([#3](../../issues/3)) und IPv6 ([#1](../../issues/1)).
 
 <a id="mitmachen"></a>
 

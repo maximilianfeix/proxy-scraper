@@ -331,15 +331,16 @@ class Run:
             providers=providers,
         )
 
-        for task in (refresh, providers_refresh):
-            if task and not task.done():
-                task.cancel()  # Download läuft noch – beim nächsten Lauf wieder
+        if refresh and not refresh.done():
+            refresh.cancel()  # Länder-Download läuft noch – beim nächsten Lauf wieder (ip-api hat übernommen)
         if providers_refresh and not providers_refresh.done():
             # Anbieter-Datenbank lädt noch (erster Lauf oder neuer Monat): kurz warten und nachtragen –
             # sonst fehlen die Anbieter in den Dateien und --no-datacenter ließe Rechenzentren durch
             with widgets.console.status("Lade Anbieter-Datenbank (DB-IP) …", spinner="dots"), \
                     contextlib.suppress(asyncio.TimeoutError):
                 await asyncio.wait_for(asyncio.shield(providers_refresh), 30)
+            if not providers_refresh.done():
+                providers_refresh.cancel()  # dauert zu lange – dann eben beim nächsten Lauf
         if providers.db:
             for r in run.results:
                 if not r.asn:

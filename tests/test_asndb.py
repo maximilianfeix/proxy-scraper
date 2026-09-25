@@ -96,3 +96,36 @@ def test_non_string_providers_invalidate_the_file(tmp_path):
             arr.tofile(fh)
         fh.write(table)
     assert AsnDB.load(tmp_path / "asn.bin") is None
+
+
+def test_slow_provider_download_does_not_break_the_run(monkeypatch, tmp_path):
+    """Erster Lauf ohne ASN-Datei: der Download läuft noch, wenn die Prüfung fertig ist – der Lauf muss trotzdem
+    sauber zu Ende gehen und die Anbieter nachtragen."""
+    from proxyscraper import app
+    from proxyscraper import output as out_mod
+
+    async def slow_load():
+        await asyncio.sleep(0.2)
+        return AsnDB.from_csv(CSV, "2026-09")
+
+    async def fake_run_checks(jobs, checker, opts, dashboard, writer, geo, **kw):
+        from proxyscraper.pipeline import CheckRun
+        run = CheckRun()
+        r = CheckResult("http 1.2.3.4:80", "http", "1.2.3.4:80", 100, "8.8.8.8", https=True, anonymity="elite")
+        run.results.append(r)
+        run.working.add(r.key)
+        run.checked.append(r.key)
+        return run
+
+    monkeypatch.setattr(app.AsnDB, "load", staticmethod(lambda *a, **k: None))
+    monkeypatch.setattr(app, "load_asn_db", slow_load)
+    monkeypatch.setattr(app, "run_checks", fake_run_checks)
+    monkeypatch.setattr(out_mod, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(app.Run, "learn", lambda self, run, blocked: {})
+    run = app.Run(RunOptions(no_geo=True), show_banner=False)
+    run.judges = [__import__("proxyscraper.judges", fromlist=["x"]).JudgeProbe(
+        __import__("proxyscraper.judges", fromlist=["x"]).Judge("a"), "1.1.1.1", 1)]
+    asyncio.run(run.check_and_report(["http 1.2.3.4:80"]))
+    import json
+    rows = json.loads((out_mod.latest_run_dir(tmp_path) / "proxies.json").read_text())
+    assert rows[0]["org"] == "Google LLC" and rows[0]["hosting"] is True

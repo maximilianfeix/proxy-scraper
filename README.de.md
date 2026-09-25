@@ -134,6 +134,10 @@ Bedienung: <kbd>↑</kbd><kbd>↓</kbd> auswählen · <kbd>Leertaste</kbd> an/au
 
 Keine Lust, selbst zu scannen? Alle 6 Stunden läuft das Tool per **GitHub Actions** und veröffentlicht die Treffer auf dem Branch [`proxy-list`](../../tree/proxy-list) – jeder Eintrag hat beim letzten Lauf wirklich funktioniert, schnellste zuerst.
 
+**→ [Auf der Website durchsuchen](https://maximilianfeix.github.io/proxy-scraper/)** – suchen, nach Typ, Land, HTTPS und Latenz filtern, genau die passenden Proxys kopieren oder herunterladen.
+
+<div align="center"><a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="docs/website.png" alt="Die Website der Live-Liste" width="860"></a></div>
+
 <div align="center">
 
 [![Proxys](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json&style=for-the-badge)](../../tree/proxy-list)

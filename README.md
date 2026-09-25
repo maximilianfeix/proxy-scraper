@@ -230,7 +230,7 @@ macOS, Linux and Windows, Python 3.9 to 3.13. Only two dependencies: `rich` and 
 <td valign="top">
 
 **🧪 Thoroughly tested**<br>
-240+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11 and 3.13.
+360+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11 and 3.13.
 
 </td>
 </tr>
@@ -528,10 +528,13 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 ## 🗺️ Roadmap
 
-What's next is tracked in the milestones [**v1.3**](../../milestone/3) and [**v1.1**](../../milestone/1) – ideas and wishes are welcome as an [issue](../../issues/new/choose).
+What's next is tracked in the milestone [**v1.5**](../../milestone/5) – ideas and wishes are welcome as an [issue](../../issues/new/choose).
 
-- [ ] [Proxies with credentials](../../issues/7) · [Second check target](../../issues/8) · [ETag cache](../../issues/9)
-- [ ] [Export for proxychains, Clash & co.](../../issues/4) · [Docker image](../../issues/5) · [IPv6 proxies](../../issues/1)
+- [ ] [Publish on PyPI](../../issues/42) so it's just `pipx install proxy-scraper`
+- [ ] [Rotating server reachable from a Docker container](../../issues/43)
+- [ ] [Protocol detection on the same connection](../../issues/44)
+
+Shipped in [v1.4](../../milestone/4): exports for proxychains/Clash/curl, proxies with credentials, ETag cache, fallback check targets, Docker image, offline countries. Measured and dropped: protocol detection with an extra connection ([#3](../../issues/3)) and IPv6 ([#1](../../issues/1)).
 
 <a id="contributing"></a>
 

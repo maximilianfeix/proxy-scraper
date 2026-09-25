@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.4.0] – 2026-09-25
+
 ### Added
 - Proxies with credentials (`socks5://user:pass@…`) are checked with their login instead of losing it: Basic auth for HTTP, RFC 1929 for SOCKS5, user ID for SOCKS4. They're never published to the public live list ([#7](https://github.com/maximilianfeix/proxy-scraper/issues/7))
 - Fallback check targets: before a run all targets are probed (Cloudflare-hosted ones are rejected), during the run a watchdog switches when the current one goes down. Proxies checked during the outage are re-checked and don't count for the source statistics ([#8](https://github.com/maximilianfeix/proxy-scraper/issues/8))
@@ -55,7 +57,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.4.0...HEAD
+[1.4.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.0.0...v1.2.0
 [1.0.0]: https://github.com/maximilianfeix/proxy-scraper/releases/tag/v1.0.0

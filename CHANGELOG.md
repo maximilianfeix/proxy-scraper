@@ -6,6 +6,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ### Added
 - Tab completion for bash, zsh and fish: `proxy-scraper --completion zsh` prints the script. It is generated from the options, so it never goes stale ([#62](https://github.com/maximilianfeix/proxy-scraper/issues/62))
+- Python API: `find_proxies()` and `check_proxies()` (plus async versions) run the same checks as the CLI and return the hits; `docs/ARCHITECTURE.md` explains how the modules fit together ([#50](https://github.com/maximilianfeix/proxy-scraper/issues/50))
 - Proxy server: `/__proxy-scraper/metrics` in the Prometheus text format (requests, bytes, pool size and median latency per type), no extra dependency ([#67](https://github.com/maximilianfeix/proxy-scraper/issues/67))
 - Stable proxies: the live list remembers how many runs in a row each proxy worked (`streaks.json`); the website shows it and filters for 24 h+ ([#61](https://github.com/maximilianfeix/proxy-scraper/issues/61))
 - `--recheck live` starts from the public live list and checks it again from your own network: about 30 s instead of a full scan ([#60](https://github.com/maximilianfeix/proxy-scraper/issues/60))

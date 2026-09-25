@@ -317,3 +317,25 @@ def test_serve_host_option_roundtrip():
     assert opts.serve_host == "0.0.0.0" and "--serve-host" in opts.to_argv()
     assert RunOptions.from_args(parse_args(opts.to_argv())) == opts
     assert "--serve-host" not in RunOptions.from_args(parse_args(["--serve"])).to_argv()
+
+
+def test_metrics_endpoint_speaks_prometheus():
+    async def client(sp, tp):
+        reader, writer = await asyncio.open_connection("127.0.0.1", sp)
+        writer.write(b"GET /__proxy-scraper/metrics HTTP/1.1\r\nHost: 127.0.0.1\r\n\r\n")
+        await writer.drain()
+        data = await asyncio.wait_for(reader.read(1 << 20), 5)
+        writer.close()
+        return data
+
+    data, _, _ = run_with_server([result(1), result(2, country="US")], client)
+    head, _, body = data.partition(b"\r\n\r\n")
+    assert head.startswith(b"HTTP/1.1 200") and b"text/plain; version=0.0.4" in head
+    lines = body.decode().splitlines()
+    samples = dict(line.rsplit(" ", 1) for line in lines if not line.startswith("#"))
+    assert samples['proxy_scraper_pool_proxies{type="http",state="usable"}'] == "2"
+    assert samples['proxy_scraper_pool_proxies{type="socks5",state="usable"}'] == "0"
+    assert 'proxy_scraper_requests_total{result="ok"}' in samples
+    # jede Metrik hat HELP und TYPE
+    names = {line.split()[2] for line in lines if line.startswith("# TYPE")}
+    assert {n.split("{")[0] for n in samples} <= names

@@ -1,4 +1,5 @@
-"""Status als JSON unter http://127.0.0.1:PORT/__proxy-scraper/status und Wünsche aus der Proxy-Anmeldung."""
+"""Status als JSON (/__proxy-scraper/status), Metriken für Prometheus (/__proxy-scraper/metrics) und
+Wünsche aus der Proxy-Anmeldung."""
 
 from __future__ import annotations
 
@@ -6,13 +7,17 @@ import base64
 import binascii
 import json
 import time
-from typing import Any, List, Tuple
+from statistics import median
+from typing import Any, Dict, List, Tuple
 
+from ..parsing import PROXY_TYPES
 from ..ui.widgets import shown_proxy
 from .pool import Selection
 
 STATUS_PREFIX = b"GET /__proxy-scraper/"
 STATUS_PATH = b"/__proxy-scraper/status"
+METRICS_PATH = b"/__proxy-scraper/metrics"
+METRICS_TYPE = b"text/plain; version=0.0.4; charset=utf-8"
 
 
 def selection_from_headers(headers: List[Tuple[bytes, bytes]]) -> Selection:
@@ -48,3 +53,38 @@ def status_json(server: Any) -> str:
         ],
     }
     return json.dumps(payload, indent=1, ensure_ascii=False)
+
+
+def metrics_text(server: Any) -> str:
+    """Prometheus-Textformat, ohne Abhängigkeit – z. B. für Grafana, wenn der Server dauerhaft läuft."""
+    st, pool = server.stats, server.pool
+    out: List[str] = []
+
+    def metric(name: str, kind: str, help_text: str, samples: Dict[str, float]) -> None:
+        out.append(f"# HELP proxy_scraper_{name} {help_text}")
+        out.append(f"# TYPE proxy_scraper_{name} {kind}")
+        out.extend(f"proxy_scraper_{name}{labels} {value:g}" for labels, value in samples.items())
+
+    metric("uptime_seconds", "gauge", "Seconds since the server started.",
+           {"": round(time.perf_counter() - st.started)})
+    metric("requests_total", "counter", "Requests handled, by result.",
+           {'{result="ok"}': st.ok, '{result="failed"}': st.failed})
+    metric("requests_active", "gauge", "Requests in progress.", {"": st.active})
+    metric("bytes_total", "counter", "Bytes relayed, by direction.",
+           {'{direction="up"}': st.bytes_up, '{direction="down"}': st.bytes_down})
+    metric("revived_total", "counter", "Disabled proxies that passed a re-check.", {"": server.revived})
+
+    proxies, uses, latency = {}, {}, {}
+    for t in PROXY_TYPES:
+        entries = [e for e in pool.entries if e.result.ptype == t]
+        usable = [e for e in entries if not e.disabled]
+        proxies[f'{{type="{t}",state="usable"}}'] = len(usable)
+        proxies[f'{{type="{t}",state="disabled"}}'] = len(entries) - len(usable)
+        uses[f'{{type="{t}",result="ok"}}'] = sum(e.ok for e in entries)
+        uses[f'{{type="{t}",result="failed"}}'] = sum(e.fail for e in entries)
+        if usable:
+            latency[f'{{type="{t}"}}'] = median(e.result.latency for e in usable)
+    metric("pool_proxies", "gauge", "Proxies in the pool, by type and state.", proxies)
+    metric("proxy_uses_total", "counter", "Upstream attempts, by proxy type and result.", uses)
+    metric("pool_latency_median_ms", "gauge", "Median check latency of usable proxies.", latency)
+    return "\n".join(out) + "\n"

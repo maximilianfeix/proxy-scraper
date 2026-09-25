@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- Proxy server: `/__proxy-scraper/metrics` in the Prometheus text format (requests, bytes, pool size and median latency per type), no extra dependency ([#67](https://github.com/maximilianfeix/proxy-scraper/issues/67))
 - Stable proxies: the live list remembers how many runs in a row each proxy worked (`streaks.json`); the website shows it and filters for 24 h+ ([#61](https://github.com/maximilianfeix/proxy-scraper/issues/61))
 - `--recheck live` starts from the public live list and checks it again from your own network: about 30 s instead of a full scan ([#60](https://github.com/maximilianfeix/proxy-scraper/issues/60))
 - `--serve-host` to make the proxy server reachable from outside a Docker container, with a warning when it's not a loopback address ([#43](https://github.com/maximilianfeix/proxy-scraper/issues/43))

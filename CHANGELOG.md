@@ -6,6 +6,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ### Added
 - Uptime per proxy on the live list: `uptime_24h`, `uptime_7d` and `first_seen` in proxies.json, an Uptime column on the website, `stable.txt` with everything listed in 90 %+ of this week's runs, and `min_uptime_percent` in the MCP server's get_proxies ([#138](https://github.com/maximilianfeix/proxy-scraper/issues/138))
+- Charts in the README, redrawn with every run: working proxies over the last week by protocol, and the top countries. Plus GitHub Pages and jsDelivr links for every list file ([#142](https://github.com/maximilianfeix/proxy-scraper/issues/142))
 
 ## [1.7.1] – 2026-09-26
 

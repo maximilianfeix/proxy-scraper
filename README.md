@@ -135,7 +135,13 @@ Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</
 
 Don't want to scan yourself? Every hour **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, fastest first.
 
-**→ [Browse it on the website](https://maximilianfeix.github.io/proxy-scraper/)** – search, filter by type, country, HTTPS, provider and latency, see how long each proxy has been up, copy or download exactly the proxies you need. `streaks.json` on the branch has the number of runs in a row for every proxy.
+<a href="https://maximilianfeix.github.io/proxy-scraper/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://maximilianfeix.github.io/proxy-scraper/chart-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://maximilianfeix.github.io/proxy-scraper/chart-light.svg">
+  <img src="https://maximilianfeix.github.io/proxy-scraper/chart-dark.svg" alt="Working proxies over the last days, stacked by protocol – redrawn with every run" width="100%">
+</picture></a>
+
+**→ [Browse it on the website](https://maximilianfeix.github.io/proxy-scraper/)** – search, filter by type, country, HTTPS, provider and latency, see how long each proxy has been up and how often it was on the list this week, copy or download exactly the proxies you need.
 
 Every protocol and country also has its own page with a plain download, e.g. [SOCKS5](https://maximilianfeix.github.io/proxy-scraper/socks5/) or [Germany](https://maximilianfeix.github.io/proxy-scraper/country/de/) (`country/de/proxies.txt`).
 
@@ -160,9 +166,17 @@ Every protocol and country also has its own page with a plain download, e.g. [SO
 | Stable, on the list in 90 %+ of this week's runs | `type://ip:port` | [stable.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/stable.txt) |
 | With all details | latency, country, HTTPS, anonymity, exit IP, uptime | [proxies.json](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.json) · [proxies.csv](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.csv) |
 
+<a href="https://maximilianfeix.github.io/proxy-scraper/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://maximilianfeix.github.io/proxy-scraper/countries-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://maximilianfeix.github.io/proxy-scraper/countries-light.svg">
+  <img src="https://maximilianfeix.github.io/proxy-scraper/countries-dark.svg" alt="Countries with the most working proxies right now" width="100%">
+</picture></a>
+
 ```bash
 curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt | head
 ```
+
+Every file is also on GitHub Pages, which sits behind a CDN, isn't rate limited like raw.githubusercontent and sends CORS headers, so it works straight from the browser: `https://maximilianfeix.github.io/proxy-scraper/socks5.txt`. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) works too, but can lag behind by a few hours.
 
 Or let the tool start from it: `proxy-scraper --recheck live` downloads the list and checks it again from **your** network – about 30 seconds instead of a full scan (517 of 1,169 worked from here). With `--serve` you have a rotating proxy in under a minute.
 
@@ -176,7 +190,7 @@ Or let the tool start from it: `proxy-scraper --recheck live` downloads the list
 
 | Tool | What it does |
 |---|---|
-| `get_proxies` | working proxies right now, from the hourly list – filter by protocol, country, HTTPS, elite, no datacenter, not blocklisted, stable, latency |
+| `get_proxies` | working proxies right now, from the hourly list – filter by protocol, country, HTTPS, elite, no datacenter, not blocklisted, stable, uptime, latency |
 | `check_proxies` | checks proxies from your own network, so they work from where your code runs (30–90 s, reports progress) |
 | `fetch_url` | loads a page through a verified proxy, switches proxies by itself when one fails, returns readable text – HTTPS only through proxies with verified TLS |
 

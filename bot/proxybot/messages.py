@@ -105,13 +105,13 @@ def stats(snap: Snapshot) -> discord.Embed:
 def about() -> discord.Embed:
     """Pinned in #about and the answer to /about."""
     embed = _embed("What this server is", (
-        "Every 6 hours a GitHub Action collects public proxies from 700+ lists and checks every one of them: "
+        "Every hour a GitHub Action collects public proxies from 700+ lists and checks every one of them: "
         "a real handshake, a honeypot check on two independent sites, a content check (nothing may be injected), "
         "then HTTPS, anonymity, country and provider. What passes ends up here.\n\n"
         f"**Browse and filter:** {SITE}\n**Run the checks yourself:** {REPO}"))
     embed.add_field(name="Channels", value=(
-        "**#live-feed** a summary after every run\n"
-        "**#http**, **#socks4**, **#socks5** the current list per protocol, updated every run\n"
+        "**#live-feed** a summary every 6 hours\n"
+        "**#http**, **#socks4**, **#socks5** the current list per protocol, updated with every summary\n"
         "**#commands** ask the bot"), inline=False)
     embed.add_field(name="Commands", value=(
         "`/proxies` filter by type, country, HTTPS, elite, datacenter, blocklist\n"

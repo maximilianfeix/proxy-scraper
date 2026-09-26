@@ -174,3 +174,31 @@ def test_blocklist_filter_and_unknown_values(snap):
     assert weird.blocklisted is None
     one = messages.single(snap.proxies[0])
     assert any(f.name == "Blocklist" and f.value == "on SpamCop" for f in one.fields)
+
+
+def test_the_feed_posts_at_most_every_6_hours_although_the_list_runs_hourly(tmp_path):
+    from datetime import datetime, timedelta, timezone
+
+    from proxybot.state import State
+
+    state = State(tmp_path / "state.json")
+    start = datetime(2026, 9, 26, 12, 17, tzinfo=timezone.utc)
+    every = timedelta(hours=6)
+    assert state.is_due(1, start, every)
+    state.mark(1, start.isoformat())
+    assert not state.is_due(1, start, every)                              # same run
+    assert not state.is_due(1, start + timedelta(hours=1), every)         # next hourly run
+    assert state.is_due(1, start + timedelta(hours=5, minutes=58), every)  # cron started a bit early
+    assert state.is_due(2, start + timedelta(hours=1), every)              # another server hasn't seen anything
+    assert state.is_due(1, start + timedelta(hours=1), timedelta(0))       # PROXYBOT_POST_EVERY_HOURS=0: every run
+
+
+def test_stable_means_24_hours_whatever_the_run_interval():
+    from proxybot.feed import parse_snapshot, select
+
+    rows = [{"url": "http://1.1.1.1:80", "ptype": "http", "proxy": "1.1.1.1:80", "latency": 100, "streak": 20},
+            {"url": "http://2.2.2.2:80", "ptype": "http", "proxy": "2.2.2.2:80", "latency": 100, "streak": 24}]
+    hourly = parse_snapshot({"updated": "2026-09-26T12:17:00+00:00", "run_hours": 1}, rows)
+    old = parse_snapshot({"updated": "2026-09-26T12:17:00+00:00"}, rows)
+    assert hourly.stable_runs == 24 and old.stable_runs == 4
+    assert [p.address for p in select(hourly.proxies, stable=True, stable_runs=hourly.stable_runs)] == ["2.2.2.2:80"]

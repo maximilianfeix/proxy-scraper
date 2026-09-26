@@ -60,6 +60,12 @@ class Snapshot:
     def run_id(self) -> str:
         return self.updated.isoformat()
 
+    @property
+    def stable_runs(self) -> int:
+        """Runs in a row that make 24 hours (older lists without run_hours ran every 6 hours)."""
+        hours = self.stats.get("run_hours") or 6
+        return max(1, -(-24 // hours)) if isinstance(hours, int) and hours > 0 else 4
+
     def previous_total(self) -> Optional[int]:
         """Total of the run before this one, for the trend in the summary."""
         earlier = [h for h in self.history if h.get("updated") != self.stats.get("updated")]
@@ -75,7 +81,7 @@ def parse_snapshot(stats: dict, rows: Sequence[dict], history: Optional[Sequence
 
 def select(proxies: Iterable[Proxy], ptype: str = "", country: str = "", https: bool = False, elite: bool = False,
            no_datacenter: bool = False, stable: bool = False, max_latency: int = 0,
-           not_blocklisted: bool = False) -> List[Proxy]:
+           not_blocklisted: bool = False, stable_runs: int = 4) -> List[Proxy]:
     """Filter like the website does, fastest first."""
     country = country.strip().upper()
     out = [p for p in proxies
@@ -85,7 +91,7 @@ def select(proxies: Iterable[Proxy], ptype: str = "", country: str = "", https: 
            and (not elite or p.anonymity == "elite")
            and (not no_datacenter or not p.hosting)
            and (not not_blocklisted or not p.blocklisted)
-           and (not stable or p.streak >= 4)
+           and (not stable or p.streak >= stable_runs)
            and (not max_latency or p.latency <= max_latency)]
     return sorted(out, key=lambda p: p.latency)
 

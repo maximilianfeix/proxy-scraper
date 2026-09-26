@@ -129,18 +129,20 @@ def test_stats_count_datacenter_exits(tmp_path):
 
 def test_streaks_count_consecutive_runs(tmp_path):
     previous = tmp_path / "streaks.json"
-    previous.write_text(json.dumps({"socks5://2.2.2.2:1080": 5, "http://1.1.1.0:80": 1, "http://7.7.7.7:80": 9,
+    stable = publish.STABLE_RUNS
+    previous.write_text(json.dumps({"socks5://2.2.2.2:1080": stable, "http://1.1.1.0:80": 1, "http://7.7.7.7:80": 9,
                                     "kaputt": "x"}))
     out = tmp_path / "public"
     publish.publish(run_dir(tmp_path), out, minimum=2, streaks=previous)
     streaks = json.loads((out / "streaks.json").read_text())
-    assert streaks["socks5://2.2.2.2:1080"] == 6       # was there -> keep counting
+    assert streaks["socks5://2.2.2.2:1080"] == stable + 1  # was there -> keep counting
     assert streaks["http://1.1.1.0:80"] == 2
     assert streaks["http://1.1.1.2:80"] == 1           # new
     assert "http://7.7.7.7:80" not in streaks          # not there this time -> streak over
     rows = {r["url"]: r for r in json.loads((out / "proxies.json").read_text())}
-    assert rows["socks5://2.2.2.2:1080"]["streak"] == 6
-    assert json.loads((out / "stats.json").read_text())["stable"] == 1  # only the one with 6 runs (>= 4)
+    assert rows["socks5://2.2.2.2:1080"]["streak"] == stable + 1
+    stats = json.loads((out / "stats.json").read_text())
+    assert stats["stable"] == 1 and stats["run_hours"] * stable == 24  # stable = listed for a whole day
 
 
 def test_missing_or_broken_streaks_start_fresh(tmp_path):

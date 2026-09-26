@@ -303,7 +303,7 @@ class Run:
         opts = self.opts
         if opts.recheck == LIVE:
             jobs = await load_live_jobs(opts.types, self.history)
-            info("Recheck", f"{fmt(len(jobs))} proxies from the live list (checked every 6 hours by GitHub Actions)")
+            info("Recheck", f"{fmt(len(jobs))} proxies from the live list (checked every hour by GitHub Actions)")
         elif opts.recheck is not None:
             try:
                 jobs = load_recheck_jobs(opts.recheck, opts.types, self.history)

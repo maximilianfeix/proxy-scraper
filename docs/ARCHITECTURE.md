@@ -93,7 +93,7 @@ Failures come in three kinds. A proxy that doesn't answer, times out or speaks g
 
 ```mermaid
 flowchart LR
-    GA[GitHub Actions<br/>every 6 hours] -->|run + publish.py| PL[proxy-list branch<br/>lists · JSON · website]
+    GA[GitHub Actions<br/>every hour] -->|run + publish.py| PL[proxy-list branch<br/>lists · JSON · website]
     PL --> WEB[GitHub Pages<br/>live list website]
     PL -->|stats.json · proxies.json| BOT[bot/<br/>Discord bot]
     PL -->|all.txt| RL[--recheck live]

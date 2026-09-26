@@ -16,6 +16,7 @@ class Settings:
     feed_url: str = SITE
     state_file: Path = Path("state.json")
     poll_seconds: int = 300
+    post_every_hours: float = 6  # the list runs every hour – a summary in #live-feed at most this often
 
     @classmethod
     def from_env(cls) -> "Settings":
@@ -27,4 +28,5 @@ class Settings:
             feed_url=os.environ.get("PROXYBOT_FEED_URL", SITE).rstrip("/"),
             state_file=Path(os.environ.get("PROXYBOT_STATE", "state.json")),
             poll_seconds=max(60, int(os.environ.get("PROXYBOT_POLL_SECONDS", "300"))),
+            post_every_hours=max(0.0, float(os.environ.get("PROXYBOT_POST_EVERY_HOURS", "6"))),
         )

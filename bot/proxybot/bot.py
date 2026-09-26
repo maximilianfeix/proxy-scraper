@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from datetime import timedelta
 from pathlib import Path
 from typing import Literal, Optional
 
@@ -122,7 +123,7 @@ class ProxyBot(discord.Client):
 
     async def post_run(self, guild: discord.Guild, snap: Snapshot) -> None:
         async with self._post_lock:  # the watch loop and a new server joining could meet here
-            if not self.state.is_new(guild.id, snap.run_id):
+            if not self.state.is_due(guild.id, snap.updated, timedelta(hours=self.settings.post_every_hours)):
                 return
             channels = {c.name: c for c in guild.text_channels if c.category and c.category.name == layout.CATEGORY}
             if "live-feed" not in channels:

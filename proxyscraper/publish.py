@@ -25,7 +25,8 @@ from .parsing import PROXY_TYPES
 
 SKIP_EXIT_CODE = 78
 SITE = Path(__file__).resolve().parent / "site"  # index.html plus the images it links (logo, preview, touch icon)
-HISTORY_LIMIT = 120  # 30 days with a run every 6 hours
+RUN_HOURS = 1  # the proxy-list workflow runs every hour; clients read it from stats.json as run_hours
+HISTORY_LIMIT = 30 * 24 // RUN_HOURS  # 30 days of runs for the chart
 RAW_BASE = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list"
 
 
@@ -63,6 +64,7 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         "blocklisted": sum(1 for r in rows if r.get("blocklisted"))
         if any(r.get("blocklisted") is not None for r in rows) else None,
         "stable": sum(1 for r in rows if r.get("streak", 0) >= STABLE_RUNS),
+        "run_hours": RUN_HOURS,
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
         "median_latency": round(statistics.median(r["latency"] for r in rows)) if rows else 0,
     }
@@ -141,7 +143,7 @@ def history_entry(stats: dict) -> dict:
             "by_type": stats["by_type"], "median_latency": stats["median_latency"]}
 
 
-STABLE_RUNS = 4  # this many runs in a row (= 24 hours with a run every 6 hours) means "stable"
+STABLE_RUNS = 24 // RUN_HOURS  # this many runs in a row (= 24 hours) means "stable"
 
 
 def load_streaks(path: Optional[Path]) -> Dict[str, int]:

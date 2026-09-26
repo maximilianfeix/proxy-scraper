@@ -26,7 +26,7 @@ from .output import ResultWriter
 from .parsing import PROXY_TYPES, parse_blob, split_key
 from .ui import ACCENT, CheckDashboard, CollectView, fmt, widgets
 
-AUTO_DISCOVER_AFTER_DAYS = 3.0
+AUTO_DISCOVER_AFTER_DAYS = 1.0  # daily: found sources are kept, so every search adds to the pile
 # parse small lists directly – the detour through another process costs more than it saves
 INLINE_PARSE_BYTES = 256 * 1024
 DOWNLOAD_CONCURRENCY = 64

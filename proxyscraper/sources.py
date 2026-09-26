@@ -104,9 +104,36 @@ def discovered_age_days(path: Path = DISCOVERED_FILE) -> Optional[float]:
         return None
 
 
-def save_discovered(sources: SourceMap, path: Path = DISCOVERED_FILE) -> None:
-    payload = {"generated": datetime.now(timezone.utc).isoformat(timespec="seconds"), "sources": sources}
+DISCOVERED_KEEP_DAYS = 21  # a found source stays this long after the search last saw it
+
+
+def save_discovered(sources: SourceMap, path: Path = DISCOVERED_FILE, now: Optional[datetime] = None) -> SourceMap:
+    """Adds this run's finds to what earlier runs found – the search only sees repos pushed in the last few days,
+    so a list that was quiet for a day would otherwise drop out. Whatever the search hasn't seen for
+    DISCOVERED_KEEP_DAYS goes; dead sources are skipped by the learning long before that. -> everything kept."""
+    now = now or datetime.now(timezone.utc)
+    stamp = now.isoformat(timespec="seconds")
+    try:
+        old = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        old = {}
+    old_sources = old.get("sources", {}) if isinstance(old, dict) else {}
+    seen = old.get("last_seen", {}) if isinstance(old, dict) else {}
+    kept: SourceMap = {}
+    last_seen: Dict[str, str] = {}
+    for url, ptype in old_sources.items():
+        when = seen.get(url) or old.get("generated")  # files from before last_seen: count from their date
+        try:
+            age = (now - datetime.fromisoformat(when)).total_seconds() / DAY
+        except (TypeError, ValueError):
+            continue
+        if age <= DISCOVERED_KEEP_DAYS and isinstance(ptype, str):
+            kept[url], last_seen[url] = ptype, when
+    for url, ptype in sources.items():
+        kept[url], last_seen[url] = ptype, stamp
+    payload = {"generated": stamp, "sources": kept, "last_seen": last_seen}
     atomic_write(path, json.dumps(payload, indent=1, sort_keys=True))
+    return kept
 
 
 # --------------------------------------------------------------------------- #
@@ -184,21 +211,41 @@ DISCOVERY_QUERIES = (
     "topic:free-proxy-list",
     "topic:proxy-lists",
     "topic:free-proxy",
+    "topic:free-proxies",
+    "topic:proxylist",
+    "topic:proxies-list",
     "topic:socks5-proxy",
+    "topic:socks5-proxy-list",
+    "topic:socks4-proxy",
     "topic:http-proxy-list",
+    "topic:https-proxy",
+    "topic:proxy-scraper",
+    "topic:proxy-checker",
+    "topic:proxy-pool",
     "proxy list in:name",
+    "proxy-list in:name",
     "free proxy in:name,description",
     "proxies in:name",
+    "socks5 in:name",
+    "socks4 in:name",
+    "fresh proxy in:name,description",
+    "proxy updated every in:description",
 )
+SEARCH_PAGES = 3  # GitHub returns 100 per page; most queries end earlier
+RATE_LIMIT_WAIT = 61.0  # the search API allows 30 requests a minute with a token (10 without)
+RATE_LIMIT_RETRIES = 3  # waits per discovery at most – no network shouldn't mean ten minutes of waiting
 # paths that end in .txt but aren't (complete) proxy lists:
 # VPN configs, splits by country/ASN (subsets only), archives, blocklists …
 _PATH_REJECT_RE = re.compile(
     r"(v2ray|vmess|vless|trojan|shadowsocks|(^|[/_\-])ssr?([/_\-.]|$)|clash|mtproto|wireguard|hysteria|tuic"
-    r"|readme|license|requirements|block|countr|geo|/asn/|archive|history|backup|old/|test"
+    r"|readme|license|requirements|block|countr|geo|/asn/|archive|history|backup|old/|test|bench|corpus"
+    r"|subscri|(^|/)subs/|config"
     r"|(^|/)[a-z]{2}\.txt$)"
 )
 _PATH_TYPE_RE = re.compile(r"(socks5|socks4|https?)")
 _FILE_GENERIC_RE = re.compile(r"(^|[/_\-.])(proxy|proxies|all)[^/]*\.txt$")
+# repos that collect VPN configs: their addresses aren't HTTP/SOCKS proxies, only dead candidates
+_REPO_REJECT_RE = re.compile(r"v2ray|vpn|xray|clash|sing-?box|nekobox|vless|vmess|subscri|config", re.I)
 MAX_FILES_PER_REPO = 12
 MAX_REPOS_PER_OWNER = 3  # against spam accounts with dozens of identical clone repos
 
@@ -242,12 +289,26 @@ async def discover_github(
     since = (datetime.now(timezone.utc) - timedelta(days=days)).strftime("%Y-%m-%d")
 
     repos: Dict[str, Tuple[str, int]] = {}
-    for q in DISCOVERY_QUERIES:
-        for page in (1, 2):
-            query = urlencode({"q": f"{q} pushed:>{since}", "sort": "stars", "per_page": 100, "page": page})
+    waits_left = RATE_LIMIT_RETRIES
+
+    async def search(query: str):
+        nonlocal waits_left
+        while True:
             try:
-                data = json.loads(await get(f"https://api.github.com/search/repositories?{query}", headers=headers))
-            except Exception:  # rate limit or similar – carry on with what we already have
+                return json.loads(await get(f"https://api.github.com/search/repositories?{query}", headers=headers))
+            except Exception:  # usually the per-minute rate limit: wait once, then carry on with what we have
+                if waits_left <= 0:
+                    return None
+                waits_left -= 1
+                if on_progress:
+                    on_progress("rate limit – waiting a minute")
+                await asyncio.sleep(RATE_LIMIT_WAIT)
+
+    for q in DISCOVERY_QUERIES:
+        for page in range(1, SEARCH_PAGES + 1):
+            query = urlencode({"q": f"{q} pushed:>{since}", "sort": "stars", "per_page": 100, "page": page})
+            data = await search(query)
+            if data is None:
                 break
             items = data.get("items", [])
             for it in items:
@@ -260,6 +321,8 @@ async def discover_github(
     per_owner: Counter = Counter()
     chosen: List[Tuple[str, str]] = []
     for name, (branch, _stars) in sorted(repos.items(), key=lambda kv: -kv[1][1]):
+        if _REPO_REJECT_RE.search(name):
+            continue
         owner = name.split("/", 1)[0].lower()
         if per_owner[owner] < MAX_REPOS_PER_OWNER:
             per_owner[owner] += 1

@@ -182,7 +182,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
 
     s = p.add_argument_group("Sources")
     s.add_argument("--discover", action="store_true",
-                   help="look for new proxy lists on GitHub now (with a GitHub token this also runs every 3 days)")
+                   help="look for new proxy lists on GitHub now (with a GitHub token this also runs once a day)")
     s.add_argument("--no-discover", action="store_true", help="no automatic GitHub search")
     s.add_argument("--discover-repos", type=non_negative_int, default=DEFAULT_DISCOVER_REPOS,
                    help=f"max. repos during discovery (default: {DEFAULT_DISCOVER_REPOS}, 40 without a token)")

@@ -364,7 +364,7 @@ flowchart LR
     G -. next run .-> C
 ```
 
-1. **Sources** – the curated list in [`sources.json`](proxyscraper/sources.json), meta sources (other projects that maintain lists of proxy sources) and, every three days, a GitHub search for actively maintained repos.
+1. **Sources** – the curated list in [`sources.json`](proxyscraper/sources.json), meta sources (other projects that maintain lists of proxy sources) and, once a day, a GitHub search for actively maintained repos. Every search adds to what earlier ones found; a list the search hasn't seen for three weeks drops out.
 2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads 0 MB instead of ~160 MB.
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
 4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. Anyone passing your own IP through is out. Then comes the **confirmation** via `httpbin.org`: fake proxies that only answer the first check with “200 + IP” fail here. Finally a static HTML page has to arrive byte for byte as it does without a proxy – anyone injecting ads or scripts is out.

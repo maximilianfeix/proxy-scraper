@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- More sources: 28 new curated lists (Databay, the full proxifly list, vakhov, freeproxy.world and 19 GitHub lists that bring proxies nobody else had), and the GitHub search now runs daily, keeps what earlier runs found for three weeks, asks 23 queries instead of 9 and skips VPN-config repos ([#127](https://github.com/maximilianfeix/proxy-scraper/issues/127))
+
 ## [1.6.0] – 2026-09-26
 
 ### Changed

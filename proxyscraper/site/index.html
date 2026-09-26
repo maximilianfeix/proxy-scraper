@@ -269,6 +269,18 @@
   .addr-btn:hover svg, .addr-btn:focus-visible svg { opacity: 1; }
   .fast { color: var(--signal-ink); } .mid { color: var(--warn); } .slow { color: var(--bad); }
   .quiet { color: var(--muted); }
+  /* View transitions: the table morphs when filters change, the theme grows out of its switch */
+  #table-scroll { view-transition-name: list; }
+  ::view-transition-group(list) { animation-duration: .45s; animation-timing-function: var(--ease); }
+  ::view-transition-old(list) { animation: .2s var(--ease) both vt-out; }
+  ::view-transition-new(list) { animation: .4s var(--ease) .08s both vt-in; }
+  @keyframes vt-out { to { opacity: 0; } }
+  @keyframes vt-in { from { opacity: 0; transform: translateY(6px); } }
+  html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+  html.vt-theme::view-transition-group(list) { animation: none; }
+  html.vt-theme::view-transition-old(list) { display: none; }
+  html.vt-theme::view-transition-new(list) { animation: none; }
+  html.vt-theme, html.vt-theme * { transition: none !important; }
   .tag { display: inline-block; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 6px; border-radius: 6px; margin-right: 8px;
          color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); vertical-align: 1px; }
   .tag.bl { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
@@ -553,7 +565,7 @@
       <input class="field" type="search" id="f-q" placeholder="Search IP, port, country or provider    /" aria-label="Search" aria-keyshortcuts="/">
     </div>
     <div class="table-panel">
-      <div class="table-scroll" data-lenis-prevent-horizontal>
+      <div class="table-scroll" id="table-scroll" data-lenis-prevent-horizontal>
         <table>
           <caption class="sr-only">Working proxies from the last run. Activate an address to copy it.</caption>
           <thead><tr>
@@ -761,10 +773,22 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const labelTheme = () => themeBtn.setAttribute("aria-label", isLight() ? "Switch to dark theme" : "Switch to light theme");
   const themeColor = () => { $('meta[name="theme-color"]').content = isLight() ? "#EFEFEC" : "#121113"; };
   labelTheme(); themeColor();
-  themeBtn.onclick = () => {
+  const flip = () => {
     html.dataset.theme = isLight() ? "dark" : "light";
     try { localStorage.setItem("theme", html.dataset.theme); } catch (e) {}
     themeColor(); labelTheme();
+  };
+  themeBtn.onclick = () => {
+    if (calm || !document.startViewTransition) return flip();
+    // the new theme grows as a circle out of the switch
+    const r = themeBtn.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    html.classList.add("vt-theme");
+    const vt = document.startViewTransition(flip);
+    vt.ready.then(() => html.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+                                     { duration: 700, easing: "cubic-bezier(.65, 0, .35, 1)", pseudoElement: "::view-transition-new(root)" }))
+      .catch(() => {});
+    vt.finished.finally(() => html.classList.remove("vt-theme"));
   };
 
   // Copying, toasts
@@ -807,7 +831,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const y = scrollY;
     document.body.classList.toggle("nav-hidden", y > lastY && y > 400);
     lastY = y;
-    updateRoute();
+    if (routeOnScreen) updateRoute();
     ticking = false;
   };
   addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
@@ -868,6 +892,10 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     if (which !== current && !calm) { steps.forEach((s, i) => s.classList.toggle("on", i === which)); current = which; }
   }
   updateRoute();
+  // scrolling elsewhere on the page skips the route entirely; leaving it once more settles the end state
+  let routeOnScreen = true;
+  if ("IntersectionObserver" in window)
+    new IntersectionObserver((e) => { routeOnScreen = e[0].isIntersecting; updateRoute(); }, { rootMargin: "200px 0px" }).observe($("#checks"));
 
   // List
   function filtered() {
@@ -897,18 +925,20 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     $$("th[data-key]").forEach(th => th.dataset.key === state.sort ? th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending") : th.removeAttribute("aria-sort"));
   }
   const refresh = () => { state.shown = PAGE; render(); };
+  // chips, the country and sorting morph the table; typing and the slider stay instant
+  const morph = (fn) => (calm || !document.startViewTransition) ? fn() : document.startViewTransition(fn);
   $$(".chip[data-type]").forEach(b => b.onclick = () => {
     const t = b.dataset.type; state.types.has(t) ? state.types.delete(t) : state.types.add(t);
-    b.setAttribute("aria-pressed", state.types.has(t)); refresh();
+    b.setAttribute("aria-pressed", state.types.has(t)); morph(refresh);
   });
-  const toggle = (id, key) => { const b = $(id); b.onclick = () => { state[key] = !state[key]; b.setAttribute("aria-pressed", state[key]); refresh(); }; };
+  const toggle = (id, key) => { const b = $(id); b.onclick = () => { state[key] = !state[key]; b.setAttribute("aria-pressed", state[key]); morph(refresh); }; };
   toggle("#f-https", "https"); toggle("#f-elite", "elite"); toggle("#f-dc", "noDc"); toggle("#f-stable", "stable"); toggle("#f-bl", "noBl");
-  $("#f-country").onchange = (e) => { state.country = e.target.value; refresh(); };
+  $("#f-country").onchange = (e) => { state.country = e.target.value; morph(refresh); };
   $("#f-lat").oninput = (e) => { state.maxLat = +e.target.value; $("#f-lat-v").textContent = state.maxLat >= 8000 ? "any" : `${fmt(state.maxLat)} ms`; refresh(); };
   $("#f-q").oninput = (e) => { state.q = e.target.value; refresh(); };
   $("#more").onclick = () => { state.shown += PAGE * 4; render(); };
   $$("th[data-key]").forEach(th => {
-    th.querySelector(".sort").onclick = () => { const k = th.dataset.key; state.dir = state.sort === k ? -state.dir : 1; state.sort = k; render(); };
+    th.querySelector(".sort").onclick = () => { const k = th.dataset.key; state.dir = state.sort === k ? -state.dir : 1; state.sort = k; morph(render); };
   });
   $("#rows").onclick = (e) => { const b = e.target.closest(".addr-btn"); if (b) copy(b.dataset.url, `Copied ${b.dataset.url}`); };
   $("#copy-all").onclick = () => { const rows = filtered(); copy(rows.map(r => r.url).join("\n") + "\n", `Copied ${fmt(rows.length)} proxies`); };

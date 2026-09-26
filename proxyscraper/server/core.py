@@ -13,7 +13,7 @@ import contextlib
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, Optional, Set, Tuple
+from typing import Deque, Dict, Optional, Set, Tuple
 
 from ..handshake import parse_endpoint, with_proxy_auth
 from .http import (
@@ -85,6 +85,7 @@ class RotatingServer:
         self.last_refill: Optional[float] = None  # time.time() of the last finished refill
         self._server: Optional[asyncio.AbstractServer] = None
         self._handlers: Set[asyncio.Task] = set()  # open client connections, ended by close()
+        self._sessions: Dict[str, Set[asyncio.Task]] = {}  # session name -> its connections (abort_session)
 
     async def start(self) -> None:
         self._server = await asyncio.start_server(self._handle, self.host, self.port, limit=HEAD_LIMIT)
@@ -99,6 +100,21 @@ class RotatingServer:
                 task.cancel()
             await asyncio.gather(*self._handlers, return_exceptions=True)
             await self._server.wait_closed()
+
+    def abort_session(self, session: str) -> int:
+        """End every connection of a session (username session-NAME). The client sees its connection closed – the
+        one way to wake a thread that is blocked reading it on every platform. -> connections ended."""
+        tasks = self._sessions.pop(session, set())
+        for task in tasks:
+            task.cancel()
+        return len(tasks)
+
+    def _forget(self, session: str, task: asyncio.Task) -> None:
+        tasks = self._sessions.get(session)
+        if tasks is not None:
+            tasks.discard(task)
+            if not tasks:
+                del self._sessions[session]
 
     async def _handle(self, reader, writer) -> None:
         task = asyncio.current_task()
@@ -131,6 +147,9 @@ class RotatingServer:
                              b"Content-Length: 0\r\nConnection: close\r\n\r\n")
                 return
             selection = selection_from_headers(headers)
+            if selection.session and task is not None:
+                self._sessions.setdefault(selection.session, set()).add(task)
+                task.add_done_callback(lambda t, name=selection.session: self._forget(name, t))
             await self._serve_request(reader, writer, client, method, host, port, path, headers, selection)
         except (ConnectionError, OSError, asyncio.IncompleteReadError):
             pass  # client hung up (also in the middle of a request body)

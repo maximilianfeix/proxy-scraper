@@ -505,7 +505,7 @@ class PageFetcher:
             name = f"{session}r{round_}"
             user = "-".join([*wishes, f"session-{name}"])
             try:
-                result = await self._download(url, user, port, progress, tick)
+                result = await self._download(url, user, port, progress, tick, session=name)
                 break
             except _ProxyFault as e:
                 faults.append(e)
@@ -548,7 +548,8 @@ class PageFetcher:
             "note": None if is_text else f"Binary content ({content_type}) isn't returned as text.",
         }
 
-    async def _download(self, url: str, user: str, port: int, progress: Optional[Progress], tick: float):
+    async def _download(self, url: str, user: str, port: int, progress: Optional[Progress], tick: float,
+                        session: str = ""):
         """_get in a thread. If the caller is cancelled, the socket is shut down so the thread ends too – a thread
         can't be cancelled, and it would otherwise wait for minutes on a proxy that doesn't answer."""
         slot: dict = {}
@@ -556,6 +557,8 @@ class PageFetcher:
             return await _with_progress(asyncio.to_thread(self._get, url, user, port, slot), progress, tick,
                                         "loading the page through a proxy")
         except BaseException:  # cancelled, or the progress report failed because the client left
+            if session and self.server is not None:
+                self.server.abort_session(session)  # the server hangs up: wakes the thread on every platform
             conn = slot.get("conn")
             sock = conn.sock if conn is not None else None
             if sock is not None:

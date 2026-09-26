@@ -658,11 +658,13 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 ## Roadmap
 
-What's next is tracked in the milestone [**v1.7**](../../milestone/7) – ideas and wishes are welcome as an [issue](../../issues/new/choose). During Hacktoberfest there are [beginner-friendly issues](../../issues?q=is%3Aopen+label%3Ahacktoberfest) with pointers on where to start.
+What's next is tracked in the milestone [**v1.8**](../../milestone/8) – ideas and wishes are welcome as an [issue](../../issues/new/choose). During Hacktoberfest there are [beginner-friendly issues](../../issues?q=is%3Aopen+label%3Ahacktoberfest) with pointers on where to start.
 
 - [ ] [Publish on PyPI](../../issues/42) so it's just `pipx install proxy-scraper`
 - [ ] [Protocol detection on the same connection](../../issues/44)
 - [ ] [sing-box export](../../issues/113), [PowerShell completion](../../issues/114), [shareable filters on the website](../../issues/116)
+
+Shipped in [v1.7](../../milestone/7): an MCP server so AI agents get working proxies and can load pages through them, 28 new sources and a GitHub search that runs daily and keeps what it found, and a cleaner website.
 
 Shipped in [v1.6](../../milestone/6): spam blocklist check for every exit IP, a live list refreshed every hour, pages per protocol and country, an optional password for the proxy server and a pool that refills itself while it runs, `compose.yaml`, `-o -` for pipes, a Discord bot, and a new website and README – everything in English now.
 

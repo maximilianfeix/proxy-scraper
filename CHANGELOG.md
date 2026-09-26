@@ -4,11 +4,18 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.7.0] – 2026-09-26
+
+### Added
+- MCP server for AI agents: `proxy-scraper-mcp` gives Claude Code, Claude Desktop, Cursor, VS Code, Codex and other MCP clients three tools – `get_proxies` (instant, from the hourly list, with the website's filters), `check_proxies` (fresh from your own network, with progress) and `fetch_url` (a page through a verified proxy as readable text, with failover, verified TLS for HTTPS, and local or private targets refused, also after redirects). `pip install "proxy-scraper[mcp]"` on Python 3.10+, setup for every client in the README ([#129](https://github.com/maximilianfeix/proxy-scraper/issues/129))
+
 ### Changed
 - More sources: 28 new curated lists (Databay, the full proxifly list, vakhov, freeproxy.world and 19 GitHub lists that bring proxies nobody else had), and the GitHub search now runs daily, keeps what earlier runs found for three weeks, asks 23 queries instead of 9 and skips VPN-config repos ([#127](https://github.com/maximilianfeix/proxy-scraper/issues/127))
+- Website: calmer trend chart (no spikes from runs minutes apart), less empty space, the footer links no longer run into the wordmark ([#131](https://github.com/maximilianfeix/proxy-scraper/issues/131))
 
 ### Fixed
-- Proxy server: stopping it ends open tunnels instead of leaving them running (on Python 3.12+ a tunnel whose target never hangs up could keep Ctrl+C waiting), and its own 502 is marked with an `X-Proxy-Scraper` header so clients can tell it from a 502 of the target
+- Proxy server: stopping it ends open tunnels instead of leaving them running (on Python 3.12+ a tunnel whose target never hangs up could keep Ctrl+C waiting), its own 502 and 400 are marked with an `X-Proxy-Scraper` header, and IPv6 targets work in absolute `http://` URLs
+- Result files are placed when they're written, not when the program starts, so embedding proxy-scraper (like the MCP server does) can move them
 
 ## [1.6.0] – 2026-09-26
 
@@ -102,7 +109,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.6.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.7.0...HEAD
+[1.7.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.3.0...v1.4.0

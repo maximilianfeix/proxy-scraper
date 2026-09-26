@@ -1,6 +1,6 @@
 """The MCP server (#129): tools, schemas, annotations, errors, and a real stdio session.
 
-Needs the MCP SDK (Python 3.10+): `pip install "proxy-scraper[mcp]"`. Without it only the entry point is tested.
+Needs the MCP SDK (Python 3.10+): `pip install "proxy-scraper-cli[mcp]"`. Without it only the entry point is tested.
 """
 
 import asyncio
@@ -21,7 +21,7 @@ def test_without_the_sdk_the_command_says_how_to_install_it(monkeypatch, capsys)
     monkeypatch.setattr(mcp_entry, "_load_server", lambda: (_ for _ in ()).throw(ImportError("x", name="mcp")))
     assert mcp_entry.main() == 1
     err = capsys.readouterr()
-    assert 'pip install "proxy-scraper[mcp]"' in err.err and err.out == ""  # stdout belongs to the protocol
+    assert 'pip install "proxy-scraper-cli[mcp]"' in err.err and err.out == ""  # stdout belongs to the protocol
 
 
 def test_old_python_is_told_what_it_needs(monkeypatch, capsys):

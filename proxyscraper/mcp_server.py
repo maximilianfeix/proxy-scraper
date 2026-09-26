@@ -2,7 +2,7 @@
 
 Three tools – the logic lives in agent.py, this module describes it for agents (names, parameter docs,
 structured results, annotations) and turns AgentError into tool errors the agent can act on.
-Start it with `proxy-scraper-mcp` (stdio); needs `pip install "proxy-scraper[mcp]"` and Python 3.10+.
+Start it with `proxy-scraper-mcp` (stdio); needs `pip install "proxy-scraper-cli[mcp]"` and Python 3.10+.
 """
 
 import contextlib

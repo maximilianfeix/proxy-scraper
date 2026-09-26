@@ -49,7 +49,7 @@ jobs:
     runs-on: ubuntu-latest
     environment:
       name: pypi
-      url: https://pypi.org/p/${{ vars.PYPI_NAME || 'proxy-scraper' }}
+      url: https://pypi.org/p/${{ vars.PYPI_NAME || 'proxy-scraper-cli' }}
     permissions:
       id-token: write   # the only thing trusted publishing needs
     steps:
@@ -58,3 +58,28 @@ jobs:
           name: dist
           path: dist/
       - uses: pypa/gh-action-pypi-publish@release/v1
+
+  # the official MCP registry (registry.modelcontextprotocol.io) – it only points to the PyPI package, and checks
+  # the mcp-name line in the README (PyPI's project description) to see that the package is ours
+  mcp-registry:
+    needs: pypi
+    runs-on: ubuntu-latest
+    permissions:
+      id-token: write   # login with this repository's identity, no token needed
+      contents: read
+    steps:
+      - uses: actions/checkout@v7
+      - name: Take the version from the tag
+        run: |
+          v="${GITHUB_REF_NAME#v}"
+          jq --arg v "$v" '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
+      - name: Install mcp-publisher
+        run: curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+      - run: ./mcp-publisher login github-oidc
+      - name: Publish (PyPI can take a moment to show the new version)
+        run: |
+          for attempt in 1 2 3 4 5; do
+            ./mcp-publisher publish && exit 0
+            sleep 30
+          done
+          exit 1

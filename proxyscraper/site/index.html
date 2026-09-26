@@ -570,12 +570,12 @@
     <div class="use">
       <div class="use-cmds">
       <div class="panel"><h3>Scan it yourself</h3><p>700+ sources, all the checks, filters and a live dashboard in your terminal.</p>
-        <div class="cmd"><pre>pipx install git+https://github.com/maximilianfeix/proxy-scraper.git
+        <div class="cmd"><pre>pipx install proxy-scraper-cli
 proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the install commands"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
       <div class="panel"><h3>Recheck from your network</h3><p>Starts from this list and checks it again from where you are. Takes about 30 seconds, then serves a rotating proxy on port 8899.</p>
         <div class="cmd"><pre>proxy-scraper --recheck live --serve</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the recheck command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
       <div class="panel"><h3>Give it to your AI agent</h3><p>An MCP server for Claude Code, Cursor, Codex and co: your agent gets working proxies and can load pages through them, as seen from another country. <a href="https://github.com/maximilianfeix/proxy-scraper#mcp">Setup for other clients</a></p>
-        <div class="cmd"><pre class="cmd-wrap">claude mcp add proxy-scraper -- uvx --python "&gt;=3.10" --from "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper" proxy-scraper-mcp</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the Claude Code command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
+        <div class="cmd"><pre class="cmd-wrap">claude mcp add proxy-scraper -- uvx --python "&gt;=3.10" --from "proxy-scraper-cli[mcp]" proxy-scraper-mcp</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the Claude Code command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
       </div>
       <div class="panel"><h3>Plain lists</h3><p>One proxy per line, fastest first, updated with every run.</p><div class="raw" id="raw"></div></div>
     </div>

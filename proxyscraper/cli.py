@@ -108,6 +108,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         ),
     )
     p.add_argument("-V", "--version", action="version", version=f"proxy-scraper {__version__}")
+    p.add_argument("--mcp", action="store_true",
+                   help="run as an MCP server over stdio, for AI agents like Claude Code (same as proxy-scraper-mcp; "
+                        'needs pip install "proxy-scraper-cli[mcp]")')
     p.add_argument("--completion", action=CompletionAction, metavar="SHELL",
                    help="print tab completion for bash, zsh or fish, e.g. eval \"$(proxy-scraper "
                         "--completion zsh)\"")
@@ -226,7 +229,7 @@ def wants_wizard(args: argparse.Namespace, argv: List[str]) -> bool:
 
 def install_uvloop() -> None:
     try:
-        import uvloop  # optional (pip install "proxy-scraper[fast]"), makes asyncio even faster
+        import uvloop  # optional (pip install "proxy-scraper-cli[fast]"), makes asyncio even faster
     except ImportError:
         return
     uvloop.install()
@@ -237,6 +240,9 @@ def run(argv: Optional[List[str]] = None) -> int:
     install_uvloop()
     argv = sys.argv[1:] if argv is None else argv
     args = parse_args(argv)
+    if args.mcp:  # before anything prints: stdout belongs to the MCP protocol from here on
+        from .mcp_entry import main as mcp_main
+        return mcp_main()
     if args.list_sources is not None:
         return list_sources(args.list_sources)
     opts = RunOptions.from_args(args)

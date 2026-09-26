@@ -6,7 +6,8 @@ stdout belongs to the MCP protocol: every message here goes to stderr.
 
 import sys
 
-INSTALL_HINT = 'The MCP server needs the MCP SDK: pip install "proxy-scraper[mcp]"  (or: pipx inject proxy-scraper mcp)'
+INSTALL_HINT = ('The MCP server needs the MCP SDK: pip install "proxy-scraper-cli[mcp]"  '
+                '(or: pipx inject proxy-scraper-cli mcp)')
 
 
 def _load_server():

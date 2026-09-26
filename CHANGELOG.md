@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- On PyPI now: `pipx install proxy-scraper-cli` (the plain name is blocked by an older, similar package – the commands stay `proxy-scraper` and `proxy-scraper-mcp`). `proxy-scraper --mcp` starts the MCP server too, and each release publishes it to the official MCP registry as `io.github.maximilianfeix/proxy-scraper` ([#42](https://github.com/maximilianfeix/proxy-scraper/issues/42))
+
 ## [1.7.0] – 2026-09-26
 
 ### Added

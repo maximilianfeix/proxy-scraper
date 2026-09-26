@@ -9,6 +9,7 @@
 [![tests](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml/badge.svg)](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml)
 [![Release](https://img.shields.io/github/v/release/maximilianfeix/proxy-scraper?style=flat-square&color=D4F77A&labelColor=121113)](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
 [![Live proxies](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json&style=flat-square&labelColor=121113)](#live-list)
+[![PyPI](https://img.shields.io/pypi/v/proxy-scraper-cli?style=flat-square&color=D4F77A&labelColor=121113&label=pypi)](https://pypi.org/project/proxy-scraper-cli/)
 [![Python](https://img.shields.io/badge/python-3.9–3.13-D4F77A?style=flat-square&labelColor=121113)](pyproject.toml)
 [![License](https://img.shields.io/badge/license-MIT-D4F77A?style=flat-square&labelColor=121113)](LICENSE)
 
@@ -63,9 +64,11 @@ Most free proxy lists are 95 % dead, and a good part of the rest are honeypots o
 **With [pipx](https://pipx.pypa.io/)** (recommended – gives you a `proxy-scraper` command in its own environment):
 
 ```bash
-pipx install git+https://github.com/maximilianfeix/proxy-scraper.git
+pipx install proxy-scraper-cli
 proxy-scraper
 ```
+
+The package is called `proxy-scraper-cli` on PyPI (the plain name is taken), the command is `proxy-scraper`.
 
 <details>
 <summary><b>Other ways: Docker, pip, a faster event loop, or straight from the repo</b></summary>
@@ -78,10 +81,13 @@ docker run --rm --user "$(id -u):$(id -g)" -v "$PWD/proxy-data:/data" -v "$PWD/r
   ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
 
 # pip into the current environment
-pip install git+https://github.com/maximilianfeix/proxy-scraper.git
+pip install proxy-scraper-cli
 
 # optional: faster event loop on macOS/Linux
-pipx install "proxy-scraper[fast] @ git+https://github.com/maximilianfeix/proxy-scraper.git"
+pipx install "proxy-scraper-cli[fast]"
+
+# the latest main instead of the latest release
+pipx install git+https://github.com/maximilianfeix/proxy-scraper.git
 
 # no install at all
 git clone https://github.com/maximilianfeix/proxy-scraper.git
@@ -178,7 +184,7 @@ Things to ask your agent: *"Load bbc.com/news as seen from the UK"*, *"Give me 5
 Needs [uv](https://docs.astral.sh/uv/) – it fetches a suitable Python by itself if yours is older than 3.10. **Claude Code:**
 
 ```bash
-claude mcp add proxy-scraper -- uvx --python ">=3.10" --from "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper" proxy-scraper-mcp
+claude mcp add proxy-scraper -- uvx --python ">=3.10" --from "proxy-scraper-cli[mcp]" proxy-scraper-mcp
 ```
 
 **Claude Desktop, Cursor and most other clients** – add this to the MCP config (Claude Desktop: Settings → Developer → Edit Config, Cursor: `~/.cursor/mcp.json`):
@@ -188,7 +194,7 @@ claude mcp add proxy-scraper -- uvx --python ">=3.10" --from "proxy-scraper[mcp]
   "mcpServers": {
     "proxy-scraper": {
       "command": "uvx",
-      "args": ["--python", ">=3.10", "--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
+      "args": ["--python", ">=3.10", "--from", "proxy-scraper-cli[mcp]", "proxy-scraper-mcp"]
     }
   }
 }
@@ -205,7 +211,7 @@ claude mcp add proxy-scraper -- uvx --python ">=3.10" --from "proxy-scraper[mcp]
     "proxy-scraper": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["--python", ">=3.10", "--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
+      "args": ["--python", ">=3.10", "--from", "proxy-scraper-cli[mcp]", "proxy-scraper-mcp"]
     }
   }
 }
@@ -216,10 +222,12 @@ claude mcp add proxy-scraper -- uvx --python ">=3.10" --from "proxy-scraper[mcp]
 ```toml
 [mcp_servers.proxy-scraper]
 command = "uvx"
-args = ["--python", ">=3.10", "--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
+args = ["--python", ">=3.10", "--from", "proxy-scraper-cli[mcp]", "proxy-scraper-mcp"]
 ```
 
-**Without uv:** `pipx install --python python3.12 "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper"` (any Python 3.10+), then use `proxy-scraper-mcp` as the command.
+**Without uv:** `pipx install --python python3.12 "proxy-scraper-cli[mcp]"` (any Python 3.10+), then use `proxy-scraper-mcp` as the command.
+
+It's also in the [official MCP registry](https://registry.modelcontextprotocol.io) as `io.github.maximilianfeix/proxy-scraper`, so clients that browse the registry can install it from there.
 
 </details>
 
@@ -660,7 +668,6 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 What's next is tracked in the milestone [**v1.8**](../../milestone/8) – ideas and wishes are welcome as an [issue](../../issues/new/choose). During Hacktoberfest there are [beginner-friendly issues](../../issues?q=is%3Aopen+label%3Ahacktoberfest) with pointers on where to start.
 
-- [ ] [Publish on PyPI](../../issues/42) so it's just `pipx install proxy-scraper`
 - [ ] [Protocol detection on the same connection](../../issues/44)
 - [ ] [sing-box export](../../issues/113), [PowerShell completion](../../issues/114), [shareable filters on the website](../../issues/116)
 

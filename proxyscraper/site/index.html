@@ -418,7 +418,7 @@
     td { padding-inline: 9px; }
     td:first-child { padding-left: 16px; }
     .steps { min-height: 17em; }
-    .gh .label { display: none; }
+    .gh .label, .gh .star-count { display: none; }
     .gh { padding: 0; width: 36px; justify-content: center; }
     .sep { display: none; }
     .range { flex: 1; } .range input { flex: 1; width: auto; }
@@ -992,7 +992,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     // only first octets of public ranges – private and reserved addresses never make it into a run anyway
     const OCTETS = [5, 23, 31, 37, 45, 46, 51, 62, 77, 78, 82, 85, 89, 91, 93, 95, 103, 109, 116, 122, 139, 144, 146, 152, 154, 159, 162, 165, 178, 185, 188, 190, 194, 202, 212];
     const fakeAddr = () => `${OCTETS[rand(0, OCTETS.length)]}.${rand(0, 255)}.${rand(0, 255)}.${rand(1, 254)}:${[80, 8080, 3128, 1080, 4145, 9050, 8888][rand(0, 7)]}`;
-    let n = 0, gi = 0, checked = 0, kept = 0, timer = null, paused = false, visible = true;
+    let n = 0, gi = 0, checked = 0, kept = 0, timer = null, paused = false, onScreen = true, tabShown = true, holding = false;
     const counters = () => { $("#sieve-checked").textContent = fmt(checked); $("#sieve-kept").textContent = fmt(kept); };
     function row(outcome, stage, reason, proxy) {
       const li = document.createElement("li");
@@ -1025,7 +1025,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       counters();
       if (checked >= CANDIDATES) { checked = 0; kept = 0; }  // start the next run
     }
-    const run = () => { clearInterval(timer); timer = (!paused && visible) ? setInterval(step, 900) : null; };
+    const run = () => { clearInterval(timer); timer = (!paused && !holding && onScreen && tabShown) ? setInterval(step, 900) : null; };
     if (calm) {  // no motion: one still frame of a finished run, with one of each outcome
       [0, 2, 6, 4, 3, 7].forEach((k) => {
         const [outcome, stage, reason] = OUTCOMES[k];
@@ -1036,8 +1036,14 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       return;
     }
     step(); run();
-    new IntersectionObserver((e) => { visible = e[0].isIntersecting; run(); }).observe(box);
-    document.addEventListener("visibilitychange", () => { visible = !document.hidden; run(); });
+    new IntersectionObserver((e) => { onScreen = e[0].isIntersecting; run(); }).observe(box);
+    document.addEventListener("visibilitychange", () => { tabShown = !document.hidden; run(); });
+    // hold still while someone points at a row or tabs into it, so a kept proxy can be copied
+    const hold = (on) => { holding = on; run(); };
+    list.addEventListener("mouseenter", () => hold(true));
+    list.addEventListener("mouseleave", () => hold(list.contains(document.activeElement)));
+    list.addEventListener("focusin", () => hold(true));
+    list.addEventListener("focusout", (e) => hold(list.contains(e.relatedTarget) || list.matches(":hover")));
     $("#sieve-toggle").onclick = (e) => {
       paused = box.classList.toggle("paused");
       e.currentTarget.setAttribute("aria-pressed", paused);

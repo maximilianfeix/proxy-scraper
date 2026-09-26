@@ -841,10 +841,10 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   }
   function trend(history) {
     const el = $("#trend");
-    if (!history || history.length < 2) { el.innerHTML = '<p class="note">The chart fills up with every run.</p>'; return; }
-    const runs = history.length;
+    const runs = history ? history.length : 0;
     // runs a few minutes apart (started by hand) are noise, not trend: keep the last of each such cluster
-    history = history.filter((h, i, a) => i === a.length - 1 || Date.parse(a[i + 1].updated) - Date.parse(h.updated) > 20 * 60e3);
+    history = (history || []).filter((h, i, a) => i === a.length - 1 || Date.parse(a[i + 1].updated) - Date.parse(h.updated) > 20 * 60e3);
+    if (history.length < 2) { el.innerHTML = '<p class="note">The chart fills up with every run.</p>'; return; }
     const W = 800, H = 260, P = 10, max = Math.max(...history.map(h => h.total)) * 1.12 || 1;
     // spaced by time, not by index: the runs weren't always the same distance apart
     const t0 = Date.parse(history[0].updated), span = Math.max(Date.parse(history[history.length - 1].updated) - t0, 1);

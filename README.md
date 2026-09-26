@@ -175,10 +175,10 @@ Or let the tool start from it: `proxy-scraper --recheck live` downloads the list
 
 Things to ask your agent: *"Load bbc.com/news as seen from the UK"*, *"Give me 5 SOCKS5 proxies from Germany that aren't in a datacenter"*, *"Check which of these sites block free proxies"*.
 
-Needs Python 3.10+ and [uv](https://docs.astral.sh/uv/). **Claude Code:**
+Needs [uv](https://docs.astral.sh/uv/) – it fetches a suitable Python by itself if yours is older than 3.10. **Claude Code:**
 
 ```bash
-claude mcp add proxy-scraper -- uvx --from "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper" proxy-scraper-mcp
+claude mcp add proxy-scraper -- uvx --python ">=3.10" --from "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper" proxy-scraper-mcp
 ```
 
 **Claude Desktop, Cursor and most other clients** – add this to the MCP config (Claude Desktop: Settings → Developer → Edit Config, Cursor: `~/.cursor/mcp.json`):
@@ -188,7 +188,7 @@ claude mcp add proxy-scraper -- uvx --from "proxy-scraper[mcp] @ git+https://git
   "mcpServers": {
     "proxy-scraper": {
       "command": "uvx",
-      "args": ["--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
+      "args": ["--python", ">=3.10", "--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
     }
   }
 }
@@ -205,7 +205,7 @@ claude mcp add proxy-scraper -- uvx --from "proxy-scraper[mcp] @ git+https://git
     "proxy-scraper": {
       "type": "stdio",
       "command": "uvx",
-      "args": ["--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
+      "args": ["--python", ">=3.10", "--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
     }
   }
 }
@@ -216,10 +216,10 @@ claude mcp add proxy-scraper -- uvx --from "proxy-scraper[mcp] @ git+https://git
 ```toml
 [mcp_servers.proxy-scraper]
 command = "uvx"
-args = ["--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
+args = ["--python", ">=3.10", "--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
 ```
 
-**Without uv:** `pipx install "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper"`, then use `proxy-scraper-mcp` as the command.
+**Without uv:** `pipx install --python python3.12 "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper"` (any Python 3.10+), then use `proxy-scraper-mcp` as the command.
 
 </details>
 

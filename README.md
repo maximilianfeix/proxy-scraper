@@ -336,6 +336,7 @@ Without a password, `--serve-host` means **anyone who reaches the port can use i
 - HTTPS only uses proxies that passed the test with **verified TLS** – no broken encryption
 - if a proxy stays silent inside the tunnel or returns an error page instead of TLS, the same first packet quietly goes to the next one
 - three failures in a row and a proxy leaves the rotation – every 5 minutes those get re-checked and come back if they work again
+- `--serve-refill 6` checks fresh proxies every 6 hours in the background (the live list with `--recheck live`, otherwise the last run + history) with the same checks and filters, and adds the hits – a server that runs for days doesn't run dry
 - listens on `127.0.0.1` only (unless `--serve-host` says otherwise), optionally with a password; live view with requests, success rate, pool and the latest connections
 
 In testing: 20 of 20 HTTPS requests succeeded, over 15 different exit IPs. In the wizard this is **Proxy server right away**.
@@ -500,6 +501,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--serve-host ADDR` | where the proxy server listens (default `127.0.0.1`; `0.0.0.0` for Docker, with a warning) |
 | `--serve-password SECRET` | clients must send this password in the proxy login; better set `PROXY_SCRAPER_SERVE_PASSWORD` |
 | `--rotate STRATEGY` · `--sticky SEC` | how the proxy server picks proxies, see [above](#proxy-server) |
+| `--serve-refill HOURS` | while serving, check fresh proxies every HOURS and add the hits to the pool |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
 | `-o FILE` | also write all hits to this file; `-o -` prints them to stdout |
 | `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `curl` or `all` |

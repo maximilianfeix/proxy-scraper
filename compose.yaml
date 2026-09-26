@@ -4,13 +4,13 @@
 #   docker compose up -d
 #   curl -x "http://any:$(grep -o '[^=]*$' .env)@127.0.0.1:8899" https://api.ipify.org
 #
-# Free proxies die over the day. The server re-checks disabled ones every 5 minutes, but it doesn't pick up
-# new ones – `docker compose restart` (e.g. every 6 hours from cron) starts again from the fresh live list.
+# Free proxies die over the day. The server re-checks disabled ones every 5 minutes and, with --serve-refill,
+# checks the fresh live list every 6 hours in the background and adds what works.
 
 services:
   proxy:
     image: ghcr.io/maximilianfeix/proxy-scraper:latest
-    command: ["--recheck", "live", "--want", "200", "--serve", "--serve-host", "0.0.0.0"]
+    command: ["--recheck", "live", "--want", "200", "--serve", "--serve-host", "0.0.0.0", "--serve-refill", "6"]
     environment:
       # clients have to send this password in the proxy login (HTTP and SOCKS5)
       PROXY_SCRAPER_SERVE_PASSWORD: ${PROXY_PASSWORD:?put PROXY_PASSWORD=... into .env}

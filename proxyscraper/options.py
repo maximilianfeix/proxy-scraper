@@ -122,6 +122,7 @@ class RunOptions:
     sticky: int = 0  # seconds a target site keeps the same proxy (0 = new one for every connection)
     serve_host: str = "127.0.0.1"  # address of the proxy server; anything else is reachable from outside
     serve_password: str = field(default="", repr=False)  # required from clients if set; never written to argv
+    serve_refill: float = 0  # hours between background refills of the proxy server's pool, 0 = off
 
     def __post_init__(self) -> None:
         unknown = set(self.types) - set(PROXY_TYPES)
@@ -146,6 +147,8 @@ class RunOptions:
             raise ValueError(f"unknown strategy: {self.rotate}")
         if self.sticky < 0:
             raise ValueError("--sticky must not be negative")
+        if self.serve_refill < 0:
+            raise ValueError("--serve-refill must not be negative")
         if not 0 <= self.serve <= 65535:
             raise ValueError("port must be between 1 and 65535")
 
@@ -204,6 +207,7 @@ class RunOptions:
             sticky=args.sticky,
             serve_host=args.serve_host,
             serve_password=args.serve_password,
+            serve_refill=args.serve_refill,
         )
 
     def to_argv(self) -> List[str]:
@@ -250,6 +254,7 @@ class RunOptions:
         if self.serve_host != "127.0.0.1":
             argv += ["--serve-host", self.serve_host]
         _opt(argv, "--sticky", self.sticky, 0)
+        _opt(argv, "--serve-refill", float(self.serve_refill), 0.0)
         return argv
 
     def to_command(self, program: Optional[str] = None) -> str:

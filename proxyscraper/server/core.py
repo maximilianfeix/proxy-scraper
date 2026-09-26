@@ -78,6 +78,8 @@ class RotatingServer:
         self.timeout = timeout
         self.stats = ServerStats()
         self.revived = 0  # proxies that passed the recheck after being disabled
+        self.refilled = 0  # new proxies added by --serve-refill
+        self.last_refill: Optional[float] = None  # time.time() of the last finished refill
         self._server: Optional[asyncio.AbstractServer] = None
 
     async def start(self) -> None:

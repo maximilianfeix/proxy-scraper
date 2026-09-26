@@ -153,6 +153,26 @@ class ProxyPool:
                 # if a session holds this proxy, it should get a different one next time
                 self._sticky = {k: v for k, v in self._sticky.items() if v[0] is not entry}
 
+    def merge(self, results: List[CheckResult]) -> int:
+        """Hits of a refill: new ones join the rotation, known ones that were disabled come back with the fresh
+        result, disabled ones that didn't pass again are dropped. Counters of known proxies stay. -> added."""
+        fresh = {r.key: r for r in results}
+        kept, added = [], 0
+        for entry in self.entries:
+            r = fresh.pop(entry.result.key, None)
+            if r is not None:
+                entry.result = r
+                if entry.disabled:
+                    self.revive(entry)
+            elif entry.disabled:
+                continue  # dead and not in the fresh list – make room
+            kept.append(entry)
+        for r in fresh.values():
+            kept.append(PoolEntry(r))
+            added += 1
+        self.entries = sorted(kept, key=lambda e: e.result.latency)
+        return added
+
     def revive(self, entry: PoolEntry) -> None:
         """A disabled proxy passed the recheck – back into the rotation."""
         entry.disabled = False

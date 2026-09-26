@@ -271,12 +271,16 @@ async def run_checks(
     watch: Optional[JudgeWatch] = None,
     providers: Optional[ProviderLookup] = None,
     blocklist: Optional[Blocklist] = None,
+    quiet: bool = False,
 ) -> CheckRun:
     """Checks `jobs` with `opts.concurrency` parallel workers until everything is done, the goal is
     reached or Ctrl+C is pressed.
 
     With `watch` the check target is monitored: if it goes down, the checks since the last successful
-    probe are repeated and don't count for the source statistics."""
+    probe are repeated and don't count for the source statistics.
+
+    quiet: runs in the background next to another live view (--serve-refill) – no spinner, and Ctrl+C
+    belongs to whoever runs in the foreground."""
     loop = asyncio.get_running_loop()
     stats = dashboard.s
     filters, details, want = opts.filters, opts.details, opts.want
@@ -407,7 +411,7 @@ async def run_checks(
         workers = [asyncio.ensure_future(worker()) for _ in range(min(opts.concurrency, len(jobs)))]
         all_workers = asyncio.gather(*workers)
         # Ctrl+C stops cleanly so the results still get saved (on Windows too)
-        with on_interrupt(loop, all_workers.cancel):
+        with contextlib.nullcontext() if quiet else on_interrupt(loop, all_workers.cancel):
             try:
                 await all_workers
             except asyncio.CancelledError:
@@ -415,11 +419,16 @@ async def run_checks(
 
     if watch_task:
         watch_task.cancel()
+    if quiet and run.interrupted:
+        # nobody pressed Ctrl+C here – the task running us was cancelled (the server stops), so pass it on
+        geo_task.cancel()
+        raise asyncio.CancelledError
     # wait for open country lookups (briefly at most)
     geo.stop()
     if geo.pending and not geo.failed:
         message = f"[bold {ACCENT}]Looking up countries for {fmt(len(geo.pending))} exit IPs …"
-        with widgets.console.status(message, spinner="dots"), contextlib.suppress(asyncio.TimeoutError):
+        spinner = contextlib.nullcontext() if quiet else widgets.console.status(message, spinner="dots")
+        with spinner, contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(asyncio.shield(geo_task), 30)
     geo_task.cancel()
     return run

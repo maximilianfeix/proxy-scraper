@@ -386,6 +386,19 @@ if __name__ == "__main__":  # needed on macOS/Windows, the parser uses a process
 
 Same run as the command line – sources, learning, every check, result files – just without terminal output. Each result has `url`, `latency`, `exit_ip`, `https`, `anonymity`, `country`, `asn`, `org` and `hosting`. There's an async version of both (`find_proxies_async`, `check_proxies_async`).
 
+Don't need a fresh scan? `live_proxies` takes the [live list](#live-list) instead – no checks, one download, done in about a second:
+
+```python
+import itertools, requests
+from proxyscraper import live_proxies
+
+proxies = live_proxies(types=["socks5"], https=True, min_uptime=90)  # the reliable ones this week
+pool = itertools.cycle(p.url for p in proxies)
+r = requests.get("https://api.ipify.org", proxies={"https": next(pool)}, timeout=15)  # pip install "requests[socks]"
+```
+
+Same filters as `find_proxies`, plus `min_uptime` and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen` and `up_for_hours`.
+
 <a id="proxy-server"></a>
 
 ## Rotating proxy server

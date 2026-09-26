@@ -6,7 +6,14 @@
         for p in find_proxies(want=20, https=True, countries=["DE", "NL"]):
             print(p.url, p.latency, p.country)
 
-Behind it runs exactly the same as on the command line (sources, learning, honeypot and
+Or skip the checking and take the list that GitHub Actions checks every hour:
+
+    from proxyscraper import live_proxies
+
+    for p in live_proxies(types=["socks5"], countries="DE", https=True, min_uptime=90):
+        print(p.url, p.latency, p.uptime_7d)
+
+Behind find_proxies runs exactly the same as on the command line (sources, learning, honeypot and
 tampering checks, result files under results/), just without output in the terminal.
 
 Large lists are parsed in a process pool. On macOS and Windows it starts the worker processes
@@ -20,8 +27,10 @@ import asyncio
 import contextlib
 import io
 import os
+import re
 import tempfile
 import threading
+from dataclasses import dataclass
 from typing import Iterable, List, Optional
 
 from rich.console import Console
@@ -32,7 +41,8 @@ from .parsing import PROXY_TYPES
 from .targets import parse_target
 from .ui import widgets
 
-__all__ = ["CheckResult", "check_proxies", "check_proxies_async", "find_proxies", "find_proxies_async"]
+__all__ = ["CheckResult", "LiveProxy", "check_proxies", "check_proxies_async", "find_proxies", "find_proxies_async",
+           "live_proxies", "live_proxies_async"]
 
 
 def _options(types: Iterable[str], want: int, limit: int, https: bool, countries: Iterable[str], anonymity: str,
@@ -137,3 +147,71 @@ async def check_proxies_async(proxies: Iterable[str], **kwargs) -> List[CheckRes
 
 def check_proxies(proxies: Iterable[str], **kwargs) -> List[CheckResult]:
     return asyncio.run(check_proxies_async(proxies, **kwargs))
+
+
+# --------------------------------------------------------------------------- the hourly list
+
+@dataclass
+class LiveProxy(CheckResult):
+    """A proxy from the hourly list: the same fields as a CheckResult, plus how reliable it has been."""
+    uptime_24h: Optional[int] = None  # share of today's hourly runs it was listed in, in percent
+    uptime_7d: Optional[int] = None   # the same over the week
+    first_seen: str = ""              # ISO time of the first run it was listed in
+    up_for_hours: int = 0             # listed without a gap for this long
+
+
+def _live_fetch(url: str, timeout: float = 20, headers=None):
+    from .netio import http_get
+    return http_get(url, timeout=timeout, headers=headers)
+
+
+def _live_proxy(row: dict, run_hours: int) -> LiveProxy:
+    streak = row.get("streak") if type(row.get("streak")) is int else 0
+    return LiveProxy(
+        key=f"{row['ptype']} {row['proxy']}", ptype=row["ptype"], proxy=row["proxy"],
+        latency=int(row.get("latency") or 0),
+        exit_ip=row.get("exit_ip") or "", https=row.get("https"), anonymity=row.get("anonymity") or "",
+        country=row.get("country") or "", targets=dict(row.get("targets") or {}), asn=row.get("asn") or 0,
+        org=row.get("org") or "", hosting=row.get("hosting"), blocklisted=row.get("blocklisted"),
+        uptime_24h=row.get("uptime_24h"), uptime_7d=row.get("uptime_7d"), first_seen=row.get("first_seen") or "",
+        up_for_hours=streak * run_hours)
+
+
+async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: Iterable[str] = (), https: bool = False,
+                             anonymity: str = "", max_latency: int = 0, no_datacenter: bool = False,
+                             no_blocklisted: bool = False, min_uptime: int = 0, limit: int = 0) -> List[LiveProxy]:
+    """The proxies from the hourly list that pass the filters, fastest first. Nothing is checked here: they
+    worked from GitHub's servers in the last run (at most an hour ago). find_proxies checks from your network.
+
+    Same filters as find_proxies, plus
+    min_uptime  only proxies listed in at least this share (percent) of the week's runs, e.g. 90
+    limit       at most this many (0 = all)
+    """
+    from .agent import AgentError, LiveSource
+
+    types = list(types)
+    unknown = [t for t in types if t not in PROXY_TYPES]
+    if unknown:
+        raise ValueError(f"unknown proxy type {unknown[0]!r}, use {', '.join(PROXY_TYPES)}")
+    if isinstance(countries, str):
+        countries = parse_countries(countries)
+    countries = {c.strip().upper() for c in countries}
+    bad = [c for c in countries if not re.fullmatch(r"[A-Z]{2}", c)]
+    if bad:
+        raise ValueError(f"countries are two-letter codes like DE or US, not {bad[0]!r}")
+    opts = _options(types, 0, 0, https, countries, anonymity, max_latency, (), no_datacenter, no_blocklisted, 8.0, 1,
+                    None)
+    try:
+        data = await LiveSource(fetch=_live_fetch).get()
+    except AgentError as e:
+        raise ConnectionError(str(e)) from None
+    found = sorted((_live_proxy(r, data.run_hours) for r in data.rows
+                    if r.get("ptype") in types and isinstance(r.get("proxy"), str)),
+                   key=lambda p: p.latency)
+    found = [p for p in found if opts.filters.accepts(p) and (not min_uptime or (p.uptime_7d or 0) >= min_uptime)]
+    return found[:limit] if limit else found
+
+
+def live_proxies(**kwargs) -> List[LiveProxy]:
+    """Like live_proxies_async, just synchronous (starts its own event loop)."""
+    return asyncio.run(live_proxies_async(**kwargs))

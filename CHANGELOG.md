@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- `live_proxies()` in the Python API: the hourly checked list with the same filters as `find_proxies`, plus `min_uptime` – no scan needed ([#141](https://github.com/maximilianfeix/proxy-scraper/issues/141))
 - Website: the theme switch grows the new theme out of the button, and the rows settle in when filters or sorting change instead of snapping. The scroll-driven route only does its layout work while it's on screen (about 60 % fewer layout reads while scrolling)
 - Uptime per proxy on the live list: `uptime_24h`, `uptime_7d` and `first_seen` in proxies.json, an Uptime column on the website, `stable.txt` with everything listed in 90 %+ of this week's runs, and `min_uptime_percent` in the MCP server's get_proxies ([#138](https://github.com/maximilianfeix/proxy-scraper/issues/138))
 - Charts in the README, redrawn with every run: working proxies over the last week by protocol, and the top countries. Plus GitHub Pages and jsDelivr links for every list file ([#142](https://github.com/maximilianfeix/proxy-scraper/issues/142))

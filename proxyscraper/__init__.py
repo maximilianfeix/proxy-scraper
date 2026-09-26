@@ -6,7 +6,8 @@ __version__ = "1.7.1"
 
 def __getattr__(name):
     # load the Python API only when needed – "import proxyscraper" should stay light (the CLI doesn't need it)
-    if name in ("find_proxies", "find_proxies_async", "check_proxies", "check_proxies_async"):
+    if name in ("find_proxies", "find_proxies_async", "check_proxies", "check_proxies_async", "live_proxies",
+                "live_proxies_async", "LiveProxy"):
         from . import api
         return getattr(api, name)
     raise AttributeError(f"module 'proxyscraper' has no attribute {name!r}")

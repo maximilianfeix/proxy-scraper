@@ -269,17 +269,12 @@
   .addr-btn:hover svg, .addr-btn:focus-visible svg { opacity: 1; }
   .fast { color: var(--signal-ink); } .mid { color: var(--warn); } .slow { color: var(--bad); }
   .quiet { color: var(--muted); }
-  /* View transitions: the table morphs when filters change, the theme grows out of its switch */
-  #table-scroll { view-transition-name: list; }
-  ::view-transition-group(list) { animation-duration: .45s; animation-timing-function: var(--ease); }
-  ::view-transition-old(list) { animation: .2s var(--ease) both vt-out; }
-  ::view-transition-new(list) { animation: .4s var(--ease) .08s both vt-in; }
-  @keyframes vt-out { to { opacity: 0; } }
-  @keyframes vt-in { from { opacity: 0; transform: translateY(6px); } }
+  /* Filters and sorting: the new rows settle in one after another instead of snapping */
+  #rows.settle tr { animation: row-in .45s var(--ease) both; }
+  #rows.settle tr:nth-child(-n+12) { animation-delay: calc(var(--r) * 22ms); }
+  @keyframes row-in { from { opacity: 0; transform: translateY(6px); } }
+  /* The theme switch grows the new theme out of the button (a view transition, see the script) */
   html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
-  html.vt-theme::view-transition-group(list) { animation: none; }
-  html.vt-theme::view-transition-old(list) { display: none; }
-  html.vt-theme::view-transition-new(list) { animation: none; }
   html.vt-theme, html.vt-theme * { transition: none !important; }
   .tag { display: inline-block; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 6px; border-radius: 6px; margin-right: 8px;
          color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); vertical-align: 1px; }
@@ -565,7 +560,7 @@
       <input class="field" type="search" id="f-q" placeholder="Search IP, port, country or provider    /" aria-label="Search" aria-keyshortcuts="/">
     </div>
     <div class="table-panel">
-      <div class="table-scroll" id="table-scroll" data-lenis-prevent-horizontal>
+      <div class="table-scroll" data-lenis-prevent-horizontal>
         <table>
           <caption class="sr-only">Working proxies from the last run. Activate an address to copy it.</caption>
           <thead><tr>
@@ -778,17 +773,19 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     try { localStorage.setItem("theme", html.dataset.theme); } catch (e) {}
     themeColor(); labelTheme();
   };
+  let themeVT = null;
   themeBtn.onclick = () => {
     if (calm || !document.startViewTransition) return flip();
     // the new theme grows as a circle out of the switch
     const r = themeBtn.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
     const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    if (themeVT) themeVT.skipTransition();  // a second click finishes the first one at once
     html.classList.add("vt-theme");
-    const vt = document.startViewTransition(flip);
+    const vt = themeVT = document.startViewTransition(flip);
     vt.ready.then(() => html.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
-                                     { duration: 700, easing: "cubic-bezier(.65, 0, .35, 1)", pseudoElement: "::view-transition-new(root)" }))
+                                     { duration: 600, easing: "cubic-bezier(.65, 0, .35, 1)", pseudoElement: "::view-transition-new(root)" }))
       .catch(() => {});
-    vt.finished.finally(() => html.classList.remove("vt-theme"));
+    vt.finished.finally(() => { if (themeVT === vt) { themeVT = null; html.classList.remove("vt-theme"); } });
   };
 
   // Copying, toasts
@@ -925,8 +922,16 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     $$("th[data-key]").forEach(th => th.dataset.key === state.sort ? th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending") : th.removeAttribute("aria-sort"));
   }
   const refresh = () => { state.shown = PAGE; render(); };
-  // chips, the country and sorting morph the table; typing and the slider stay instant
-  const morph = (fn) => (calm || !document.startViewTransition) ? fn() : document.startViewTransition(fn);
+  // chips, the country and sorting let the rows settle in; typing and the slider stay instant
+  const morph = (fn) => {
+    fn();
+    if (calm) return;
+    const body = $("#rows");
+    body.classList.remove("settle");
+    void body.offsetWidth;  // restart the animation on the next change too
+    [...body.rows].slice(0, 12).forEach((tr, i) => tr.style.setProperty("--r", i));
+    body.classList.add("settle");
+  };
   $$(".chip[data-type]").forEach(b => b.onclick = () => {
     const t = b.dataset.type; state.types.has(t) ? state.types.delete(t) : state.types.add(t);
     b.setAttribute("aria-pressed", state.types.has(t)); morph(refresh);

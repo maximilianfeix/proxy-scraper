@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.8.0] – 2026-09-27
+
 ### Added
 - Which big sites let each proxy through: after every run the HTTPS-capable proxies are tried on Google, Reddit and Amazon, each with its own rule (Google's captcha redirect counts as blocked). `sites` in proxies.json, `works-with/google.txt` and friends, a filter and column on the website, `works_on` in the MCP server and in `live_proxies()` ([#139](https://github.com/maximilianfeix/proxy-scraper/issues/139))
 - `live_proxies()` in the Python API: the hourly checked list with the same filters as `find_proxies`, plus `min_uptime` – no scan needed ([#141](https://github.com/maximilianfeix/proxy-scraper/issues/141))
@@ -121,7 +123,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.7.1...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.0...HEAD
+[1.8.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.6.0...v1.7.0
 [1.6.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.5.0...v1.6.0

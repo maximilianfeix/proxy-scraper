@@ -15,9 +15,10 @@
 <a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="https://img.shields.io/badge/Browse_the_live_list-D4F77A?style=for-the-badge&labelColor=121113" alt="Browse the live list"></a>
 <a href="#install"><img src="https://img.shields.io/badge/Install-121113?style=for-the-badge" alt="Install"></a>
 <a href="#from-python"><img src="https://img.shields.io/badge/Python_API-121113?style=for-the-badge" alt="Python API"></a>
+<a href="#mcp"><img src="https://img.shields.io/badge/MCP_server-121113?style=for-the-badge" alt="MCP server for AI agents"></a>
 <a href="bot/"><img src="https://img.shields.io/badge/Discord_bot-121113?style=for-the-badge" alt="Discord bot"></a>
 
-[Install](#install) · [Live list](#live-list) · [Proxy server](#proxy-server) · [How it works](#how-it-works) · [Recipes](#recipes) · [Options](#options) · [FAQ](#faq)
+[Install](#install) · [Live list](#live-list) · [For AI agents](#mcp) · [Proxy server](#proxy-server) · [How it works](#how-it-works) · [Recipes](#recipes) · [Options](#options) · [FAQ](#faq)
 
 </div>
 
@@ -40,6 +41,7 @@ Most free proxy lists are 95 % dead, and a good part of the rest are honeypots o
 
 - [Install](#install)
 - [Live proxy list](#live-list)
+- [For AI agents (MCP)](#mcp)
 - [Features](#features) · [Why not just download a list?](#why-not-just-download-a-list)
 - [Examples](#examples)
 - [Recipes](#recipes)
@@ -156,6 +158,72 @@ curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-lis
 ```
 
 Or let the tool start from it: `proxy-scraper --recheck live` downloads the list and checks it again from **your** network – about 30 seconds instead of a full scan (517 of 1,169 worked from here). With `--serve` you have a rotating proxy in under a minute.
+
+<a id="mcp"></a>
+
+## For AI agents (MCP)
+
+<!-- mcp-name: io.github.maximilianfeix/proxy-scraper -->
+
+`proxy-scraper-mcp` is an [MCP](https://modelcontextprotocol.io) server: Claude Code, Claude Desktop, Cursor, VS Code, Codex and any other MCP client can ask for working proxies and load pages through them.
+
+| Tool | What it does |
+|---|---|
+| `get_proxies` | working proxies right now, from the hourly list – filter by protocol, country, HTTPS, elite, no datacenter, not blocklisted, stable, latency |
+| `check_proxies` | checks proxies from your own network, so they work from where your code runs (30–90 s, reports progress) |
+| `fetch_url` | loads a page through a verified proxy, switches proxies by itself when one fails, returns readable text – HTTPS only through proxies with verified TLS |
+
+Things to ask your agent: *"Load bbc.com/news as seen from the UK"*, *"Give me 5 SOCKS5 proxies from Germany that aren't in a datacenter"*, *"Check which of these sites block free proxies"*.
+
+Needs Python 3.10+ and [uv](https://docs.astral.sh/uv/). **Claude Code:**
+
+```bash
+claude mcp add proxy-scraper -- uvx --from "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper" proxy-scraper-mcp
+```
+
+**Claude Desktop, Cursor and most other clients** – add this to the MCP config (Claude Desktop: Settings → Developer → Edit Config, Cursor: `~/.cursor/mcp.json`):
+
+```json
+{
+  "mcpServers": {
+    "proxy-scraper": {
+      "command": "uvx",
+      "args": ["--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
+    }
+  }
+}
+```
+
+<details>
+<summary><b>VS Code, Codex, or without uv</b></summary>
+
+**VS Code** – `.vscode/mcp.json`:
+
+```json
+{
+  "servers": {
+    "proxy-scraper": {
+      "type": "stdio",
+      "command": "uvx",
+      "args": ["--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
+    }
+  }
+}
+```
+
+**Codex** – `~/.codex/config.toml`:
+
+```toml
+[mcp_servers.proxy-scraper]
+command = "uvx"
+args = ["--from", "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper", "proxy-scraper-mcp"]
+```
+
+**Without uv:** `pipx install "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper"`, then use `proxy-scraper-mcp` as the command.
+
+</details>
+
+The server tells agents what it tells you: free proxies are run by strangers, so no logins, cookies or personal data through them. Local and private addresses are refused, and results go to proxy-scraper's data folder, not into the project you're working in.
 
 <a id="features"></a>
 

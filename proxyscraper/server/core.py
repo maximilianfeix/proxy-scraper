@@ -70,8 +70,9 @@ class ServerStats:
 
 class RotatingServer:
     def __init__(self, pool: ProxyPool, host: str = "127.0.0.1", port: int = 8899, timeout: float = 10.0,
-                 password: str = ""):
+                 password: str = "", max_attempts: int = MAX_ATTEMPTS):
         self.pool = pool
+        self.max_attempts = max_attempts  # proxies per request before the client gets a 502
         self.password = password  # empty = no authentication (fine on 127.0.0.1)
         self.host = host
         self.port = port
@@ -81,17 +82,27 @@ class RotatingServer:
         self.refilled = 0  # new proxies added by --serve-refill
         self.last_refill: Optional[float] = None  # time.time() of the last finished refill
         self._server: Optional[asyncio.AbstractServer] = None
+        self._handlers: Set[asyncio.Task] = set()  # open client connections, ended by close()
 
     async def start(self) -> None:
         self._server = await asyncio.start_server(self._handle, self.host, self.port, limit=HEAD_LIMIT)
         self.port = self._server.sockets[0].getsockname()[1]
 
     async def close(self) -> None:
+        """Stop listening and end open connections – a tunnel whose target never hangs up would otherwise keep
+        running, and from Python 3.12 on wait_closed() waits for every connection."""
         if self._server:
             self._server.close()
+            for task in list(self._handlers):
+                task.cancel()
+            await asyncio.gather(*self._handlers, return_exceptions=True)
             await self._server.wait_closed()
 
     async def _handle(self, reader, writer) -> None:
+        task = asyncio.current_task()
+        if task is not None:
+            self._handlers.add(task)
+            task.add_done_callback(self._handlers.discard)
         peer = writer.get_extra_info("peername") or ("?", 0)
         client = f"{peer[0]}:{peer[1]}"
         self.stats.active += 1
@@ -203,12 +214,12 @@ class RotatingServer:
 
     async def _open_next(self, tried: Set[str], host: str, port: int, tls: bool, tunnel: bool,
                          selection: Selection = ANY):
-        """Open the next proxy from the pool (at most MAX_ATTEMPTS per request). None = none left.
+        """Open the next proxy from the pool (at most max_attempts per request). None = none left.
 
         A proxy that is reachable but can't reach the target is only blamed once another proxy reaches it:
         if every attempt fails that way, the target is the problem and nobody in the pool gets disabled."""
         refused = []  # proxies that answered but couldn't open the connection to the target
-        while len(tried) < MAX_ATTEMPTS:
+        while len(tried) < self.max_attempts:
             entry = self.pool.pick(tried, tls=tls, selection=selection, target=f"{host}:{port}")
             if entry is None:
                 return None
@@ -343,7 +354,9 @@ class RotatingServer:
             data += more
 
     async def _bad_gateway(self, writer) -> None:
+        # the marker tells clients like agent.PageFetcher that no proxy got through – the target never answered
         writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
+                     b"X-Proxy-Scraper: no-proxy-answered\r\n"
                      b"Connection: close\r\n\r\nNo proxy from the pool answered.\n")
         await writer.drain()
 

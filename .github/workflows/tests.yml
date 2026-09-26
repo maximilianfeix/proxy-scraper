@@ -19,6 +19,9 @@ jobs:
         with:
           python-version: ${{ matrix.python }}
       - run: pip install -r requirements.txt pytest
+      # the MCP server's SDK needs 3.10+ – on 3.9 its tests skip and only the entry point is tested
+      - if: matrix.python != '3.9'
+        run: pip install "mcp>=2.2,<3"
       - run: python -m pytest -q
       # starts the program once for real – catches import errors the tests don't see
       - run: python proxy_scraper.py --help
@@ -44,3 +47,20 @@ jobs:
           /tmp/clean/bin/proxy-scraper --version
           /tmp/clean/bin/proxy-scraper --help > /dev/null
           /tmp/clean/bin/proxy-scraper --list-sources 3
+      - name: Install the MCP extra and talk to the installed server over stdio
+        working-directory: /tmp
+        run: |
+          /tmp/clean/bin/pip install "$(ls $GITHUB_WORKSPACE/dist/*.whl)[mcp]"
+          /tmp/clean/bin/python - <<'PY'
+          import anyio
+          from mcp.client.client import Client
+          from mcp.client.stdio import StdioServerParameters
+
+          async def main():
+              async with Client(StdioServerParameters(command="/tmp/clean/bin/proxy-scraper-mcp")) as client:
+                  names = sorted(t.name for t in (await client.list_tools()).tools)
+                  assert names == ["check_proxies", "fetch_url", "get_proxies"], names
+                  print("MCP tools:", names)
+
+          anyio.run(main)
+          PY

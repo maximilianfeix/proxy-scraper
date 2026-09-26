@@ -153,6 +153,11 @@ class ProxyPool:
                 # if a session holds this proxy, it should get a different one next time
                 self._sticky = {k: v for k, v in self._sticky.items() if v[0] is not entry}
 
+    def session_entry(self, session: str) -> Optional[PoolEntry]:
+        """The proxy that currently serves a session (username session-NAME) – after failover, the one that worked."""
+        held = self._sticky.get(f"session:{session}")
+        return held[0] if held else None
+
     def merge(self, results: List[CheckResult]) -> int:
         """Hits of a refill: new ones join the rotation, known ones that were disabled come back with the fresh
         result, disabled ones that didn't pass again are dropped. Counters of known proxies stay. -> added."""

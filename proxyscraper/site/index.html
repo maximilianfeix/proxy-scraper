@@ -280,6 +280,9 @@
          color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); vertical-align: 1px; }
   .tag.bl { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
   .stable-badge { color: var(--signal-ink); font-weight: 500; }
+  .sites { display: inline-flex; gap: 4px; }
+  .site { font-size: 12px; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--text); white-space: nowrap; }
+  .th-plain { display: block; padding: 16px 18px; }
   .uptime { display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
   .meter { width: 32px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
   .meter::after { content: ""; display: block; height: 100%; width: var(--v); background: var(--signal-ink); border-radius: inherit; }
@@ -556,6 +559,8 @@
       <button class="chip" type="button" id="f-stable" aria-pressed="false" title="Worked in every run for at least 24 hours">Stable 24 h+</button>
       <button class="chip" type="button" id="f-bl" aria-pressed="false" title="Exit IP not on the SpamCop blocklist – fewer captchas">Not blocklisted</button>
       <select class="field" id="f-country" aria-label="Country"><option value="">All countries</option></select>
+      <select class="field" id="f-site" aria-label="Gets through to" title="Checked every hour: most free proxies get a captcha or a 403 on these sites">
+        <option value="">Any site</option><option value="google">Gets through to Google</option><option value="reddit">Gets through to Reddit</option><option value="amazon">Gets through to Amazon</option></select>
       <label class="range">Up to <input type="range" id="f-lat" min="200" max="8000" step="100" value="8000" aria-label="Maximum latency"><output id="f-lat-v" for="f-lat">any</output></label>
       <input class="field" type="search" id="f-q" placeholder="Search IP, port, country or provider    /" aria-label="Search" aria-keyshortcuts="/">
     </div>
@@ -569,8 +574,8 @@
             <th scope="col" data-key="country"><button class="sort" type="button">Country</button></th>
             <th scope="col" data-key="latency" aria-sort="ascending"><button class="sort" type="button">Latency</button></th>
             <th scope="col" data-key="https" class="hide-sm"><button class="sort" type="button">HTTPS</button></th>
-            <th scope="col" data-key="streak" class="hide-sm"><button class="sort" type="button" title="How long it has been working without a gap">Up for</button></th>
             <th scope="col" data-key="uptime_7d" class="hide-sm"><button class="sort" type="button" title="Share of this week's runs it was on the list">Uptime</button></th>
+            <th scope="col" class="hide-sm"><span class="th-plain" title="Big sites it got through to in the last hourly check">Gets through</span></th>
             <th scope="col" data-key="anonymity" class="hide-sm"><button class="sort" type="button">Anonymity</button></th>
             <th scope="col" data-key="org" class="hide-sm"><button class="sort" type="button">Provider</button></th>
           </tr></thead>
@@ -701,7 +706,8 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   "streak": 5,
   "first_seen": "2026-09-26T21:17:04+00:00",
   "uptime_24h": 100,
-  "uptime_7d": 94
+  "uptime_7d": 94,
+  "sites": { "google": true, "reddit": false, "amazon": false }
 }</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the example"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
     </div>
   </section>
@@ -751,16 +757,22 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const flag = (cc) => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : "";
   const pct = (n, of) => Math.round(100 * n / Math.max(of, 1));
   const short = (org) => { const s = String(org || "").replace(/,? (Inc|LLC|Ltd|GmbH|Co|Corporation|Limited|S\.?A|B\.?V)\.?$/i, ""); return s.length > 28 ? s.slice(0, 27) + "…" : s; };
+  const upFor = (n) => { const h = (n || 1) * RUN_HOURS; return h < 48 ? `${h} h` : `${Math.round(h / 24)} days`; };
   const uptime = (n) => {  // n runs in a row ≈ n × RUN_HOURS
     if (!n) return '<span class="quiet">–</span>';
     const h = n * RUN_HOURS, text = n === 1 ? "new" : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`;
     return n >= STABLE ? `<span class="stable-badge">${text}</span>` : `<span class="quiet">${text}</span>`;
   };
-  const share = (r) => r.uptime_7d == null ? '<span class="quiet">–</span>'
-    : `<span class="uptime" title="On the list in ${r.uptime_7d} % of this week's runs, ${r.uptime_24h} % of today's"><span class="meter" style="--v:${r.uptime_7d}%"></span>${r.uptime_7d} %</span>`;
+  const share = (r) => r.uptime_7d == null ? uptime(r.streak)  // lists from before the uptime existed
+    : `<span class="uptime${(r.streak || 0) >= STABLE ? " stable-badge" : ""}" title="On the list in ${r.uptime_7d} % of this week's runs and ${r.uptime_24h} % of today's – up without a gap for ${upFor(r.streak)}"><span class="meter" style="--v:${r.uptime_7d}%"></span>${r.uptime_7d} %</span>`;
+  const SITE_NAMES = { google: "Google", reddit: "Reddit", amazon: "Amazon" };
+  const through = (r) => {
+    const ok = Object.keys(SITE_NAMES).filter(k => (r.sites || {})[k] === true);
+    return ok.length ? `<span class="sites">${ok.map(k => `<span class="site">${SITE_NAMES[k]}</span>`).join("")}</span>` : '<span class="quiet">–</span>';
+  };
   const latency = (ms) => `<span class="${ms < 1000 ? "fast" : ms < 3000 ? "mid" : "slow"}">${fmt(ms)} ms</span>`;
   const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http", "socks4", "socks5"]),
-                  https: false, elite: false, noDc: false, noBl: false, stable: false, country: "", maxLat: 8000, q: "" };
+                  https: false, elite: false, noDc: false, noBl: false, stable: false, country: "", site: "", maxLat: 8000, q: "" };
 
   // Theme
   const themeBtn = $("#theme");
@@ -898,7 +910,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   function filtered() {
     const q = state.q.trim().toLowerCase();
     const rows = state.rows.filter(r => state.types.has(r.ptype) && (!state.https || r.https) && (!state.elite || r.anonymity === "elite")
-      && (!state.noDc || !r.hosting) && (!state.noBl || !r.blocklisted) && (!state.stable || (r.streak || 0) >= STABLE) && (!state.country || r.country === state.country)
+      && (!state.noDc || !r.hosting) && (!state.noBl || !r.blocklisted) && (!state.stable || (r.streak || 0) >= STABLE) && (!state.country || r.country === state.country) && (!state.site || (r.sites || {})[state.site] === true)
       && (state.maxLat >= 8000 || r.latency <= state.maxLat)  // all the way right = no limit
       && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.exit_ip} ${r.org || ""} AS${r.asn || ""}`.toLowerCase().includes(q)));
     const k = state.sort, d = state.dir;
@@ -912,8 +924,8 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       <td>${flag(r.country)} ${esc(r.country || "–")}</td>
       <td>${latency(r.latency)}</td>
       <td class="hide-sm">${r.https ? "Yes" : '<span class="quiet">No</span>'}</td>
-      <td class="hide-sm">${uptime(r.streak)}</td>
       <td class="hide-sm">${share(r)}</td>
+      <td class="hide-sm">${through(r)}</td>
       <td class="hide-sm">${esc(r.anonymity || "–")}</td>
       <td class="hide-sm provider" title="${esc(r.org ? `AS${r.asn} ${r.org}, exit ${r.exit_ip}` : r.exit_ip)}">${r.hosting ? '<span class="tag" title="Datacenter">DC</span>' : ""}${r.blocklisted ? '<span class="tag bl" title="Exit IP on the SpamCop blocklist">BL</span>' : ""}${esc(short(r.org) || r.exit_ip)}</td></tr>`).join("")
       || '<tr><td colspan="9" class="empty">No proxy matches these filters. Try a higher latency limit or fewer filters.</td></tr>';
@@ -939,6 +951,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const toggle = (id, key) => { const b = $(id); b.onclick = () => { state[key] = !state[key]; b.setAttribute("aria-pressed", state[key]); morph(refresh); }; };
   toggle("#f-https", "https"); toggle("#f-elite", "elite"); toggle("#f-dc", "noDc"); toggle("#f-stable", "stable"); toggle("#f-bl", "noBl");
   $("#f-country").onchange = (e) => { state.country = e.target.value; morph(refresh); };
+  $("#f-site").onchange = (e) => { state.site = e.target.value; morph(refresh); };
   $("#f-lat").oninput = (e) => { state.maxLat = +e.target.value; $("#f-lat-v").textContent = state.maxLat >= 8000 ? "any" : `${fmt(state.maxLat)} ms`; refresh(); };
   $("#f-q").oninput = (e) => { state.q = e.target.value; refresh(); };
   $("#more").onclick = () => { state.shown += PAGE * 4; render(); };

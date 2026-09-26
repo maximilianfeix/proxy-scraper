@@ -30,8 +30,8 @@ import os
 import re
 import tempfile
 import threading
-from dataclasses import dataclass
-from typing import Iterable, List, Optional
+from dataclasses import dataclass, field
+from typing import Dict, Iterable, List, Optional
 
 from rich.console import Console
 
@@ -166,6 +166,7 @@ class LiveProxy(CheckResult):
     uptime_7d: Optional[int] = None   # the same over the week
     first_seen: str = ""              # ISO time of the first run it was listed in
     up_for_hours: int = 0             # listed without a gap for this long
+    sites: Dict[str, bool] = field(default_factory=dict)  # "google", "reddit", "amazon" -> got through last run?
 
 
 def _live_fetch(url: str, timeout: float = 20, headers=None):
@@ -182,20 +183,24 @@ def _live_proxy(row: dict, run_hours: int) -> LiveProxy:
         country=row.get("country") or "", targets=dict(row.get("targets") or {}), asn=row.get("asn") or 0,
         org=row.get("org") or "", hosting=row.get("hosting"), blocklisted=row.get("blocklisted"),
         uptime_24h=row.get("uptime_24h"), uptime_7d=row.get("uptime_7d"), first_seen=row.get("first_seen") or "",
-        up_for_hours=streak * run_hours)
+        up_for_hours=streak * run_hours,
+        sites={k: v for k, v in (row.get("sites") or {}).items() if isinstance(v, bool)})
 
 
 async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: Iterable[str] = (), https: bool = False,
                              anonymity: str = "", max_latency: int = 0, no_datacenter: bool = False,
-                             no_blocklisted: bool = False, min_uptime: int = 0, limit: int = 0) -> List[LiveProxy]:
+                             no_blocklisted: bool = False, min_uptime: int = 0, works_on: Iterable[str] = (),
+                             limit: int = 0) -> List[LiveProxy]:
     """The proxies from the hourly list that pass the filters, fastest first. Nothing is checked here: they
     worked from GitHub's servers in the last run (at most an hour ago). find_proxies checks from your network.
 
     Same filters as find_proxies, plus
     min_uptime  only proxies listed in at least this share (percent) of the week's runs, e.g. 90
+    works_on    only proxies that got through to these sites in the last run: "google", "reddit", "amazon"
     limit       at most this many (0 = all)
     """
     from .agent import AgentError, LiveSource
+    from .sites import SITE
 
     types = _types(types)
     unknown = [t for t in types if t not in PROXY_TYPES]
@@ -207,6 +212,10 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
     bad = [c for c in countries if not re.fullmatch(r"[A-Z]{2}", c)]
     if bad:
         raise ValueError(f"countries are two-letter codes like DE or US, not {bad[0]!r}")
+    works_on = [works_on] if isinstance(works_on, str) else [str(s).lower() for s in works_on]
+    unknown_sites = [s for s in works_on if s not in SITE]
+    if unknown_sites:
+        raise ValueError(f"works_on takes {', '.join(SITE)}, not {unknown_sites[0]!r}")
     opts = _options(types, 0, 0, https, countries, anonymity, max_latency, (), no_datacenter, no_blocklisted, 8.0, 1,
                     None)
     try:
@@ -216,7 +225,8 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
     found = sorted((_live_proxy(r, data.run_hours) for r in data.rows
                     if r.get("ptype") in types and isinstance(r.get("proxy"), str)),
                    key=lambda p: p.latency)
-    found = [p for p in found if opts.filters.accepts(p) and (not min_uptime or (p.uptime_7d or 0) >= min_uptime)]
+    found = [p for p in found if opts.filters.accepts(p) and (not min_uptime or (p.uptime_7d or 0) >= min_uptime)
+             and all(p.sites.get(s) for s in works_on)]
     return found[:limit] if limit else found
 
 

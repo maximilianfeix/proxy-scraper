@@ -70,3 +70,10 @@ def test_async_version_works_inside_a_running_loop():
     async def go():
         return await api.live_proxies_async(types=["http"])
     assert [p.url for p in asyncio.run(go())] == ["http://2.2.2.2:80"]
+
+
+def test_works_on_a_site(monkeypatch):
+    rows = [dict(ROWS[0], sites={"google": True}), dict(ROWS[1], sites={"google": False})]
+    monkeypatch.setattr(api, "_live_fetch", fetch_from({"proxies.json": rows, "stats.json": STATS}))
+    found = live_proxies(works_on=["google"])
+    assert [p.url for p in found] == ["socks5://1.1.1.1:1080"] and found[0].sites == {"google": True}

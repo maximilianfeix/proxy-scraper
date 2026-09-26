@@ -163,8 +163,9 @@ Every protocol and country also has its own page with a plain download, e.g. [SO
 | HTTP · SOCKS4 · SOCKS5 | `1.2.3.4:8080` | [http.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/http.txt) · [socks4.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks4.txt) · [socks5.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt) |
 | HTTPS-capable only | `type://ip:port` | [https.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/https.txt) |
 | Elite only | `type://ip:port` | [elite.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/elite.txt) |
+| Gets through to Google · Reddit · Amazon (no captcha, no 403 in the last run) | `type://ip:port` | [google.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/google.txt) · [reddit.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/reddit.txt) · [amazon.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/amazon.txt) |
 | Stable, on the list in 90 %+ of this week's runs | `type://ip:port` | [stable.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/stable.txt) |
-| With all details | latency, country, HTTPS, anonymity, exit IP, uptime | [proxies.json](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.json) · [proxies.csv](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.csv) |
+| With all details | latency, country, HTTPS, anonymity, exit IP, uptime, sites | [proxies.json](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.json) · [proxies.csv](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.csv) |
 
 <a href="https://maximilianfeix.github.io/proxy-scraper/"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://maximilianfeix.github.io/proxy-scraper/countries-dark.svg">
@@ -190,7 +191,7 @@ Or let the tool start from it: `proxy-scraper --recheck live` downloads the list
 
 | Tool | What it does |
 |---|---|
-| `get_proxies` | working proxies right now, from the hourly list – filter by protocol, country, HTTPS, elite, no datacenter, not blocklisted, stable, uptime, latency |
+| `get_proxies` | working proxies right now, from the hourly list – filter by protocol, country, HTTPS, elite, no datacenter, not blocklisted, stable, uptime, latency, gets through to Google/Reddit/Amazon |
 | `check_proxies` | checks proxies from your own network, so they work from where your code runs (30–90 s, reports progress) |
 | `fetch_url` | loads a page through a verified proxy, switches proxies by itself when one fails, returns readable text – HTTPS only through proxies with verified TLS |
 
@@ -397,7 +398,7 @@ pool = itertools.cycle(p.url for p in proxies)
 r = requests.get("https://api.ipify.org", proxies={"https": next(pool)}, timeout=15)  # pip install "requests[socks]"
 ```
 
-Same filters as `find_proxies`, plus `min_uptime` and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen` and `up_for_hours`.
+Same filters as `find_proxies`, plus `min_uptime`, `works_on` (`["google"]`, `"reddit"`, `"amazon"`) and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours` and `sites`.
 
 <a id="proxy-server"></a>
 

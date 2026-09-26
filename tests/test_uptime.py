@@ -117,3 +117,13 @@ def test_the_csv_has_the_uptime_too(tmp_path):
     with (out / "proxies.csv").open(newline="", encoding="utf-8") as fh:
         row = next(r for r in csv.DictReader(fh) if r["url"] == FAST)
     assert row["uptime_7d"] and row["first_seen"] and "uptime_24h" in row
+
+
+def test_csv_columns_are_not_doubled_when_the_source_has_them(tmp_path):
+    d = run_dir(tmp_path)
+    src = (d / "proxies.csv").read_text().splitlines()
+    (d / "proxies.csv").write_text("\n".join([src[0] + ",uptime_7d"] + [line + ",1" for line in src[1:]]) + "\n")
+    out = tmp_path / "public"
+    publish.publish(d, out, minimum=2, now=NOW)
+    header = (out / "proxies.csv").read_text().splitlines()[0].split(",")
+    assert header.count("uptime_7d") == 1

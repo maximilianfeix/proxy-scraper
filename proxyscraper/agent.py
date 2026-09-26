@@ -35,6 +35,7 @@ from .pages import SITE_URL
 from .parsing import PROXY_TYPES, make_key
 from .publish import RAW_BASE
 from .server import ProxyPool, RotatingServer
+from .sites import SITES
 
 LIVE_BASES = (SITE_URL.rstrip("/"), RAW_BASE)  # GitHub Pages first, the raw branch as the mirror
 CACHE_SECONDS = 300.0  # the list changes once an hour – no need to load 1 MB for every question
@@ -149,6 +150,15 @@ class LiveSource:
 
 # --------------------------------------------------------------------------- filtering
 
+def _check_sites(names: Iterable[str]) -> List[str]:
+    known = [s.name for s in SITES]
+    names = [str(n).lower() for n in names]
+    for n in names:
+        if n not in known:
+            raise AgentError(f"works_on takes {', '.join(known)}, not {n!r}")
+    return names
+
+
 def _check_protocol(protocol: str) -> str:
     protocol = (protocol or "any").lower()
     if protocol not in PROTOCOLS:
@@ -168,21 +178,23 @@ def normalize_countries(countries: Iterable[str]) -> List[str]:
 
 def select(rows: Iterable[dict], protocol: str = "any", countries: Iterable[str] = (), https_only: bool = False,
            elite_only: bool = False, exclude_datacenter: bool = False, exclude_blocklisted: bool = False,
-           stable_only: bool = False, max_latency_ms: int = 0, run_hours: int = 1, min_uptime: int = 0) -> List[dict]:
+           stable_only: bool = False, max_latency_ms: int = 0, run_hours: int = 1, min_uptime: int = 0,
+           works_on: Iterable[str] = ()) -> List[dict]:
     """The rows that pass every filter, fastest first – the same filters as on the website."""
     return sorted(matching(rows, protocol, countries, https_only, elite_only, exclude_datacenter,
-                           exclude_blocklisted, stable_only, max_latency_ms, run_hours, min_uptime),
+                           exclude_blocklisted, stable_only, max_latency_ms, run_hours, min_uptime, works_on),
                   key=lambda r: r.get("latency") or 0)
 
 
 def matching(rows: Iterable[dict], protocol: str = "any", countries: Iterable[str] = (), https_only: bool = False,
              elite_only: bool = False, exclude_datacenter: bool = False, exclude_blocklisted: bool = False,
              stable_only: bool = False, max_latency_ms: int = 0, run_hours: int = 1,
-             min_uptime: int = 0) -> Iterator[dict]:
+             min_uptime: int = 0, works_on: Iterable[str] = ()) -> Iterator[dict]:
     """The rows that pass every filter, in list order – checks the filters before the first row is asked for."""
     protocol = _check_protocol(protocol)
     wanted = set(normalize_countries(countries))
     stable_runs = -(-24 // max(run_hours, 1))  # runs in a row that make a day
+    sites = _check_sites(works_on)
     return (r for r in rows
             if (protocol == "any" or r.get("ptype") == protocol)
            and (not wanted or r.get("country") in wanted)
@@ -192,7 +204,8 @@ def matching(rows: Iterable[dict], protocol: str = "any", countries: Iterable[st
            and (not exclude_blocklisted or not r.get("blocklisted"))
            and (not stable_only or (r.get("streak") or 0) >= stable_runs)
            and (not max_latency_ms or (r.get("latency") or 0) <= max_latency_ms)
-           and (not min_uptime or (r.get("uptime_7d") or 0) >= min_uptime))
+           and (not min_uptime or (r.get("uptime_7d") or 0) >= min_uptime)
+           and all((r.get("sites") or {}).get(s) for s in sites))
 
 
 def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) -> dict:
@@ -215,6 +228,7 @@ def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) ->
         "blocklisted": item.get("blocklisted"),
         "up_for_hours": streak * run_hours if streak and run_hours else None,
         "uptime_7d_percent": item.get("uptime_7d"),
+        "works_on": [name for name, ok in (item.get("sites") or {}).items() if ok],
     }
 
 

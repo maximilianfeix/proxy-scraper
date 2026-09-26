@@ -24,6 +24,7 @@ from typing import Dict, List, Optional
 from .charts import THEMES, countries_svg, trend_svg
 from .pages import write_pages
 from .parsing import PROXY_TYPES
+from .sites import SITES
 
 SKIP_EXIT_CODE = 78
 SITE = Path(__file__).resolve().parent / "site"  # index.html plus the images it links (logo, preview, touch icon)
@@ -66,6 +67,8 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         "blocklisted": sum(1 for r in rows if r.get("blocklisted"))
         if any(r.get("blocklisted") is not None for r in rows) else None,
         "stable": sum(1 for r in rows if r.get("streak", 0) >= STABLE_RUNS),
+        # proxies that got through to Google, Reddit, ... in the site check after the run (sites.py)
+        "sites": {s.name: sum(1 for r in rows if (r.get("sites") or {}).get(s.name)) for s in SITES},
         "run_hours": RUN_HOURS,
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
         "median_latency": round(statistics.median(r["latency"] for r in rows)) if rows else 0,
@@ -81,6 +84,9 @@ def write_lists(rows: List[dict], out: Path) -> Dict[str, int]:
     }
     for t in PROXY_TYPES:
         files[f"{t}.txt"] = [r["proxy"] for r in rows if r["ptype"] == t]
+    for site in SITES:
+        files[f"works-with/{site.name}.txt"] = [r["url"] for r in rows if (r.get("sites") or {}).get(site.name)]
+    (out / "works-with").mkdir(exist_ok=True)
     for name, lines in files.items():
         (out / name).write_text("".join(f"{line}\n" for line in lines), encoding="utf-8")
     return {name: len(lines) for name, lines in files.items()}
@@ -262,14 +268,16 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     with (run_dir / "proxies.csv").open(newline="", encoding="utf-8") as src, \
             (out / "proxies.csv").open("w", newline="", encoding="utf-8") as dst:
         reader = csv.DictReader(src)
-        extra = ("first_seen", "uptime_24h", "uptime_7d")
-        writer = csv.DictWriter(dst, fieldnames=[*(reader.fieldnames or ["proxy"]), *extra])
+        extra = ("first_seen", "uptime_24h", "uptime_7d", "works_with")
+        base = list(reader.fieldnames or ["proxy"])
+        writer = csv.DictWriter(dst, fieldnames=[*base, *(k for k in extra if k not in base)])
         writer.writeheader()
         by_url = {r["url"]: r for r in rows}
         for r in reader:
             if is_public(r):
                 listed_row = by_url.get(r.get("url", ""), {})
-                writer.writerow({**r, **{k: listed_row.get(k, "") for k in extra}})
+                works = " ".join(name for name, ok in (listed_row.get("sites") or {}).items() if ok)
+                writer.writerow({**r, **{k: listed_row.get(k, "") for k in extra}, "works_with": works})
     stats = stats_for(rows, now)
     write_json(out / "stats.json", stats, indent=1)
     badges = out / "badges"

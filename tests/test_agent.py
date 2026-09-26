@@ -329,3 +329,145 @@ def test_a_download_that_breaks_off_is_explained_not_a_crash():
 
     with pytest.raises(agent.AgentError, match="broke off"):
         asyncio.run(go())
+
+
+# --------------------------------------------------------------------------- review of #130
+
+def test_fetch_never_bypasses_the_proxy(monkeypatch):
+    """no_proxy and macOS' proxy exceptions (*.local, 169.254/16) must not send a request out directly."""
+    import urllib.request
+    monkeypatch.setenv("no_proxy", "*")
+    monkeypatch.setattr(urllib.request, "proxy_bypass", lambda host: True)
+
+    async def client(fetcher, port):
+        page = await fetcher.fetch(f"http://127.0.0.1:{port}/ok")
+        return page, fetcher.server.stats.requests
+
+    page, requests = with_fetcher(client)
+    assert page["status"] == 200 and page["via"] and requests == 1
+
+
+def test_redirects_are_followed_and_checked_like_the_first_url():
+    async def followed(fetcher, port):
+        return await fetcher.fetch(f"http://127.0.0.1:{port}/redirect")
+
+    page = with_fetcher(followed)
+    assert page["status"] == 200 and page["text"] == "ok" and page["final_url"].endswith("/ok")
+
+    def refuse_ok(url):
+        if url.endswith("/ok"):
+            raise agent.AgentError("private")
+        return url
+
+    async def refused(fetcher, port):
+        fetcher.check = refuse_ok  # like a public page redirecting to 10.0.0.1
+        return await fetcher.fetch(f"http://127.0.0.1:{port}/redirect")
+
+    with pytest.raises(agent.AgentError, match="private"):
+        with_fetcher(refused)
+
+
+def test_disguised_local_addresses_are_refused_too():
+    for bad in ("http://localhost./", "http://127.1/", "http://2130706433/", "http://0x7f000001/",
+                "http://printer.local/", "http://[::ffff:127.0.0.1]/"):
+        with pytest.raises(agent.AgentError):
+            agent.check_target(bad)
+
+
+def test_parallel_fetches_on_a_fresh_fetcher():
+    async def client(fetcher, port):
+        return await asyncio.gather(*(fetcher.fetch(f"http://127.0.0.1:{port}/ok") for _ in range(3)))
+
+    assert [p["status"] for p in with_fetcher(client)] == [200, 200, 200]
+
+
+async def slow_target(reader, writer):
+    await reader.readuntil(b"\r\n\r\n")
+    await asyncio.sleep(0.3)
+    writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 4\r\n\r\nslow")
+    await writer.drain()
+    writer.close()
+
+
+def test_a_slow_fetch_reports_progress():
+    ticks = []
+
+    async def go():
+        target_srv, target_port = await serve(slow_target)
+        proxy_srv, proxy_port = await serve(http_forward_proxy)
+        live = agent.LiveList(rows=[row(1, proxy=f"127.0.0.1:{proxy_port}", url=f"http://127.0.0.1:{proxy_port}")],
+                              stats=STATS, loaded_at=0.0)
+
+        class Source:
+            async def get(self):
+                return live
+
+        async def progress(elapsed, message):
+            ticks.append(message)
+
+        fetcher = agent.PageFetcher(Source(), allow_private=True, timeout=5)
+        try:
+            return await fetcher.fetch(f"http://127.0.0.1:{target_port}/", progress=progress, tick=0.05)
+        finally:
+            await fetcher.close()
+            target_srv.close()
+            proxy_srv.close()
+
+    assert asyncio.run(go())["text"] == "slow" and ticks
+
+
+async def cutting_proxy(reader, writer):
+    """Answers every request itself with a body that stops early."""
+    await reader.readuntil(b"\r\n\r\n")
+    writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 1000\r\n\r\n0123")
+    await writer.drain()
+    writer.close()
+
+
+def test_a_proxy_that_broke_off_is_not_picked_again():
+    async def go():
+        target_srv, target_port = await serve(target_server)
+        bad_srv, bad_port = await serve(cutting_proxy)
+        good_srv, good_port = await serve(http_forward_proxy)
+        live = agent.LiveList(rows=[row(1, proxy=f"127.0.0.1:{bad_port}", url=f"http://127.0.0.1:{bad_port}",
+                                        latency=10),
+                                    row(2, proxy=f"127.0.0.1:{good_port}", url=f"http://127.0.0.1:{good_port}",
+                                        latency=900)], stats=STATS, loaded_at=0.0)
+
+        class Source:
+            async def get(self):
+                return live
+
+        fetcher = agent.PageFetcher(Source(), allow_private=True, timeout=5, strategy="fastest")
+        try:
+            return await fetcher.fetch(f"http://127.0.0.1:{target_port}/ok"), good_port
+        finally:
+            await fetcher.close()
+            for s in (target_srv, bad_srv, good_srv):
+                s.close()
+
+    page, good_port = asyncio.run(go())
+    assert page["text"] == "ok" and page["via"] == f"http://127.0.0.1:{good_port}"
+
+
+def test_while_github_is_down_the_old_list_is_served_without_waiting():
+    calls, now = [], [0.0]
+    source = agent.LiveSource(fetch=fake_fetch(calls), clock=lambda: now[0], ttl=300)
+
+    async def go():
+        await source.get()
+        source.fetch = fake_fetch(calls, fail=True)
+        now[0] += 1000
+        await source.get()                # tries once, fails, serves the old list
+        tried = len(calls)
+        now[0] += 10
+        await source.get()                # shortly after: straight from the cache
+        return tried, len(calls)
+
+    tried, after = asyncio.run(go())
+    assert after == tried
+
+
+def test_an_unknown_charset_falls_back_to_utf8():
+    assert agent.decode_body("grüße".encode(), "utf8mb4") == "grüße"
+    assert agent.decode_body("grüße".encode("latin-1"), "latin-1") == "grüße"

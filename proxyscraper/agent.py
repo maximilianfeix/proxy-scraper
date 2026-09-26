@@ -7,30 +7,38 @@ proxy-scraper runs. mcp_server.py only turns these functions into MCP tools.
 from __future__ import annotations
 
 import asyncio
+import base64
+import codecs
 import http.client
 import ipaddress
 import json
+import re
 import secrets
+import socket
+import ssl
 import time
-import urllib.error
-import urllib.request
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from typing import Awaitable, Callable, Iterable, List, Optional, Sequence, Union
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit, urlunsplit
+
+import certifi
 
 from .api import find_proxies_async
 from .checker import CheckResult
 from .netio import http_get
-from .parsing import PROXY_TYPES
+from .pages import SITE_URL
+from .parsing import PROXY_TYPES, make_key
+from .publish import RAW_BASE
 from .server import ProxyPool, RotatingServer
 
-LIVE_BASES = ("https://maximilianfeix.github.io/proxy-scraper",
-              "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list")
+LIVE_BASES = (SITE_URL.rstrip("/"), RAW_BASE)  # GitHub Pages first, the raw branch as the mirror
 CACHE_SECONDS = 300.0  # the list changes once an hour – no need to load 1 MB for every question
+RETRY_AFTER = 60.0  # after a failed refresh: serve the old list this long before asking GitHub again
 MAX_PAGE_BYTES = 2_000_000
+MAX_REDIRECTS = 5
 FETCH_ROUNDS = 2  # a download that breaks off mid-way is tried once more, through another proxy
 FETCH_ATTEMPTS = 8  # proxies per page before giving up – more than --serve's 3, an agent can't just press reload
 USER_AGENT = "Mozilla/5.0 (compatible; proxy-scraper; +https://github.com/maximilianfeix/proxy-scraper)"
@@ -81,14 +89,18 @@ class LiveSource:
         self.fetch, self.clock, self.ttl, self.bases = fetch, clock, ttl, bases
         self._cache: Optional[LiveList] = None
         self._lock: Optional[asyncio.Lock] = None
+        self._retry_at = 0.0
+
+    def _fresh_enough(self) -> bool:
+        return bool(self._cache) and (self.clock() - self._cache.loaded_at < self.ttl or self.clock() < self._retry_at)
 
     async def get(self) -> LiveList:
-        if self._cache and self.clock() - self._cache.loaded_at < self.ttl:
+        if self._fresh_enough():
             return self._cache
         if self._lock is None:  # created here: before Python 3.10 a lock is bound to the event loop
             self._lock = asyncio.Lock()
         async with self._lock:  # several tools at once shouldn't load the list several times
-            if self._cache and self.clock() - self._cache.loaded_at < self.ttl:
+            if self._fresh_enough():
                 return self._cache
             error: Optional[Exception] = None
             for base in self.bases:
@@ -101,7 +113,8 @@ class LiveSource:
                 if isinstance(rows, list) and isinstance(stats, dict):
                     self._cache = LiveList([r for r in rows if isinstance(r, dict)], stats, self.clock())
                     return self._cache
-            if self._cache:
+            if self._cache:  # GitHub is unreachable: the old list, and don't wait for it again on every call
+                self._retry_at = self.clock() + RETRY_AFTER
                 return self._cache
             raise AgentError(f"The live proxy list couldn't be loaded ({error}). check_proxies can still find "
                              "working proxies by checking them from this machine.")
@@ -187,6 +200,23 @@ def shortage_note(rows: Sequence[dict], wanted: int, matched: int, countries: It
 Progress = Callable[[float, str], Awaitable[None]]
 
 
+async def _with_progress(awaitable, progress: Optional[Progress], tick: float, message: str):
+    """Wait for `awaitable`, telling `progress` every `tick` seconds that we're still at it – MCP clients reset
+    their timeouts on progress, so long checks and slow pages don't get cancelled."""
+    task = asyncio.ensure_future(awaitable)
+    started = time.monotonic()
+    try:
+        while not task.done():
+            await asyncio.wait({task}, timeout=tick)
+            if progress and not task.done():
+                elapsed = time.monotonic() - started
+                await progress(elapsed, f"{message} … {elapsed:.0f} s")
+        return task.result()
+    finally:
+        if not task.done():
+            task.cancel()
+
+
 async def check_fresh(want: int = 10, protocol: str = "any", countries: Iterable[str] = (), https_only: bool = False,
                       elite_only: bool = False, exclude_datacenter: bool = False, exclude_blocklisted: bool = False,
                       max_latency_ms: int = 0, mode: str = "live", progress: Optional[Progress] = None,
@@ -196,41 +226,48 @@ async def check_fresh(want: int = 10, protocol: str = "any", countries: Iterable
     protocol = _check_protocol(protocol)
     if mode not in ("live", "full"):
         raise AgentError(f"mode must be 'live' or 'full', not {mode!r}")
-    task = asyncio.ensure_future(find_proxies_async(
+    found = await _with_progress(find_proxies_async(
         types=list(PROXY_TYPES) if protocol == "any" else [protocol], want=want, https=https_only,
         countries=normalize_countries(countries), anonymity="elite" if elite_only else "",
         max_latency=max_latency_ms, no_datacenter=exclude_datacenter, no_blocklisted=exclude_blocklisted,
-        concurrency=500, verbose=False, _recheck="live" if mode == "live" else None))
-    started = time.monotonic()
-    try:
-        while not task.done():
-            await asyncio.wait({task}, timeout=tick)
-            if progress and not task.done():
-                elapsed = time.monotonic() - started
-                await progress(elapsed, f"checking proxies from this machine … {elapsed:.0f} s")
-        return [describe(r) for r in task.result()]
-    finally:
-        if not task.done():
-            task.cancel()
+        concurrency=500, verbose=False, _recheck="live" if mode == "live" else None),
+        progress, tick, "checking proxies from this machine")
+    return [describe(r) for r in found]
 
 
 # --------------------------------------------------------------------------- fetching pages
 
-def check_target(url: str) -> str:
-    """Only http(s) to public hosts. localhost or private ranges would mean the proxy operator's own network."""
+_NUMERIC_HOST = re.compile(r"[0-9a-fx.]+")  # 127.1, 2130706433, 0x7f000001: IPv4 in disguise
+
+
+def check_scheme(url: str) -> str:
     parts = urlsplit(url.strip())
     if parts.scheme not in ("http", "https") or not parts.hostname:
         raise AgentError(f"Give a full http:// or https:// URL, e.g. https://example.com – not {url!r}.")
-    host = parts.hostname
-    if host == "localhost" or host.endswith(".localhost"):
-        raise AgentError(f"{host} is this machine – fetch it directly, not through a public proxy.")
+    return url.strip()
+
+
+def check_target(url: str) -> str:
+    """Only http(s) to public hosts – runs for the first URL and for every redirect. Local names and private
+    ranges would mean the proxy operator's own network (or, through a misconfigured proxy, yours)."""
+    url = check_scheme(url)
+    host = urlsplit(url).hostname.rstrip(".").lower()
+    if host == "localhost" or host.endswith((".localhost", ".local", ".internal", ".home.arpa")):
+        raise AgentError(f"{host} is a local name – fetch it directly, not through a public proxy.")
     try:
         ip = ipaddress.ip_address(host)
     except ValueError:
-        return url.strip()
+        if not _NUMERIC_HOST.fullmatch(host):
+            return url
+        try:
+            ip = ipaddress.IPv4Address(socket.inet_aton(host))
+        except (OSError, ValueError):
+            return url
+    if ip.version == 6 and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
     if not ip.is_global:
         raise AgentError(f"{host} is a private or reserved address – free proxies are on the public internet.")
-    return url.strip()
+    return url
 
 
 _SKIP = {"script", "style", "noscript", "svg", "template", "iframe", "canvas"}
@@ -275,9 +312,18 @@ def html_to_text(html: str) -> str:
     return "\n".join(line for line in lines if line)
 
 
+def decode_body(body: bytes, charset: Optional[str]) -> str:
+    """Text in the charset the server named – or UTF-8 when it named one Python doesn't know (utf8mb4 …)."""
+    try:
+        codecs.lookup(charset or "utf-8")
+    except LookupError:
+        charset = "utf-8"
+    return body.decode(charset or "utf-8", "replace")
+
+
 def _as_result(r: dict) -> Optional[CheckResult]:
     try:
-        return CheckResult(f"{r['ptype']} {r['proxy']}", r["ptype"], r["proxy"], int(r.get("latency") or 0),
+        return CheckResult(make_key(r["ptype"], r["proxy"]), r["ptype"], r["proxy"], int(r.get("latency") or 0),
                            str(r.get("exit_ip") or ""), https=r.get("https"), anonymity=r.get("anonymity") or "",
                            country=r.get("country") or "", asn=int(r.get("asn") or 0), org=r.get("org") or "",
                            hosting=r.get("hosting"), blocklisted=r.get("blocklisted"))
@@ -303,36 +349,45 @@ def _read_all(response) -> bytes:
 
 class PageFetcher:
     """Loads pages through the rotating server of this package, running on 127.0.0.1 with a random password:
-    the same failover as `--serve`, and HTTPS only through proxies that passed the verified-TLS test."""
+    the same failover as `--serve`, and HTTPS only through proxies that passed the verified-TLS test.
+
+    Deliberately http.client and not urllib: urllib honours no_proxy and the system's proxy exceptions (on macOS
+    *.local and 169.254/16), which would send such requests out directly from this machine."""
 
     def __init__(self, source: LiveSource, allow_private: bool = False, timeout: float = 20.0,
-                 strategy: str = "weighted"):
-        self.source, self.allow_private, self.timeout, self.strategy = source, allow_private, timeout, strategy
+                 strategy: str = "weighted", check: Optional[Callable[[str], str]] = None):
+        self.source, self.timeout, self.strategy = source, timeout, strategy
+        self.check = check or (check_scheme if allow_private else check_target)  # for the URL and every redirect
         self.server: Optional[RotatingServer] = None
         self._password = secrets.token_urlsafe(24)
         self._loaded_at: Optional[float] = None
+        self._lock: Optional[asyncio.Lock] = None
+        self._tls = ssl.create_default_context(cafile=certifi.where())
+        per_attempt = min(timeout, 10.0)
+        # the client waits for the server to work through its attempts (connect + first answer each)
+        self._client_timeout = per_attempt * 2 * FETCH_ATTEMPTS + 10
 
     async def _ready(self) -> LiveList:
         live = await self.source.get()
-        results = [r for r in (_as_result(row) for row in live.rows) if r]
-        if self.server is None:
-            self.server = RotatingServer(ProxyPool(results, strategy=self.strategy), host="127.0.0.1", port=0,
-                                         timeout=min(self.timeout, 10.0), password=self._password,
-                                         max_attempts=FETCH_ATTEMPTS)
-            await self.server.start()
-        elif live.loaded_at != self._loaded_at:
-            self.server.pool.merge(results)  # a new hour's list: new proxies in, dead ones out, counters kept
-        self._loaded_at = live.loaded_at
+        if self._lock is None:
+            self._lock = asyncio.Lock()
+        async with self._lock:  # parallel fetches: one starts the server, the others wait for it
+            if self.server is None or live.loaded_at != self._loaded_at:
+                results = [r for r in (_as_result(row) for row in live.rows) if r]
+                if self.server is None:
+                    server = RotatingServer(ProxyPool(results, strategy=self.strategy, strict_tls=True),
+                                            host="127.0.0.1", port=0, timeout=min(self.timeout, 10.0),
+                                            password=self._password, max_attempts=FETCH_ATTEMPTS)
+                    await server.start()
+                    self.server = server  # only once it listens
+                else:
+                    self.server.pool.merge(results, drop_missing=True)  # a new hour's list is the whole truth
+                self._loaded_at = live.loaded_at
         return live
 
     async def fetch(self, url: str, protocol: str = "any", country: str = "", max_chars: int = 20000,
-                    raw_html: bool = False) -> dict:
-        if self.allow_private:
-            parts = urlsplit(url)
-            if parts.scheme not in ("http", "https") or not parts.hostname:
-                raise AgentError(f"Give a full http:// or https:// URL, not {url!r}.")
-        else:
-            url = check_target(url)
+                    raw_html: bool = False, progress: Optional[Progress] = None, tick: float = 5.0) -> dict:
+        url = self.check(url)
         protocol = _check_protocol(protocol)
         countries = normalize_countries([country] if country else [])
         live = await self._ready()
@@ -349,26 +404,34 @@ class PageFetcher:
         if protocol != "any":
             wishes.append(f"type-{protocol}")
         started = time.monotonic()
+        result, broke_off = None, False
         for round_ in range(FETCH_ROUNDS):
             # the same wishes a user would put in the proxy login; session names are letters and digits only
-            user = "-".join([*wishes, f"session-{session}r{round_}"])
-            proxy = f"http://{user}:{self._password}@127.0.0.1:{self.server.port}"
+            name = f"{session}r{round_}"
+            user = "-".join([*wishes, f"session-{name}"])
             try:
-                status, final_url, headers, body = await asyncio.to_thread(self._get, url, proxy)
+                result = await _with_progress(asyncio.to_thread(self._get, url, user), progress, tick,
+                                              "loading the page through a proxy")
                 break
             except _BrokeOff:
-                continue  # a new session name: the next round starts with a different proxy
-        else:
-            raise AgentError(f"The download of {url} broke off {FETCH_ROUNDS} times – free proxies sometimes drop "
-                             "long transfers. Try again, or ask for less (a smaller page, max_chars doesn't help "
-                             "here since the whole page is loaded).")
-        held = self.server.pool.session_entry(f"{session}r{round_}")
+                broke_off = True
+                broke = self.server.pool.session_entry(name)
+                if broke:
+                    self.server.pool.retire(broke)  # dropped a download: not this one again
+            except AgentError:
+                if not broke_off:
+                    raise
+                break  # the retry found nobody else – the break-off is what the agent needs to hear
+        if result is None:
+            raise AgentError(f"The download of {url} broke off halfway and no other proxy got it through – free "
+                             "proxies sometimes drop long transfers. Try again in a moment, or a smaller page.")
+        status, final_url, headers, body = result
+        held = self.server.pool.session_entry(name)
         content_type = headers.get("Content-Type", "") if headers else ""
         is_text = not content_type or any(t in content_type.lower() for t in _TEXT_TYPES)
         text = ""
         if is_text:
-            charset = headers.get_content_charset() if headers else None
-            text = body.decode(charset or "utf-8", "replace")
+            text = decode_body(body, headers.get_content_charset() if headers else None)
             if not raw_html and "html" in content_type.lower():
                 text = html_to_text(text)
         truncated = len(text) > max_chars or len(body) > MAX_PAGE_BYTES
@@ -386,23 +449,48 @@ class PageFetcher:
             "note": None if is_text else f"Binary content ({content_type}) isn't returned as text.",
         }
 
-    def _get(self, url: str, proxy: str):
-        opener = urllib.request.build_opener(urllib.request.ProxyHandler({"http": proxy, "https": proxy}))
-        request = urllib.request.Request(url, headers={"User-Agent": USER_AGENT, "Accept": "*/*"})
-        try:
-            with opener.open(request, timeout=self.timeout * 3) as response:
-                return response.status, response.url, response.headers, _read_all(response)
-        except urllib.error.HTTPError as e:
-            if e.headers.get("X-Proxy-Scraper") != "no-proxy-answered":
-                return e.code, e.url, e.headers, _read_all(e)  # 403, 404 … still the target's answer
-            reason = f"none of {FETCH_ATTEMPTS} proxies got through"
-        except (urllib.error.URLError, OSError, http.client.HTTPException) as e:
-            reason = str(getattr(e, "reason", e))
-            if "502" in reason:  # the rotating server's answer to CONNECT when no proxy got through
-                reason = f"none of {FETCH_ATTEMPTS} proxies got through"
-        raise AgentError(f"Couldn't load {url}: {reason}. Some sites block known public proxies (Wikipedia, for "
-                         "example); otherwise free proxies simply come and go – try again, other proxies get "
-                         "picked, or use check_proxies for fresh ones.")
+    def _get(self, url: str, user: str):
+        """GET through the local rotating server, following redirects by hand so every hop gets checked."""
+        auth = "Basic " + base64.b64encode(f"{user}:{self._password}".encode()).decode()
+        for _hop in range(MAX_REDIRECTS + 1):
+            parts = urlsplit(url)
+            https = parts.scheme == "https"
+            port = parts.port or (443 if https else 80)
+            headers = {"User-Agent": USER_AGENT, "Accept": "*/*", "Accept-Encoding": "identity"}
+            if https:  # CONNECT through the server, then TLS end to end – verified against certifi's roots
+                conn = http.client.HTTPSConnection("127.0.0.1", self.server.port, timeout=self._client_timeout,
+                                                   context=self._tls)
+                conn.set_tunnel(parts.hostname, port, headers={"Proxy-Authorization": auth})
+                target = urlunsplit(("", "", parts.path or "/", parts.query, ""))
+            else:  # a classic proxy request with the absolute URL
+                conn = http.client.HTTPConnection("127.0.0.1", self.server.port, timeout=self._client_timeout)
+                headers["Proxy-Authorization"] = auth
+                target = urlunsplit((parts.scheme, parts.netloc, parts.path or "/", parts.query, ""))
+            try:
+                conn.request("GET", target, headers=headers)
+                response = conn.getresponse()
+                if response.getheader("X-Proxy-Scraper") == "no-proxy-answered":
+                    raise AgentError(self._failed(url, f"none of {FETCH_ATTEMPTS} proxies got through"))
+                location = response.getheader("Location")
+                if response.status in (301, 302, 303, 307, 308) and location:
+                    response.read()
+                    url = self.check(urljoin(url, location))  # a public page may point somewhere private
+                    continue
+                return response.status, url, response.headers, _read_all(response)
+            except (OSError, http.client.HTTPException) as e:
+                reason = str(e)
+                if "502" in reason:  # the server's answer to CONNECT when no proxy got through
+                    reason = f"none of {FETCH_ATTEMPTS} proxies got through"
+                raise AgentError(self._failed(url, reason)) from None
+            finally:
+                conn.close()
+        raise AgentError(f"{url} redirected more than {MAX_REDIRECTS} times – stopped there.")
+
+    @staticmethod
+    def _failed(url: str, reason: str) -> str:
+        return (f"Couldn't load {url}: {reason}. Some sites block known public proxies (Wikipedia, for example); "
+                "otherwise free proxies simply come and go – try again, other proxies get picked, or use "
+                "check_proxies for fresh ones.")
 
     async def close(self) -> None:
         if self.server is not None:

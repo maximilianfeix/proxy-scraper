@@ -4,8 +4,8 @@ Needs the MCP SDK (Python 3.10+): `pip install "proxy-scraper[mcp]"`. Without it
 """
 
 import asyncio
-import subprocess
 import sys
+from pathlib import Path
 
 import pytest
 
@@ -17,6 +17,7 @@ needs_sdk = pytest.mark.skipif(sys.version_info < (3, 10), reason="the MCP SDK n
 
 
 def test_without_the_sdk_the_command_says_how_to_install_it(monkeypatch, capsys):
+    monkeypatch.setattr(mcp_entry.sys, "version_info", (3, 12, 0))  # past the version check, also on 3.9
     monkeypatch.setattr(mcp_entry, "_load_server", lambda: (_ for _ in ()).throw(ImportError("x", name="mcp")))
     assert mcp_entry.main() == 1
     err = capsys.readouterr()
@@ -40,7 +41,8 @@ class FakeFetcher:
     def __init__(self):
         self.calls = []
 
-    async def fetch(self, url, protocol="any", country="", max_chars=20000, raw_html=False):
+    async def fetch(self, url, protocol="any", country="", max_chars=20000, raw_html=False, progress=None,
+                    tick=5.0):
         self.calls.append((url, protocol, country, max_chars, raw_html))
         agent.check_target(url)
         return {"url": url, "final_url": url, "status": 200, "content_type": "text/html", "via": "http://1.1.1.1:80",
@@ -179,8 +181,8 @@ def test_a_real_stdio_session_only_speaks_mcp_on_stdout():
     assert names == ["check_proxies", "fetch_url", "get_proxies"] and info.name == "proxy-scraper"
 
 
-def test_the_entry_point_is_installed_with_the_package():
-    out = subprocess.run([sys.executable, "-c", "from importlib.metadata import entry_points; "
-                          "print([e.value for e in entry_points(group='console_scripts') "
-                          "if e.name == 'proxy-scraper-mcp'])"], capture_output=True, text=True)
-    assert "proxyscraper.mcp_entry:main" in out.stdout or "[]" in out.stdout  # [] = running from a checkout
+def test_the_command_and_the_extra_are_declared():
+    # whether the installed command really starts is checked by the package job in CI (wheel + stdio)
+    pyproject = (Path(__file__).parent.parent / "pyproject.toml").read_text(encoding="utf-8")
+    assert 'proxy-scraper-mcp = "proxyscraper.mcp_entry:main"' in pyproject
+    assert "mcp = [\"mcp>=2.2,<3; python_version >= '3.10'\"]" in pyproject

@@ -172,6 +172,7 @@ def build_server(live: Optional[agent.LiveSource] = None, fetcher: Optional[agen
     @server.tool(title="Fetch a page through a proxy",
                  annotations=ToolAnnotations(read_only_hint=True, idempotent_hint=False, open_world_hint=True))
     async def fetch_url(
+        ctx: Context,
         url: Annotated[str, Field(description="Full http:// or https:// URL of a public site")],
         country: Annotated[str, Field(description="Two-letter code: load the page as seen from this country. "
                                                   "Empty = any country.")] = "",
@@ -183,12 +184,16 @@ def build_server(live: Optional[agent.LiveSource] = None, fetcher: Optional[agen
     ) -> Page:
         """Load a web page through a verified free proxy and return it as readable text.
 
-        If a proxy fails, the next one is tried by itself. HTTPS only goes through proxies that passed a
-        verified-TLS test, so the page can't be changed on the way. Useful to see a site from another country or
+        If a proxy fails, the next one is tried by itself (up to 8), redirects are followed. HTTPS only goes
+        through proxies that passed a verified-TLS test, so the page can't be changed on the way. Local and
+        private addresses are refused, also when a redirect points there. Useful to see a site from another country or
         when a site blocks this machine. GET only; don't use it for logins or anything with personal data."""
+        async def progress(elapsed: float, message: str):
+            await ctx.report_progress(elapsed, None, message)
+
         try:
             page = await fetcher.fetch(url, protocol=protocol, country=country, max_chars=max_chars,
-                                       raw_html=raw_html)
+                                       raw_html=raw_html, progress=progress)
         except agent.AgentError as e:
             _fail(e)
         return Page(**page)

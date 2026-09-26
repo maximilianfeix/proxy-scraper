@@ -13,6 +13,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - New website design and a real logo: the route through a proxy that forms a check mark. Big live numbers, a ticker with the fastest proxies, a scroll scene through the five checks, smooth scrolling, light and dark theme. The README banner uses the same look
 
 ### Added
+- The website gets a static page per protocol (HTTP, SOCKS4, SOCKS5, HTTPS, elite) and per country, each with a `proxies.txt`, plus a `sitemap.xml` and dataset markup, so search engines find the list ([#121](https://github.com/maximilianfeix/proxy-scraper/issues/121))
 - `--serve-refill HOURS`: the running proxy server checks fresh proxies in the background and adds the hits, so it no longer runs dry over days; `compose.yaml` uses it ([#109](https://github.com/maximilianfeix/proxy-scraper/issues/109))
 - `-o -` prints the hits to stdout for pipes, the interface goes to stderr then ([#105](https://github.com/maximilianfeix/proxy-scraper/issues/105))
 - `--serve-password` / `PROXY_SCRAPER_SERVE_PASSWORD`: the rotating server can require a password (HTTP, SOCKS5 and the status page), plus a `compose.yaml` that runs it in Docker ([#103](https://github.com/maximilianfeix/proxy-scraper/issues/103))

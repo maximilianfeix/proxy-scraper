@@ -273,6 +273,9 @@
          color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); vertical-align: 1px; }
   .tag.bl { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
   .stable-badge { color: var(--signal-ink); font-weight: 500; }
+  .uptime { display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+  .meter { width: 32px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .meter::after { content: ""; display: block; height: 100%; width: var(--v); background: var(--signal-ink); border-radius: inherit; }
   .provider { max-width: 240px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
   .icon-btn { width: 34px; height: 34px; border-radius: 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; display: inline-grid; place-items: center;
               transition: background-color .25s, color .25s; }
@@ -560,10 +563,11 @@
             <th scope="col" data-key="latency" aria-sort="ascending"><button class="sort" type="button">Latency</button></th>
             <th scope="col" data-key="https" class="hide-sm"><button class="sort" type="button">HTTPS</button></th>
             <th scope="col" data-key="streak" class="hide-sm"><button class="sort" type="button" title="How long it has been working without a gap">Up for</button></th>
+            <th scope="col" data-key="uptime_7d" class="hide-sm"><button class="sort" type="button" title="Share of this week's runs it was on the list">Uptime</button></th>
             <th scope="col" data-key="anonymity" class="hide-sm"><button class="sort" type="button">Anonymity</button></th>
             <th scope="col" data-key="org" class="hide-sm"><button class="sort" type="button">Provider</button></th>
           </tr></thead>
-          <tbody id="rows"><tr><td colspan="8" class="empty">Loading the list</td></tr></tbody>
+          <tbody id="rows"><tr><td colspan="9" class="empty">Loading the list</td></tr></tbody>
         </table>
       </div>
     </div>
@@ -670,6 +674,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
           <a href="stats.json"><span class="mono">stats.json</span><span>totals, per type, countries, median latency</span></a>
           <a href="history.json"><span class="mono">history.json</span><span>the runs of the last 30 days, for charts</span></a>
           <a href="streaks.json"><span class="mono">streaks.json</span><span>how many runs in a row each proxy worked</span></a>
+          <a href="seen.json"><span class="mono">seen.json</span><span>which of the last 168 runs each proxy was listed in</span></a>
         </div>
       </div>
       <div class="cmd"><pre>curl -s https://maximilianfeix.github.io/proxy-scraper/proxies.json | jq '.[0]'
@@ -686,7 +691,10 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   "org": "DigitalOcean, LLC",
   "hosting": true,
   "blocklisted": false,
-  "streak": 5
+  "streak": 5,
+  "first_seen": "2026-09-26T21:17:04+00:00",
+  "uptime_24h": 100,
+  "uptime_7d": 94
 }</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the example"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
     </div>
   </section>
@@ -741,6 +749,8 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const h = n * RUN_HOURS, text = n === 1 ? "new" : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`;
     return n >= STABLE ? `<span class="stable-badge">${text}</span>` : `<span class="quiet">${text}</span>`;
   };
+  const share = (r) => r.uptime_7d == null ? '<span class="quiet">–</span>'
+    : `<span class="uptime" title="On the list in ${r.uptime_7d} % of this week's runs, ${r.uptime_24h} % of today's"><span class="meter" style="--v:${r.uptime_7d}%"></span>${r.uptime_7d} %</span>`;
   const latency = (ms) => `<span class="${ms < 1000 ? "fast" : ms < 3000 ? "mid" : "slow"}">${fmt(ms)} ms</span>`;
   const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http", "socks4", "socks5"]),
                   https: false, elite: false, noDc: false, noBl: false, stable: false, country: "", maxLat: 8000, q: "" };
@@ -878,9 +888,10 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       <td>${latency(r.latency)}</td>
       <td class="hide-sm">${r.https ? "Yes" : '<span class="quiet">No</span>'}</td>
       <td class="hide-sm">${uptime(r.streak)}</td>
+      <td class="hide-sm">${share(r)}</td>
       <td class="hide-sm">${esc(r.anonymity || "–")}</td>
       <td class="hide-sm provider" title="${esc(r.org ? `AS${r.asn} ${r.org}, exit ${r.exit_ip}` : r.exit_ip)}">${r.hosting ? '<span class="tag" title="Datacenter">DC</span>' : ""}${r.blocklisted ? '<span class="tag bl" title="Exit IP on the SpamCop blocklist">BL</span>' : ""}${esc(short(r.org) || r.exit_ip)}</td></tr>`).join("")
-      || '<tr><td colspan="8" class="empty">No proxy matches these filters. Try a higher latency limit or fewer filters.</td></tr>';
+      || '<tr><td colspan="9" class="empty">No proxy matches these filters. Try a higher latency limit or fewer filters.</td></tr>';
     $("#count").textContent = rows.length ? `Showing ${fmt(Math.min(state.shown, rows.length))} of ${fmt(rows.length)} matching proxies` : "";
     $("#more").hidden = rows.length <= state.shown;
     $$("th[data-key]").forEach(th => th.dataset.key === state.sort ? th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending") : th.removeAttribute("aria-sort"));
@@ -922,7 +933,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   });
   $("#sieve-rows").onclick = (e) => { const b = e.target.closest("button[data-url]"); if (b) copy(b.dataset.url, `Copied ${b.dataset.url}`); };
   $$("[data-copy-pre]").forEach(b => b.onclick = () => copy(b.parentElement.querySelector("pre").textContent + "\n", "Copied the command"));
-  $("#raw").innerHTML = [["all", "Everything"], ["http", "HTTP"], ["socks4", "SOCKS4"], ["socks5", "SOCKS5"], ["https", "HTTPS-capable"], ["elite", "Elite"]]
+  $("#raw").innerHTML = [["all", "Everything"], ["http", "HTTP"], ["socks4", "SOCKS4"], ["socks5", "SOCKS5"], ["https", "HTTPS-capable"], ["elite", "Elite"], ["stable", "Stable this week"]]
     .map(([f, label]) => `<a href="${RAW}/${f}.txt"><span>${label}</span><span class="mono">${f}.txt</span></a>`).join("");
 
   // Charts
@@ -1056,7 +1067,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const load = (f) => fetch(f, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
   Promise.all([load("proxies.json"), load("stats.json"), load("history.json")]).then(([rows, st, history]) => {
     if (!rows || !st) {
-      $("#rows").innerHTML = '<tr><td colspan="8" class="empty">The list could not be loaded. The plain text files under "Use it" still work.</td></tr>';
+      $("#rows").innerHTML = '<tr><td colspan="9" class="empty">The list could not be loaded. The plain text files under "Use it" still work.</td></tr>';
       $("#updated").textContent = "The latest run could not be loaded";
       $$(".fig .count").forEach(el => { el.textContent = "–"; });
       return;

@@ -47,10 +47,11 @@ jobs:
       - name: Prepare the list
         id: prepare
         run: |
-          # history of the last runs (chart) and how long each proxy has been listed (stable proxies).
+          # history of the last runs (chart), how long each proxy has been listed (stable proxies)
+          # and which runs it was listed in (uptime).
           # 404 means: doesn't exist yet (first run). Any other error: better not publish this time
           # than lose the history.
-          for f in history.json streaks.json; do
+          for f in history.json streaks.json seen.json; do
             code=$(curl -sL --retry 3 --retry-all-errors -o "$f" -w "%{http_code}" \
               "https://raw.githubusercontent.com/${GITHUB_REPOSITORY}/proxy-list/$f" || echo 000)
             if [ "$code" = "404" ]; then rm -f "$f"; elif [ "$code" != "200" ]; then
@@ -59,7 +60,7 @@ jobs:
             fi
           done
           if python -m proxyscraper.publish "results/$(cat results/latest.txt)" public --min 20 \
-              --history history.json --streaks streaks.json; then
+              --history history.json --streaks streaks.json --seen seen.json; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             rc=$?

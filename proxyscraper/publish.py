@@ -17,7 +17,7 @@ import os
 import statistics
 import sys
 from collections import Counter
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
@@ -76,6 +76,7 @@ def write_lists(rows: List[dict], out: Path) -> Dict[str, int]:
         "all.txt": [r["url"] for r in rows],
         "https.txt": [r["url"] for r in rows if r.get("https")],
         "elite.txt": [r["url"] for r in rows if r.get("anonymity") == "elite"],
+        "stable.txt": [r["url"] for r in rows if (r.get("uptime_7d") or 0) >= STABLE_UPTIME],
     }
     for t in PROXY_TYPES:
         files[f"{t}.txt"] = [r["proxy"] for r in rows if r["ptype"] == t]
@@ -93,6 +94,7 @@ def readme(stats: dict, counts: Dict[str, int]) -> str:
         ("SOCKS5 (`ip:port`)", "socks5.txt"),
         ("HTTPS-capable (`type://ip:port`)", "https.txt"),
         ("Elite (`type://ip:port`)", "elite.txt"),
+        (f"Stable, listed in {STABLE_UPTIME} %+ of the runs this week (`type://ip:port`)", "stable.txt"),
     ]
     table = "\n".join(f"| {label} | {num(counts[name])} | [{name}]({RAW_BASE}/{name}) |" for label, name in rows)
     details = f"[proxies.json]({RAW_BASE}/proxies.json) · [proxies.csv]({RAW_BASE}/proxies.csv)"
@@ -156,6 +158,67 @@ def streak_factor(runs: List[dict]) -> int:
 STABLE_RUNS = 24 // RUN_HOURS  # this many runs in a row (= 24 hours) means "stable"
 
 
+UPTIME_RUNS = 7 * 24 // RUN_HOURS  # uptime looks back a week
+STABLE_UPTIME = 90                  # listed in this share of the week's runs -> stable.txt
+
+
+def load_seen(path: Optional[Path], last_run: Optional[str]) -> Optional[Dict[str, dict]]:
+    """url -> {first_seen, bits} from last time. bits: one per run, bit 0 = the last run. None when missing,
+    broken or written after a different run than the last one in the history - then the bits wouldn't line up."""
+    if not path or not last_run:
+        return None
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    if not isinstance(data, dict) or data.get("last_run") != last_run or not isinstance(data.get("proxies"), dict):
+        return None
+    seen = {}
+    for url, entry in data["proxies"].items():
+        try:
+            seen[url] = {"first_seen": str(entry["first_seen"]), "bits": int(entry["bits"], 16)}
+        except (KeyError, TypeError, ValueError):
+            continue
+    return seen
+
+
+def update_seen(rows: List[dict], seen: Optional[Dict[str, dict]], now: datetime) -> Dict[str, dict]:
+    """Shift everyone by one run and mark who is listed now. Without usable data from last time, the
+    streaks stand in: a proxy listed n runs in a row was there for the last n runs."""
+    mask = (1 << UPTIME_RUNS) - 1
+    stamp = now.isoformat(timespec="seconds")
+    if seen is None:
+        since = {r["url"]: now - timedelta(hours=(r["streak"] - 1) * RUN_HOURS) for r in rows}
+        seen = {r["url"]: {"first_seen": since[r["url"]].isoformat(timespec="seconds"),
+                           "bits": ((1 << min(r["streak"], UPTIME_RUNS)) - 1) >> 1}  # this run is added below
+                for r in rows}
+    listed = {r["url"] for r in rows}
+    fresh = {}
+    for url, entry in seen.items():
+        bits = ((entry["bits"] << 1) | (url in listed)) & mask
+        if bits:
+            fresh[url] = {"first_seen": entry["first_seen"], "bits": bits}
+    for url in listed - fresh.keys():
+        fresh[url] = {"first_seen": stamp, "bits": 1}
+    return fresh
+
+
+def uptime(bits: int, runs: List[dict], now: datetime, hours: int) -> int:
+    """Share of the runs in the last `hours` this proxy was listed in, in percent. runs: oldest first, this one last."""
+    since = now - timedelta(hours=hours)
+    window = 0
+    for run in reversed(runs[-UPTIME_RUNS:]):
+        try:
+            when = datetime.fromisoformat(run["updated"])
+        except (KeyError, TypeError, ValueError):
+            break
+        if when <= since:
+            break
+        window += 1
+    window = max(window, 1)
+    return round(100 * bin(bits & ((1 << window) - 1)).count("1") / window)
+
+
 def load_streaks(path: Optional[Path]) -> Dict[str, int]:
     """url -> runs in a row it has been on the list (fetched from the branch); broken or missing = start over."""
     if not path:
@@ -170,7 +233,7 @@ def load_streaks(path: Optional[Path]) -> Dict[str, int]:
 
 
 def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None,
-            history: Optional[Path] = None, streaks: Optional[Path] = None) -> int:
+            history: Optional[Path] = None, streaks: Optional[Path] = None, seen: Optional[Path] = None) -> int:
     rows = load_rows(run_dir)
     if len(rows) < minimum:
         print(f"Only {len(rows)} hits (< {minimum}) – the old list stays online.")
@@ -182,6 +245,13 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     previous = {url: n * factor for url, n in load_streaks(streaks).items()}
     for row in rows:
         row["streak"] = previous.get(row["url"], 0) + 1
+    runs = [*past_runs, history_entry(stats_for(rows, now))][-HISTORY_LIMIT:]
+    listed = update_seen(rows, load_seen(seen, past_runs[-1].get("updated") if past_runs else None), now)
+    for row in rows:
+        entry = listed[row["url"]]
+        row["first_seen"] = entry["first_seen"]
+        row["uptime_24h"] = uptime(entry["bits"], runs, now, 24)
+        row["uptime_7d"] = uptime(entry["bits"], runs, now, 7 * 24)
     out.mkdir(parents=True, exist_ok=True)
     counts = write_lists(rows, out)
     # don't just copy: rewrite the details so nothing with credentials ends up there either
@@ -209,8 +279,10 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
             (out / asset.name).write_bytes(asset.read_bytes())
     (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages should serve the files unchanged
     write_pages(rows, out, now)  # static pages per protocol and country plus sitemap.xml, for search engines
-    runs = [*past_runs, history_entry(stats)][-HISTORY_LIMIT:]
     write_json(out / "history.json", runs)
+    write_json(out / "seen.json", {"last_run": runs[-1]["updated"],
+                                   "proxies": {url: {"first_seen": e["first_seen"], "bits": format(e["bits"], "x")}
+                                               for url, e in listed.items()}})
     write_json(out / "streaks.json", {row["url"]: row["streak"] for row in rows})
 
     summary_file = os.environ.get("GITHUB_STEP_SUMMARY")
@@ -228,8 +300,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--min", type=int, default=20, help="at least this many hits, otherwise write nothing")
     p.add_argument("--history", type=Path, help="history.json from last time (for the chart on the website)")
     p.add_argument("--streaks", type=Path, help="streaks.json from last time (how long each proxy has been listed)")
+    p.add_argument("--seen", type=Path,
+                   help="seen.json from last time (which runs each proxy was listed in, for the uptime)")
     args = p.parse_args(argv)
-    return publish(args.run_dir, args.out_dir, args.min, history=args.history, streaks=args.streaks)
+    return publish(args.run_dir, args.out_dir, args.min, history=args.history, streaks=args.streaks, seen=args.seen)
 
 
 if __name__ == "__main__":

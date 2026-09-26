@@ -96,6 +96,12 @@ def test_stable_means_listed_for_24_hours_whatever_the_interval():
     assert len(agent.select(ROWS, stable_only=True, run_hours=6)) == 1                      # 30 runs * 6 h
 
 
+def test_min_uptime_keeps_the_ones_listed_most_of_the_week():
+    rows = [row(1, "http", uptime_7d=95), row(2, "http", uptime_7d=40), row(3, "http")]  # 3: list without uptime yet
+    assert urls(agent.select(rows, min_uptime=90)) == ["http://1.1.1.1:80"]
+    assert len(agent.select(rows)) == 3
+
+
 def test_bad_filters_are_explained():
     with pytest.raises(agent.AgentError, match="protocol"):
         agent.select(ROWS, protocol="ftp")
@@ -107,7 +113,8 @@ def test_proxy_as_an_agent_sees_it():
     shown = agent.describe(row(7, "socks5", streak=5, org="Hetzner Online GmbH", hosting=True), run_hours=1)
     assert shown == {"url": "socks5://1.1.1.7:80", "protocol": "socks5", "address": "1.1.1.7:80", "country": "DE",
                      "latency_ms": 100, "https": True, "anonymity": "elite", "provider": "Hetzner Online GmbH",
-                     "datacenter": True, "blocklisted": False, "up_for_hours": 5}
+                     "datacenter": True, "blocklisted": False, "up_for_hours": 5, "uptime_7d_percent": None}
+    assert agent.describe(row(7, "socks5", uptime_7d=93))["uptime_7d_percent"] == 93
 
 
 def test_describe_takes_check_results_too():

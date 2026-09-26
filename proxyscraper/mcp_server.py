@@ -50,6 +50,8 @@ class Proxy(BaseModel):
     datacenter: Optional[bool] = Field(description="Exit IP in a datacenter – some sites block those")
     blocklisted: Optional[bool] = Field(description="Exit IP on the SpamCop blocklist – expect captchas")
     up_for_hours: Optional[int] = Field(description="How long it has worked without a gap (live list only)")
+    uptime_7d_percent: Optional[int] = Field(default=None, description="Share of the last 7 days' hourly checks it "
+                                                                       "passed (live list only)")
 
 
 class ProxyList(BaseModel):
@@ -114,6 +116,9 @@ def build_server(live: Optional[agent.LiveSource] = None, fetcher: Optional[agen
                                                                "captchas)")] = False,
         stable_only: Annotated[bool, Field(description="Only proxies that have worked for 24 h or more")] = False,
         max_latency_ms: Annotated[int, Field(ge=0, description="Maximum response time, 0 = any")] = 0,
+        min_uptime_percent: Annotated[int, Field(ge=0, le=100, description="Only proxies that passed at least this "
+                                                                           "share of the last 7 days' hourly checks, "
+                                                                           "e.g. 90 for the most reliable")] = 0,
         limit: Annotated[int, Field(ge=1, le=100, description="How many to return (fastest first)")] = 10,
     ) -> ProxyList:
         """Get working free proxies right now, fastest first.
@@ -124,7 +129,7 @@ def build_server(live: Optional[agent.LiveSource] = None, fetcher: Optional[agen
         try:
             data = await live.get()
             rows = agent.select(data.rows, protocol, countries, https_only, elite_only, exclude_datacenter,
-                                exclude_blocklisted, stable_only, max_latency_ms, data.run_hours)
+                                exclude_blocklisted, stable_only, max_latency_ms, data.run_hours, min_uptime_percent)
         except agent.AgentError as e:
             _fail(e)
         return ProxyList(proxies=[Proxy(**agent.describe(r, data.run_hours)) for r in rows[:limit]],

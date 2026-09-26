@@ -133,7 +133,7 @@ def test_keep_refilling_survives_a_failed_round(monkeypatch):
 
 
 def test_stopping_the_server_stops_a_running_refill(tmp_path):
-    started = asyncio.Event()
+    started = None
 
     class Checker:
         async def check(self, key):
@@ -141,6 +141,8 @@ def test_stopping_the_server_stops_a_running_refill(tmp_path):
             await asyncio.sleep(10)
 
     async def go():
+        nonlocal started
+        started = asyncio.Event()  # inside the loop – before 3.10 an Event binds to the loop it's made in
         stats = LiveStats({"http": 1})
         writer = output.ResultWriter(run_dir=tmp_path / "run")
         task = asyncio.ensure_future(pipeline.run_checks(

@@ -69,35 +69,51 @@ def test_without_seen_json_the_streaks_seed_the_uptime(tmp_path):
 
 
 def test_stable_list_needs_ninety_percent_over_the_week(tmp_path):
-    history = hourly_history(tmp_path, 9)
+    history = hourly_history(tmp_path, 29)
     seen = tmp_path / "seen.json"
     seen.write_text(json.dumps({"last_run": last_run(), "proxies": {FAST: {"first_seen": "2026-09-27T00:00:00+00:00",
-                                                               "bits": format(0b111111111, "x")},
+                                                               "bits": format((1 << 29) - 1, "x")},
                                                         "http://1.1.1.0:80": {"first_seen": "2026-09-27T00:00:00+00:00",
-                                                                              "bits": format(0b11111110, "x")}}}))
+                                                                              "bits": format((1 << 23) - 1, "x")}}}))
     out, rows = publish_once(tmp_path, "public", history, seen)
-    assert rows["http://1.1.1.0:80"]["uptime_7d"] == 80  # 8 of 10 runs
+    assert rows["http://1.1.1.0:80"]["uptime_7d"] == 80  # 24 of 30 runs
     assert (out / "stable.txt").read_text() == FAST + "\n"
     assert "stable.txt" in (out / "README.md").read_text()
 
 
 def test_broken_seen_json_falls_back_to_the_streaks(tmp_path):
-    history = hourly_history(tmp_path, 4)
+    history = hourly_history(tmp_path, 30)
     seen = tmp_path / "seen.json"
     seen.write_text(json.dumps({"proxies": {FAST: {"bits": "zz"}, "x": 5}}))
     streaks = tmp_path / "streaks.json"
-    streaks.write_text(json.dumps({FAST: 4}))
+    streaks.write_text(json.dumps({FAST: 30}))
     _, rows = publish_once(tmp_path, "public", history, seen, streaks)
     assert rows[FAST]["uptime_7d"] == 100
 
 
 def test_seen_json_from_a_different_history_is_not_trusted(tmp_path):
     # seen.json was written after a different run than the last one in the history: the bits don't line up
-    history = hourly_history(tmp_path, 2)
+    history = hourly_history(tmp_path, 26)
     seen = tmp_path / "seen.json"
     seen.write_text(json.dumps({"last_run": "2026-09-27T02:17:00+00:00",
                                 "proxies": {FAST: {"first_seen": "2026-09-27T00:00:00+00:00", "bits": "1f"}}}))
     streaks = tmp_path / "streaks.json"
     streaks.write_text(json.dumps({FAST: 1}))
     _, rows = publish_once(tmp_path, "public", history, seen, streaks)
-    assert rows[FAST]["uptime_7d"] == round(100 * 2 / 3)
+    assert rows[FAST]["uptime_7d"] == round(100 * 2 / 27)  # seeded from the streak: this run and the one before
+
+
+def test_a_young_history_does_not_make_everything_stable(tmp_path):
+    # a fresh fork: no history, no seen.json – one run is not a week of uptime
+    out, rows = publish_once(tmp_path, "public", None)
+    assert all(r["uptime_7d"] < publish.STABLE_UPTIME for r in rows.values())
+    assert (out / "stable.txt").read_text() == ""
+
+
+def test_the_csv_has_the_uptime_too(tmp_path):
+    history = hourly_history(tmp_path, 3)
+    out, _ = publish_once(tmp_path, "public", history)
+    import csv
+    with (out / "proxies.csv").open(newline="", encoding="utf-8") as fh:
+        row = next(r for r in csv.DictReader(fh) if r["url"] == FAST)
+    assert row["uptime_7d"] and row["first_seen"] and "uptime_24h" in row

@@ -160,6 +160,7 @@ STABLE_RUNS = 24 // RUN_HOURS  # this many runs in a row (= 24 hours) means "sta
 
 UPTIME_RUNS = 7 * 24 // RUN_HOURS  # uptime looks back a week
 STABLE_UPTIME = 90                  # listed in this share of the week's runs -> stable.txt
+MIN_UPTIME_RUNS = 24 // RUN_HOURS   # while the history is younger than a day, missing runs count as not listed
 
 
 def load_seen(path: Optional[Path], last_run: Optional[str]) -> Optional[Dict[str, dict]]:
@@ -215,7 +216,8 @@ def uptime(bits: int, runs: List[dict], now: datetime, hours: int) -> int:
         if when <= since:
             break
         window += 1
-    window = max(window, 1)
+    # a young history (new fork, lost history.json) must not turn one good run into 100 %
+    window = max(window, min(MIN_UPTIME_RUNS, hours // RUN_HOURS))
     return round(100 * bin(bits & ((1 << window) - 1)).count("1") / window)
 
 
@@ -259,9 +261,14 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     with (run_dir / "proxies.csv").open(newline="", encoding="utf-8") as src, \
             (out / "proxies.csv").open("w", newline="", encoding="utf-8") as dst:
         reader = csv.DictReader(src)
-        writer = csv.DictWriter(dst, fieldnames=reader.fieldnames or ["proxy"])
+        extra = ("first_seen", "uptime_24h", "uptime_7d")
+        writer = csv.DictWriter(dst, fieldnames=[*(reader.fieldnames or ["proxy"]), *extra])
         writer.writeheader()
-        writer.writerows(r for r in reader if is_public(r))
+        by_url = {r["url"]: r for r in rows}
+        for r in reader:
+            if is_public(r):
+                listed_row = by_url.get(r.get("url", ""), {})
+                writer.writerow({**r, **{k: listed_row.get(k, "") for k in extra}})
     stats = stats_for(rows, now)
     write_json(out / "stats.json", stats, indent=1)
     badges = out / "badges"

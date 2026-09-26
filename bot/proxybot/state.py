@@ -7,7 +7,7 @@ import os
 import tempfile
 from datetime import datetime, timedelta
 from pathlib import Path
-from typing import Dict
+from typing import Dict, Optional
 
 
 class State:
@@ -23,6 +23,12 @@ class State:
 
     def is_new(self, guild_id: int, run_id: str) -> bool:
         return self.posted.get(str(guild_id)) != run_id
+
+    def last_posted(self, guild_id: int) -> Optional[datetime]:
+        try:
+            return datetime.fromisoformat(self.posted[str(guild_id)])
+        except (KeyError, ValueError):
+            return None
 
     def is_due(self, guild_id: int, updated: datetime, every: timedelta) -> bool:
         """A new run, and the last post there is at least `every` old (the list runs hourly, the feed shouldn't)."""

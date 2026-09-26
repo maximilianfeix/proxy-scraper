@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from datetime import datetime
 from typing import List, Optional, Sequence
 
 import discord
@@ -26,15 +27,15 @@ def text_file(proxies: Sequence[Proxy], name: str) -> discord.File:
     return discord.File(io.BytesIO(as_lines(proxies).encode()), filename=name)
 
 
-def summary(snap: Snapshot) -> discord.Embed:
-    """The post for #live-feed after every run."""
+def summary(snap: Snapshot, since: Optional[datetime] = None) -> discord.Embed:
+    """The post for #live-feed; `since` is when the last one went out, for the change since then."""
     st = snap.stats
     total = st.get("total", len(snap.proxies))
-    previous = snap.previous_total()
+    previous = snap.previous_total(since)
     trend = ""
     if previous:
         diff = total - previous
-        trend = f"  ({'+' if diff >= 0 else ''}{diff:,} since the last run)"
+        trend = f"  ({'+' if diff >= 0 else ''}{diff:,} since the last {'post' if since else 'run'})"
     by_type = st.get("by_type") or {}
     embed = _embed(f"{total:,} working proxies", f"Checked again just now.{trend}")
     embed.timestamp = snap.updated

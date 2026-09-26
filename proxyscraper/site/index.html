@@ -817,9 +817,11 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const el = $("#trend");
     if (!history || history.length < 2) { el.innerHTML = '<p class="note">The chart fills up with every run.</p>'; return; }
     const W = 800, H = 260, P = 10, max = Math.max(...history.map(h => h.total)) * 1.12 || 1;
-    const x = (i) => P + i * (W - 2 * P) / (history.length - 1), y = (v) => H - P - v * (H - 2 * P) / max;
+    // spaced by time, not by index: the runs weren't always the same distance apart
+    const t0 = Date.parse(history[0].updated), span = Math.max(Date.parse(history[history.length - 1].updated) - t0, 1);
+    const x = (h) => P + (Date.parse(h.updated) - t0) * (W - 2 * P) / span, y = (v) => H - P - v * (H - 2 * P) / max;
     const line = (key) => {
-      const pts = history.map((h, i) => [x(i), y(key(h))]);
+      const pts = history.map((h) => [x(h), y(key(h))]);
       return pts.map(([px, py], i) => {
         if (!i) return `M${px.toFixed(1)},${py.toFixed(1)}`;
         const [x0, y0] = pts[i - 2] || pts[i - 1], [x1, y1] = pts[i - 1], [x3, y3] = pts[i + 1] || [px, py];
@@ -827,7 +829,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
         return `C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${px.toFixed(1)},${py.toFixed(1)}`;
       }).join("");
     };
-    const area = line(h => h.total) + `L${x(history.length - 1)},${H - P}L${x(0)},${H - P}Z`;
+    const area = line(h => h.total) + `L${W - P},${H - P}L${P},${H - P}Z`;
     const last = history[history.length - 1];
     el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Working proxies per run, last run ${fmt(last.total)}">
       <defs><linearGradient id="fade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--signal-ink)" stop-opacity=".28"/><stop offset="1" stop-color="var(--signal-ink)" stop-opacity="0"/></linearGradient></defs>
@@ -836,7 +838,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       <path d="${line(h => h.total)}" fill="none" stroke="var(--signal-ink)" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
     const day = (iso) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     $("#axis-from").textContent = day(history[0].updated); $("#axis-to").textContent = day(last.updated);
-    $("#trend-note").textContent = `${history.length} runs, one every ${RUN_HOURS === 1 ? "hour" : `${RUN_HOURS} hours`}. Last run: ${fmt(last.total)} working.`;
+    $("#trend-note").textContent = `${fmt(history.length)} runs, now one every ${RUN_HOURS === 1 ? "hour" : `${RUN_HOURS} hours`}. Last run: ${fmt(last.total)} working.`;
   }
   function ticker(rows) {
     const fastest = [...rows].sort((a, b) => a.latency - b.latency).slice(0, 24);

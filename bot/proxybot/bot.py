@@ -129,7 +129,7 @@ class ProxyBot(discord.Client):
             if "live-feed" not in channels:
                 return  # layout not ready (missing permissions) – try again next time
             try:
-                await channels["live-feed"].send(embed=messages.summary(snap),
+                await channels["live-feed"].send(embed=messages.summary(snap, self.state.last_posted(guild.id)),
                                                  file=messages.text_file(snap.proxies, "all.txt"))
             except discord.HTTPException as e:
                 log.error("%s: posting the summary failed: %s", guild.name, e)

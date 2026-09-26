@@ -202,3 +202,14 @@ def test_stable_means_24_hours_whatever_the_run_interval():
     old = parse_snapshot({"updated": "2026-09-26T12:17:00+00:00"}, rows)
     assert hourly.stable_runs == 24 and old.stable_runs == 4
     assert [p.address for p in select(hourly.proxies, stable=True, stable_runs=hourly.stable_runs)] == ["2.2.2.2:80"]
+
+
+def test_the_summary_trend_compares_with_the_last_post_not_the_last_hour():
+    from datetime import datetime
+
+    from proxybot.feed import parse_snapshot
+
+    history = [{"updated": f"2026-09-26T{h:02d}:17:00+00:00", "total": 1000 + h} for h in range(6, 13)]
+    snap = parse_snapshot({"updated": "2026-09-26T12:17:00+00:00", "total": 1012}, [], history)
+    assert snap.previous_total() == 1011                                                    # the run an hour ago
+    assert snap.previous_total(datetime.fromisoformat("2026-09-26T06:17:00+00:00")) == 1006  # the last post

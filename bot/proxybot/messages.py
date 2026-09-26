@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+from datetime import datetime
 from typing import List, Optional, Sequence
 
 import discord
@@ -26,15 +27,15 @@ def text_file(proxies: Sequence[Proxy], name: str) -> discord.File:
     return discord.File(io.BytesIO(as_lines(proxies).encode()), filename=name)
 
 
-def summary(snap: Snapshot) -> discord.Embed:
-    """The post for #live-feed after every run."""
+def summary(snap: Snapshot, since: Optional[datetime] = None) -> discord.Embed:
+    """The post for #live-feed; `since` is when the last one went out, for the change since then."""
     st = snap.stats
     total = st.get("total", len(snap.proxies))
-    previous = snap.previous_total()
+    previous = snap.previous_total(since)
     trend = ""
     if previous:
         diff = total - previous
-        trend = f"  ({'+' if diff >= 0 else ''}{diff:,} since the last run)"
+        trend = f"  ({'+' if diff >= 0 else ''}{diff:,} since the last {'post' if since else 'run'})"
     by_type = st.get("by_type") or {}
     embed = _embed(f"{total:,} working proxies", f"Checked again just now.{trend}")
     embed.timestamp = snap.updated
@@ -105,13 +106,13 @@ def stats(snap: Snapshot) -> discord.Embed:
 def about() -> discord.Embed:
     """Pinned in #about and the answer to /about."""
     embed = _embed("What this server is", (
-        "Every 6 hours a GitHub Action collects public proxies from 700+ lists and checks every one of them: "
+        "Every hour a GitHub Action collects public proxies from 700+ lists and checks every one of them: "
         "a real handshake, a honeypot check on two independent sites, a content check (nothing may be injected), "
         "then HTTPS, anonymity, country and provider. What passes ends up here.\n\n"
         f"**Browse and filter:** {SITE}\n**Run the checks yourself:** {REPO}"))
     embed.add_field(name="Channels", value=(
-        "**#live-feed** a summary after every run\n"
-        "**#http**, **#socks4**, **#socks5** the current list per protocol, updated every run\n"
+        "**#live-feed** a summary every 6 hours\n"
+        "**#http**, **#socks4**, **#socks5** the current list per protocol, updated with every summary\n"
         "**#commands** ask the bot"), inline=False)
     embed.add_field(name="Commands", value=(
         "`/proxies` filter by type, country, HTTPS, elite, datacenter, blocklist\n"

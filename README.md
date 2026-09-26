@@ -125,7 +125,7 @@ Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</
 
 ## Live proxy list
 
-Don't want to scan yourself? Every 6 hours **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, fastest first.
+Don't want to scan yourself? Every hour **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, fastest first.
 
 **→ [Browse it on the website](https://maximilianfeix.github.io/proxy-scraper/)** – search, filter by type, country, HTTPS, provider and latency, see how long each proxy has been up, copy or download exactly the proxies you need. `streaks.json` on the branch has the number of runs in a row for every proxy.
 
@@ -526,7 +526,7 @@ The repo does part of the work itself:
 | [**tests**](../../actions/workflows/tests.yml) | 3 operating systems × 3 Python versions, plus a built and installed package – on every push and pull request |
 | [**lint**](../../actions/workflows/lint.yml) | `ruff` with a pinned version – same rules locally and in CI |
 | [**codeql**](../../actions/workflows/codeql.yml) | security analysis on every push and once a week |
-| [**proxy list**](../../actions/workflows/proxy-list.yml) | every 6 hours: collect, check, publish to `proxy-list`. The learned statistics live in the Actions cache, so the tool keeps getting better in the cloud too |
+| [**proxy list**](../../actions/workflows/proxy-list.yml) | every hour: collect, check, publish to `proxy-list`. The learned statistics live in the Actions cache, so the tool keeps getting better in the cloud too |
 | [**docker**](../../actions/workflows/docker.yml) | builds the image on every change and runs a real scan inside it; on a version tag it publishes `linux/amd64` + `linux/arm64` to `ghcr.io` |
 | [**release**](../../actions/workflows/release.yml) | on a version tag: test, build, smoke-test and publish a GitHub release with the wheel |
 | [**discord bot**](../../actions/workflows/bot.yml) | tests the bot and deploys it to the server on every change in `bot/` |
@@ -572,7 +572,7 @@ Lines like `socks5://user:pass@1.2.3.4:1080` keep their login: HTTP proxies get 
 <summary><b>How fresh is the live list?</b></summary>
 <br>
 
-It's rebuilt every 6 hours; the “updated” badge shows the last run. Free proxies come and go quickly, so for anything important run `proxy-scraper --recheck` right before use.
+It's rebuilt every hour; the “updated” badge shows the last run. Free proxies come and go quickly, so for anything important run `proxy-scraper --recheck` right before use.
 
 </details>
 

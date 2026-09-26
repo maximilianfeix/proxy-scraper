@@ -28,10 +28,10 @@ class ChannelSpec:
 
 CHANNELS = (
     ChannelSpec("about", "What this is and how to use it."),
-    ChannelSpec("live-feed", "A summary after every run of the live proxy list (every 6 hours)."),
-    ChannelSpec("http", "The current HTTP proxies, fastest first. Replaced after every run."),
-    ChannelSpec("socks4", "The current SOCKS4 proxies, fastest first. Replaced after every run."),
-    ChannelSpec("socks5", "The current SOCKS5 proxies, fastest first. Replaced after every run."),
+    ChannelSpec("live-feed", "A summary of the live proxy list every 6 hours."),
+    ChannelSpec("http", "The current HTTP proxies, fastest first. Replaced with every summary."),
+    ChannelSpec("socks4", "The current SOCKS4 proxies, fastest first. Replaced with every summary."),
+    ChannelSpec("socks5", "The current SOCKS5 proxies, fastest first. Replaced with every summary."),
     ChannelSpec("commands", "Ask the bot: /proxies, /proxy, /stats, /about", read_only=False),
 )
 

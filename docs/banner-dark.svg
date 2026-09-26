@@ -18,7 +18,7 @@
     <text x="144" y="110" fill="#EDEBE6" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="30" font-weight="600" letter-spacing="-1">proxy-scraper</text>
     <text x="70" y="206" fill="#EDEBE6" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="66" font-weight="600" letter-spacing="-3.4">Free proxies that</text>
     <text x="70" y="270" fill="#EDEBE6" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="66" font-weight="600" letter-spacing="-3.4">actually work.</text>
-    <text x="72" y="312" fill="#9A97A0" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17">700+ sources, five checks, a fresh list every 6 hours.</text>
+    <text x="72" y="312" fill="#9A97A0" font-family="'Geist', 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" font-size="17">700+ sources, five checks, a fresh list every hour.</text>
   </g>
 
   <path d="M640 262 C 650.0 260.0 670.0 265.3 700 250 C 730.0 234.7 778.3 168.0 820 170 C 861.7 172.0 908.3 261.0 950 262 C 991.7 263.0 1030.0 181.0 1070 176 C 1110.0 171.0 1163.3 225.7 1190 232 C 1216.7 238.3 1223.3 217.0 1230 214" fill="none" stroke="#2B292F" stroke-width="2"/>

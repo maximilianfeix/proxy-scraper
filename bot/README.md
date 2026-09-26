@@ -5,7 +5,7 @@ Posts every run of the [live proxy list](https://maximilianfeix.github.io/proxy-
 | Channel | What's in it |
 |---|---|
 | `#about` | what the server is, pinned |
-| `#live-feed` | a summary after every run (every 6 hours) with the 10 fastest proxies and `all.txt` attached |
+| `#live-feed` | a summary every 6 hours with the 10 fastest proxies and `all.txt` attached |
 | `#http` `#socks4` `#socks5` | the current list per protocol, replaced after every run |
 | `#commands` | the only channel where members can write |
 

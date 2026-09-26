@@ -129,18 +129,20 @@ def test_stats_count_datacenter_exits(tmp_path):
 
 def test_streaks_count_consecutive_runs(tmp_path):
     previous = tmp_path / "streaks.json"
-    previous.write_text(json.dumps({"socks5://2.2.2.2:1080": 5, "http://1.1.1.0:80": 1, "http://7.7.7.7:80": 9,
+    stable = publish.STABLE_RUNS
+    previous.write_text(json.dumps({"socks5://2.2.2.2:1080": stable, "http://1.1.1.0:80": 1, "http://7.7.7.7:80": 9,
                                     "kaputt": "x"}))
     out = tmp_path / "public"
     publish.publish(run_dir(tmp_path), out, minimum=2, streaks=previous)
     streaks = json.loads((out / "streaks.json").read_text())
-    assert streaks["socks5://2.2.2.2:1080"] == 6       # was there -> keep counting
+    assert streaks["socks5://2.2.2.2:1080"] == stable + 1  # was there -> keep counting
     assert streaks["http://1.1.1.0:80"] == 2
     assert streaks["http://1.1.1.2:80"] == 1           # new
     assert "http://7.7.7.7:80" not in streaks          # not there this time -> streak over
     rows = {r["url"]: r for r in json.loads((out / "proxies.json").read_text())}
-    assert rows["socks5://2.2.2.2:1080"]["streak"] == 6
-    assert json.loads((out / "stats.json").read_text())["stable"] == 1  # only the one with 6 runs (>= 4)
+    assert rows["socks5://2.2.2.2:1080"]["streak"] == stable + 1
+    stats = json.loads((out / "stats.json").read_text())
+    assert stats["stable"] == 1 and stats["run_hours"] * stable == 24  # stable = listed for a whole day
 
 
 def test_missing_or_broken_streaks_start_fresh(tmp_path):
@@ -154,3 +156,20 @@ def test_streak_values_must_be_real_numbers(tmp_path):
     path = tmp_path / "streaks.json"
     path.write_text(json.dumps({"a": True, "b": 3, "c": -1, "d": "4", "e": 2.0}))
     assert publish.load_streaks(path) == {"b": 3}
+
+
+def test_old_6_hour_streaks_are_converted_once(tmp_path):
+    streaks = tmp_path / "streaks.json"
+    streaks.write_text(json.dumps({"socks5://2.2.2.2:1080": 20}))  # 20 runs every 6 hours = 5 days
+    history = tmp_path / "history.json"
+    history.write_text(json.dumps([{"updated": "2026-09-26T06:17:00+00:00", "total": 900}]))  # no run_hours yet
+    out = tmp_path / "public"
+    publish.publish(run_dir(tmp_path), out, minimum=2, history=history, streaks=streaks)
+    converted = json.loads((out / "streaks.json").read_text())["socks5://2.2.2.2:1080"]
+    assert converted == 20 * 6 // publish.RUN_HOURS + 1  # still 5 days, plus this run
+    assert json.loads((out / "history.json").read_text())[-1]["run_hours"] == publish.RUN_HOURS
+
+    # the next run sees run_hours in the history and just keeps counting
+    again = tmp_path / "again"
+    publish.publish(run_dir(tmp_path), again, minimum=2, history=out / "history.json", streaks=out / "streaks.json")
+    assert json.loads((again / "streaks.json").read_text())["socks5://2.2.2.2:1080"] == converted + 1

@@ -25,7 +25,8 @@ from .parsing import PROXY_TYPES
 
 SKIP_EXIT_CODE = 78
 SITE = Path(__file__).resolve().parent / "site"  # index.html plus the images it links (logo, preview, touch icon)
-HISTORY_LIMIT = 120  # 30 days with a run every 6 hours
+RUN_HOURS = 1  # the proxy-list workflow runs every hour; clients read it from stats.json as run_hours
+HISTORY_LIMIT = 30 * 24 // RUN_HOURS  # 30 days of runs for the chart
 RAW_BASE = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list"
 
 
@@ -63,6 +64,7 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         "blocklisted": sum(1 for r in rows if r.get("blocklisted"))
         if any(r.get("blocklisted") is not None for r in rows) else None,
         "stable": sum(1 for r in rows if r.get("streak", 0) >= STABLE_RUNS),
+        "run_hours": RUN_HOURS,
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
         "median_latency": round(statistics.median(r["latency"] for r in rows)) if rows else 0,
     }
@@ -138,10 +140,19 @@ def load_history(path: Optional[Path]) -> List[dict]:
 
 def history_entry(stats: dict) -> dict:
     return {"updated": stats["updated"], "total": stats["total"], "https": stats["https"],
-            "by_type": stats["by_type"], "median_latency": stats["median_latency"]}
+            "by_type": stats["by_type"], "median_latency": stats["median_latency"], "run_hours": RUN_HOURS}
 
 
-STABLE_RUNS = 4  # this many runs in a row (= 24 hours with a run every 6 hours) means "stable"
+def streak_factor(runs: List[dict]) -> int:
+    """Old streaks count runs of the previous interval: entries from before run_hours existed ran every 6 hours.
+    Multiplying keeps "up for 5 days" at 5 days when the interval gets shorter."""
+    if not runs:
+        return 1
+    before = runs[-1].get("run_hours", 6)
+    return max(1, before // RUN_HOURS) if type(before) is int and before > 0 else 1
+
+
+STABLE_RUNS = 24 // RUN_HOURS  # this many runs in a row (= 24 hours) means "stable"
 
 
 def load_streaks(path: Optional[Path]) -> Dict[str, int]:
@@ -165,7 +176,9 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
         return SKIP_EXIT_CODE
     now = now or datetime.now(timezone.utc)
     # whoever was there in the last run keeps counting – everyone else starts at 1, whoever is missing drops out
-    previous = load_streaks(streaks)
+    past_runs = load_history(history)
+    factor = streak_factor(past_runs)
+    previous = {url: n * factor for url, n in load_streaks(streaks).items()}
     for row in rows:
         row["streak"] = previous.get(row["url"], 0) + 1
     out.mkdir(parents=True, exist_ok=True)
@@ -194,7 +207,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
         if asset.suffix in (".html", ".png"):
             (out / asset.name).write_bytes(asset.read_bytes())
     (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages should serve the files unchanged
-    runs = [*load_history(history), history_entry(stats)][-HISTORY_LIMIT:]
+    runs = [*past_runs, history_entry(stats)][-HISTORY_LIMIT:]
     write_json(out / "history.json", runs)
     write_json(out / "streaks.json", {row["url"]: row["streak"] for row in rows})
 

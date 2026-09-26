@@ -4,7 +4,7 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>proxy-scraper – free proxies that actually work</title>
-<meta name="description" content="Free HTTP, SOCKS4 and SOCKS5 proxies that actually work. Re-checked every 6 hours, honeypots and proxies that tamper with content removed.">
+<meta name="description" content="Free HTTP, SOCKS4 and SOCKS5 proxies that actually work. Re-checked every hour, honeypots and proxies that tamper with content removed.">
 <meta name="theme-color" content="#121113">
 <link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/">
 <meta property="og:type" content="website">
@@ -18,7 +18,7 @@
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
-<meta property="og:description" content="Every proxy on this list passed a real handshake, a honeypot check and a content check. Re-checked every 6 hours.">
+<meta property="og:description" content="Every proxy on this list passed a real handshake, a honeypot check and a content check. Re-checked every hour.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23D4F77A'/%3E%3Cpath d='M13 31.5 26.5 44.5 51 18' fill='none' stroke='%23121113' stroke-width='5.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='13' cy='31.5' r='4.6' fill='%23121113'/%3E%3Ccircle cx='51' cy='18' r='4.6' fill='%23121113'/%3E%3Ccircle cx='26.5' cy='44.5' r='7.6' fill='%23D4F77A' stroke='%23121113' stroke-width='5'/%3E%3C/svg%3E">
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -509,7 +509,7 @@
       </svg></div>
       <div class="steps" id="steps">
         <article class="step on"><p class="which">Step 1 of 5</p><h3>It starts with 700+ public lists.</h3>
-          <p>Every 6 hours a GitHub Action reads more than 700 public proxy lists. Most of what's in them is dead, duplicated or years old.</p></article>
+          <p>Every hour a GitHub Action reads more than 700 public proxy lists. Most of what's in them is dead, duplicated or years old.</p></article>
         <article class="step"><p class="which">Step 2 of 5</p><h3>A real handshake, not just an open port.</h3>
           <p>Each candidate has to complete a proper HTTP, SOCKS4 or SOCKS5 handshake and fetch a page. An open port alone proves nothing.</p></article>
         <article class="step"><p class="which">Step 3 of 5</p><h3>Two sites, one foreign IP.</h3>
@@ -519,7 +519,7 @@
         <article class="step"><p class="which">Step 5 of 5</p><h3>Then the details.</h3>
           <p id="step5">HTTPS with verified TLS, anonymity, country, provider and whether the exit IP is on a spam blocklist are checked for everything that's left.</p></article>
         <article class="step final"><h3><span id="final-n">–</span> made it.</h3>
-          <p>That's the list above. In 6 hours it starts over, and anything that stopped working is gone.</p></article>
+          <p>That's the list above. In an hour it starts over, and anything that stopped working is gone.</p></article>
       </div>
     </div>
   </section>
@@ -532,7 +532,7 @@
     <div class="insights">
       <div class="panel trend-panel">
         <h3>Working proxies per run</h3>
-        <p class="note" id="trend-note">One point every 6 hours.</p>
+        <p class="note" id="trend-note">One point every hour.</p>
         <div class="trend" id="trend"></div>
         <div class="trend-axis"><span id="axis-from"></span><span id="axis-to"></span></div>
         <div class="legend"><span><i class="swatch"></i>Working</span><span><i class="swatch dashed"></i>Of those, HTTPS-capable</span></div>
@@ -607,7 +607,8 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
 <script>
 (() => {
   const RAW = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list";
-  const PAGE = 50, STABLE = 4;  // 4 runs in a row = 24 hours
+  const PAGE = 50;
+  let RUN_HOURS = 1, STABLE = 24;  // hours between runs and runs in a row for "stable" (24 h) – set from stats.json
   const $ = (s) => document.querySelector(s);
   const $$ = (s) => [...document.querySelectorAll(s)];
   const html = document.documentElement;
@@ -617,9 +618,9 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const flag = (cc) => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : "";
   const pct = (n, of) => Math.round(100 * n / Math.max(of, 1));
   const short = (org) => { const s = String(org || "").replace(/,? (Inc|LLC|Ltd|GmbH|Co|Corporation|Limited|S\.?A|B\.?V)\.?$/i, ""); return s.length > 28 ? s.slice(0, 27) + "…" : s; };
-  const uptime = (n) => {  // n runs in a row ≈ n × 6 hours
+  const uptime = (n) => {  // n runs in a row ≈ n × RUN_HOURS
     if (!n) return '<span class="quiet">–</span>';
-    const h = n * 6, text = n === 1 ? "new" : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`;
+    const h = n * RUN_HOURS, text = n === 1 ? "new" : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`;
     return n >= STABLE ? `<span class="stable-badge">${text}</span>` : `<span class="quiet">${text}</span>`;
   };
   const latency = (ms) => `<span class="${ms < 1000 ? "fast" : ms < 3000 ? "mid" : "slow"}">${fmt(ms)} ms</span>`;
@@ -816,9 +817,11 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const el = $("#trend");
     if (!history || history.length < 2) { el.innerHTML = '<p class="note">The chart fills up with every run.</p>'; return; }
     const W = 800, H = 260, P = 10, max = Math.max(...history.map(h => h.total)) * 1.12 || 1;
-    const x = (i) => P + i * (W - 2 * P) / (history.length - 1), y = (v) => H - P - v * (H - 2 * P) / max;
+    // spaced by time, not by index: the runs weren't always the same distance apart
+    const t0 = Date.parse(history[0].updated), span = Math.max(Date.parse(history[history.length - 1].updated) - t0, 1);
+    const x = (h) => P + (Date.parse(h.updated) - t0) * (W - 2 * P) / span, y = (v) => H - P - v * (H - 2 * P) / max;
     const line = (key) => {
-      const pts = history.map((h, i) => [x(i), y(key(h))]);
+      const pts = history.map((h) => [x(h), y(key(h))]);
       return pts.map(([px, py], i) => {
         if (!i) return `M${px.toFixed(1)},${py.toFixed(1)}`;
         const [x0, y0] = pts[i - 2] || pts[i - 1], [x1, y1] = pts[i - 1], [x3, y3] = pts[i + 1] || [px, py];
@@ -826,7 +829,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
         return `C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${px.toFixed(1)},${py.toFixed(1)}`;
       }).join("");
     };
-    const area = line(h => h.total) + `L${x(history.length - 1)},${H - P}L${x(0)},${H - P}Z`;
+    const area = line(h => h.total) + `L${W - P},${H - P}L${P},${H - P}Z`;
     const last = history[history.length - 1];
     el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Working proxies per run, last run ${fmt(last.total)}">
       <defs><linearGradient id="fade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--signal-ink)" stop-opacity=".28"/><stop offset="1" stop-color="var(--signal-ink)" stop-opacity="0"/></linearGradient></defs>
@@ -835,7 +838,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       <path d="${line(h => h.total)}" fill="none" stroke="var(--signal-ink)" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
     const day = (iso) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     $("#axis-from").textContent = day(history[0].updated); $("#axis-to").textContent = day(last.updated);
-    $("#trend-note").textContent = `${history.length} runs, one every 6 hours. Last run: ${fmt(last.total)} working.`;
+    $("#trend-note").textContent = `${fmt(history.length)} runs, now one every ${RUN_HOURS === 1 ? "hour" : `${RUN_HOURS} hours`}. Last run: ${fmt(last.total)} working.`;
   }
   function ticker(rows) {
     const fastest = [...rows].sort((a, b) => a.latency - b.latency).slice(0, 24);
@@ -857,6 +860,8 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       return;
     }
     state.rows = rows;
+    RUN_HOURS = st.run_hours || 6;  // lists from before run_hours existed ran every 6 hours
+    STABLE = Math.ceil(24 / RUN_HOURS);
     const when = new Date(st.updated).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
     $("#updated").textContent = `${fmt(st.total)} verified, updated ${ago(st.updated)}`;
     $("#updated").title = when;

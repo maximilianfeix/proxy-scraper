@@ -76,7 +76,7 @@ def render(c: dict) -> str:
     <text x="144" y="110" fill="{c["text"]}" font-family="{SANS}" font-size="30" font-weight="600" letter-spacing="-1">proxy-scraper</text>
     <text x="70" y="206" fill="{c["text"]}" font-family="{SANS}" font-size="66" font-weight="600" letter-spacing="-3.4">Free proxies that</text>
     <text x="70" y="270" fill="{c["text"]}" font-family="{SANS}" font-size="66" font-weight="600" letter-spacing="-3.4">actually work.</text>
-    <text x="72" y="312" fill="{c["muted"]}" font-family="{SANS}" font-size="17">700+ sources, five checks, a fresh list every 6 hours.</text>
+    <text x="72" y="312" fill="{c["muted"]}" font-family="{SANS}" font-size="17">700+ sources, five checks, a fresh list every hour.</text>
   </g>
 
   <path d="{ROUTE}" fill="none" stroke="{c["line"]}" stroke-width="2"/>
@@ -87,7 +87,7 @@ def render(c: dict) -> str:
 
 
 STEPS = [
-    ("700+ lists", ("read every 6 hours,", "most entries are dead")),
+    ("700+ lists", ("read every hour,", "most entries are dead")),
     ("A real handshake", ("HTTP, SOCKS4 or SOCKS5,", "not just an open port")),
     ("Two sites, one IP", ("honeypots that fake a", "response drop out")),
     ("Nothing injected", ("a static page has to", "arrive byte for byte")),

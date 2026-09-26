@@ -20,6 +20,7 @@ from pathlib import Path
 from typing import Awaitable, Callable, Dict, List, Optional, Tuple
 
 from .netio import USER_AGENT
+from .paths import atomic_write
 
 TIMEOUT = 10.0
 CONCURRENCY = 300
@@ -135,7 +136,8 @@ async def fill_run(run_dir: Path, probe: Optional[Probe] = None, resolve: Callab
     await asyncio.gather(*jobs)
     for row in rows:  # always in the same order, whichever answer came first
         row["sites"] = {s.name: row["sites"][s.name] for s in SITES if s.name in row["sites"]}
-    path.write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
+    # in one go: if the step gets killed (it has a timeout), the publish step still finds the old file intact
+    atomic_write(path, json.dumps(rows, indent=1, ensure_ascii=False))
     return {s.name: sum(1 for r in rows if r["sites"].get(s.name)) for s in SITES}
 
 

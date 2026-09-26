@@ -114,3 +114,28 @@ def test_filters_for_agents_and_python():
     assert agent.describe(rows[0])["works_on"] == ["google"]
     with pytest.raises(agent.AgentError, match="google"):
         agent.select(rows, works_on=["bing"])
+
+
+def test_works_on_as_a_plain_string_ignores_case(monkeypatch):
+    from proxyscraper import api
+    from tests.test_live_api import ROWS, STATS, fetch_from
+    rows = [dict(ROWS[0], sites={"google": True})]
+    monkeypatch.setattr(api, "_live_fetch", fetch_from({"proxies.json": rows, "stats.json": STATS}))
+    assert len(api.live_proxies(works_on="Google")) == 1
+
+
+def test_the_run_file_is_replaced_in_one_go(tmp_path, monkeypatch):
+    # killed halfway through writing, the old proxies.json has to stay readable for the publish step
+    async def probe(r, site, ip):
+        return True
+    d = run_dir(tmp_path, [row(1)])
+    before = (d / "proxies.json").read_text()
+
+    def half_then_killed(self, text, *a, **k):
+        with open(self, "w", encoding="utf-8") as fh:
+            fh.write(text[:10])
+        raise KeyboardInterrupt
+    monkeypatch.setattr(type(d), "write_text", half_then_killed)
+    with pytest.raises(KeyboardInterrupt):
+        asyncio.run(sites.fill_run(d, probe=probe, resolve=lambda host: "10.0.0.1"))
+    assert (d / "proxies.json").read_text() == before

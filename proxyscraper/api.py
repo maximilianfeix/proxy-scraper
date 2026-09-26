@@ -212,7 +212,7 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
     bad = [c for c in countries if not re.fullmatch(r"[A-Z]{2}", c)]
     if bad:
         raise ValueError(f"countries are two-letter codes like DE or US, not {bad[0]!r}")
-    works_on = [works_on] if isinstance(works_on, str) else [str(s).lower() for s in works_on]
+    works_on = [str(s).lower() for s in ([works_on] if isinstance(works_on, str) else works_on)]
     unknown_sites = [s for s in works_on if s not in SITE]
     if unknown_sites:
         raise ValueError(f"works_on takes {', '.join(SITE)}, not {unknown_sites[0]!r}")

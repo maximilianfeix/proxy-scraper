@@ -36,7 +36,8 @@ class Unsupported(UpstreamError):
 GATEWAY_ERRORS = (b"502", b"503", b"504")
 
 
-async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, tunnel: bool = True):
+async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, tunnel: bool = True,
+                        public_only: bool = False):
     """Connection through the proxy to host:port. tunnel=False means: HTTP upstream in forwarding mode
     (classic proxy request without CONNECT). Raises UpstreamError if the proxy doesn't play along."""
     r = entry.result
@@ -48,7 +49,7 @@ async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, 
     if r.ptype == "http" and not tunnel:
         return reader, writer
     try:
-        await asyncio.wait_for(_handshake(r.ptype, r.proxy, reader, writer, host, port), timeout)
+        await asyncio.wait_for(_handshake(r.ptype, r.proxy, reader, writer, host, port, public_only), timeout)
     except BaseException as e:
         writer.close()
         if isinstance(e, UpstreamError):
@@ -59,14 +60,16 @@ async def open_upstream(entry: PoolEntry, host: str, port: int, timeout: float, 
     return reader, writer
 
 
-async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: int) -> None:
+async def _handshake(ptype: str, proxy: str, reader, writer, host: str, port: int,
+                     public_only: bool = False) -> None:
     try:
-        await _connect_through(ptype, proxy, reader, writer, host, port)
+        await _connect_through(ptype, proxy, reader, writer, host, port, public_only)
     except ProxyRefused as e:  # the proxy speaks the protocol fine, only the CONNECT to the target failed
         raise TargetError(str(e)) from None
 
 
-async def _connect_through(ptype: str, proxy: str, reader, writer, host: str, port: int) -> None:
+async def _connect_through(ptype: str, proxy: str, reader, writer, host: str, port: int,
+                           public_only: bool = False) -> None:
     ep = parse_endpoint(proxy)
     literal = _ip_literal(host)
     if ptype == "http":
@@ -84,7 +87,7 @@ async def _connect_through(ptype: str, proxy: str, reader, writer, host: str, po
     elif ptype == "socks4":
         if literal and literal.version == 6:
             raise Unsupported("SOCKS4 can't reach IPv6 targets")
-        ip = await _resolve(host, port)  # SOCKS4 only knows IPv4 addresses
+        ip = await _resolve(host, port, public_only)  # SOCKS4 only knows IPv4 addresses
         if not await socks4_connect(*stream_io(reader, writer), ep, socket.inet_aton(ip), port):
             raise UpstreamError("no SOCKS4 answer")
     else:
@@ -105,9 +108,12 @@ def _ip_literal(host: str):
         return None
 
 
-async def _resolve(host: str, port: int) -> str:
+async def _resolve(host: str, port: int, public_only: bool = False) -> str:
     try:
         infos = await asyncio.get_running_loop().getaddrinfo(host, port, family=socket.AF_INET)
     except OSError as e:  # no IPv4 address for the target – a SOCKS4 limit, not the proxy's fault
         raise Unsupported(f"can't resolve {host} to IPv4: {e}") from None
-    return infos[0][4][0]
+    ip = infos[0][4][0]
+    if public_only and not ipaddress.ip_address(ip).is_global:  # checked once more right before connecting
+        raise TargetError(f"{host} resolves to {ip}, a private address")
+    return ip

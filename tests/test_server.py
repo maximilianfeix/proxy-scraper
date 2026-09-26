@@ -415,3 +415,44 @@ def test_split_tls_client_hello_is_collected_completely():
             proxy_srv.close()
 
     assert asyncio.run(go()) == b"\x16\x03\x03\x00\x02ok"
+
+
+def test_strict_tls_never_falls_back_to_unverified_proxies():
+    from proxyscraper.checker import CheckResult as CR
+    verified = CR("http 1.1.1.1:80", "http", "1.1.1.1:80", 100, "9.9.9.9", https=True)
+    unverified = CR("http 2.2.2.2:80", "http", "2.2.2.2:80", 100, "9.9.9.9", https=False)
+    for strict, expected in ((False, "http 2.2.2.2:80"), (True, None)):
+        pool = ProxyPool([verified, unverified], strict_tls=strict)
+        pool.entries[0].disabled = True  # the only verified one is down
+        picked = pool.pick(set(), tls=True)
+        assert (picked.result.key if picked else None) == expected
+
+
+def test_merge_can_drop_what_the_new_list_no_longer_has():
+    from proxyscraper.checker import CheckResult as CR
+    a = CR("http 1.1.1.1:80", "http", "1.1.1.1:80", 100, "9.9.9.9")
+    b = CR("http 2.2.2.2:80", "http", "2.2.2.2:80", 100, "9.9.9.9")
+    pool = ProxyPool([a, b])
+    pool.merge([a], drop_missing=True)
+    assert [e.result.key for e in pool.entries] == ["http 1.1.1.1:80"]
+    pool = ProxyPool([a, b])
+    pool.merge([a])  # the refill's way: proxies it didn't recheck stay
+    assert len(pool.entries) == 2
+
+
+def test_ipv6_targets_in_absolute_urls():
+    from proxyscraper.server.http import parse_request_head
+    method, host, port, path, _ = parse_request_head(b"GET http://[2606:4700::1]:8080/x HTTP/1.1\r\nHost: a\r\n\r\n")
+    assert (method, host, port, path) == ("GET", "2606:4700::1", 8080, b"/x")
+    assert parse_request_head(b"GET http://[2606:4700::1]/ HTTP/1.1\r\n\r\n")[1:3] == ("2606:4700::1", 80)
+
+
+def test_socks4_upstreams_can_refuse_private_resolutions():
+    from proxyscraper.server import upstream
+
+    async def go():
+        with pytest.raises(upstream.TargetError, match="private"):
+            await upstream._resolve("localhost", 80, public_only=True)
+        return await upstream._resolve("localhost", 80)
+
+    assert asyncio.run(go()) == "127.0.0.1"

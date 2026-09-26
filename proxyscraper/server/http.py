@@ -29,7 +29,12 @@ def parse_request_head(head: bytes) -> Tuple[str, str, int, bytes, List[Tuple[by
         raise ValueError("only absolute http:// URLs or CONNECT")
     rest = target[7:]
     hostport, slash, path = rest.partition(b"/")
-    host, _, port = hostport.decode("ascii").partition(":")
+    authority = hostport.decode("ascii")
+    if authority.startswith("["):  # IPv6 literal: http://[2606:4700::1]:8080/
+        host, _, after = authority[1:].partition("]")
+        port = after[1:] if after.startswith(":") else ""
+    else:
+        host, _, port = authority.partition(":")
     return method.decode("ascii"), host, _valid_port(port or "80"), b"/" + path if slash else b"/", headers
 
 

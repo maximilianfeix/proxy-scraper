@@ -3,7 +3,7 @@
 import asyncio
 import contextlib
 
-from proxyscraper import app, output, pipeline
+from proxyscraper import app, output, paths, pipeline
 from proxyscraper.checker import CheckResult
 from proxyscraper.cli import parse_args
 from proxyscraper.geo import GeoResolver
@@ -68,7 +68,7 @@ def test_refill_checks_quietly_and_merges_what_passes_the_filters(monkeypatch, t
     monkeypatch.setattr(app, "rank_judges", judges)
     monkeypatch.setattr(app, "run_checks", fake_run_checks)
     monkeypatch.setattr(app, "load_live_jobs", live_jobs)
-    monkeypatch.setattr(output, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(paths, "RESULTS_DIR", tmp_path)
     learned = []
     monkeypatch.setattr(app.Run, "learn", lambda self, run, blocked, sources=True: learned.append(sources))
 

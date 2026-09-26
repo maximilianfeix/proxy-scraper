@@ -19,10 +19,11 @@ from datetime import datetime
 from pathlib import Path
 from typing import Dict, Iterable, List, Optional, Sequence, TextIO
 
+from . import paths
 from .checker import CheckResult
 from .exporters import EXPORTERS
 from .parsing import PROXY_TYPES
-from .paths import RESULTS_DIR, atomic_write
+from .paths import atomic_write
 from .targets import target_label
 
 
@@ -43,7 +44,7 @@ def new_run_dir(base: Path) -> Path:
 class ResultWriter:
     def __init__(self, run_dir: Optional[Path] = None, extra_file: Optional[Path] = None,
                  exports: Sequence[str] = (), stdout: Optional[TextIO] = None):
-        self.run_dir = run_dir or new_run_dir(RESULTS_DIR)
+        self.run_dir = run_dir or new_run_dir(paths.RESULTS_DIR)  # read now: the MCP server moves it
         self.run_dir.mkdir(parents=True, exist_ok=True)
         self.extra_file = extra_file
         self.stdout = stdout  # -o -: the hits also go here, one type://ip:port per line
@@ -147,7 +148,8 @@ def _point_latest(run_dir: Path) -> None:
         pass  # no symlinks allowed – latest.txt is enough
 
 
-def latest_run_dir(results_dir: Path = RESULTS_DIR) -> Optional[Path]:
+def latest_run_dir(results_dir: Optional[Path] = None) -> Optional[Path]:
+    results_dir = results_dir or paths.RESULTS_DIR
     pointer = results_dir / LATEST_POINTER
     try:
         name = pointer.read_text(encoding="utf-8").strip()
@@ -163,7 +165,7 @@ def latest_run_dir(results_dir: Path = RESULTS_DIR) -> Optional[Path]:
     return link if link.is_dir() else None  # runs from older versions without latest.txt
 
 
-def has_latest_results(results_dir: Path = RESULTS_DIR) -> bool:
+def has_latest_results(results_dir: Optional[Path] = None) -> bool:
     """Is there a last run with hits? Doesn't read the whole file for that."""
     run_dir = latest_run_dir(results_dir)
     try:
@@ -172,7 +174,7 @@ def has_latest_results(results_dir: Path = RESULTS_DIR) -> bool:
         return False
 
 
-def latest_results(results_dir: Path = RESULTS_DIR) -> List[str]:
+def latest_results(results_dir: Optional[Path] = None) -> List[str]:
     """Proxies of the last run for --recheck without a file."""
     run_dir = latest_run_dir(results_dir)
     path = run_dir / "all.txt" if run_dir else None

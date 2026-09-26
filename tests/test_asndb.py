@@ -6,6 +6,7 @@ from datetime import date
 
 import pytest
 
+from proxyscraper import paths
 from proxyscraper.asndb import AsnDB, ProviderLookup, is_hosting, load_asn_db
 from proxyscraper.checker import CheckResult
 from proxyscraper.cli import parse_args
@@ -123,7 +124,7 @@ def test_slow_provider_download_does_not_break_the_run(monkeypatch, tmp_path):
     monkeypatch.setattr(app.AsnDB, "load", staticmethod(lambda *a, **k: None))
     monkeypatch.setattr(app, "load_asn_db", slow_load)
     monkeypatch.setattr(app, "run_checks", fake_run_checks)
-    monkeypatch.setattr(out_mod, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(paths, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(app.Run, "learn", lambda self, run, blocked: {})
     run = app.Run(RunOptions(no_geo=True), show_banner=False)
     run.judges = [__import__("proxyscraper.judges", fromlist=["x"]).JudgeProbe(
@@ -137,7 +138,6 @@ def test_slow_provider_download_does_not_break_the_run(monkeypatch, tmp_path):
 
 def test_no_datacenter_waits_for_the_database_before_checking(monkeypatch, tmp_path):
     from proxyscraper import app
-    from proxyscraper import output as out_mod
     from proxyscraper.judges import Judge, JudgeProbe
     from proxyscraper.pipeline import CheckRun
 
@@ -154,7 +154,7 @@ def test_no_datacenter_waits_for_the_database_before_checking(monkeypatch, tmp_p
     monkeypatch.setattr(app.AsnDB, "load", staticmethod(lambda *a, **k: None))
     monkeypatch.setattr(app, "load_asn_db", slow_load)
     monkeypatch.setattr(app, "run_checks", fake_run_checks)
-    monkeypatch.setattr(out_mod, "RESULTS_DIR", tmp_path)
+    monkeypatch.setattr(paths, "RESULTS_DIR", tmp_path)
     monkeypatch.setattr(app.Run, "learn", lambda self, run, blocked: {})
     run = app.Run(RunOptions(no_geo=True, filters=Filters(no_datacenter=True)), show_banner=False)
     run.judges = [JudgeProbe(Judge("a"), "1.1.1.1", 1)]

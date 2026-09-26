@@ -13,7 +13,7 @@ import contextlib
 import time
 from collections import deque
 from dataclasses import dataclass, field
-from typing import Deque, Optional, Set, Tuple
+from typing import Deque, Dict, Optional, Set, Tuple
 
 from ..handshake import parse_endpoint, with_proxy_auth
 from .http import (
@@ -70,8 +70,11 @@ class ServerStats:
 
 class RotatingServer:
     def __init__(self, pool: ProxyPool, host: str = "127.0.0.1", port: int = 8899, timeout: float = 10.0,
-                 password: str = ""):
+                 password: str = "", max_attempts: int = MAX_ATTEMPTS, public_targets_only: bool = False):
         self.pool = pool
+        # names this machine resolves for SOCKS4 upstreams must not lead to private addresses (DNS rebinding)
+        self.public_targets_only = public_targets_only
+        self.max_attempts = max_attempts  # proxies per request before the client gets a 502
         self.password = password  # empty = no authentication (fine on 127.0.0.1)
         self.host = host
         self.port = port
@@ -81,17 +84,43 @@ class RotatingServer:
         self.refilled = 0  # new proxies added by --serve-refill
         self.last_refill: Optional[float] = None  # time.time() of the last finished refill
         self._server: Optional[asyncio.AbstractServer] = None
+        self._handlers: Set[asyncio.Task] = set()  # open client connections, ended by close()
+        self._sessions: Dict[str, Set[asyncio.Task]] = {}  # session name -> its connections (abort_session)
 
     async def start(self) -> None:
         self._server = await asyncio.start_server(self._handle, self.host, self.port, limit=HEAD_LIMIT)
         self.port = self._server.sockets[0].getsockname()[1]
 
     async def close(self) -> None:
+        """Stop listening and end open connections – a tunnel whose target never hangs up would otherwise keep
+        running, and from Python 3.12 on wait_closed() waits for every connection."""
         if self._server:
             self._server.close()
+            for task in list(self._handlers):
+                task.cancel()
+            await asyncio.gather(*self._handlers, return_exceptions=True)
             await self._server.wait_closed()
 
+    def abort_session(self, session: str) -> int:
+        """End every connection of a session (username session-NAME). The client sees its connection closed – the
+        one way to wake a thread that is blocked reading it on every platform. -> connections ended."""
+        tasks = self._sessions.pop(session, set())
+        for task in tasks:
+            task.cancel()
+        return len(tasks)
+
+    def _forget(self, session: str, task: asyncio.Task) -> None:
+        tasks = self._sessions.get(session)
+        if tasks is not None:
+            tasks.discard(task)
+            if not tasks:
+                del self._sessions[session]
+
     async def _handle(self, reader, writer) -> None:
+        task = asyncio.current_task()
+        if task is not None:
+            self._handlers.add(task)
+            task.add_done_callback(self._handlers.discard)
         peer = writer.get_extra_info("peername") or ("?", 0)
         client = f"{peer[0]}:{peer[1]}"
         self.stats.active += 1
@@ -114,9 +143,13 @@ class RotatingServer:
                     return
             except (ValueError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, asyncio.TimeoutError,
                     UnicodeDecodeError):
-                writer.write(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                writer.write(b"HTTP/1.1 400 Bad Request\r\nX-Proxy-Scraper: bad-request\r\n"
+                             b"Content-Length: 0\r\nConnection: close\r\n\r\n")
                 return
             selection = selection_from_headers(headers)
+            if selection.session and task is not None:
+                self._sessions.setdefault(selection.session, set()).add(task)
+                task.add_done_callback(lambda t, name=selection.session: self._forget(name, t))
             await self._serve_request(reader, writer, client, method, host, port, path, headers, selection)
         except (ConnectionError, OSError, asyncio.IncompleteReadError):
             pass  # client hung up (also in the middle of a request body)
@@ -203,12 +236,12 @@ class RotatingServer:
 
     async def _open_next(self, tried: Set[str], host: str, port: int, tls: bool, tunnel: bool,
                          selection: Selection = ANY):
-        """Open the next proxy from the pool (at most MAX_ATTEMPTS per request). None = none left.
+        """Open the next proxy from the pool (at most max_attempts per request). None = none left.
 
         A proxy that is reachable but can't reach the target is only blamed once another proxy reaches it:
         if every attempt fails that way, the target is the problem and nobody in the pool gets disabled."""
         refused = []  # proxies that answered but couldn't open the connection to the target
-        while len(tried) < MAX_ATTEMPTS:
+        while len(tried) < self.max_attempts:
             entry = self.pool.pick(tried, tls=tls, selection=selection, target=f"{host}:{port}")
             if entry is None:
                 return None
@@ -217,7 +250,8 @@ class RotatingServer:
             # proxy as free (important for --rotate fastest); released in _give_up or at the end of _relay
             entry.active += 1
             try:
-                up_reader, up_writer = await open_upstream(entry, host, port, self.timeout, tunnel=tunnel)
+                up_reader, up_writer = await open_upstream(entry, host, port, self.timeout, tunnel=tunnel,
+                                                           public_only=self.public_targets_only)
             except Unsupported:
                 entry.active -= 1  # this type can't do this target – not a failure of the proxy
                 continue
@@ -343,7 +377,9 @@ class RotatingServer:
             data += more
 
     async def _bad_gateway(self, writer) -> None:
+        # the marker tells clients like agent.PageFetcher that no proxy got through – the target never answered
         writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
+                     b"X-Proxy-Scraper: no-proxy-answered\r\n"
                      b"Connection: close\r\n\r\nNo proxy from the pool answered.\n")
         await writer.drain()
 

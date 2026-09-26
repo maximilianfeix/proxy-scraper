@@ -68,7 +68,7 @@ class PoolEntry:
 class ProxyPool:
     def __init__(self, results: List[CheckResult], rng: Optional[random.Random] = None,
                  strategy: str = "weighted", sticky_seconds: float = 0,
-                 clock: Callable[[], float] = time.monotonic):
+                 clock: Callable[[], float] = time.monotonic, strict_tls: bool = False):
         if strategy not in STRATEGIES:
             raise ValueError(f"unknown strategy {strategy!r} (possible: {', '.join(STRATEGIES)})")
         self.entries = [PoolEntry(r) for r in sorted(results, key=lambda r: r.latency)]
@@ -76,6 +76,9 @@ class ProxyPool:
         self.strategy = strategy
         self.sticky_seconds = sticky_seconds
         self.clock = clock
+        # TLS only through proxies that passed the verified-TLS test, even when all of those are down –
+        # --serve falls back to the rest then, a client that promised verified TLS (agent.PageFetcher) doesn't
+        self.strict_tls = strict_tls
         self._sticky: Dict[str, Tuple[PoolEntry, float]] = {}  # session/target site -> (proxy, valid until)
         self._next = 0  # for round-robin
 
@@ -95,7 +98,7 @@ class ProxyPool:
         encryption. If there are none, all of them. Country and type wishes are strict, though:
         whoever asks for "country-de" would rather get an error than a proxy from another country."""
         candidates = [e for e in self.usable if e.result.key not in exclude and self._matches(e, selection)]
-        if tls and any(e.result.https for e in self.usable if self._matches(e, selection)):
+        if tls and (self.strict_tls or any(e.result.https for e in self.usable if self._matches(e, selection))):
             candidates = [e for e in candidates if e.result.https]
         if not candidates:
             return None
@@ -153,9 +156,22 @@ class ProxyPool:
                 # if a session holds this proxy, it should get a different one next time
                 self._sticky = {k: v for k, v in self._sticky.items() if v[0] is not entry}
 
-    def merge(self, results: List[CheckResult]) -> int:
+    def session_entry(self, session: str) -> Optional[PoolEntry]:
+        """The proxy that currently serves a session (username session-NAME) – after failover, the one that worked."""
+        held = self._sticky.get(f"session:{session}")
+        return held[0] if held else None
+
+    def retire(self, entry: PoolEntry) -> None:
+        """Out of the rotation right away (e.g. it dropped a download halfway) – until a merge brings it back."""
+        entry.disabled = True
+        self._sticky = {k: v for k, v in self._sticky.items() if v[0] is not entry}
+
+    def merge(self, results: List[CheckResult], drop_missing: bool = False) -> int:
         """Hits of a refill: new ones join the rotation, known ones that were disabled come back with the fresh
-        result, disabled ones that didn't pass again are dropped. Counters of known proxies stay. -> added."""
+        result, disabled ones that didn't pass again are dropped. Counters of known proxies stay. -> added.
+
+        drop_missing: `results` is the whole truth (a new live list) – whatever isn't in it goes, working or not.
+        A refill doesn't set it: it skips the proxies that are serving, so their absence means nothing."""
         fresh = {r.key: r for r in results}
         kept, added = [], 0
         for entry in self.entries:
@@ -164,8 +180,8 @@ class ProxyPool:
                 entry.result = r
                 if entry.disabled:
                     self.revive(entry)
-            elif entry.disabled:
-                continue  # dead and not in the fresh list – make room
+            elif entry.disabled or drop_missing:
+                continue  # dead (or gone from the list) and not in the fresh results – make room
             kept.append(entry)
         for r in fresh.values():
             kept.append(PoolEntry(r))

@@ -205,12 +205,16 @@ def serve() -> int:
     # stdout carries the protocol: the terminal UI and every log line go to stderr
     from rich.console import Console
 
+    from . import paths
     from .ui import widgets
+    # clients start servers in the user's project folder – results/ doesn't belong there
+    paths.RESULTS_DIR = paths.DATA_DIR / "results"
     widgets.console = Console(stderr=True, highlight=False)
     logging.basicConfig(stream=sys.stderr, level=logging.WARNING)
     build_server().run("stdio")
     return 0
 
 
-if __name__ == "__main__":
-    sys.exit(serve())
+if __name__ == "__main__":  # python -m proxyscraper.mcp_server: same checks as the proxy-scraper-mcp command
+    from .mcp_entry import main
+    sys.exit(main())

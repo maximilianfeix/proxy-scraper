@@ -9,6 +9,7 @@ from __future__ import annotations
 import asyncio
 import base64
 import codecs
+import contextlib
 import http.client
 import ipaddress
 import json
@@ -21,7 +22,7 @@ from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
-from typing import Awaitable, Callable, Iterable, List, Optional, Sequence, Union
+from typing import Awaitable, Callable, Iterable, Iterator, List, Optional, Sequence, Union
 from urllib.parse import urljoin, urlsplit, urlunsplit
 
 import certifi
@@ -37,9 +38,10 @@ from .server import ProxyPool, RotatingServer
 LIVE_BASES = (SITE_URL.rstrip("/"), RAW_BASE)  # GitHub Pages first, the raw branch as the mirror
 CACHE_SECONDS = 300.0  # the list changes once an hour – no need to load 1 MB for every question
 RETRY_AFTER = 60.0  # after a failed refresh: serve the old list this long before asking GitHub again
+NEXT_RUN_GRACE = 300.0  # the hourly run takes a few minutes – look for the new list a bit after the hour
 MAX_PAGE_BYTES = 2_000_000
 MAX_REDIRECTS = 5
-FETCH_ROUNDS = 2  # a download that breaks off mid-way is tried once more, through another proxy
+FETCH_ROUNDS = 3  # a proxy that breaks off or breaks TLS is retired, and the page is tried through another
 FETCH_ATTEMPTS = 8  # proxies per page before giving up – more than --serve's 3, an agent can't just press reload
 USER_AGENT = "Mozilla/5.0 (compatible; proxy-scraper; +https://github.com/maximilianfeix/proxy-scraper)"
 PROTOCOLS = ("any", *PROXY_TYPES)
@@ -49,8 +51,8 @@ class AgentError(Exception):
     """Something the agent can act on – the message says what to do instead."""
 
 
-class _BrokeOff(Exception):
-    """The proxy dropped the connection in the middle of the page."""
+class _ProxyFault(Exception):
+    """The proxy that carried this request misbehaved (dropped the page halfway, broke TLS) – try another."""
 
 
 # --------------------------------------------------------------------------- the live list
@@ -85,14 +87,25 @@ class LiveSource:
     """The hourly list from GitHub Pages, cached for a few minutes. A failed refresh keeps the old list."""
 
     def __init__(self, fetch: Fetch = http_get, clock: Callable[[], float] = time.monotonic,
-                 ttl: float = CACHE_SECONDS, bases: Sequence[str] = LIVE_BASES):
-        self.fetch, self.clock, self.ttl, self.bases = fetch, clock, ttl, bases
+                 ttl: float = CACHE_SECONDS, bases: Sequence[str] = LIVE_BASES,
+                 wall: Callable[[], float] = time.time):
+        self.fetch, self.clock, self.ttl, self.bases, self.wall = fetch, clock, ttl, bases, wall
         self._cache: Optional[LiveList] = None
         self._lock: Optional[asyncio.Lock] = None
         self._retry_at = 0.0
+        self._expires = 0.0
 
     def _fresh_enough(self) -> bool:
-        return bool(self._cache) and (self.clock() - self._cache.loaded_at < self.ttl or self.clock() < self._retry_at)
+        return bool(self._cache) and (self.clock() < self._expires or self.clock() < self._retry_at)
+
+    def _keep_for(self, live: LiveList) -> float:
+        """Seconds to keep this list: until the next run should have published a new one, at least ttl."""
+        try:
+            updated = datetime.fromisoformat(live.updated).timestamp()
+        except ValueError:
+            return self.ttl
+        until_next = updated + live.run_hours * 3600 + NEXT_RUN_GRACE - self.wall()
+        return max(self.ttl, min(until_next, live.run_hours * 3600))
 
     async def get(self) -> LiveList:
         if self._fresh_enough():
@@ -112,6 +125,7 @@ class LiveSource:
                     continue
                 if isinstance(rows, list) and isinstance(stats, dict):
                     self._cache = LiveList([r for r in rows if isinstance(r, dict)], stats, self.clock())
+                    self._expires = self.clock() + self._keep_for(self._cache)
                     return self._cache
             if self._cache:  # GitHub is unreachable: the old list, and don't wait for it again on every call
                 self._retry_at = self.clock() + RETRY_AFTER
@@ -146,19 +160,27 @@ def select(rows: Iterable[dict], protocol: str = "any", countries: Iterable[str]
            elite_only: bool = False, exclude_datacenter: bool = False, exclude_blocklisted: bool = False,
            stable_only: bool = False, max_latency_ms: int = 0, run_hours: int = 1) -> List[dict]:
     """The rows that pass every filter, fastest first – the same filters as on the website."""
+    return sorted(matching(rows, protocol, countries, https_only, elite_only, exclude_datacenter,
+                           exclude_blocklisted, stable_only, max_latency_ms, run_hours),
+                  key=lambda r: r.get("latency") or 0)
+
+
+def matching(rows: Iterable[dict], protocol: str = "any", countries: Iterable[str] = (), https_only: bool = False,
+             elite_only: bool = False, exclude_datacenter: bool = False, exclude_blocklisted: bool = False,
+             stable_only: bool = False, max_latency_ms: int = 0, run_hours: int = 1) -> Iterator[dict]:
+    """The rows that pass every filter, in list order – checks the filters before the first row is asked for."""
     protocol = _check_protocol(protocol)
     wanted = set(normalize_countries(countries))
     stable_runs = -(-24 // max(run_hours, 1))  # runs in a row that make a day
-    out = [r for r in rows
-           if (protocol == "any" or r.get("ptype") == protocol)
+    return (r for r in rows
+            if (protocol == "any" or r.get("ptype") == protocol)
            and (not wanted or r.get("country") in wanted)
            and (not https_only or r.get("https") is True)
            and (not elite_only or r.get("anonymity") == "elite")
            and (not exclude_datacenter or not r.get("hosting"))
            and (not exclude_blocklisted or not r.get("blocklisted"))
            and (not stable_only or (r.get("streak") or 0) >= stable_runs)
-           and (not max_latency_ms or (r.get("latency") or 0) <= max_latency_ms)]
-    return sorted(out, key=lambda r: r.get("latency") or 0)
+           and (not max_latency_ms or (r.get("latency") or 0) <= max_latency_ms))
 
 
 def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) -> dict:
@@ -241,10 +263,28 @@ _NUMERIC_HOST = re.compile(r"[0-9a-fx.]+")  # 127.1, 2130706433, 0x7f000001: IPv
 
 
 def check_scheme(url: str) -> str:
-    parts = urlsplit(url.strip())
-    if parts.scheme not in ("http", "https") or not parts.hostname:
+    """A well-formed http(s) URL with an ASCII host (bücher.de -> xn--bcher-kva.de) and a real port."""
+    url = url.strip()
+    parts = urlsplit(url)
+    if parts.scheme not in ("http", "https") or not parts.hostname or any(c.isspace() for c in url):
         raise AgentError(f"Give a full http:// or https:// URL, e.g. https://example.com – not {url!r}.")
-    return url.strip()
+    try:
+        port = parts.port
+        host = parts.hostname.encode("idna").decode("ascii") if not parts.hostname.isascii() else parts.hostname
+    except (ValueError, UnicodeError):
+        raise AgentError(f"{url!r} has an invalid host or port.") from None
+    netloc = f"[{host}]" if ":" in host else host
+    if port is not None:
+        netloc += f":{port}"
+    if parts.username is not None:
+        netloc = parts.netloc.rsplit("@", 1)[0] + "@" + netloc
+    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+
+
+def _is_public(ip) -> bool:
+    if ip.version == 6 and ip.ipv4_mapped:
+        ip = ip.ipv4_mapped
+    return ip.is_global
 
 
 def check_target(url: str) -> str:
@@ -258,14 +298,12 @@ def check_target(url: str) -> str:
         ip = ipaddress.ip_address(host)
     except ValueError:
         if not _NUMERIC_HOST.fullmatch(host):
-            return url
+            return _check_resolved(url, host)
         try:
             ip = ipaddress.IPv4Address(socket.inet_aton(host))
         except (OSError, ValueError):
-            return url
-    if ip.version == 6 and ip.ipv4_mapped:
-        ip = ip.ipv4_mapped
-    if not ip.is_global:
+            return _check_resolved(url, host)
+    if not _is_public(ip):
         raise AgentError(f"{host} is a private or reserved address – free proxies are on the public internet.")
     return url
 
@@ -312,6 +350,33 @@ def html_to_text(html: str) -> str:
     return "\n".join(line for line in lines if line)
 
 
+def _check_resolved(url: str, host: str) -> str:
+    """A name like 127.0.0.1.nip.io or an intranet host is as private as its address. Looked up here because
+    some upstreams (SOCKS4) resolve names on this machine. Unknown names pass – no proxy will reach them."""
+    try:
+        infos = socket.getaddrinfo(host, None, type=socket.SOCK_STREAM)
+    except (OSError, UnicodeError):
+        return url
+    for info in infos:
+        try:
+            ip = ipaddress.ip_address(info[4][0].split("%", 1)[0])
+        except ValueError:
+            continue
+        if not _is_public(ip):
+            raise AgentError(f"{host} resolves to {ip}, a private or reserved address – free proxies are on the "
+                             "public internet.")
+    return url
+
+
+def next_hop(url: str, location: str, check: Callable[[str], str]) -> str:
+    """Where a redirect leads – checked like the first URL, and never from https down to plain http."""
+    target = urljoin(url, location)
+    if urlsplit(url).scheme == "https" and urlsplit(target).scheme == "http":
+        raise AgentError(f"{url} redirects to plain http ({target}). Not followed: that part would skip the "
+                         "verified TLS. Fetch the http URL directly if you want it anyway.")
+    return check(target)
+
+
 def decode_body(body: bytes, charset: Optional[str]) -> str:
     """Text in the charset the server named – or UTF-8 when it named one Python doesn't know (utf8mb4 …)."""
     try:
@@ -332,18 +397,19 @@ def _as_result(r: dict) -> Optional[CheckResult]:
 
 
 _TEXT_TYPES = ("text/", "json", "xml", "javascript", "x-www-form-urlencoded")
+_TUNNEL_502 = re.compile(r"Tunnel connection failed: 502\b")  # http.client's words for our server's 502
 
 
 def _read_all(response) -> bytes:
-    """The body, or _BrokeOff if the connection ended early. read(n) doesn't complain when a Content-Length
+    """The body, or _ProxyFault if the connection ended early. read(n) doesn't complain when a Content-Length
     body comes up short – it just returns less – so the remaining length is checked by hand."""
     try:
         body = response.read(MAX_PAGE_BYTES + 1)
     except http.client.IncompleteRead:
-        raise _BrokeOff() from None
+        raise _ProxyFault("the proxy dropped the page halfway") from None
     remaining = getattr(response, "length", None)
     if remaining and len(body) <= MAX_PAGE_BYTES:
-        raise _BrokeOff()
+        raise _ProxyFault("the proxy dropped the page halfway")
     return body
 
 
@@ -360,8 +426,9 @@ class PageFetcher:
         self.check = check or (check_scheme if allow_private else check_target)  # for the URL and every redirect
         self.server: Optional[RotatingServer] = None
         self._password = secrets.token_urlsafe(24)
-        self._loaded_at: Optional[float] = None
+        self._list_id: object = None
         self._lock: Optional[asyncio.Lock] = None
+        self.downloads_running = 0  # threads inside _get right now
         self._tls = ssl.create_default_context(cafile=certifi.where())
         per_attempt = min(timeout, 10.0)
         # the client waits for the server to work through its attempts (connect + first answer each)
@@ -372,7 +439,10 @@ class PageFetcher:
         if self._lock is None:
             self._lock = asyncio.Lock()
         async with self._lock:  # parallel fetches: one starts the server, the others wait for it
-            if self.server is None or live.loaded_at != self._loaded_at:
+            # the list is downloaded again every few minutes – only a new run's list may change the pool,
+            # otherwise every proxy we retired would be back five minutes later
+            list_id = live.updated or live.loaded_at
+            if self.server is None or list_id != self._list_id:
                 results = [r for r in (_as_result(row) for row in live.rows) if r]
                 if self.server is None:
                     server = RotatingServer(ProxyPool(results, strategy=self.strategy, strict_tls=True),
@@ -381,20 +451,18 @@ class PageFetcher:
                     await server.start()
                     self.server = server  # only once it listens
                 else:
-                    self.server.pool.merge(results, drop_missing=True)  # a new hour's list is the whole truth
-                self._loaded_at = live.loaded_at
+                    self.server.pool.merge(results, drop_missing=True)  # a new run's list is the whole truth
+                self._list_id = list_id
         return live
 
     async def fetch(self, url: str, protocol: str = "any", country: str = "", max_chars: int = 20000,
                     raw_html: bool = False, progress: Optional[Progress] = None, tick: float = 5.0) -> dict:
-        url = self.check(url)
+        url = await asyncio.to_thread(self.check, url)  # may look the name up
         protocol = _check_protocol(protocol)
         countries = normalize_countries([country] if country else [])
         live = await self._ready()
         tls = urlsplit(url).scheme == "https"
-        usable = select(live.rows, protocol=protocol, countries=countries, https_only=tls,
-                        run_hours=live.run_hours)
-        if not usable:
+        if not any(True for _ in matching(live.rows, protocol, countries, https_only=tls, run_hours=live.run_hours)):
             what = " ".join(x for x in (countries[0] if countries else "", "" if protocol == "any" else protocol,
                                         "HTTPS-capable" if tls else "") if x)
             raise AgentError(f"No {what} proxy in the live list right now."
@@ -403,30 +471,30 @@ class PageFetcher:
         wishes = [f"country-{countries[0].lower()}"] if countries else []
         if protocol != "any":
             wishes.append(f"type-{protocol}")
+        pool, port = self.server.pool, self.server.port
         started = time.monotonic()
-        result, broke_off = None, False
+        result, fault = None, None
         for round_ in range(FETCH_ROUNDS):
             # the same wishes a user would put in the proxy login; session names are letters and digits only
             name = f"{session}r{round_}"
             user = "-".join([*wishes, f"session-{name}"])
             try:
-                result = await _with_progress(asyncio.to_thread(self._get, url, user), progress, tick,
-                                              "loading the page through a proxy")
+                result = await self._download(url, user, port, progress, tick)
                 break
-            except _BrokeOff:
-                broke_off = True
-                broke = self.server.pool.session_entry(name)
-                if broke:
-                    self.server.pool.retire(broke)  # dropped a download: not this one again
+            except _ProxyFault as e:
+                fault = str(e)
+                bad = pool.session_entry(name)
+                if bad:
+                    pool.retire(bad)  # it broke TLS or dropped the page: not this one again
             except AgentError:
-                if not broke_off:
+                if fault is None:
                     raise
-                break  # the retry found nobody else – the break-off is what the agent needs to hear
+                break  # the retry found nobody else – the fault is what the agent needs to hear
         if result is None:
-            raise AgentError(f"The download of {url} broke off halfway and no other proxy got it through – free "
-                             "proxies sometimes drop long transfers. Try again in a moment, or a smaller page.")
+            raise AgentError(f"Couldn't load {url}: {fault}, and no other proxy got it through. Free proxies come "
+                             "and go – try again in a moment.")
         status, final_url, headers, body = result
-        held = self.server.pool.session_entry(name)
+        held = pool.session_entry(name)
         content_type = headers.get("Content-Type", "") if headers else ""
         is_text = not content_type or any(t in content_type.lower() for t in _TEXT_TYPES)
         text = ""
@@ -449,42 +517,70 @@ class PageFetcher:
             "note": None if is_text else f"Binary content ({content_type}) isn't returned as text.",
         }
 
-    def _get(self, url: str, user: str):
+    async def _download(self, url: str, user: str, port: int, progress: Optional[Progress], tick: float):
+        """_get in a thread. If the caller is cancelled, the socket is shut down so the thread ends too – a thread
+        can't be cancelled, and it would otherwise wait for minutes on a proxy that doesn't answer."""
+        slot: dict = {}
+        try:
+            return await _with_progress(asyncio.to_thread(self._get, url, user, port, slot), progress, tick,
+                                        "loading the page through a proxy")
+        except asyncio.CancelledError:
+            conn = slot.get("conn")
+            if conn is not None and conn.sock is not None:
+                with contextlib.suppress(OSError):
+                    conn.sock.shutdown(socket.SHUT_RDWR)
+            raise
+
+    def _get(self, url: str, user: str, port: int, slot: dict):
         """GET through the local rotating server, following redirects by hand so every hop gets checked."""
-        auth = "Basic " + base64.b64encode(f"{user}:{self._password}".encode()).decode()
-        for _hop in range(MAX_REDIRECTS + 1):
-            parts = urlsplit(url)
-            https = parts.scheme == "https"
-            port = parts.port or (443 if https else 80)
-            headers = {"User-Agent": USER_AGENT, "Accept": "*/*", "Accept-Encoding": "identity"}
-            if https:  # CONNECT through the server, then TLS end to end – verified against certifi's roots
-                conn = http.client.HTTPSConnection("127.0.0.1", self.server.port, timeout=self._client_timeout,
-                                                   context=self._tls)
-                conn.set_tunnel(parts.hostname, port, headers={"Proxy-Authorization": auth})
-                target = urlunsplit(("", "", parts.path or "/", parts.query, ""))
-            else:  # a classic proxy request with the absolute URL
-                conn = http.client.HTTPConnection("127.0.0.1", self.server.port, timeout=self._client_timeout)
-                headers["Proxy-Authorization"] = auth
-                target = urlunsplit((parts.scheme, parts.netloc, parts.path or "/", parts.query, ""))
-            try:
-                conn.request("GET", target, headers=headers)
-                response = conn.getresponse()
-                if response.getheader("X-Proxy-Scraper") == "no-proxy-answered":
-                    raise AgentError(self._failed(url, f"none of {FETCH_ATTEMPTS} proxies got through"))
-                location = response.getheader("Location")
-                if response.status in (301, 302, 303, 307, 308) and location:
-                    response.read()
-                    url = self.check(urljoin(url, location))  # a public page may point somewhere private
-                    continue
-                return response.status, url, response.headers, _read_all(response)
-            except (OSError, http.client.HTTPException) as e:
-                reason = str(e)
-                if "502" in reason:  # the server's answer to CONNECT when no proxy got through
-                    reason = f"none of {FETCH_ATTEMPTS} proxies got through"
-                raise AgentError(self._failed(url, reason)) from None
-            finally:
-                conn.close()
-        raise AgentError(f"{url} redirected more than {MAX_REDIRECTS} times – stopped there.")
+        self.downloads_running += 1
+        try:
+            auth = "Basic " + base64.b64encode(f"{user}:{self._password}".encode()).decode()
+            for _hop in range(MAX_REDIRECTS + 1):
+                status, headers, body, location = self._get_once(url, auth, port, slot)
+                if location is None:
+                    return status, url, headers, body
+                url = next_hop(url, location, self.check)  # a public page may point somewhere private
+            raise AgentError(f"{url} redirected more than {MAX_REDIRECTS} times – stopped there.")
+        finally:
+            self.downloads_running -= 1
+
+    def _get_once(self, url: str, auth: str, port: int, slot: dict):
+        parts = urlsplit(url)
+        https = parts.scheme == "https"
+        headers = {"User-Agent": USER_AGENT, "Accept": "*/*", "Accept-Encoding": "identity"}
+        if https:  # CONNECT through the server, then TLS end to end – verified against certifi's roots
+            conn = http.client.HTTPSConnection("127.0.0.1", port, timeout=self._client_timeout, context=self._tls)
+            conn.set_tunnel(parts.hostname, parts.port or 443, headers={"Proxy-Authorization": auth})
+            target = urlunsplit(("", "", parts.path or "/", parts.query, ""))
+        else:  # a classic proxy request with the absolute URL
+            conn = http.client.HTTPConnection("127.0.0.1", port, timeout=self._client_timeout)
+            headers["Proxy-Authorization"] = auth
+            target = urlunsplit((parts.scheme, parts.netloc, parts.path or "/", parts.query, ""))
+        slot["conn"] = conn
+        try:
+            conn.request("GET", target, headers=headers)
+            response = conn.getresponse()
+            if conn.sock is not None:  # the answer is there: the rest shouldn't take the failover's patience
+                conn.sock.settimeout(min(self.timeout, 30.0))
+            if response.getheader("X-Proxy-Scraper") == "no-proxy-answered":
+                raise AgentError(self._failed(url, f"none of {FETCH_ATTEMPTS} proxies got through"))
+            location = response.getheader("Location")
+            if response.status in (301, 302, 303, 307, 308) and location:
+                return response.status, response.headers, b"", location  # the body isn't needed – not read at all
+            return response.status, response.headers, _read_all(response), None
+        except ssl.SSLCertVerificationError as e:
+            raise _ProxyFault(f"the certificate check failed ({e.verify_message}) – the proxy may be intercepting "
+                              "HTTPS") from None
+        except (ssl.SSLError, ConnectionResetError, http.client.RemoteDisconnected, http.client.IncompleteRead) as e:
+            raise _ProxyFault(f"the proxy dropped the connection ({e.__class__.__name__})") from None
+        except (OSError, http.client.HTTPException) as e:
+            reason = str(e)
+            if _TUNNEL_502.search(reason):  # the server's answer to CONNECT when no proxy got through
+                reason = f"none of {FETCH_ATTEMPTS} proxies got through"
+            raise AgentError(self._failed(url, reason)) from None
+        finally:
+            conn.close()
 
     @staticmethod
     def _failed(url: str, reason: str) -> str:

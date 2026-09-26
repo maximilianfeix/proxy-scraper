@@ -327,7 +327,7 @@ def test_a_download_that_breaks_off_is_explained_not_a_crash():
             target_srv.close()
             proxy_srv.close()
 
-    with pytest.raises(agent.AgentError, match="broke off"):
+    with pytest.raises(agent.AgentError, match="dropped the page halfway"):
         asyncio.run(go())
 
 
@@ -471,3 +471,203 @@ def test_while_github_is_down_the_old_list_is_served_without_waiting():
 def test_an_unknown_charset_falls_back_to_utf8():
     assert agent.decode_body("grüße".encode(), "utf8mb4") == "grüße"
     assert agent.decode_body("grüße".encode("latin-1"), "latin-1") == "grüße"
+
+
+# --------------------------------------------------------------------------- second review of #130
+
+def test_a_retired_proxy_stays_out_while_the_list_is_the_same():
+    """The list is re-downloaded every few minutes, but only a new hour's list may bring a proxy back."""
+    async def go():
+        target_srv, target_port = await serve(target_server)
+        proxy_srv, proxy_port = await serve(http_forward_proxy)
+        rows = [row(1, proxy=f"127.0.0.1:{proxy_port}", url=f"http://127.0.0.1:{proxy_port}")]
+        state = {"live": agent.LiveList(rows=rows, stats=STATS, loaded_at=0.0)}
+
+        class Source:
+            async def get(self):
+                return state["live"]
+
+        fetcher = agent.PageFetcher(Source(), allow_private=True, timeout=5)
+        try:
+            await fetcher.fetch(f"http://127.0.0.1:{target_port}/ok")
+            fetcher.server.pool.retire(fetcher.server.pool.entries[0])
+            state["live"] = agent.LiveList(rows=rows, stats=STATS, loaded_at=300.0)  # same list, loaded again
+            with pytest.raises(agent.AgentError):
+                await fetcher.fetch(f"http://127.0.0.1:{target_port}/ok")
+            return fetcher.server.pool.entries[0].disabled
+        finally:
+            await fetcher.close()
+            target_srv.close()
+            proxy_srv.close()
+
+    assert asyncio.run(go()) is True
+
+
+def test_names_that_resolve_to_private_addresses_are_refused(monkeypatch):
+    import socket as socket_module
+
+    def fake_getaddrinfo(host, *args, **kwargs):
+        ip = {"127.0.0.1.nip.io": "127.0.0.1", "intranet.corp.example": "10.1.2.3"}.get(host, "93.184.216.34")
+        return [(socket_module.AF_INET, socket_module.SOCK_STREAM, 6, "", (ip, 0))]
+
+    monkeypatch.setattr(agent.socket, "getaddrinfo", fake_getaddrinfo)
+    for bad in ("http://127.0.0.1.nip.io/", "https://intranet.corp.example/wiki"):
+        with pytest.raises(agent.AgentError, match="resolves to"):
+            agent.check_target(bad)
+    assert agent.check_target("https://example.com/") == "https://example.com/"
+
+
+def test_urls_are_normalized_or_explained():
+    assert agent.check_scheme("http://bücher.de/x?y=1") == "http://xn--bcher-kva.de/x?y=1"
+    for bad in ("https://example.com:99999/", "http://exa mple.com/"):
+        with pytest.raises(agent.AgentError):
+            agent.check_scheme(bad)
+
+
+def test_a_redirect_from_https_to_http_is_not_followed():
+    assert agent.next_hop("https://a.example/x", "/y", agent.check_scheme) == "https://a.example/y"
+    with pytest.raises(agent.AgentError, match="plain http"):
+        agent.next_hop("https://a.example/x", "http://a.example/y", agent.check_scheme)
+    assert agent.next_hop("http://a.example/x", "https://a.example/y", agent.check_scheme) == "https://a.example/y"
+
+
+async def endless_redirect_target(reader, writer):
+    """A redirect with a body that never ends – reading it would hang."""
+    await reader.readuntil(b"\r\n\r\n")
+    writer.write(b"HTTP/1.1 302 Found\r\nLocation: /ok\r\nContent-Length: 100000000\r\n\r\n")
+    try:
+        while True:
+            writer.write(b"x" * 1024)
+            await writer.drain()
+            await asyncio.sleep(0.01)
+    except (ConnectionError, OSError):
+        pass
+
+
+def test_a_redirect_body_is_not_read():
+    async def go():
+        target_srv, target_port = await serve(endless_redirect_target)
+        ok_srv, ok_port = await serve(target_server)
+        proxy_srv, proxy_port = await serve(http_forward_proxy)
+        live = agent.LiveList(rows=[row(1, proxy=f"127.0.0.1:{proxy_port}", url=f"http://127.0.0.1:{proxy_port}")],
+                              stats=STATS, loaded_at=0.0)
+
+        class Source:
+            async def get(self):
+                return live
+
+        # the redirect points to /ok on the redirecting server itself, which answers every request the same –
+        # the check swaps the port so the second hop lands on the normal target
+        def check(url):
+            return url.replace(f":{target_port}/ok", f":{ok_port}/ok")
+
+        fetcher = agent.PageFetcher(Source(), timeout=5, check=check)
+        try:
+            return await asyncio.wait_for(fetcher.fetch(f"http://127.0.0.1:{target_port}/start"), 5)
+        finally:
+            await fetcher.close()
+            for s in (target_srv, ok_srv, proxy_srv):
+                s.close()
+
+    assert asyncio.run(go())["text"] == "ok"
+
+
+async def silent_target(reader, writer):
+    """Takes the request and never answers."""
+    await reader.read()
+
+
+def test_a_cancelled_fetch_does_not_leave_its_download_hanging():
+    """Cancelling the tool call must end the blocking download too, not leave it waiting for minutes."""
+    async def go():
+        target_srv, target_port = await serve(silent_target)
+        proxy_srv, proxy_port = await serve(http_forward_proxy)
+        live = agent.LiveList(rows=[row(1, proxy=f"127.0.0.1:{proxy_port}", url=f"http://127.0.0.1:{proxy_port}")],
+                              stats=STATS, loaded_at=0.0)
+
+        class Source:
+            async def get(self):
+                return live
+
+        fetcher = agent.PageFetcher(Source(), allow_private=True, timeout=5)
+        task = asyncio.ensure_future(fetcher.fetch(f"http://127.0.0.1:{target_port}/"))
+        await asyncio.sleep(0.3)
+        assert fetcher.downloads_running == 1
+        task.cancel()
+        with pytest.raises(asyncio.CancelledError):
+            await task
+        for _ in range(20):  # the thread notices within a moment
+            if fetcher.downloads_running == 0:
+                break
+            await asyncio.sleep(0.05)
+        running = fetcher.downloads_running
+        await fetcher.close()
+        target_srv.close()
+        proxy_srv.close()
+        return running
+
+    assert asyncio.run(go()) == 0
+
+
+def test_a_proxy_that_breaks_tls_is_retired_and_named():
+    """Certificate check fails through this proxy – like a proxy that intercepts HTTPS."""
+    from .fakes import serve_tls
+
+    async def tls_ok(reader, writer):
+        await reader.readuntil(b"\r\n\r\n")
+        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        await writer.drain()
+        writer.close()
+
+    async def go():
+        tls_srv, tls_port = await serve_tls(tls_ok)  # a certificate certifi doesn't trust
+        proxy_srv, proxy_port = await serve(http_forward_proxy)
+        live = agent.LiveList(rows=[row(1, proxy=f"127.0.0.1:{proxy_port}", url=f"http://127.0.0.1:{proxy_port}")],
+                              stats=STATS, loaded_at=0.0)
+
+        class Source:
+            async def get(self):
+                return live
+
+        fetcher = agent.PageFetcher(Source(), allow_private=True, timeout=5)
+        try:
+            with pytest.raises(agent.AgentError, match="certificate"):
+                await fetcher.fetch(f"https://localhost:{tls_port}/")
+            return fetcher.server.pool.entries[0].disabled
+        finally:
+            await fetcher.close()
+            tls_srv.close()
+            proxy_srv.close()
+
+    assert asyncio.run(go()) is True
+
+
+def test_results_dir_is_read_when_used_not_when_imported(tmp_path, monkeypatch):
+    from proxyscraper import output, paths
+    monkeypatch.setattr(paths, "RESULTS_DIR", tmp_path / "moved")
+    writer = output.ResultWriter()
+    writer.close()
+    assert writer.run_dir.parent == tmp_path / "moved"
+
+
+def test_the_live_list_is_kept_until_the_next_hourly_run():
+    calls = []
+    now, wall = [0.0], [1000.0]
+    stats = dict(STATS, updated="1970-01-01T00:06:40+00:00", run_hours=1)  # updated at wall 400 s
+
+    source = agent.LiveSource(fetch=fake_fetch(calls, {"proxies.json": ROWS, "stats.json": stats}),
+                              clock=lambda: now[0], ttl=300, wall=lambda: wall[0])
+
+    async def go():
+        await source.get()             # list from 400 s, next run expected at 400 + 3600
+        now[0] += 900
+        wall[0] += 900
+        await source.get()             # 15 minutes later: still the same hour's list, no download
+        first = len(calls)
+        now[0] += 3000
+        wall[0] += 3000                # past the next run: download again
+        await source.get()
+        return first, len(calls)
+
+    first, after = asyncio.run(go())
+    assert first == 2 and after == 4

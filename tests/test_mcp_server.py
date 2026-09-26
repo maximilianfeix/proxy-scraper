@@ -186,3 +186,8 @@ def test_the_command_and_the_extra_are_declared():
     pyproject = (Path(__file__).parent.parent / "pyproject.toml").read_text(encoding="utf-8")
     assert 'proxy-scraper-mcp = "proxyscraper.mcp_entry:main"' in pyproject
     assert "mcp = [\"mcp>=2.2,<3; python_version >= '3.10'\"]" in pyproject
+
+
+def test_running_the_module_directly_goes_through_the_entry_point():
+    source = (Path(__file__).parent.parent / "proxyscraper" / "mcp_server.py").read_text(encoding="utf-8")
+    assert "from .mcp_entry import main" in source.split('if __name__ == "__main__":')[1]

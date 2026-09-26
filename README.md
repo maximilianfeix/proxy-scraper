@@ -708,6 +708,8 @@ proxyscraper/
 ├── exporters.py        proxychains, Clash and curl formats (--export)
 ├── server/             rotating proxy server (--serve): pool · http · upstream · socks · status · core
 ├── api.py              find_proxies() / check_proxies() for Python
+├── agent.py            MCP tools without the SDK: live list, filters, fetch through proxies
+├── mcp_server.py       MCP server (proxy-scraper-mcp) for AI agents
 ├── publish.py          live list for GitHub Actions
 ├── paths.py            where state and results are stored
 ├── compat.py           differences between Unix and Windows

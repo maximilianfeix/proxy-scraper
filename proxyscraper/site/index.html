@@ -307,6 +307,7 @@
   .use .panel p { margin: 0 0 22px; color: var(--muted); font-size: 15px; max-width: 52ch; }
   .cmd { display: flex; align-items: flex-start; gap: 8px; background: var(--raised); border: 1px solid var(--line); border-radius: 14px; padding: 12px 8px 12px 16px; }
   .cmd pre { margin: 0; flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.6; white-space: pre; overflow-x: auto; padding-top: 5px; }
+  .cmd pre.cmd-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }  /* long one-liners: readable before copying */
   .raw { display: grid; gap: 6px; }
   .raw a { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-decoration: none; padding: 10px 14px; border-radius: 12px;
            background: var(--raised); border: 1px solid var(--line); font-size: 14px; transition: border-color .25s; }
@@ -564,7 +565,7 @@
   <section class="block wrap" id="use" aria-labelledby="use-title">
     <div class="head-row">
       <h2 class="h2" id="use-title">Use it your way</h2>
-      <p class="intro-text">Run the same checks on your own machine, start from this list, or just fetch the plain text files.</p>
+      <p class="intro-text">Run the same checks on your own machine, start from this list, hand it to your AI agent, or just fetch the plain text files.</p>
     </div>
     <div class="use">
       <div class="use-cmds">
@@ -573,6 +574,8 @@
 proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the install commands"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
       <div class="panel"><h3>Recheck from your network</h3><p>Starts from this list and checks it again from where you are. Takes about 30 seconds, then serves a rotating proxy on port 8899.</p>
         <div class="cmd"><pre>proxy-scraper --recheck live --serve</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the recheck command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
+      <div class="panel"><h3>Give it to your AI agent</h3><p>An MCP server for Claude Code, Cursor, Codex and co: your agent gets working proxies and can load pages through them, as seen from another country. <a href="https://github.com/maximilianfeix/proxy-scraper#mcp">Setup for other clients</a></p>
+        <div class="cmd"><pre class="cmd-wrap">claude mcp add proxy-scraper -- uvx --python "&gt;=3.10" --from "proxy-scraper[mcp] @ git+https://github.com/maximilianfeix/proxy-scraper" proxy-scraper-mcp</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the Claude Code command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
       </div>
       <div class="panel"><h3>Plain lists</h3><p>One proxy per line, fastest first, updated with every run.</p><div class="raw" id="raw"></div></div>
     </div>
@@ -583,7 +586,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
         <div class="endpoints">
           <a href="proxies.json"><span class="mono">proxies.json</span><span>every proxy with all details, fastest first</span></a>
           <a href="stats.json"><span class="mono">stats.json</span><span>totals, per type, countries, median latency</span></a>
-          <a href="history.json"><span class="mono">history.json</span><span>the last 120 runs, for charts</span></a>
+          <a href="history.json"><span class="mono">history.json</span><span>the runs of the last 30 days, for charts</span></a>
           <a href="streaks.json"><span class="mono">streaks.json</span><span>how many runs in a row each proxy worked</span></a>
         </div>
       </div>

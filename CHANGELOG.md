@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.6.0] – 2026-09-26
+
 ### Changed
 - The live list is refreshed every hour instead of every 6 hours (a full run takes about 3 minutes). "Stable" still means 24 hours, `stats.json` now says `run_hours`, and the Discord bot still posts a summary at most every 6 hours (`PROXYBOT_POST_EVERY_HOURS`) ([#111](https://github.com/maximilianfeix/proxy-scraper/issues/111))
 - Terminal: the final report shows the datacenter and blocklist shares next to HTTPS and anonymity, the wizard panel no longer repeats the name from the banner ([#91](https://github.com/maximilianfeix/proxy-scraper/issues/91))
@@ -94,7 +96,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.5.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.6.0...HEAD
+[1.6.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.5.0...v1.6.0
 [1.5.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.4.0...v1.5.0
 [1.4.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.2.0...v1.3.0

@@ -1,7 +1,7 @@
 """proxy-scraper: collects public HTTP/SOCKS4/SOCKS5 proxies from hundreds of sources, checks them
 in parallel with its own protocol handshakes and learns which sources deliver good proxies."""
 
-__version__ = "1.5.0"
+__version__ = "1.6.0"
 
 
 def __getattr__(name):

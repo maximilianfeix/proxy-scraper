@@ -1,0 +1,33 @@
+{
+ "updated": "2026-09-26T17:28:16+00:00",
+ "total": 2174,
+ "by_type": {
+  "http": 281,
+  "socks4": 243,
+  "socks5": 1650
+ },
+ "https": 1570,
+ "elite": 2128,
+ "datacenter": 1302,
+ "blocklisted": 606,
+ "stable": 121,
+ "run_hours": 1,
+ "countries": {
+  "US": 889,
+  "AU": 260,
+  "ID": 142,
+  "DE": 101,
+  "IL": 68,
+  "CN": 60,
+  "VN": 57,
+  "NL": 54,
+  "BG": 54,
+  "FR": 52,
+  "SG": 46,
+  "CO": 39,
+  "BR": 38,
+  "IN": 35,
+  "RU": 22
+ },
+ "median_latency": 1452
+}

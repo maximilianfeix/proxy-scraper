@@ -21,6 +21,7 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from .charts import THEMES, countries_svg, trend_svg
 from .pages import write_pages
 from .parsing import PROXY_TYPES
 
@@ -287,6 +288,9 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages should serve the files unchanged
     write_pages(rows, out, now)  # static pages per protocol and country plus sitemap.xml, for search engines
     write_json(out / "history.json", runs)
+    for theme in THEMES:  # charts for the README, which embeds them from GitHub Pages
+        (out / f"chart-{theme}.svg").write_text(trend_svg(runs, now, theme), encoding="utf-8")
+        (out / f"countries-{theme}.svg").write_text(countries_svg(stats["countries"], theme), encoding="utf-8")
     write_json(out / "seen.json", {"last_run": runs[-1]["updated"],
                                    "proxies": {url: {"first_seen": e["first_seen"], "bits": format(e["bits"], "x")}
                                                for url, e in listed.items()}})

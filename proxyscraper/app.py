@@ -7,6 +7,7 @@ import contextlib
 import ipaddress
 import socket
 import sys
+import tempfile
 import time
 from collections import Counter
 from dataclasses import replace
@@ -493,17 +494,28 @@ class Run:
         jobs = [k for k in jobs if k not in serving]
         if not jobs:
             return 0
-        self.checker.unreachable.clear()  # hours later, addresses that were down may be back
-        writer = ResultWriter(exports=opts.exports)
+        # the check target picked at startup may be gone hours later – rank again and watch it like the first run
+        judges = await rank_judges()
+        if not judges:
+            return 0
+        checker = self.checker
+        checker.use_judge(judges[0].judge, judges[0].ip)
+        watch = JudgeWatch(judges, lambda new: checker.use_judge(new.judge, new.ip))
+        checker.unreachable.clear()  # hours later, addresses that were down may be back
         stats = LiveStats(Counter(split_key(k)[0] for k in jobs))
-        dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
-                                   opts.filters.describe(), opts.want, opts.filters.targets)
         geo = GeoResolver(enabled=opts.geo, offline=CountryDB.load() if opts.geo else None)
-        run = await run_checks(jobs, self.checker, opts, dashboard, writer, geo,
-                               live_factory=lambda _view: contextlib.nullcontext(),
-                               providers=ProviderLookup(AsnDB.load()), blocklist=self.blocklist, quiet=True)
+        # a scratch folder: "latest" stays the full run, not the handful of new hits from this round
+        with tempfile.TemporaryDirectory(prefix="proxy-scraper-refill-") as scratch:
+            writer = ResultWriter(run_dir=Path(scratch))
+            dashboard = CheckDashboard(stats, writer.live_path, opts.concurrency, opts.details,
+                                       opts.filters.describe(), opts.want, opts.filters.targets)
+            try:
+                run = await run_checks(jobs, checker, opts, dashboard, writer, geo,
+                                       live_factory=lambda _view: contextlib.nullcontext(), watch=watch,
+                                       providers=ProviderLookup(AsnDB.load()), blocklist=self.blocklist, quiet=True)
+            finally:
+                writer.close()
         kept = [r for r in run.results if opts.filters.accepts(r)]
-        writer.finalize(kept)
         blocked = is_network_blocked(stats)
         self.learn(run, blocked, sources=False)  # the source ranking only learns from full scans
         geo.save()

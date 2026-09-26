@@ -43,7 +43,7 @@ def test_refill_checks_quietly_and_merges_what_passes_the_filters(monkeypatch, t
     seen = {}
 
     async def fake_run_checks(jobs, checker, opts, dashboard, writer, geo, **kw):
-        seen.update(jobs=jobs, quiet=kw.get("quiet"), concurrency=opts.concurrency)
+        seen.update(jobs=jobs, quiet=kw.get("quiet"), concurrency=opts.concurrency, watch=kw.get("watch"))
         run = CheckRun()
         for r in (hit(5), hit(6, country="US")):
             run.results.append(r)
@@ -57,7 +57,15 @@ def test_refill_checks_quietly_and_merges_what_passes_the_filters(monkeypatch, t
 
     class Checker:
         unreachable = {"1.1.1.5:80"}
+        judge = None
 
+        def use_judge(self, judge, ip):
+            self.judge = judge
+
+    async def judges():
+        return [app.JudgeProbe(judge="fresh-judge", ip="9.9.9.9", latency=10)]
+
+    monkeypatch.setattr(app, "rank_judges", judges)
     monkeypatch.setattr(app, "run_checks", fake_run_checks)
     monkeypatch.setattr(app, "load_live_jobs", live_jobs)
     monkeypatch.setattr(output, "RESULTS_DIR", tmp_path)
@@ -74,7 +82,8 @@ def test_refill_checks_quietly_and_merges_what_passes_the_filters(monkeypatch, t
     assert added == 1 and [e.result.key for e in pool.entries] == ["http 1.1.1.1:80", "http 1.1.1.5:80"]  # US filtered
     assert learned == [False]  # history yes, source ranking no
     assert run.checker.unreachable == set()  # hours later, down addresses get another chance
-    assert (tmp_path / "latest").exists() or (tmp_path / "latest.txt").exists()  # --recheck later sees the refill
+    assert run.checker.judge == "fresh-judge" and seen["watch"] is not None  # ranked again and watched
+    assert list(tmp_path.iterdir()) == []  # "latest" stays the full run, no refill folders pile up
 
 
 def test_quiet_run_checks_leaves_ctrl_c_alone(monkeypatch, tmp_path):
@@ -121,3 +130,29 @@ def test_keep_refilling_survives_a_failed_round(monkeypatch):
 
     asyncio.run(go())
     assert server.refilled >= 3 and server.last_refill
+
+
+def test_stopping_the_server_stops_a_running_refill(tmp_path):
+    started = asyncio.Event()
+
+    class Checker:
+        async def check(self, key):
+            started.set()
+            await asyncio.sleep(10)
+
+    async def go():
+        stats = LiveStats({"http": 1})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        task = asyncio.ensure_future(pipeline.run_checks(
+            ["http 1.1.1.1:80"], Checker(), RunOptions(no_geo=True, concurrency=1),
+            CheckDashboard(stats, writer.live_path, 1, True), writer, GeoResolver(enabled=False),
+            live_factory=lambda _: contextlib.nullcontext(), quiet=True))
+        await started.wait()
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            return "cancelled"
+        return "swallowed"
+
+    assert asyncio.run(go()) == "cancelled"  # not treated like Ctrl+C, the caller really stops

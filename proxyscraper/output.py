@@ -55,6 +55,10 @@ class ResultWriter:
         self._live.write(f"{r.ptype}://{r.proxy}\n")
         self._live.flush()
 
+    def close(self) -> None:
+        """Done without writing the result files (a refill in a scratch folder)."""
+        self._live.close()
+
     def finalize(self, results: Iterable[CheckResult]) -> Dict[str, Path]:
         self._live.close()
         rows = sorted(results, key=lambda r: r.latency)

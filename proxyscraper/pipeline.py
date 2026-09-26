@@ -419,6 +419,10 @@ async def run_checks(
 
     if watch_task:
         watch_task.cancel()
+    if quiet and run.interrupted:
+        # nobody pressed Ctrl+C here – the task running us was cancelled (the server stops), so pass it on
+        geo_task.cancel()
+        raise asyncio.CancelledError
     # wait for open country lookups (briefly at most)
     geo.stop()
     if geo.pending and not geo.failed:

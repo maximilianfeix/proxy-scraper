@@ -61,7 +61,7 @@
 <style>
   :root {
     --bg: #121113; --panel: #1A191C; --raised: #232226; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0;
-    --signal: #D4F77A; --signal-ink: #D4F77A; --on-signal: #121113; --control: #6B6872;
+    --signal: #D4F77A; --signal-ink: #D4F77A; --on-signal: #121113; --control: #6B6872; --reject: #F0876A;
     --http: #8DB8FF; --socks4: #C7A6FF; --socks5: #D4F77A; --warn: #F5C46B; --bad: #FF8C7A;
     --ease: cubic-bezier(.16, 1, .3, 1); --ease-io: cubic-bezier(.76, 0, .24, 1);
     --wrap: 1320px; --gutter: clamp(16px, 4vw, 48px); --nav-h: 68px;
@@ -69,7 +69,7 @@
   }
   :root[data-theme="light"] {
     --bg: #EFEFEC; --panel: #FFFFFF; --raised: #F6F6F3; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
-    --signal: #D4F77A; --signal-ink: #3F5A00; --on-signal: #121113; --control: #817F79;
+    --signal: #D4F77A; --signal-ink: #3F5A00; --on-signal: #121113; --control: #817F79; --reject: #B4461F;
     --http: #1F5FD1; --socks4: #7442D6; --socks5: #3F5A00; --warn: #9A5B00; --bad: #C23A26;
     color-scheme: light;
   }
@@ -163,24 +163,49 @@
   .pulse::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid var(--signal-ink); animation: ping 2.2s var(--ease) infinite; }
   @keyframes ping { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
   .ctas { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
-  html.js .hero-foot, html.js .ticker { opacity: 0; transform: translateY(16px); }
-  html.ready .hero-foot, html.ready .ticker { opacity: 1; transform: none; transition: opacity 1s var(--ease) calc(var(--d, .05s) + .35s), transform 1s var(--ease) calc(var(--d, .05s) + .35s); }
-  html.intro .hero-foot, html.intro .ticker { --d: .75s; }
+  html.js .hero-foot, html.js .sieve { opacity: 0; transform: translateY(16px); }
+  html.ready .hero-foot, html.ready .sieve { opacity: 1; transform: none; transition: opacity 1s var(--ease) calc(var(--d, .05s) + .35s), transform 1s var(--ease) calc(var(--d, .05s) + .35s); }
+  html.intro .hero-foot, html.intro .sieve { --d: .75s; }
 
-  /* Ticker with the fastest proxies */
-  .ticker { border-block: 1px solid var(--line); margin-inline: calc(var(--gutter) * -1); display: flex; align-items: center; }
-  .ticker-window { flex: 1; min-width: 0; overflow: hidden;
-                   mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); -webkit-mask-image: linear-gradient(90deg, transparent, #000 6%, #000 94%, transparent); }
-  .ticker-track { display: flex; width: max-content; animation: marquee var(--dur, 80s) linear infinite; }
-  .ticker:not(.manual):hover .ticker-track, .ticker:not(.manual):focus-within .ticker-track,
-  .ticker.paused .ticker-track { animation-play-state: paused; }
-  .ticker-toggle { flex: none; margin-inline: 12px var(--gutter); width: 36px; height: 36px;
-                   border-radius: 50%; border: 1px solid var(--control); background: var(--bg); color: var(--text); cursor: pointer;
-                   display: grid; place-items: center; }
-  .ticker-toggle svg { width: 12px; height: 12px; }
-  .ticker-toggle .play, .ticker.paused .ticker-toggle .pause { display: none; }
-  .ticker.paused .ticker-toggle .play { display: block; }
-  @keyframes marquee { to { transform: translateX(-50%); } }
+  /* The sieve: a sped-up replay of a run – candidates go through the checks, most drop out, a few pass */
+  .sieve { border-block: 1px solid var(--line); margin-inline: calc(var(--gutter) * -1); padding: 20px var(--gutter) 22px;
+           display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 32px; align-items: start; }
+  .sieve-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px 28px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+  .sieve-head strong { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .sieve-head .kept strong { color: var(--signal-ink); }
+  .sieve-stages { display: flex; gap: 22px; margin-left: auto; }
+  .sieve-stages span { display: inline-flex; align-items: center; gap: 7px; }
+  .sieve-stages span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--control); }
+  .sieve-toggle { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--control); background: var(--bg); color: var(--text);
+                  cursor: pointer; display: grid; place-items: center; flex: none; }
+  .sieve-toggle svg { width: 11px; height: 11px; }
+  .sieve-toggle .play, .sieve.paused .sieve-toggle .pause { display: none; }
+  .sieve.paused .sieve-toggle .play { display: block; }
+  .sieve-rows { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; min-height: calc(6 * 38px); }
+  .cand { display: grid; grid-template-columns: minmax(150px, 210px) 116px minmax(0, 1fr); align-items: center; gap: 20px; height: 36px;
+          padding: 0 12px; border-radius: 10px; font-size: 14px; color: var(--muted);
+          animation: cand-in .45s var(--ease) both; transition: opacity .8s var(--ease), background-color .6s var(--ease); }
+  .cand .addr { font-family: "Geist Mono", ui-monospace, monospace; color: var(--text); }
+  .cand .pips { display: flex; gap: 8px; }
+  .cand .pip { width: 22px; height: 4px; border-radius: 2px; background: var(--line); transition: background-color .18s linear; }
+  .cand .pip.ok { background: var(--signal-ink); }
+  .cand .pip.no { background: var(--reject); }
+  .cand .verdict { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cand.out { opacity: .38; }
+  .cand.out .addr { text-decoration: line-through; text-decoration-color: var(--reject); color: var(--muted); }
+  .cand.in { background: var(--panel); }
+  .cand.in .verdict { color: var(--text); }
+  .cand.in button { all: unset; cursor: pointer; font: inherit; }
+  .cand.in button:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 4px; }
+  @keyframes cand-in { from { opacity: 0; transform: translateY(-8px); } }
+  .sieve-note { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); }
+  @media (max-width: 720px) {
+    .sieve-stages { display: none; }
+    .sieve-toggle { margin-left: auto; }
+    .cand { grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 14px; padding: 0 8px; font-size: 13px; }
+    .cand .pips { display: none; }
+    .cand .verdict { text-align: right; }
+  }
   .tick { display: inline-flex; align-items: center; gap: 12px; padding: 18px 28px; border: 0; background: none; cursor: pointer; white-space: nowrap;
           border-right: 1px solid var(--line); font-size: 15px; transition: background-color .3s; }
   .tick:hover { background: var(--panel); }
@@ -283,6 +308,32 @@
   /* Trend, countries, latency */
   .insights { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: clamp(22px, 3vw, 34px); }
+
+  /* For AI agents: a real Claude Code exchange, revealed line by line once it scrolls in */
+  .agent { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .transcript { margin: 0; padding: clamp(22px, 3vw, 32px); border-radius: 22px; background: var(--panel); border: 1px solid var(--line);
+                display: grid; gap: 18px; font-size: 16px; }
+  .transcript p { margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 16px; }
+  .transcript .who { color: var(--muted); font-size: 14px; padding-top: 2px; }
+  .transcript code { font-family: "Geist Mono", ui-monospace, monospace; font-size: 14px; overflow-wrap: anywhere; }
+  .transcript .t-tool code { color: var(--signal-ink); }
+  .transcript .t-result code { color: var(--muted); }
+  .transcript .t-page code { display: block; padding: 12px 14px; border-radius: 12px; background: var(--raised); color: var(--text); }
+  html.js .transcript.pending p { opacity: 0; transform: translateY(6px); }
+  .transcript p { transition: opacity .6s var(--ease) calc(var(--n) * .55s), transform .6s var(--ease) calc(var(--n) * .55s); }
+  .agent-side { display: grid; gap: 18px; }
+  .tools { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .tools li { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 14px; color: var(--muted); font-size: 15px; }
+  .tools code { font-family: "Geist Mono", ui-monospace, monospace; color: var(--text); font-size: 14px; }
+  .agent-side .note { margin: 0; color: var(--muted); font-size: 15px; }
+  .agent-side .note a { color: var(--text); }
+
+  /* Closing: why a star helps */
+  .closing { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px 48px; align-items: end; }
+  .closing .ctas { justify-content: flex-start; align-items: center; }
+  .btn .star, .gh .star { width: 15px; height: 15px; }
+  .star-count { font-variant-numeric: tabular-nums; }
+  .star-count:empty { display: none; }
   .panel h3 { margin: 0 0 6px; font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
   .panel .note { margin: 0 0 22px; color: var(--muted); font-size: 15px; }
   .trend-panel { grid-row: span 2; display: flex; flex-direction: column; }
@@ -350,7 +401,9 @@
     .hero-side { align-items: flex-start; }
     .ctas { justify-content: flex-start; }
     .figures { grid-template-columns: minmax(0, 1fr); }
-    .head-row { grid-template-columns: minmax(0, 1fr); }
+    .head-row, .agent, .closing { grid-template-columns: minmax(0, 1fr); }
+    .tools li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .transcript p { grid-template-columns: minmax(0, 1fr); gap: 4px; }
     .head-row .intro-text { justify-self: start; }
     .hero { min-height: 88svh; }
     .route { height: 380vh; }
@@ -375,10 +428,9 @@
     .btn { height: 48px; padding: 0 20px; }
   }
   @media (prefers-reduced-motion: reduce) {
+    html.js .transcript.pending p { opacity: 1; transform: none; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
-    html.js .headline .line > span, html.js .hero-foot, html.js .ticker { transform: none; opacity: 1; }
-    .ticker-window { overflow-x: auto; }
-    .ticker-toggle { display: none; }
+    html.js .headline .line > span, html.js .hero-foot, html.js .sieve { transform: none; opacity: 1; }
     .route { height: auto; }
     .route-sticky { position: static; height: auto; padding-block: 0; }
     .route-cam { overflow-x: auto; }
@@ -416,14 +468,14 @@
   <div class="wrap">
     <a class="brand" href="#top" aria-label="proxy-scraper, back to top"><svg class="mark" aria-hidden="true"><use href="#mark"/></svg>proxy-scraper</a>
     <nav class="nav-links" aria-label="Sections">
-      <a href="#list">The list</a><a href="#checks">How it's checked</a><a href="#runs">Last runs</a><a href="#use">Use it</a>
+      <a href="#list">The list</a><a href="#agents">AI agents</a><a href="#checks">How it's checked</a><a href="#runs">Last runs</a><a href="#use">Use it</a>
     </nav>
     <div class="nav-actions">
       <button class="toggle" id="theme" type="button" aria-label="Switch to light theme">
         <svg class="sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
         <svg class="moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>
       </button>
-      <a class="gh" href="https://github.com/maximilianfeix/proxy-scraper"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span class="label">GitHub</span></a>
+      <a class="gh" href="https://github.com/maximilianfeix/proxy-scraper"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span class="label">Star on GitHub</span><span class="star-count" data-stars></span></a>
     </div>
   </div>
 </header>
@@ -445,12 +497,19 @@
         </div>
       </div>
     </div>
-    <div class="ticker" role="group" aria-label="Fastest proxies right now, click one to copy it">
-      <div class="ticker-window"><div class="ticker-track" id="ticker"></div></div>
-      <button class="ticker-toggle" id="ticker-toggle" type="button" aria-pressed="false" aria-label="Pause the ticker">
-        <svg class="pause" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1" width="3" height="10" rx="1" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="1" fill="currentColor"/></svg>
-        <svg class="play" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor"/></svg>
-      </button>
+    <div class="sieve" id="sieve" role="group" aria-labelledby="sieve-label">
+      <div class="sieve-head">
+        <span id="sieve-label">A run, sped up</span>
+        <span>checked <strong id="sieve-checked">0</strong></span>
+        <span class="kept">kept <strong id="sieve-kept">0</strong></span>
+        <span class="sieve-stages" aria-hidden="true"><span>Handshake</span><span>Two sites</span><span>Content</span><span>Details</span></span>
+        <button class="sieve-toggle" id="sieve-toggle" type="button" aria-pressed="false" aria-label="Pause the replay">
+          <svg class="pause" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1" width="3" height="10" rx="1" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="1" fill="currentColor"/></svg>
+          <svg class="play" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <ul class="sieve-rows" id="sieve-rows" aria-label="Candidates going through the checks"></ul>
+      <p class="sieve-note">Each line is one candidate. The ones that pass are real proxies from this list, click one to copy it.</p>
     </div>
   </section>
 
@@ -518,6 +577,31 @@
     </div>
   </section>
 
+  <section class="block wrap" id="agents" aria-labelledby="agents-title">
+    <div class="head-row">
+      <h2 class="h2" id="agents-title">Hand it to your AI agent</h2>
+      <p class="intro-text">An MCP server for Claude Code, Cursor, Codex and co. Your agent gets working proxies and can load pages through them, as seen from another country.</p>
+    </div>
+    <div class="agent">
+      <figure class="transcript pending" id="transcript" aria-label="Example: Claude Code loading a page through a UK proxy">
+        <p class="t-user" style="--n:0"><span class="who">you</span><span>Load bbc.co.uk/news the way a visitor from the UK sees it.</span></p>
+        <p class="t-tool" style="--n:1"><span class="who">tool</span><code>fetch_url(url="https://www.bbc.co.uk/news", country="GB")</code></p>
+        <p class="t-result" style="--n:2"><span class="who"></span><code>200 · via socks5://109.205.182.143:1088 (GB) · 0.7 s</code></p>
+        <p class="t-page" style="--n:3"><span class="who"></span><code>Home - BBC News<br>BBC Homepage<br>Skip to content …</code></p>
+        <p class="t-agent" style="--n:4"><span class="who">claude</span><span>Loaded through a UK proxy: that's the BBC News front page as it shows up in Britain.</span></p>
+      </figure>
+      <div class="agent-side">
+        <ul class="tools">
+          <li><code>get_proxies</code><span>working proxies right now, with the same filters as the list above</span></li>
+          <li><code>check_proxies</code><span>checked again from your own network, so they work from where your code runs</span></li>
+          <li><code>fetch_url</code><span>a page through a verified proxy, as readable text – switches proxies by itself</span></li>
+        </ul>
+        <div class="cmd"><pre class="cmd-wrap">claude mcp add proxy-scraper -- uvx --python "&gt;=3.10" --from "proxy-scraper-cli[mcp]" proxy-scraper-mcp</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the Claude Code command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+        <p class="note">Cursor, VS Code, Codex and others: <a href="https://github.com/maximilianfeix/proxy-scraper#mcp">setup for every client</a>. Also in the official MCP registry as io.github.maximilianfeix/proxy-scraper.</p>
+      </div>
+    </div>
+  </section>
+
   <section class="route" id="checks" aria-labelledby="checks-title">
     <div class="route-sticky wrap">
       <h2 class="route-title" id="checks-title">How a proxy gets on this list</h2>
@@ -565,7 +649,7 @@
   <section class="block wrap" id="use" aria-labelledby="use-title">
     <div class="head-row">
       <h2 class="h2" id="use-title">Use it your way</h2>
-      <p class="intro-text">Run the same checks on your own machine, start from this list, hand it to your AI agent, or just fetch the plain text files.</p>
+      <p class="intro-text">Run the same checks on your own machine, start from this list, or just fetch the plain text files.</p>
     </div>
     <div class="use">
       <div class="use-cmds">
@@ -574,8 +658,6 @@
 proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the install commands"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
       <div class="panel"><h3>Recheck from your network</h3><p>Starts from this list and checks it again from where you are. Takes about 30 seconds, then serves a rotating proxy on port 8899.</p>
         <div class="cmd"><pre>proxy-scraper --recheck live --serve</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the recheck command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
-      <div class="panel"><h3>Give it to your AI agent</h3><p>An MCP server for Claude Code, Cursor, Codex and co: your agent gets working proxies and can load pages through them, as seen from another country. <a href="https://github.com/maximilianfeix/proxy-scraper#mcp">Setup for other clients</a></p>
-        <div class="cmd"><pre class="cmd-wrap">claude mcp add proxy-scraper -- uvx --python "&gt;=3.10" --from "proxy-scraper-cli[mcp]" proxy-scraper-mcp</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the Claude Code command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
       </div>
       <div class="panel"><h3>Plain lists</h3><p>One proxy per line, fastest first, updated with every run.</p><div class="raw" id="raw"></div></div>
     </div>
@@ -606,6 +688,16 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   "blocklisted": false,
   "streak": 5
 }</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the example"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+    </div>
+  </section>
+  <section class="block wrap closing" aria-labelledby="star-title">
+    <div>
+      <h2 class="h2" id="star-title">Saved you an afternoon?</h2>
+      <p class="intro-text">A star on GitHub is how other people find this list. It stays free and open source, and it's checked again every hour.</p>
+    </div>
+    <div class="ctas">
+      <a class="btn primary" href="https://github.com/maximilianfeix/proxy-scraper"><svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 .8l2.2 4.6 5 .7-3.6 3.5.9 5L8 12.2l-4.5 2.4.9-5L.8 6.1l5-.7z"/></svg>Star on GitHub<span class="star-count" data-stars></span></a>
+      <div class="cmd"><pre>pipx install proxy-scraper-cli</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the install command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
     </div>
   </section>
 </main>
@@ -811,12 +903,16 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   $("#copy-all").onclick = () => { const rows = filtered(); copy(rows.map(r => r.url).join("\n") + "\n", `Copied ${fmt(rows.length)} proxies`); };
   $("#download").onclick = () => download(filtered(), "proxies.txt");
   $("#dl-all").onclick = () => state.rows.length ? download(state.rows, "all.txt") : toast("The list is still loading");
-  $("#ticker-toggle").onclick = (e) => {
-    const t = $(".ticker"), paused = t.classList.toggle("paused");
-    t.classList.add("manual");
-    e.currentTarget.setAttribute("aria-pressed", paused);
-    e.currentTarget.setAttribute("aria-label", paused ? "Play the ticker" : "Pause the ticker");
-  };
+  // the transcript plays once when it comes into view
+  const transcript = $("#transcript");
+  if (calm || !("IntersectionObserver" in window)) transcript.classList.remove("pending");
+  else new IntersectionObserver((e, o) => { if (e[0].isIntersecting) { transcript.classList.remove("pending"); o.disconnect(); } },
+                                { threshold: .4 }).observe(transcript);
+  // stars: shown once there are enough to mean something
+  fetch("https://api.github.com/repos/maximilianfeix/proxy-scraper").then(r => r.ok ? r.json() : null).then((repo) => {
+    const n = repo && repo.stargazers_count;
+    if (n >= 25) $$("[data-stars]").forEach((el) => { el.textContent = fmt(n); });
+  }).catch(() => {});
   // "/" jumps to the search, like on GitHub
   document.addEventListener("keydown", (e) => {
     if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, select, textarea")) return;
@@ -824,7 +920,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     $("#f-q").focus({ preventScroll: true });
     $("#f-q").scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
   });
-  $("#ticker").onclick = (e) => { const b = e.target.closest(".tick"); if (b) copy(b.dataset.url, `Copied ${b.dataset.url}`); };
+  $("#sieve-rows").onclick = (e) => { const b = e.target.closest("button[data-url]"); if (b) copy(b.dataset.url, `Copied ${b.dataset.url}`); };
   $$("[data-copy-pre]").forEach(b => b.onclick = () => copy(b.parentElement.querySelector("pre").textContent + "\n", "Copied the command"));
   $("#raw").innerHTML = [["all", "Everything"], ["http", "HTTP"], ["socks4", "SOCKS4"], ["socks5", "SOCKS5"], ["https", "HTTPS-capable"], ["elite", "Elite"]]
     .map(([f, label]) => `<a href="${RAW}/${f}.txt"><span>${label}</span><span class="mono">${f}.txt</span></a>`).join("");
@@ -882,14 +978,72 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     $("#axis-from").textContent = day(history[0].updated); $("#axis-to").textContent = day(last.updated);
     $("#trend-note").textContent = `${fmt(runs)} runs, now one every ${RUN_HOURS === 1 ? "hour" : `${RUN_HOURS} hours`}. Last run: ${fmt(last.total)} working.`;
   }
-  function ticker(rows) {
-    const fastest = [...rows].sort((a, b) => a.latency - b.latency).slice(0, 24);
-    if (!fastest.length) return;
-    const item = (r, hidden) => `<button class="tick" type="button" data-url="${esc(r.url)}"${hidden ? ' tabindex="-1" aria-hidden="true"' : ` aria-label="Copy ${esc(r.url)}"`}>
-      <span class="dot ${esc(r.ptype)}"></span><span class="addr">${esc(r.proxy)}</span><span class="meta">${flag(r.country)} ${esc(r.country || "")} ${fmt(r.latency)} ms</span></button>`;
-    const track = $("#ticker");
-    track.innerHTML = fastest.map(r => item(r, false)).join("") + (calm ? "" : fastest.map(r => item(r, true)).join(""));
-    track.style.setProperty("--dur", `${fastest.length * 3.2}s`);
+  // The sieve: a sped-up replay of one run. The mix of outcomes on screen is a readable sample (a real run drops
+  // ~99.8 % as dead), the counters climb to the real totals, and every proxy that passes is one from this list.
+  function sieve(rows, total) {
+    const list = $("#sieve-rows"), box = $("#sieve"), MAX = 6;
+    if (!rows.length) return;
+    const good = [...rows].sort(() => Math.random() - .5).slice(0, 60);
+    const OUTCOMES = [["dead", 1, "no handshake, just an open port – or not even that"], ["dead", 1, "timed out"],
+                      ["honeypot", 2, "different exit IP on the second site"], ["dead", 1, "connection refused"],
+                      ["tamper", 3, "rewrote the page: injected a <script>"], ["dead", 1, "not a proxy"],
+                      ["pass", 4, ""], ["honeypot", 2, "only answered the check request"], ["tamper", 3, "added ads to the page"]];
+    const CANDIDATES = 1000000, rand = (a, b) => a + Math.floor(Math.random() * (b - a));
+    // only first octets of public ranges – private and reserved addresses never make it into a run anyway
+    const OCTETS = [5, 23, 31, 37, 45, 46, 51, 62, 77, 78, 82, 85, 89, 91, 93, 95, 103, 109, 116, 122, 139, 144, 146, 152, 154, 159, 162, 165, 178, 185, 188, 190, 194, 202, 212];
+    const fakeAddr = () => `${OCTETS[rand(0, OCTETS.length)]}.${rand(0, 255)}.${rand(0, 255)}.${rand(1, 254)}:${[80, 8080, 3128, 1080, 4145, 9050, 8888][rand(0, 7)]}`;
+    let n = 0, gi = 0, checked = 0, kept = 0, timer = null, paused = false, visible = true;
+    const counters = () => { $("#sieve-checked").textContent = fmt(checked); $("#sieve-kept").textContent = fmt(kept); };
+    function row(outcome, stage, reason, proxy) {
+      const li = document.createElement("li");
+      li.className = "cand";
+      const pips = [0, 1, 2, 3].map(() => '<span class="pip"></span>').join("");
+      li.innerHTML = `<span class="addr">${esc(proxy ? proxy.proxy : fakeAddr())}</span><span class="pips" aria-hidden="true">${pips}</span><span class="verdict">checking …</span>`;
+      list.prepend(li);
+      while (list.children.length > MAX) list.lastElementChild.remove();
+      const p = li.querySelectorAll(".pip");
+      const passes = outcome === "pass";
+      [0, 1, 2, 3].forEach((k) => setTimeout(() => {
+        if (k < stage) p[k].classList.add(passes || k < stage - 1 ? "ok" : "no");
+        if (k === stage - 1 || (passes && k === 3)) {
+          const v = li.querySelector(".verdict");
+          if (passes) {
+            li.classList.add("in");
+            v.innerHTML = `<button type="button" data-url="${esc(proxy.url)}" aria-label="Copy ${esc(proxy.url)}">kept · ${flag(proxy.country)} ${esc(proxy.country || "")} ${fmt(proxy.latency)} ms${proxy.https ? " · HTTPS" : ""}</button>`;
+          } else {
+            li.classList.add("out");
+            v.textContent = reason;
+          }
+        }
+      }, 140 * (k + 1)));
+    }
+    function step() {
+      const [outcome, stage, reason] = OUTCOMES[n++ % OUTCOMES.length];
+      row(outcome, stage, reason, outcome === "pass" ? good[gi++ % good.length] : null);
+      checked = Math.min(CANDIDATES, checked + rand(9000, 16000));
+      kept = Math.min(total, Math.round(total * checked / CANDIDATES));
+      counters();
+      if (checked >= CANDIDATES) { checked = 0; kept = 0; }  // start the next run
+    }
+    const run = () => { clearInterval(timer); timer = (!paused && visible) ? setInterval(step, 900) : null; };
+    if (calm) {  // no motion: one still frame of a finished run, with one of each outcome
+      [0, 2, 6, 4, 3, 7].forEach((k) => {
+        const [outcome, stage, reason] = OUTCOMES[k];
+        row(outcome, stage, reason, outcome === "pass" ? good[0] : null);
+      });
+      checked = CANDIDATES; kept = total; counters();
+      $("#sieve-toggle").style.display = "none";
+      return;
+    }
+    step(); run();
+    new IntersectionObserver((e) => { visible = e[0].isIntersecting; run(); }).observe(box);
+    document.addEventListener("visibilitychange", () => { visible = !document.hidden; run(); });
+    $("#sieve-toggle").onclick = (e) => {
+      paused = box.classList.toggle("paused");
+      e.currentTarget.setAttribute("aria-pressed", paused);
+      e.currentTarget.setAttribute("aria-label", paused ? "Play the replay" : "Pause the replay");
+      run();
+    };
   }
 
   // the data sits right next to this page
@@ -915,7 +1069,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const dc = st.datacenter != null ? ` ${pct(st.datacenter, st.total)} % exit from a datacenter` : "";
     const bl = st.blocklisted != null ? `${dc ? "," : ""} ${pct(st.blocklisted, st.total)} % from an IP on a spam blocklist` : "";
     $("#step5").textContent = `HTTPS with verified TLS, anonymity, country, provider and spam blocklists. This time ${fmt(st.https)} tunnel HTTPS and ${fmt(st.elite)} are elite.${dc}${bl}${dc || bl ? "." : ""}`;
-    ticker(rows);
+    sieve(rows, st.total);
     trend(history);
     const byCountry = {};
     rows.forEach(r => { if (/^[A-Z]{2}$/.test(r.country || "")) byCountry[r.country] = (byCountry[r.country] || 0) + 1; });

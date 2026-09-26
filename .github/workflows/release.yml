@@ -74,7 +74,8 @@ jobs:
           v="${GITHUB_REF_NAME#v}"
           jq --arg v "$v" '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
       - name: Install mcp-publisher
-        run: curl -sL "https://github.com/modelcontextprotocol/registry/releases/latest/download/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+        # pinned: a newer publisher may want a newer server.json schema – update both together
+        run: curl -sL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
       - run: ./mcp-publisher login github-oidc
       - name: Publish (PyPI can take a moment to show the new version)
         run: |

@@ -302,8 +302,10 @@ def post_echo(body: bytes):
         try:
             writer.write(head + body)
             await writer.drain()
-        except ConnectionError:
-            pass  # the server aborted before everything was sent – the response still counts
+        except (ConnectionError, RuntimeError):
+            # the server aborted before everything was sent – the response still counts. Depending on timing
+            # asyncio reports that as a RuntimeError ("the handler is closed") instead of a ConnectionError
+            pass
         answer = b""
         while True:
             try:

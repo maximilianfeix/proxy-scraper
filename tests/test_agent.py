@@ -440,14 +440,16 @@ def test_a_proxy_that_broke_off_is_not_picked_again():
 
         fetcher = agent.PageFetcher(Source(), allow_private=True, timeout=5, strategy="fastest")
         try:
-            return await fetcher.fetch(f"http://127.0.0.1:{target_port}/ok"), good_port
+            page = await fetcher.fetch(f"http://127.0.0.1:{target_port}/ok")
+            return page, good_port, [e.disabled for e in fetcher.server.pool.entries]
         finally:
             await fetcher.close()
             for s in (target_srv, bad_srv, good_srv):
                 s.close()
 
-    page, good_port = asyncio.run(go())
+    page, good_port, disabled = asyncio.run(go())
     assert page["text"] == "ok" and page["via"] == f"http://127.0.0.1:{good_port}"
+    assert disabled == [True, False]  # proven bad: another proxy delivered the same page
 
 
 def test_while_github_is_down_the_old_list_is_served_without_waiting():
@@ -609,7 +611,7 @@ def test_a_cancelled_fetch_does_not_leave_its_download_hanging():
     assert asyncio.run(go()) == 0
 
 
-def test_a_proxy_that_breaks_tls_is_retired_and_named():
+def test_a_certificate_failure_is_named():
     """Certificate check fails through this proxy – like a proxy that intercepts HTTPS."""
     from .fakes import serve_tls
 
@@ -633,7 +635,7 @@ def test_a_proxy_that_breaks_tls_is_retired_and_named():
         try:
             with pytest.raises(agent.AgentError, match="certificate"):
                 await fetcher.fetch(f"https://localhost:{tls_port}/")
-            return fetcher.server.pool.entries[0].disabled
+            return fetcher.server.pool.entries[0].disabled is False  # one proxy, same result: the site's fault
         finally:
             await fetcher.close()
             tls_srv.close()
@@ -671,3 +673,88 @@ def test_the_live_list_is_kept_until_the_next_hourly_run():
 
     first, after = asyncio.run(go())
     assert first == 2 and after == 4
+
+
+# --------------------------------------------------------------------------- third review of #130
+
+def test_non_ascii_paths_are_percent_encoded():
+    assert agent.check_scheme("https://de.wikipedia.org/wiki/München?q=größe") == \
+        "https://de.wikipedia.org/wiki/M%C3%BCnchen?q=gr%C3%B6%C3%9Fe"
+    assert agent.check_scheme("https://a.example/already%20encoded?x=%C3%BC") == \
+        "https://a.example/already%20encoded?x=%C3%BC"  # nothing encoded twice
+
+
+def test_urls_with_a_login_are_not_sent_through_public_proxies():
+    with pytest.raises(agent.AgentError, match="login"):
+        agent.check_scheme("http://user:secret@example.com/")
+
+
+def test_a_non_text_charset_falls_back_to_utf8():
+    assert agent.decode_body("grüße".encode(), "zlib") == "grüße"
+
+
+def test_a_site_with_a_broken_certificate_costs_no_proxies():
+    """Every proxy sees the same bad certificate: that's the site, not the proxies – nobody gets retired."""
+    from .fakes import serve_tls
+
+    async def tls_ok(reader, writer):
+        await reader.readuntil(b"\r\n\r\n")
+        writer.write(b"HTTP/1.1 200 OK\r\nContent-Length: 2\r\n\r\nok")
+        await writer.drain()
+        writer.close()
+
+    async def go():
+        tls_srv, tls_port = await serve_tls(tls_ok)  # a certificate certifi doesn't trust
+        a_srv, a_port = await serve(http_forward_proxy)
+        b_srv, b_port = await serve(http_forward_proxy)
+        live = agent.LiveList(rows=[row(1, proxy=f"127.0.0.1:{a_port}", url=f"http://127.0.0.1:{a_port}"),
+                                    row(2, proxy=f"127.0.0.1:{b_port}", url=f"http://127.0.0.1:{b_port}")],
+                              stats=STATS, loaded_at=0.0)
+
+        class Source:
+            async def get(self):
+                return live
+
+        fetcher = agent.PageFetcher(Source(), allow_private=True, timeout=5)
+        try:
+            with pytest.raises(agent.AgentError, match="certificate"):
+                await fetcher.fetch(f"https://localhost:{tls_port}/")
+            return [e.disabled for e in fetcher.server.pool.entries]
+        finally:
+            await fetcher.close()
+            for s in (tls_srv, a_srv, b_srv):
+                s.close()
+
+    assert asyncio.run(go()) == [False, False]
+
+
+def test_a_real_error_after_a_proxy_fault_is_not_hidden():
+    """Proxy A drops the page, proxy B gets it – and it redirects somewhere refused. That refusal is the news."""
+    def refuse_ok(url):
+        if url.endswith("/ok"):
+            raise agent.AgentError("refused: private")
+        return url
+
+    async def go():
+        target_srv, target_port = await serve(target_server)
+        bad_srv, bad_port = await serve(cutting_proxy)
+        good_srv, good_port = await serve(http_forward_proxy)
+        live = agent.LiveList(rows=[row(1, proxy=f"127.0.0.1:{bad_port}", url=f"http://127.0.0.1:{bad_port}",
+                                        latency=10),
+                                    row(2, proxy=f"127.0.0.1:{good_port}", url=f"http://127.0.0.1:{good_port}",
+                                        latency=900)], stats=STATS, loaded_at=0.0)
+
+        class Source:
+            async def get(self):
+                return live
+
+        fetcher = agent.PageFetcher(Source(), timeout=5, strategy="fastest", check=refuse_ok)
+        try:
+            await fetcher.fetch(f"http://127.0.0.1:{target_port}/redirect")
+        finally:
+            await fetcher.close()
+            for s in (target_srv, bad_srv, good_srv):
+                s.close()
+
+    with pytest.raises(agent.AgentError, match="refused: private"):
+        asyncio.run(go())

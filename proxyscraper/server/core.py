@@ -70,8 +70,10 @@ class ServerStats:
 
 class RotatingServer:
     def __init__(self, pool: ProxyPool, host: str = "127.0.0.1", port: int = 8899, timeout: float = 10.0,
-                 password: str = "", max_attempts: int = MAX_ATTEMPTS):
+                 password: str = "", max_attempts: int = MAX_ATTEMPTS, public_targets_only: bool = False):
         self.pool = pool
+        # names this machine resolves for SOCKS4 upstreams must not lead to private addresses (DNS rebinding)
+        self.public_targets_only = public_targets_only
         self.max_attempts = max_attempts  # proxies per request before the client gets a 502
         self.password = password  # empty = no authentication (fine on 127.0.0.1)
         self.host = host
@@ -125,7 +127,8 @@ class RotatingServer:
                     return
             except (ValueError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, asyncio.TimeoutError,
                     UnicodeDecodeError):
-                writer.write(b"HTTP/1.1 400 Bad Request\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+                writer.write(b"HTTP/1.1 400 Bad Request\r\nX-Proxy-Scraper: bad-request\r\n"
+                             b"Content-Length: 0\r\nConnection: close\r\n\r\n")
                 return
             selection = selection_from_headers(headers)
             await self._serve_request(reader, writer, client, method, host, port, path, headers, selection)
@@ -228,7 +231,8 @@ class RotatingServer:
             # proxy as free (important for --rotate fastest); released in _give_up or at the end of _relay
             entry.active += 1
             try:
-                up_reader, up_writer = await open_upstream(entry, host, port, self.timeout, tunnel=tunnel)
+                up_reader, up_writer = await open_upstream(entry, host, port, self.timeout, tunnel=tunnel,
+                                                           public_only=self.public_targets_only)
             except Unsupported:
                 entry.active -= 1  # this type can't do this target – not a failure of the proxy
                 continue

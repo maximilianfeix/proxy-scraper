@@ -17,13 +17,14 @@ import re
 import secrets
 import socket
 import ssl
+import threading
 import time
 from collections import Counter
 from dataclasses import dataclass
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from typing import Awaitable, Callable, Iterable, Iterator, List, Optional, Sequence, Union
-from urllib.parse import urljoin, urlsplit, urlunsplit
+from urllib.parse import quote, urljoin, urlsplit, urlunsplit
 
 import certifi
 
@@ -52,7 +53,16 @@ class AgentError(Exception):
 
 
 class _ProxyFault(Exception):
-    """The proxy that carried this request misbehaved (dropped the page halfway, broke TLS) – try another."""
+    """The proxy that carried this request may have misbehaved (dropped the page, broke TLS) – try another.
+    Only proven when another proxy then gets the page; if all fail the same way, it's the site."""
+
+    def __init__(self, message: str, certificate: bool = False):
+        super().__init__(message)
+        self.certificate = certificate
+
+
+class _NoProxy(AgentError):
+    """The local server tried its proxies and none got through."""
 
 
 # --------------------------------------------------------------------------- the live list
@@ -268,6 +278,9 @@ def check_scheme(url: str) -> str:
     parts = urlsplit(url)
     if parts.scheme not in ("http", "https") or not parts.hostname or any(c.isspace() for c in url):
         raise AgentError(f"Give a full http:// or https:// URL, e.g. https://example.com – not {url!r}.")
+    if parts.username is not None:
+        raise AgentError("URLs with a login (user:password@) aren't sent through public proxies – strangers run "
+                         "them.")
     try:
         port = parts.port
         host = parts.hostname.encode("idna").decode("ascii") if not parts.hostname.isascii() else parts.hostname
@@ -276,9 +289,10 @@ def check_scheme(url: str) -> str:
     netloc = f"[{host}]" if ":" in host else host
     if port is not None:
         netloc += f":{port}"
-    if parts.username is not None:
-        netloc = parts.netloc.rsplit("@", 1)[0] + "@" + netloc
-    return urlunsplit((parts.scheme, netloc, parts.path, parts.query, parts.fragment))
+    # the request line is ASCII: /wiki/München -> /wiki/M%C3%BCnchen, anything already encoded stays as it is
+    path = quote(parts.path, safe="/%:@!$&'()*+,;=-._~")
+    query = quote(parts.query, safe="=&%+/?:@!$'()*,;-._~")
+    return urlunsplit((parts.scheme, netloc, path, query, ""))
 
 
 def _is_public(ip) -> bool:
@@ -370,6 +384,9 @@ def _check_resolved(url: str, host: str) -> str:
 
 def next_hop(url: str, location: str, check: Callable[[str], str]) -> str:
     """Where a redirect leads – checked like the first URL, and never from https down to plain http."""
+    # http.client hands header values over as latin-1 – UTF-8 locations come back readable this way
+    with contextlib.suppress(UnicodeEncodeError, UnicodeDecodeError):
+        location = location.encode("latin-1").decode("utf-8")
     target = urljoin(url, location)
     if urlsplit(url).scheme == "https" and urlsplit(target).scheme == "http":
         raise AgentError(f"{url} redirects to plain http ({target}). Not followed: that part would skip the "
@@ -380,7 +397,8 @@ def next_hop(url: str, location: str, check: Callable[[str], str]) -> str:
 def decode_body(body: bytes, charset: Optional[str]) -> str:
     """Text in the charset the server named – or UTF-8 when it named one Python doesn't know (utf8mb4 …)."""
     try:
-        codecs.lookup(charset or "utf-8")
+        if not codecs.lookup(charset or "utf-8")._is_text_encoding:  # zlib, base64 … aren't charsets
+            charset = "utf-8"
     except LookupError:
         charset = "utf-8"
     return body.decode(charset or "utf-8", "replace")
@@ -413,6 +431,11 @@ def _read_all(response) -> bytes:
     return body
 
 
+def _to_text(body: bytes, headers, content_type: str, raw_html: bool) -> str:
+    text = decode_body(body, headers.get_content_charset() if headers else None)
+    return text if raw_html or "html" not in content_type.lower() else html_to_text(text)
+
+
 class PageFetcher:
     """Loads pages through the rotating server of this package, running on 127.0.0.1 with a random password:
     the same failover as `--serve`, and HTTPS only through proxies that passed the verified-TLS test.
@@ -424,11 +447,13 @@ class PageFetcher:
                  strategy: str = "weighted", check: Optional[Callable[[str], str]] = None):
         self.source, self.timeout, self.strategy = source, timeout, strategy
         self.check = check or (check_scheme if allow_private else check_target)  # for the URL and every redirect
+        self.allows_private = allow_private
         self.server: Optional[RotatingServer] = None
         self._password = secrets.token_urlsafe(24)
         self._list_id: object = None
         self._lock: Optional[asyncio.Lock] = None
-        self.downloads_running = 0  # threads inside _get right now
+        self.downloads_running = 0  # threads inside _get right now (worker threads: counted under a lock)
+        self._count_lock = threading.Lock()
         self._tls = ssl.create_default_context(cafile=certifi.where())
         per_attempt = min(timeout, 10.0)
         # the client waits for the server to work through its attempts (connect + first answer each)
@@ -447,7 +472,8 @@ class PageFetcher:
                 if self.server is None:
                     server = RotatingServer(ProxyPool(results, strategy=self.strategy, strict_tls=True),
                                             host="127.0.0.1", port=0, timeout=min(self.timeout, 10.0),
-                                            password=self._password, max_attempts=FETCH_ATTEMPTS)
+                                            password=self._password, max_attempts=FETCH_ATTEMPTS,
+                                            public_targets_only=not self.allows_private)
                     await server.start()
                     self.server = server  # only once it listens
                 else:
@@ -473,7 +499,7 @@ class PageFetcher:
             wishes.append(f"type-{protocol}")
         pool, port = self.server.pool, self.server.port
         started = time.monotonic()
-        result, fault = None, None
+        result, faults, suspects = None, [], []
         for round_ in range(FETCH_ROUNDS):
             # the same wishes a user would put in the proxy login; session names are letters and digits only
             name = f"{session}r{round_}"
@@ -482,26 +508,31 @@ class PageFetcher:
                 result = await self._download(url, user, port, progress, tick)
                 break
             except _ProxyFault as e:
-                fault = str(e)
+                faults.append(e)
                 bad = pool.session_entry(name)
-                if bad:
-                    pool.retire(bad)  # it broke TLS or dropped the page: not this one again
-            except AgentError:
-                if fault is None:
+                if bad and not bad.disabled:
+                    pool.retire(bad)  # out while we retry, so the next round gets a different proxy
+                    suspects.append(bad)
+            except _NoProxy:
+                if not faults:
                     raise
-                break  # the retry found nobody else – the fault is what the agent needs to hear
+                break  # nobody left after the faults – below it's decided whose fault it was
         if result is None:
-            raise AgentError(f"Couldn't load {url}: {fault}, and no other proxy got it through. Free proxies come "
-                             "and go – try again in a moment.")
+            for entry in suspects:
+                pool.revive(entry)  # every proxy failed the same way: that's the site, not them
+            if faults and all(f.certificate for f in faults):
+                raise AgentError(f"The TLS certificate of {url} failed verification through {len(faults)} different "
+                                 f"prox{'y' if len(faults) == 1 else 'ies'} ({faults[-1]}). The site's certificate is "
+                                 "probably invalid or expired – nothing a proxy can fix.")
+            raise AgentError(f"Couldn't load {url}: {faults[-1]}, and no other proxy got it through. Free proxies "
+                             "come and go – try again in a moment.")
+        # got it: the proxies that failed on the way are proven bad and stay out
         status, final_url, headers, body = result
         held = pool.session_entry(name)
         content_type = headers.get("Content-Type", "") if headers else ""
         is_text = not content_type or any(t in content_type.lower() for t in _TEXT_TYPES)
-        text = ""
-        if is_text:
-            text = decode_body(body, headers.get_content_charset() if headers else None)
-            if not raw_html and "html" in content_type.lower():
-                text = html_to_text(text)
+        # up to 2 MB of HTML: parse it off the event loop, which also runs the proxy server
+        text = await asyncio.to_thread(_to_text, body, headers, content_type, raw_html) if is_text else ""
         truncated = len(text) > max_chars or len(body) > MAX_PAGE_BYTES
         return {
             "url": url,
@@ -524,7 +555,7 @@ class PageFetcher:
         try:
             return await _with_progress(asyncio.to_thread(self._get, url, user, port, slot), progress, tick,
                                         "loading the page through a proxy")
-        except asyncio.CancelledError:
+        except BaseException:  # cancelled, or the progress report failed because the client left
             conn = slot.get("conn")
             if conn is not None and conn.sock is not None:
                 with contextlib.suppress(OSError):
@@ -533,7 +564,8 @@ class PageFetcher:
 
     def _get(self, url: str, user: str, port: int, slot: dict):
         """GET through the local rotating server, following redirects by hand so every hop gets checked."""
-        self.downloads_running += 1
+        with self._count_lock:
+            self.downloads_running += 1
         try:
             auth = "Basic " + base64.b64encode(f"{user}:{self._password}".encode()).decode()
             for _hop in range(MAX_REDIRECTS + 1):
@@ -543,7 +575,8 @@ class PageFetcher:
                 url = next_hop(url, location, self.check)  # a public page may point somewhere private
             raise AgentError(f"{url} redirected more than {MAX_REDIRECTS} times – stopped there.")
         finally:
-            self.downloads_running -= 1
+            with self._count_lock:
+                self.downloads_running -= 1
 
     def _get_once(self, url: str, auth: str, port: int, slot: dict):
         parts = urlsplit(url)
@@ -563,21 +596,23 @@ class PageFetcher:
             response = conn.getresponse()
             if conn.sock is not None:  # the answer is there: the rest shouldn't take the failover's patience
                 conn.sock.settimeout(min(self.timeout, 30.0))
-            if response.getheader("X-Proxy-Scraper") == "no-proxy-answered":
-                raise AgentError(self._failed(url, f"none of {FETCH_ATTEMPTS} proxies got through"))
+            marker = response.getheader("X-Proxy-Scraper")
+            if marker == "no-proxy-answered":
+                raise _NoProxy(self._failed(url, f"none of {FETCH_ATTEMPTS} proxies got through"))
+            if marker == "bad-request":
+                raise AgentError(f"The request for {url} couldn't be passed on – an unusual URL?")
             location = response.getheader("Location")
             if response.status in (301, 302, 303, 307, 308) and location:
                 return response.status, response.headers, b"", location  # the body isn't needed – not read at all
             return response.status, response.headers, _read_all(response), None
         except ssl.SSLCertVerificationError as e:
-            raise _ProxyFault(f"the certificate check failed ({e.verify_message}) – the proxy may be intercepting "
-                              "HTTPS") from None
+            raise _ProxyFault(f"certificate check failed: {e.verify_message}", certificate=True) from None
         except (ssl.SSLError, ConnectionResetError, http.client.RemoteDisconnected, http.client.IncompleteRead) as e:
             raise _ProxyFault(f"the proxy dropped the connection ({e.__class__.__name__})") from None
         except (OSError, http.client.HTTPException) as e:
             reason = str(e)
             if _TUNNEL_502.search(reason):  # the server's answer to CONNECT when no proxy got through
-                reason = f"none of {FETCH_ATTEMPTS} proxies got through"
+                raise _NoProxy(self._failed(url, f"none of {FETCH_ATTEMPTS} proxies got through")) from None
             raise AgentError(self._failed(url, reason)) from None
         finally:
             conn.close()

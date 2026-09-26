@@ -438,3 +438,21 @@ def test_merge_can_drop_what_the_new_list_no_longer_has():
     pool = ProxyPool([a, b])
     pool.merge([a])  # the refill's way: proxies it didn't recheck stay
     assert len(pool.entries) == 2
+
+
+def test_ipv6_targets_in_absolute_urls():
+    from proxyscraper.server.http import parse_request_head
+    method, host, port, path, _ = parse_request_head(b"GET http://[2606:4700::1]:8080/x HTTP/1.1\r\nHost: a\r\n\r\n")
+    assert (method, host, port, path) == ("GET", "2606:4700::1", 8080, b"/x")
+    assert parse_request_head(b"GET http://[2606:4700::1]/ HTTP/1.1\r\n\r\n")[1:3] == ("2606:4700::1", 80)
+
+
+def test_socks4_upstreams_can_refuse_private_resolutions():
+    from proxyscraper.server import upstream
+
+    async def go():
+        with pytest.raises(upstream.TargetError, match="private"):
+            await upstream._resolve("localhost", 80, public_only=True)
+        return await upstream._resolve("localhost", 80)
+
+    assert asyncio.run(go()) == "127.0.0.1"

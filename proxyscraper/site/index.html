@@ -190,7 +190,7 @@
   .dot.http { background: var(--http); } .dot.socks4 { background: var(--socks4); } .dot.socks5 { background: var(--socks5); }
 
   /* Sections */
-  section.block { padding-block: clamp(80px, 9vw, 140px); }
+  section.block { padding-block: clamp(56px, 6.5vw, 104px); }
   .h2 { margin: 0; font-weight: 600; font-size: clamp(40px, 6.6vw, 104px); line-height: .95; letter-spacing: -.05em; max-width: 14ch; }
   .intro-text { margin: 22px 0 0; max-width: 46ch; color: var(--muted); font-size: clamp(17px, 1.4vw, 20px); }
   .head-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: end; gap: 24px 48px; margin-bottom: clamp(40px, 5vw, 72px); }
@@ -322,10 +322,10 @@
   @media (max-width: 1020px) { .dev-panel { grid-template-columns: minmax(0, 1fr); } }
 
   /* Footer */
-  footer { padding: clamp(80px, 10vw, 140px) 0 36px; border-top: 1px solid var(--line); }
+  footer { padding: clamp(56px, 7vw, 104px) 0 36px; border-top: 1px solid var(--line); }
   .wordmark { display: flex; align-items: center; gap: .18em; font-weight: 600; font-size: clamp(38px, 11.2vw, 170px); letter-spacing: -.065em; line-height: .9; white-space: nowrap; }
   .wordmark .mark { width: .8em; height: .8em; }
-  .browse { display: grid; gap: 8px; margin-bottom: 28px; color: var(--muted); font-size: 14px; }
+  .browse { display: grid; gap: 8px; margin-top: clamp(28px, 4vw, 48px); color: var(--muted); font-size: 14px; }  /* below the wordmark's descenders */
   .browse p { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
   .browse a { color: var(--text); text-decoration: none; }
   .browse a:hover { color: var(--signal-ink); text-decoration: underline; }
@@ -436,7 +436,7 @@
       <span class="line" aria-hidden="true"><span style="--i:2">work.</span></span>
     </h1>
     <div class="hero-foot">
-      <p class="lede">Every proxy on this list passed a <strong>real handshake</strong>, a <strong>honeypot check</strong> and a <strong>content check</strong> in the last run. The whole list is checked again every 6 hours.</p>
+      <p class="lede">Every proxy on this list passed a <strong>real handshake</strong>, a <strong>honeypot check</strong> and a <strong>content check</strong> in the last run. The whole list is checked again every hour.</p>
       <div class="hero-side">
         <div class="status" aria-live="polite"><span class="pulse" aria-hidden="true"></span><span id="updated">Loading the latest run</span></div>
         <div class="ctas">
@@ -842,18 +842,34 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   function trend(history) {
     const el = $("#trend");
     if (!history || history.length < 2) { el.innerHTML = '<p class="note">The chart fills up with every run.</p>'; return; }
+    const runs = history.length;
+    // runs a few minutes apart (started by hand) are noise, not trend: keep the last of each such cluster
+    history = history.filter((h, i, a) => i === a.length - 1 || Date.parse(a[i + 1].updated) - Date.parse(h.updated) > 20 * 60e3);
     const W = 800, H = 260, P = 10, max = Math.max(...history.map(h => h.total)) * 1.12 || 1;
     // spaced by time, not by index: the runs weren't always the same distance apart
     const t0 = Date.parse(history[0].updated), span = Math.max(Date.parse(history[history.length - 1].updated) - t0, 1);
     const x = (h) => P + (Date.parse(h.updated) - t0) * (W - 2 * P) / span, y = (v) => H - P - v * (H - 2 * P) / max;
+    // monotone cubic (Fritsch–Carlson): smooth, but never overshoots the measured values – the runs aren't
+    // evenly spaced, and a plain spline turns close runs into spikes
+    const f = (v) => v.toFixed(1);
     const line = (key) => {
-      const pts = history.map((h) => [x(h), y(key(h))]);
-      return pts.map(([px, py], i) => {
-        if (!i) return `M${px.toFixed(1)},${py.toFixed(1)}`;
-        const [x0, y0] = pts[i - 2] || pts[i - 1], [x1, y1] = pts[i - 1], [x3, y3] = pts[i + 1] || [px, py];
-        const c1 = [x1 + (px - x0) / 6, y1 + (py - y0) / 6], c2 = [px - (x3 - x1) / 6, py - (y3 - y1) / 6];
-        return `C${c1[0].toFixed(1)},${c1[1].toFixed(1)} ${c2[0].toFixed(1)},${c2[1].toFixed(1)} ${px.toFixed(1)},${py.toFixed(1)}`;
-      }).join("");
+      const p = history.map((h) => [x(h), y(key(h))]).filter((q, i, a) => !i || q[0] > a[i - 1][0]);
+      const n = p.length, d = [], m = [];
+      if (n < 2) return p.length ? `M${f(p[0][0])},${f(p[0][1])}` : "";
+      for (let i = 0; i < n - 1; i++) d.push((p[i + 1][1] - p[i][1]) / (p[i + 1][0] - p[i][0]));
+      m[0] = d[0]; m[n - 1] = d[n - 2];
+      for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+      for (let i = 0; i < n - 1; i++) {
+        if (!d[i]) { m[i] = m[i + 1] = 0; continue; }
+        const a = m[i] / d[i], b = m[i + 1] / d[i], s2 = a * a + b * b;
+        if (s2 > 9) { const t = 3 / Math.sqrt(s2); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+      }
+      let path = `M${f(p[0][0])},${f(p[0][1])}`;
+      for (let i = 0; i < n - 1; i++) {
+        const h = (p[i + 1][0] - p[i][0]) / 3;
+        path += `C${f(p[i][0] + h)},${f(p[i][1] + m[i] * h)} ${f(p[i + 1][0] - h)},${f(p[i + 1][1] - m[i + 1] * h)} ${f(p[i + 1][0])},${f(p[i + 1][1])}`;
+      }
+      return path;
     };
     const area = line(h => h.total) + `L${W - P},${H - P}L${P},${H - P}Z`;
     const last = history[history.length - 1];
@@ -864,7 +880,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       <path d="${line(h => h.total)}" fill="none" stroke="var(--signal-ink)" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
     const day = (iso) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
     $("#axis-from").textContent = day(history[0].updated); $("#axis-to").textContent = day(last.updated);
-    $("#trend-note").textContent = `${fmt(history.length)} runs, now one every ${RUN_HOURS === 1 ? "hour" : `${RUN_HOURS} hours`}. Last run: ${fmt(last.total)} working.`;
+    $("#trend-note").textContent = `${fmt(runs)} runs, now one every ${RUN_HOURS === 1 ? "hour" : `${RUN_HOURS} hours`}. Last run: ${fmt(last.total)} working.`;
   }
   function ticker(rows) {
     const fastest = [...rows].sort((a, b) => a.latency - b.latency).slice(0, 24);

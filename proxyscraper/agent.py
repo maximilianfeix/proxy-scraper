@@ -557,9 +557,12 @@ class PageFetcher:
                                         "loading the page through a proxy")
         except BaseException:  # cancelled, or the progress report failed because the client left
             conn = slot.get("conn")
-            if conn is not None and conn.sock is not None:
+            sock = conn.sock if conn is not None else None
+            if sock is not None:
                 with contextlib.suppress(OSError):
-                    conn.sock.shutdown(socket.SHUT_RDWR)
+                    sock.shutdown(socket.SHUT_RDWR)  # wakes the reading thread on Unix
+                with contextlib.suppress(OSError):
+                    sock.close()  # and on Windows, where shutdown alone leaves the read waiting
             raise
 
     def _get(self, url: str, user: str, port: int, slot: dict):

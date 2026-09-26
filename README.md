@@ -590,10 +590,13 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 ## Roadmap
 
-What's next is tracked in the milestone [**v1.6**](../../milestone/6) – ideas and wishes are welcome as an [issue](../../issues/new/choose).
+What's next is tracked in the milestone [**v1.7**](../../milestone/7) – ideas and wishes are welcome as an [issue](../../issues/new/choose). During Hacktoberfest there are [beginner-friendly issues](../../issues?q=is%3Aopen+label%3Ahacktoberfest) with pointers on where to start.
 
 - [ ] [Publish on PyPI](../../issues/42) so it's just `pipx install proxy-scraper`
 - [ ] [Protocol detection on the same connection](../../issues/44)
+- [ ] [sing-box export](../../issues/113), [PowerShell completion](../../issues/114), [shareable filters on the website](../../issues/116)
+
+Shipped in [v1.6](../../milestone/6): spam blocklist check for every exit IP, a live list refreshed every hour, pages per protocol and country, an optional password for the proxy server and a pool that refills itself while it runs, `compose.yaml`, `-o -` for pipes, a Discord bot, and a new website and README – everything in English now.
 
 Shipped in [v1.5](../../milestone/5): content tampering check, live list website with trend and stable proxies, provider/datacenter info, a much bigger proxy server (rotation strategies, sticky sessions, SOCKS5 inbound, status and Prometheus metrics), `--recheck live`, Python API, shell completion. Measured and dropped earlier: protocol detection with an extra connection ([#3](../../issues/3)) and IPv6 ([#1](../../issues/1)).
 

@@ -82,17 +82,35 @@ def load_source_file(path: Path = SOURCES_FILE) -> Tuple[SourceMap, List[dict]]:
     return sources, list(data.get("meta", []))
 
 
-def load_discovered(path: Path = DISCOVERED_FILE) -> SourceMap:
+def load_discovered(path: Path = DISCOVERED_FILE, now: Optional[datetime] = None) -> SourceMap:
+    """Found sources the search saw in the last DISCOVERED_KEEP_DAYS – also when no search ran since (no token,
+    GitHub down), so old finds expire either way. VPN-config repos from before the filter existed are dropped."""
     if not path.exists():
         return {}
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
     except (OSError, ValueError):
         return {}
+    now = now or datetime.now(timezone.utc)
+    seen = data.get("last_seen", {}) if isinstance(data.get("last_seen"), dict) else {}
     out: SourceMap = {}
     for url, ptype in data.get("sources", {}).items():
+        if _age_days(seen.get(url) or data.get("generated"), now) > DISCOVERED_KEEP_DAYS or _is_vpn_repo(url):
+            continue
         _add(out, url, ptype)
     return out
+
+
+def _age_days(stamp, now: datetime) -> float:
+    try:
+        return (now - datetime.fromisoformat(stamp)).total_seconds() / DAY
+    except (TypeError, ValueError):
+        return float("inf")
+
+
+def _is_vpn_repo(url: str) -> bool:
+    parts = url.split("/")
+    return url.startswith(GH_RAW) and len(parts) > 4 and bool(_REPO_REJECT_RE.search("/".join(parts[3:5])))
 
 
 def discovered_age_days(path: Path = DISCOVERED_FILE) -> Optional[float]:
@@ -123,11 +141,7 @@ def save_discovered(sources: SourceMap, path: Path = DISCOVERED_FILE, now: Optio
     last_seen: Dict[str, str] = {}
     for url, ptype in old_sources.items():
         when = seen.get(url) or old.get("generated")  # files from before last_seen: count from their date
-        try:
-            age = (now - datetime.fromisoformat(when)).total_seconds() / DAY
-        except (TypeError, ValueError):
-            continue
-        if age <= DISCOVERED_KEEP_DAYS and isinstance(ptype, str):
+        if _age_days(when, now) <= DISCOVERED_KEEP_DAYS and isinstance(ptype, str) and not _is_vpn_repo(url):
             kept[url], last_seen[url] = ptype, when
     for url, ptype in sources.items():
         kept[url], last_seen[url] = ptype, stamp
@@ -233,7 +247,8 @@ DISCOVERY_QUERIES = (
 )
 SEARCH_PAGES = 3  # GitHub returns 100 per page; most queries end earlier
 RATE_LIMIT_WAIT = 61.0  # the search API allows 30 requests a minute with a token (10 without)
-RATE_LIMIT_RETRIES = 3  # waits per discovery at most – no network shouldn't mean ten minutes of waiting
+RATE_LIMIT_RETRIES = 3  # waits per discovery at most
+RATE_LIMIT_ERRORS = {"HTTP 403", "HTTP 429"}  # how netio.http_get reports GitHub's rate limit
 # paths that end in .txt but aren't (complete) proxy lists:
 # VPN configs, splits by country/ASN (subsets only), archives, blocklists …
 _PATH_REJECT_RE = re.compile(
@@ -296,8 +311,9 @@ async def discover_github(
         while True:
             try:
                 return json.loads(await get(f"https://api.github.com/search/repositories?{query}", headers=headers))
-            except Exception:  # usually the per-minute rate limit: wait once, then carry on with what we have
-                if waits_left <= 0:
+            except Exception as e:
+                # only GitHub's rate limit (403/429) is worth waiting for – a bad token or no network won't get better
+                if waits_left <= 0 or str(e) not in RATE_LIMIT_ERRORS:
                     return None
                 waits_left -= 1
                 if on_progress:

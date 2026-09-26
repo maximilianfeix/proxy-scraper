@@ -59,7 +59,7 @@ def test_a_rate_limit_waits_instead_of_giving_up(monkeypatch):
         if "search/repositories" in url:
             calls["search"] += 1
             if calls["search"] == 2:
-                raise ConnectionError("403 rate limit")
+                raise ConnectionError("HTTP 403")  # what netio.http_get raises for the rate limit
             return json.dumps({"items": [{"full_name": f"o{calls['search']}/list", "default_branch": "main",
                                           "stargazers_count": 1}]}).encode()
         return json.dumps({"tree": [{"type": "blob", "path": "http.txt", "size": 5000}]}).encode()
@@ -68,3 +68,36 @@ def test_a_rate_limit_waits_instead_of_giving_up(monkeypatch):
     # every query still ran: the one that hit the limit was repeated instead of ending the search
     assert calls["search"] == len(srcs.DISCOVERY_QUERIES) + 1
     assert len(found) == len(srcs.DISCOVERY_QUERIES)
+
+
+def test_a_bad_token_doesnt_wait(monkeypatch):
+    waited = []
+
+    async def no_sleep(seconds):
+        waited.append(seconds)
+
+    monkeypatch.setattr(srcs.asyncio, "sleep", no_sleep)
+    calls = {"search": 0}
+
+    async def get(url, timeout=0, headers=None):
+        calls["search"] += 1
+        raise ConnectionError("HTTP 401")
+
+    assert asyncio.run(srcs.discover_github(get, token="expired", max_repos=50)) == {}
+    assert waited == []  # 401 won't get better by waiting a minute
+    assert calls["search"] == len(srcs.DISCOVERY_QUERIES)  # one try per query, no retries
+
+
+def test_old_finds_expire_even_when_no_search_runs(tmp_path):
+    path = tmp_path / "found.json"
+    srcs.save_discovered({"https://a/http.txt": "http"}, path, now=NOW - timedelta(days=30))
+    srcs.save_discovered({"https://b/http.txt": "http"}, path, now=NOW - timedelta(days=1))
+    assert srcs.load_discovered(path, now=NOW) == {"https://b/http.txt": "http"}
+
+
+def test_vpn_repos_found_before_the_filter_are_dropped_on_load(tmp_path):
+    path = tmp_path / "found.json"
+    vpn = f"{srcs.GH_RAW}/someone/v2ray-config/main/all.txt"
+    good = f"{srcs.GH_RAW}/someone/proxy-list/main/http.txt"
+    path.write_text(json.dumps({"generated": NOW.isoformat(), "sources": {vpn: "auto", good: "http"}}))
+    assert srcs.load_discovered(path, now=NOW) == {good: "http"}

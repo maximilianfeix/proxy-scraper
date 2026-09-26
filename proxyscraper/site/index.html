@@ -20,6 +20,20 @@
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta property="og:description" content="Every proxy on this list passed a real handshake, a honeypot check and a content check. Re-checked every hour.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23D4F77A'/%3E%3Cpath d='M13 31.5 26.5 44.5 51 18' fill='none' stroke='%23121113' stroke-width='5.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='13' cy='31.5' r='4.6' fill='%23121113'/%3E%3Ccircle cx='51' cy='18' r='4.6' fill='%23121113'/%3E%3Ccircle cx='26.5' cy='44.5' r='7.6' fill='%23D4F77A' stroke='%23121113' stroke-width='5'/%3E%3C/svg%3E">
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "Dataset",
+ "name": "Free proxy list, checked every hour",
+ "description": "HTTP, SOCKS4 and SOCKS5 proxies from 700+ public lists that passed a real handshake, a honeypot check on two sites and a content check. With country, provider, latency, anonymity and HTTPS support.",
+ "url": "https://maximilianfeix.github.io/proxy-scraper/",
+ "license": "https://opensource.org/licenses/MIT",
+ "isAccessibleForFree": true,
+ "creator": {"@type": "Person", "name": "maximilianfeix", "url": "https://github.com/maximilianfeix"},
+ "keywords": ["free proxy list", "socks5 proxies", "http proxies", "socks4 proxies", "proxy checker"],
+ "distribution": [
+  {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://maximilianfeix.github.io/proxy-scraper/proxies.json"},
+  {"@type": "DataDownload", "encodingFormat": "text/csv", "contentUrl": "https://maximilianfeix.github.io/proxy-scraper/proxies.csv"},
+  {"@type": "DataDownload", "encodingFormat": "text/plain", "contentUrl": "https://maximilianfeix.github.io/proxy-scraper/all.txt"}]}
+</script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
@@ -309,6 +323,10 @@
   footer { padding: clamp(80px, 10vw, 140px) 0 36px; border-top: 1px solid var(--line); }
   .wordmark { display: flex; align-items: center; gap: .18em; font-weight: 600; font-size: clamp(38px, 11.2vw, 170px); letter-spacing: -.065em; line-height: .9; white-space: nowrap; }
   .wordmark .mark { width: .8em; height: .8em; }
+  .browse { display: grid; gap: 8px; margin-bottom: 28px; color: var(--muted); font-size: 14px; }
+  .browse p { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .browse a { color: var(--text); text-decoration: none; }
+  .browse a:hover { color: var(--signal-ink); text-decoration: underline; }
   .foot-row { display: flex; justify-content: space-between; gap: 24px 48px; flex-wrap: wrap; margin-top: clamp(40px, 6vw, 72px); color: var(--muted); font-size: 15px; }
   .foot-row p { margin: 0; max-width: 52ch; }
   .foot-links { display: flex; gap: 22px; flex-wrap: wrap; }
@@ -591,6 +609,10 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
 <footer>
   <div class="wrap">
     <div class="wordmark" aria-hidden="true"><svg class="mark"><use href="#mark"/></svg>proxy-scraper</div>
+    <nav class="browse" aria-label="Lists by protocol and country">
+      <p>By protocol: <a href="http/">HTTP</a> <a href="socks4/">SOCKS4</a> <a href="socks5/">SOCKS5</a> <a href="https/">HTTPS</a> <a href="elite/">Elite</a></p>
+      <p>By country: <a href="country/us/">United States</a> <a href="country/de/">Germany</a> <a href="country/nl/">Netherlands</a> <a href="country/gb/">United Kingdom</a> <a href="country/fr/">France</a> <a href="country/sg/">Singapore</a> <a href="country/jp/">Japan</a> <a href="country/in/">India</a> <a href="country/br/">Brazil</a> <a href="country/id/">Indonesia</a> <a href="country/ru/">Russia</a> <a href="country/cn/">China</a></p>
+    </nav>
     <div class="foot-row">
       <p>Free proxies are run by strangers. Never send passwords or personal data through them.</p>
       <div class="foot-links">

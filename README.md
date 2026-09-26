@@ -129,6 +129,8 @@ Don't want to scan yourself? Every hour **GitHub Actions** runs the tool and pub
 
 **→ [Browse it on the website](https://maximilianfeix.github.io/proxy-scraper/)** – search, filter by type, country, HTTPS, provider and latency, see how long each proxy has been up, copy or download exactly the proxies you need. `streaks.json` on the branch has the number of runs in a row for every proxy.
 
+Every protocol and country also has its own page with a plain download, e.g. [SOCKS5](https://maximilianfeix.github.io/proxy-scraper/socks5/) or [Germany](https://maximilianfeix.github.io/proxy-scraper/country/de/) (`country/de/proxies.txt`).
+
 <div align="center"><a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="docs/website.png" alt="The live list website" width="860"></a></div>
 
 <div align="center">

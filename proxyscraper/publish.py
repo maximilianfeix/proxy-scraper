@@ -21,6 +21,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 from typing import Dict, List, Optional
 
+from .pages import write_pages
 from .parsing import PROXY_TYPES
 
 SKIP_EXIT_CODE = 78
@@ -207,6 +208,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
         if asset.suffix in (".html", ".png"):
             (out / asset.name).write_bytes(asset.read_bytes())
     (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages should serve the files unchanged
+    write_pages(rows, out, now)  # static pages per protocol and country plus sitemap.xml, for search engines
     runs = [*past_runs, history_entry(stats)][-HISTORY_LIMIT:]
     write_json(out / "history.json", runs)
     write_json(out / "streaks.json", {row["url"]: row["streak"] for row in rows})

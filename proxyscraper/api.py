@@ -45,10 +45,18 @@ __all__ = ["CheckResult", "LiveProxy", "check_proxies", "check_proxies_async", "
            "live_proxies", "live_proxies_async"]
 
 
+def _types(types: Iterable[str]) -> List[str]:
+    """["socks5"], "socks5" or "socks5,http" – a plain string shouldn't turn into its letters."""
+    if isinstance(types, str):
+        return [t.strip().lower() for t in types.split(",") if t.strip()]
+    return list(types)
+
+
 def _options(types: Iterable[str], want: int, limit: int, https: bool, countries: Iterable[str], anonymity: str,
              max_latency: int, targets: Iterable[str], no_datacenter: bool, no_blocklisted: bool, timeout: float,
              concurrency: int,
              recheck: Optional[str]) -> RunOptions:
+    types = _types(types)
     if isinstance(countries, str):
         countries = parse_countries(countries)
     if anonymity not in ("", "anonymous", "elite"):
@@ -189,7 +197,7 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
     """
     from .agent import AgentError, LiveSource
 
-    types = list(types)
+    types = _types(types)
     unknown = [t for t in types if t not in PROXY_TYPES]
     if unknown:
         raise ValueError(f"unknown proxy type {unknown[0]!r}, use {', '.join(PROXY_TYPES)}")

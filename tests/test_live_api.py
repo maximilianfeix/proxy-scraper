@@ -49,6 +49,12 @@ def test_same_filter_names_as_find_proxies():
     assert [p.url for p in live_proxies(max_latency=250, limit=1)] == ["http://2.2.2.2:80"]
 
 
+def test_a_single_type_can_be_a_plain_string():
+    assert [p.url for p in live_proxies(types="socks5")] == ["socks5://1.1.1.1:1080"]
+    opts = api._options("socks5,http", 0, 0, False, (), "", 0, (), False, False, 8.0, 1, None)  # find_proxies too
+    assert set(opts.types) == {"socks5", "http"}
+
+
 def test_anonymity_is_a_minimum_like_in_find_proxies():
     assert {p.url for p in live_proxies(anonymity="anonymous")} == {p["url"] for p in ROWS}
 

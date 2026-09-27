@@ -415,6 +415,20 @@ with ProxyRotator(country="DE") as rotator:
 
 Usually a few seconds; when many proxies in a row are down it can take a minute (`timeout=` is per attempt). There's `aget()` with `async with` for asyncio code.
 
+Already using requests, httpx, Playwright or Scrapy? `proxy_url()` gives you one local proxy address that rotates behind the scenes – every connection goes out through another proxy from the list, best first, dead ones skipped:
+
+```python
+import requests
+from proxyscraper import ProxyRotator
+
+with ProxyRotator(country="DE") as rotator:
+    proxy = rotator.proxy_url()          # http://country-de:…@127.0.0.1:…
+    requests.get("https://api.ipify.org", proxies={"http": proxy, "https": proxy})
+    # httpx.Client(proxy=proxy) · playwright: browser.launch(proxy={"server": …}) · curl -x "$proxy"
+```
+
+It runs on 127.0.0.1 with a random password, takes over each new hourly list by itself and stops with the `with` block.
+
 <a id="proxy-server"></a>
 
 ## Rotating proxy server

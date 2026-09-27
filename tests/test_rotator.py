@@ -127,3 +127,68 @@ def test_mixing_sync_and_async_is_refused(monkeypatch):
     with pytest.raises(RuntimeError, match="async"):
         asyncio.run(rotator.aget("http://x/"))
     rotator.close()
+
+
+def get_through(proxy_url: str, url: str) -> bytes:
+    """A plain GET through an HTTP proxy URL with a login, the way requests or httpx send it."""
+    import base64
+    import http.client
+    from urllib.parse import urlsplit
+
+    p = urlsplit(proxy_url)
+    login = base64.b64encode(f"{p.username}:{p.password}".encode()).decode()
+    conn = http.client.HTTPConnection(p.hostname, p.port, timeout=10)
+    conn.request("GET", url, headers={"Proxy-Authorization": f"Basic {login}"})
+    response = conn.getresponse()
+    return response.status, response.read()
+
+
+def test_proxy_url_is_a_rotating_proxy_for_any_library():
+    loop = asyncio.new_event_loop()
+    target_srv, proxy_srv, port, rows = loop.run_until_complete(local_setup())
+    import threading
+    thread = threading.Thread(target=loop.run_forever, daemon=True)
+    thread.start()
+    try:
+        with ProxyRotator(_source=source_for(rows), _allow_private=True, timeout=5) as rotator:
+            url = rotator.proxy_url()
+            assert url.startswith("http://") and "@127.0.0.1:" in url
+            # the dead proxy is tried and skipped inside, the client just gets its page
+            assert get_through(url, f"http://127.0.0.1:{port}/ok") == (200, b"ok")
+            assert rotator.proxy_url() == url  # the same server for the rotator's lifetime
+    finally:
+        loop.call_soon_threadsafe(target_srv.close)
+        loop.call_soon_threadsafe(proxy_srv.close)
+        loop.call_soon_threadsafe(loop.stop)
+
+
+def test_proxy_url_carries_country_and_protocol_and_refuses_what_isnt_there():
+    async def go(**wishes):
+        rows = [row(1, country="DE", ptype="socks5")]
+        async with ProxyRotator(_source=source_for(rows), _allow_private=True, **wishes) as rotator:
+            return await rotator.aproxy_url()
+    assert "//country-de-type-socks5:" in asyncio.run(go(country="de", protocol="socks5"))
+    with pytest.raises(ConnectionError, match="JP"):
+        asyncio.run(go(country="JP"))
+
+
+def test_proxy_url_keeps_the_pool_fresh(monkeypatch):
+    from proxyscraper import api
+
+    monkeypatch.setattr(api, "REFRESH_SECONDS", 0.05)
+    runs = iter([agent.LiveList(rows=[row(1)], stats={**STATS, "updated": "run 1"}, loaded_at=0.0),
+                 agent.LiveList(rows=[row(2)], stats={**STATS, "updated": "run 2"}, loaded_at=0.0)])
+
+    class Source:  # the first call sees run 1, every later one run 2
+        current = None
+
+        async def get(self):
+            self.current = next(runs, self.current)
+            return self.current
+
+    async def go():
+        async with ProxyRotator(_source=Source(), _allow_private=True) as rotator:
+            await rotator.aproxy_url()
+            await asyncio.sleep(0.3)
+            return {e.result.proxy for e in rotator._fetcher.server.pool.entries}
+    assert asyncio.run(go()) == {row(2)["proxy"]}

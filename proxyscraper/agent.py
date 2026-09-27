@@ -458,6 +458,22 @@ def _to_text(body: bytes, headers, content_type: str, raw_html: bool) -> str:
     return text if raw_html or "html" not in content_type.lower() else html_to_text(text)
 
 
+def _require_match(live: LiveList, protocol: str, countries: List[str], tls: bool) -> None:
+    if not any(True for _ in matching(live.rows, protocol, countries, https_only=tls, run_hours=live.run_hours)):
+        what = " ".join(x for x in (countries[0] if countries else "", "" if protocol == "any" else protocol,
+                                    "HTTPS-capable" if tls else "") if x)
+        raise AgentError(f"No {what} proxy in the live list right now."
+                         + (shortage_note(live.rows, 1, 0, countries) or ""))
+
+
+def _wishes(protocol: str, countries: List[str]) -> List[str]:
+    """What the rotating server reads from the proxy login: country-de, type-socks5."""
+    wishes = [f"country-{countries[0].lower()}"] if countries else []
+    if protocol != "any":
+        wishes.append(f"type-{protocol}")
+    return wishes
+
+
 class PageFetcher:
     """Loads pages through the rotating server of this package, running on 127.0.0.1 with a random password:
     the same failover as `--serve`, and HTTPS only through proxies that passed the verified-TLS test.
@@ -503,6 +519,19 @@ class PageFetcher:
                 self._list_id = list_id
         return live
 
+    async def local_proxy(self, protocol: str = "any", country: str = "") -> str:
+        """The URL of the rotating server behind this fetcher, with the login, for any HTTP client:
+        http://country-de:<password>@127.0.0.1:<port>. Every connection through it gets a proxy of its own."""
+        protocol = _check_protocol(protocol)
+        countries = normalize_countries([country] if country else [])
+        _require_match(await self._ready(), protocol, countries, tls=False)
+        user = "-".join(_wishes(protocol, countries)) or "any"
+        return f"http://{user}:{self._password}@127.0.0.1:{self.server.port}"
+
+    async def refresh(self) -> None:
+        """Take over a new run's list, if there is one (fetch does that by itself)."""
+        await self._ready()
+
     async def fetch(self, url: str, protocol: str = "any", country: str = "", max_chars: int = 20000,
                     raw_html: bool = False, progress: Optional[Progress] = None, tick: float = 5.0,
                     with_body: bool = False) -> dict:
@@ -511,15 +540,9 @@ class PageFetcher:
         countries = normalize_countries([country] if country else [])
         live = await self._ready()
         tls = urlsplit(url).scheme == "https"
-        if not any(True for _ in matching(live.rows, protocol, countries, https_only=tls, run_hours=live.run_hours)):
-            what = " ".join(x for x in (countries[0] if countries else "", "" if protocol == "any" else protocol,
-                                        "HTTPS-capable" if tls else "") if x)
-            raise AgentError(f"No {what} proxy in the live list right now."
-                             + (shortage_note(live.rows, 1, 0, countries) or ""))
+        _require_match(live, protocol, countries, tls)
         session = secrets.token_hex(6)
-        wishes = [f"country-{countries[0].lower()}"] if countries else []
-        if protocol != "any":
-            wishes.append(f"type-{protocol}")
+        wishes = _wishes(protocol, countries)
         pool, port = self.server.pool, self.server.port
         started = time.monotonic()
         result, faults, suspects = None, [], []

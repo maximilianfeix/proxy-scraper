@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- `ProxyRotator.proxy_url()`: one local proxy address for requests, httpx, Playwright, Scrapy or curl that rotates through the live list behind the scenes – best first, with failover, HTTPS only through verified-TLS proxies, country and protocol from the rotator. It takes over each new hourly list by itself ([#215](https://github.com/maximilianfeix/proxy-scraper/issues/215))
+
 ## [1.19.0] – 2026-09-28
 
 ### Changed

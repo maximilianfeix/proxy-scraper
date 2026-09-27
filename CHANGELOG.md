@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- Lists that don't say their protocol (plain ip:port in a generic proxies.txt) are tried as HTTP and as SOCKS5. On 20,000 such entries 44 worked as HTTP and 32 as SOCKS5 – those 32 were missed before ([#44](https://github.com/maximilianfeix/proxy-scraper/issues/44))
+
 ## [1.8.1] – 2026-09-27
 
 ### Fixed

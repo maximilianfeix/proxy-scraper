@@ -37,15 +37,17 @@ def test_auto_source_only_uses_prefixed_lines():
     assert parse(b"socks4://5.6.7.8:1080\n1.2.3.4:80\n", "auto") == ["socks4 5.6.7.8:1080"]
 
 
-def test_auto_source_mostly_plain_reads_the_plain_lines_as_http():
+def test_auto_source_mostly_plain_tries_the_plain_lines_as_http_and_socks5():
     data = b"socks5://9.9.9.9:1080\n" + b"".join(f"1.2.3.{i}:80\n".encode() for i in range(1, 6))
     got = parse(data, "auto")
-    assert "socks5 9.9.9.9:1080" in got and "http 1.2.3.1:80" in got and len(got) == 6
+    assert "socks5 9.9.9.9:1080" in got and "http 1.2.3.1:80" in got and "socks5 1.2.3.1:80" in got
+    assert len(got) == 11
 
 
-def test_auto_source_without_any_prefix_is_read_as_http():
-    # a generic proxies.txt with plain ip:port lines: before, it gave nothing and got paused as "unreachable"
-    assert parse(b"1.2.3.4:80\n5.6.7.8:3128\n", "auto") == ["http 1.2.3.4:80", "http 5.6.7.8:3128"]
+def test_auto_source_without_any_prefix_is_tried_as_http_and_socks5():
+    # a generic proxies.txt with plain ip:port lines: which protocol is unknown. Measured on 20,000 such entries:
+    # 44 worked as http, 32 as socks5, none as both – so both get tried (a dead address fails fast for both)
+    assert parse(b"1.2.3.4:80\n", "auto") == ["http 1.2.3.4:80", "socks5 1.2.3.4:80"]
 
 
 def test_private_and_invalid_addresses_are_dropped():

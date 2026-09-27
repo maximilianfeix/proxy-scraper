@@ -100,3 +100,11 @@ def test_slow_hosts_cant_stall_discovery(monkeypatch):
     async def go():
         return await asyncio.wait_for(srcs._mine(get, ["cfg"], set()), 5)
     assert asyncio.run(go()) == {"https://fast.example/proxy.txt": "auto"}
+
+
+def test_the_minimum_counts_addresses_not_typed_keys():
+    # untyped lists turn every address into an http and a socks5 key: 10 addresses are still 10
+    ten = "\n".join(f"8.8.8.{i}:8080" for i in range(1, 11)).encode()
+    assert srcs._readable_type("https://example.org/proxies.txt", ten) is None
+    twenty = "\n".join(f"8.8.8.{i}:8080" for i in range(1, 21)).encode()
+    assert srcs._readable_type("https://example.org/proxies.txt", twenty) == "auto"

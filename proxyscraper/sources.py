@@ -348,7 +348,9 @@ def _readable_type(url: str, data: bytes) -> Optional[str]:
     """The type to keep a mined list under (the one the scrape will read it with) – None if it doesn't hold
     enough proxies that way."""
     ptype = _mined_type(url)
-    return ptype if len(validate_candidates(extract_candidates(data, ptype))) >= MIN_MINED_PROXIES else None
+    # addresses, not keys: an untyped list yields each address as http and socks5
+    addresses = {key.split(" ", 1)[1] for key in validate_candidates(extract_candidates(data, ptype))}
+    return ptype if len(addresses) >= MIN_MINED_PROXIES else None
 
 
 async def discover_github(

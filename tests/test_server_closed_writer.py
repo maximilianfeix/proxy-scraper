@@ -48,3 +48,25 @@ def test_a_closed_client_before_the_final_answer_is_a_failure():
     async def go():
         return await server()._pipe(reader_with(b""), ClosedWriter(), up=False, reject_proxy_auth=True)
     assert asyncio.run(go()) == -1
+
+
+def test_first_packet_to_a_closed_proxy_means_try_the_next_one():
+    async def go():
+        return await server()._exchange(reader_with(b""), ClosedWriter(), b"GET / HTTP/1.1\r\n\r\n")
+    assert asyncio.run(go()) is None
+
+
+def test_giving_up_on_a_proxy_closes_its_connection():
+    class Entry:
+        active = 1
+
+    class Writer:
+        closed = False
+
+        def close(self):
+            self.closed = True
+
+    s, entry, writer = server(), Entry(), Writer()
+    s.pool.report = lambda e, ok: None
+    s._give_up(entry, writer)
+    assert entry.active == 0 and writer.closed

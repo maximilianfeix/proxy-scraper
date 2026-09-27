@@ -154,7 +154,7 @@ class RotatingServer:
                 self._sessions.setdefault(selection.session, set()).add(task)
                 task.add_done_callback(lambda t, name=selection.session: self._forget(name, t))
             await self._serve_request(reader, writer, client, method, host, port, path, headers, selection)
-        except (ConnectionError, OSError, asyncio.IncompleteReadError):
+        except (*HANG_UP, asyncio.IncompleteReadError):
             pass  # client hung up (also in the middle of a request body)
         finally:
             self.stats.active -= 1
@@ -187,9 +187,14 @@ class RotatingServer:
             self._log(client, host, port, None, False, started, len(tried))
             await (refuse or self._bad_gateway)(writer)
             return False
-        writer.write(established)
-        await writer.drain()
-        first_out = await self._first_client_chunk(reader)
+        try:
+            writer.write(established)
+            await writer.drain()
+            first_out = await self._first_client_chunk(reader)
+        except (*HANG_UP, asyncio.IncompleteReadError):  # the client left – not the proxy's fault: release it
+            opened[0].active -= 1
+            opened[2].close()
+            return False
         tls = first_out[:1] == TLS_HANDSHAKE
 
         while opened is not None:
@@ -222,9 +227,13 @@ class RotatingServer:
                 head = origin_request(method, path, host, port, headers)
             first_out = head + body
             if not replayable:
-                # large or streamed body: no switch possible – send the head, pass the rest through
-                up_writer.write(first_out)
-                await up_writer.drain()
+                # large or streamed body: no switch possible once it's under way – send the head, pass the rest
+                try:
+                    up_writer.write(first_out)
+                    await up_writer.drain()
+                except HANG_UP:  # hung up before anything went through: nothing sent yet, try the next one
+                    self._give_up(entry, up_writer)
+                    continue
                 return await self._relay(reader, writer, client, host, port, started, len(tried), entry,
                                          up_reader, up_writer, first_out, b"", upload=request_body_length(headers))
             first_in = await self._exchange(up_reader, up_writer, first_out)
@@ -280,7 +289,7 @@ class RotatingServer:
             first_in = await asyncio.wait_for(up_reader.read(65536), self.timeout)
             if first_in and first_out[:1] != TLS_HANDSHAKE:
                 first_in = await self._screen_first_answer(up_reader, first_in)
-        except (OSError, asyncio.TimeoutError):
+        except (*HANG_UP, asyncio.TimeoutError):
             return None
         if not first_in or not plausible_answer(first_out, first_in):
             return None

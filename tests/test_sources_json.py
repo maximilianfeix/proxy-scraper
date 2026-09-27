@@ -4,6 +4,8 @@ import json
 import time
 from datetime import datetime, timezone
 
+import pytest
+
 from proxyscraper import cli
 from proxyscraper import sources as srcs
 
@@ -28,8 +30,7 @@ def test_ranking_as_json_on_stdout(tmp_path, monkeypatch, capsys):
 
 
 def test_json_alone_is_an_error(capsys):
-    try:
+    with pytest.raises(SystemExit) as e:
         cli.run(["--json"])
-    except SystemExit as e:
-        assert e.code == 2
-    assert "--list-sources" in capsys.readouterr().err
+    assert e.value.code == 2
+    assert "--json only works together with --list-sources" in capsys.readouterr().err

@@ -27,6 +27,29 @@ jobs:
       - run: python proxy_scraper.py --help
       - run: python proxy_scraper.py --list-sources 5
 
+  action:
+    # the GitHub Action the way others use it (uses: maximilianfeix/proxy-scraper@v1), on every OS
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v7
+      - id: proxies
+        uses: ./
+        with:
+          types: socks5,http
+          https: "true"
+          limit: "5"
+      - name: The outputs are there
+        shell: bash
+        run: |
+          echo "count=${{ steps.proxies.outputs.count }} fastest=${{ steps.proxies.outputs.proxy }}"
+          test "${{ steps.proxies.outputs.count }}" -ge 1
+          test -s "${{ steps.proxies.outputs.file }}"
+          head -3 "${{ steps.proxies.outputs.file }}"
+
   package:
     # builds wheel + sdist and installs the wheel fresh – the way users get it with pipx
     runs-on: ubuntu-latest

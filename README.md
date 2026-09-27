@@ -640,6 +640,22 @@ export HTTPS_PROXY=http://127.0.0.1:8899 HTTP_PROXY=http://127.0.0.1:8899
 pip download requests   # git, pip, npm & co. now go through the pool
 ```
 
+**In a GitHub workflow** – the action picks working proxies for the next steps
+
+```yaml
+- id: proxies
+  uses: maximilianfeix/proxy-scraper@v1
+  with:
+    types: socks5
+    https: true
+    min-uptime: 90        # on the list for 90 %+ of the week
+    works-on: google      # optional: google, reddit, amazon
+    recheck: true         # optional: check them again from the runner
+- run: curl -x "${{ steps.proxies.outputs.proxy }}" https://api.ipify.org
+```
+
+`proxy` is the fastest one, `file` a text file with all of them (up to `limit`, default 20), `count` how many. Without a match the step fails, unless `fail-if-empty: false`.
+
 **Without installing anything** – straight from the live list
 
 ```bash

@@ -1,0 +1,69 @@
+name: Free proxies that actually work
+description: Working HTTP, SOCKS4 and SOCKS5 proxies from a list checked every hour – filter by country, uptime and which sites they get through to.
+author: maximilianfeix
+branding:
+  icon: shuffle
+  color: green
+
+inputs:
+  types:
+    description: "Protocols, comma separated: http, socks4, socks5"
+    default: "http,socks4,socks5"
+  countries:
+    description: "Two-letter country codes, comma separated, e.g. DE,NL – empty for any"
+    default: ""
+  https:
+    description: "Only proxies that tunnel HTTPS with verified TLS"
+    default: "false"
+  min-uptime:
+    description: "Only proxies that were on the list in at least this share (percent) of the week's hourly checks"
+    default: "0"
+  works-on:
+    description: "Only proxies that got through to these sites in the last check: google, reddit, amazon"
+    default: ""
+  limit:
+    description: "How many at most, fastest first (0 = all)"
+    default: "20"
+  recheck:
+    description: "Check them again from the runner and keep only the ones that work from here (about 30 s)"
+    default: "false"
+  fail-if-empty:
+    description: "Fail the step when no proxy matches"
+    default: "true"
+
+outputs:
+  proxy:
+    description: "The fastest one, ready to use, e.g. socks5://1.2.3.4:1080"
+    value: ${{ steps.pick.outputs.proxy }}
+  file:
+    description: "Path to a text file with all of them, one per line, fastest first"
+    value: ${{ steps.pick.outputs.file }}
+  count:
+    description: "How many"
+    value: ${{ steps.pick.outputs.count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Install proxy-scraper
+      shell: bash
+      # its own venv: the system Python on current runners refuses pip installs (PEP 668), and on Windows it's "python"
+      run: |
+        py=$(command -v python3 || command -v python)
+        "$py" -m venv "$RUNNER_TEMP/proxy-scraper"
+        bin="$RUNNER_TEMP/proxy-scraper/bin"; [ -d "$bin" ] || bin="$RUNNER_TEMP/proxy-scraper/Scripts"
+        "$bin/python" -m pip install --quiet --disable-pip-version-check "${{ github.action_path }}"
+        echo "PROXY_SCRAPER_PY=$bin/python" >> "$GITHUB_ENV"
+    - name: Pick proxies
+      id: pick
+      shell: bash
+      env:
+        PS_TYPES: ${{ inputs.types }}
+        PS_COUNTRIES: ${{ inputs.countries }}
+        PS_HTTPS: ${{ inputs.https }}
+        PS_MIN_UPTIME: ${{ inputs.min-uptime }}
+        PS_WORKS_ON: ${{ inputs.works-on }}
+        PS_LIMIT: ${{ inputs.limit }}
+        PS_RECHECK: ${{ inputs.recheck }}
+        PS_FAIL_IF_EMPTY: ${{ inputs.fail-if-empty }}
+      run: "$PROXY_SCRAPER_PY" -m proxyscraper.action

@@ -91,3 +91,25 @@ def test_http_proxies_without_connect_are_left_out_where_everything_is_tunnelled
     assert "192.0.2.80" not in proxychains(rows, NOW) and "192.0.2.80" not in clash(rows, NOW)
     assert "192.0.2.81" in proxychains(rows, NOW) and "192.0.2.81" in clash(rows, NOW)
     assert "192.0.2.80" in curl(rows, NOW)  # curl can also do plain HTTP without a tunnel
+
+
+def test_singbox_config():
+    from proxyscraper.exporters import singbox
+    rows = [*ROWS, CheckResult("http 198.51.100.9:80", "http", "198.51.100.9:80", 50, "9.9.9.9", https=False),
+            result("socks5", "alice:pw@203.0.113.11:1080", 120)]
+    conf = json.loads(singbox(rows, NOW))
+    out = {o["tag"]: o for o in conf["outbounds"]}
+    group = conf["outbounds"][0]
+    assert group["type"] == "urltest" and conf["route"]["final"] == group["tag"]
+    members = [out[t] for t in group["outbounds"]]
+    assert [(m["type"], m.get("version")) for m in members] == [
+        ("socks", "5"), ("http", None), ("socks", "4"), ("socks", "5")]  # sing-box does SOCKS4, HTTP needs CONNECT
+    assert "198.51.100.9" not in json.dumps(conf)  # failed the HTTPS test: can't tunnel
+    assert members[-1]["username"] == "alice" and members[-1]["password"] == "pw"
+    assert conf["inbounds"][0]["type"] == "mixed" and conf["inbounds"][0]["listen"] == "127.0.0.1"
+
+
+def test_singbox_without_usable_proxies_is_still_valid():
+    from proxyscraper.exporters import singbox
+    conf = json.loads(singbox([], NOW))
+    assert conf["route"]["final"] == "direct"

@@ -616,14 +616,14 @@ if __name__ == "__main__":
 
 In a Scrapy project, put `RotatingProxy` in `middlewares.py` and add it to `DOWNLOADER_MIDDLEWARES` in `settings.py`. For long crawls, reload the pool now and then – the list changes every hour.
 
-**proxychains, Clash / Mihomo** – ready-made configs with `--export`
+**proxychains, Clash / Mihomo, sing-box** – ready-made configs with `--export`
 
 ```bash
-proxy-scraper --want 30 -y --export proxychains,clash
+proxy-scraper --want 30 -y --export proxychains,clash,singbox
 proxychains4 -f results/latest/proxychains.conf curl https://api.ipify.org
 ```
 
-`clash.yaml` has all HTTP and SOCKS5 proxies plus a `url-test` group that always picks the fastest. Both configs leave out HTTP proxies that can't tunnel (`CONNECT`), because these tools tunnel everything.
+`clash.yaml` has all HTTP and SOCKS5 proxies plus a `url-test` group that always picks the fastest. `singbox.json` does the same for sing-box, SOCKS4 included, and opens a local proxy: `sing-box run -c results/latest/singbox.json`, then use `127.0.0.1:2080` as HTTP or SOCKS5 proxy. All three leave out HTTP proxies that can't tunnel (`CONNECT`), because these tools tunnel everything.
 
 **In a pipe** – `-o -` prints the hits to stdout, the interface moves to stderr
 
@@ -689,7 +689,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--serve-refill HOURS` | while serving, check fresh proxies every HOURS and add the hits to the pool |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
 | `-o FILE` | also write all hits to this file; `-o -` prints them to stdout |
-| `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `curl` or `all` |
+| `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `singbox`, `curl` or `all` |
 | `-V`, `--version` | print the version |
 | `--completion SHELL` | print the tab completion script for bash, zsh or fish |
 
@@ -821,7 +821,7 @@ proxyscraper/
 ├── geodb.py            DB-IP country database (monthly, binary search)
 ├── targets.py          target sites for --target
 ├── output.py           result files
-├── exporters.py        proxychains, Clash and curl formats (--export)
+├── exporters.py        proxychains, Clash, sing-box and curl formats (--export)
 ├── server/             rotating proxy server (--serve): pool · http · upstream · socks · status · core
 ├── api.py              find_proxies() / check_proxies() for Python
 ├── agent.py            MCP tools without the SDK: live list, filters, fetch through proxies

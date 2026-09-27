@@ -3,6 +3,8 @@
   proxychains   proxychains.conf with random_chain – ready to use with `proxychains4 -f`
   clash         clash.yaml for Clash / Mihomo: proxies plus a url-test group
                 (both without HTTP proxies that can't CONNECT, see tunnels())
+  singbox       singbox.json for sing-box: a local mixed (HTTP+SOCKS) inbound on 127.0.0.1:2080 and a
+                urltest outbound over every proxy (SOCKS4 too – sing-box can do it)
   curl          curl.txt, one URL per line in the format for `curl -x` (SOCKS5 with DNS through the proxy)
 """
 
@@ -93,6 +95,46 @@ def clash(rows: Sequence[CheckResult], now: datetime) -> str:
     return "\n".join(lines) + "\n"
 
 
+SINGBOX_PORT = 2080
+
+
+def singbox(rows: Sequence[CheckResult], now: datetime) -> str:
+    """sing-box config: `sing-box run -c singbox.json`, then use 127.0.0.1:2080 as HTTP or SOCKS5 proxy."""
+    members = []
+    taken = set()
+    for r in rows:
+        if not tunnels(r):
+            continue
+        ep = parse_endpoint(r.proxy)
+        base = tag = f"{r.country or '??'} {r.ptype} {ep.address}"
+        n = 1
+        while tag in taken:  # the same proxy with different credentials
+            n += 1
+            tag = f"{base} #{n}"
+        taken.add(tag)
+        out = {"type": "http" if r.ptype == "http" else "socks", "tag": tag, "server": ep.host,
+               "server_port": ep.port}
+        if r.ptype != "http":
+            out["version"] = "4" if r.ptype == "socks4" else "5"
+        if ep.has_auth:
+            out["username"] = ep.user
+            if r.ptype != "socks4":  # SOCKS4 has no password
+                out["password"] = ep.password
+        members.append(out)
+    outbounds = []
+    if members:
+        outbounds.append({"type": "urltest", "tag": "proxy-scraper", "outbounds": [m["tag"] for m in members],
+                          "url": "https://www.gstatic.com/generate_204", "interval": "5m", "tolerance": 100})
+    outbounds += [*members, {"type": "direct", "tag": "direct"}]
+    config = {
+        "log": {"level": "warn"},
+        "inbounds": [{"type": "mixed", "tag": "local", "listen": "127.0.0.1", "listen_port": SINGBOX_PORT}],
+        "outbounds": outbounds,
+        "route": {"final": "proxy-scraper" if members else "direct"},
+    }
+    return json.dumps(config, indent=2, ensure_ascii=False) + "\n"
+
+
 CURL_SCHEMES = {"socks5": "socks5h", "socks4": "socks4", "http": "http"}
 
 
@@ -103,6 +145,7 @@ def curl(rows: Sequence[CheckResult], now: datetime) -> str:
 EXPORTERS: Dict[str, Tuple[str, Exporter]] = {
     "proxychains": ("proxychains.conf", proxychains),
     "clash": ("clash.yaml", clash),
+    "singbox": ("singbox.json", singbox),
     "curl": ("curl.txt", curl),
 }
 

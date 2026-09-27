@@ -129,7 +129,7 @@ def test_mixing_sync_and_async_is_refused(monkeypatch):
     rotator.close()
 
 
-def get_through(proxy_url: str, url: str) -> bytes:
+def get_through(proxy_url: str, url: str):
     """A plain GET through an HTTP proxy URL with a login, the way requests or httpx send it."""
     import base64
     import http.client
@@ -168,6 +168,14 @@ def test_proxy_url_carries_country_and_protocol_and_refuses_what_isnt_there():
         async with ProxyRotator(_source=source_for(rows), _allow_private=True, **wishes) as rotator:
             return await rotator.aproxy_url()
     assert "//country-de-type-socks5:" in asyncio.run(go(country="de", protocol="socks5"))
+
+    async def for_playwright():
+        async with ProxyRotator(_source=source_for([row(1)]), _allow_private=True) as rotator:
+            return await rotator.aproxy_url(), await rotator.aplaywright_proxy()
+    url, settings = asyncio.run(for_playwright())
+    # Playwright ignores a login inside "server": it wants the parts on their own
+    assert settings["server"] == "http://" + url.rsplit("@", 1)[1] and "@" not in settings["server"]
+    assert url == f"http://{settings['username']}:{settings['password']}@{settings['server'][7:]}"
     with pytest.raises(ConnectionError, match="JP"):
         asyncio.run(go(country="JP"))
 
@@ -192,3 +200,22 @@ def test_proxy_url_keeps_the_pool_fresh(monkeypatch):
             await asyncio.sleep(0.3)
             return {e.result.proxy for e in rotator._fetcher.server.pool.entries}
     assert asyncio.run(go()) == {row(2)["proxy"]}
+
+
+def test_the_refresh_survives_a_surprise(monkeypatch):
+    from proxyscraper import api
+
+    monkeypatch.setattr(api, "REFRESH_SECONDS", 0.02)
+    calls = []
+
+    async def go():
+        async with ProxyRotator(_source=source_for([row(1)]), _allow_private=True) as rotator:
+            await rotator.aproxy_url()
+
+            async def broken():
+                calls.append(1)
+                raise KeyError("stats")
+            rotator._fetcher.refresh = broken
+            await asyncio.sleep(0.2)
+    asyncio.run(go())
+    assert len(calls) > 2  # kept trying after the first failure

@@ -27,12 +27,14 @@ import asyncio
 import contextlib
 import email.message
 import io
+import logging
 import os
 import re
 import tempfile
 import threading
 from dataclasses import dataclass, field
 from typing import Dict, Iterable, List, Optional, Tuple
+from urllib.parse import urlsplit
 
 from rich.console import Console
 
@@ -41,6 +43,8 @@ from .options import Filters, RunOptions, parse_countries
 from .parsing import PROXY_TYPES
 from .targets import parse_target
 from .ui import widgets
+
+log = logging.getLogger(__name__)
 
 __all__ = [
     "CheckResult",
@@ -312,6 +316,12 @@ class ProxyResponse:
 REFRESH_SECONDS = 300  # proxy_url(): how often the pool behind it looks for a new run's list
 
 
+def _playwright(url: str) -> Dict[str, str]:
+    parts = urlsplit(url)
+    return {"server": f"{parts.scheme}://{parts.hostname}:{parts.port}", "username": parts.username or "",
+            "password": parts.password or ""}
+
+
 class ProxyRotator:
     """Loads URLs through proxies from the hourly list and switches to the next one when a proxy fails –
     the loop every scraper writes by hand. HTTPS only through proxies with verified TLS.
@@ -388,13 +398,21 @@ class ProxyRotator:
             self._refresher = asyncio.ensure_future(self._keep_fresh())
         return url
 
+    async def aplaywright_proxy(self) -> Dict[str, str]:
+        self._use("async")
+        return _playwright(await self._proxy_url())
+
     async def _keep_fresh(self) -> None:
         from .agent import AgentError
 
         while True:
             await asyncio.sleep(REFRESH_SECONDS)
-            with contextlib.suppress(AgentError):  # GitHub not reachable: the pool keeps what it has
+            try:
                 await self._fetcher.refresh()
+            except AgentError:
+                pass  # GitHub not reachable right now: the pool keeps what it has, next try later
+            except Exception as e:  # a broken list must not end the refreshing for good
+                log.warning("proxy-scraper: could not refresh the proxy list: %s", e)
 
     async def aclose(self) -> None:
         if self._refresher is not None:
@@ -437,6 +455,12 @@ class ProxyRotator:
         Every connection through it gets a proxy from the live list (best first, with failover), HTTPS only
         through verified-TLS ones. It lives as long as the rotator and takes over each new run's list."""
         return self._run_sync(self._proxy_url())
+
+    def playwright_proxy(self) -> Dict[str, str]:
+        """proxy_url() the way Playwright wants it – it ignores a login inside the server address:
+
+            browser = p.chromium.launch(proxy=rotator.playwright_proxy())"""
+        return _playwright(self.proxy_url())
 
     def close(self) -> None:
         with self._start_lock:

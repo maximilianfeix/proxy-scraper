@@ -424,7 +424,8 @@ from proxyscraper import ProxyRotator
 with ProxyRotator(country="DE") as rotator:
     proxy = rotator.proxy_url()          # http://country-de:…@127.0.0.1:…
     requests.get("https://api.ipify.org", proxies={"http": proxy, "https": proxy})
-    # httpx.Client(proxy=proxy) · playwright: browser.launch(proxy={"server": …}) · curl -x "$proxy"
+    # httpx.Client(proxy=proxy) · scrapy: meta={"proxy": proxy} · curl -x "$proxy"
+    # Playwright wants the login apart: chromium.launch(proxy=rotator.playwright_proxy())
 ```
 
 It runs on 127.0.0.1 with a random password, takes over each new hourly list by itself and stops with the `with` block.

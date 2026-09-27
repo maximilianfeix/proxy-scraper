@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- A page per proxy on the website: protocol, country, provider, uptime, which big sites let it through, a timeline of every check this week and copy-ready curl/Python commands to test it from your own machine. Linked from the table; only proxies on the list for half the week or more are in the sitemap, the rest are noindex
 - README recipes for httpx, aiohttp and Scrapy (a rotating downloader middleware), each tried against the live list ([#118](https://github.com/maximilianfeix/proxy-scraper/issues/118), [#119](https://github.com/maximilianfeix/proxy-scraper/issues/119))
 - Lists that don't say their protocol (plain ip:port in a generic proxies.txt) are tried as HTTP and as SOCKS5. On 20,000 such entries 44 worked as HTTP and 32 as SOCKS5 – those 32 were missed before ([#44](https://github.com/maximilianfeix/proxy-scraper/issues/44))
 

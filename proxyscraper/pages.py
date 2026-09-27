@@ -10,7 +10,7 @@ from __future__ import annotations
 from datetime import datetime
 from html import escape
 from pathlib import Path
-from typing import Callable, Dict, List, Tuple
+from typing import Callable, Dict, List, Sequence, Tuple
 
 SITE_URL = "https://maximilianfeix.github.io/proxy-scraper/"
 REPO_URL = "https://github.com/maximilianfeix/proxy-scraper"
@@ -121,7 +121,8 @@ def _render(path: str, title: str, what: str, rows: List[dict], updated: datetim
         lede = (f"No {what} passed every check in the last run ({when}). The list is checked again every hour, "
                 "so look again later or try the full list.")
     body_rows = "\n".join(
-        f"<tr><td class=\"mono\">{escape(r['proxy'])}</td><td>{escape(r['ptype'].upper())}</td>"
+        f"<tr><td class=\"mono\"><a href=\"{root}proxy/{escape(r['proxy'].replace(':', '-'))}/\">"
+        f"{escape(r['proxy'])}</a></td><td>{escape(r['ptype'].upper())}</td>"
         f"<td>{escape(r.get('country') or '–')}</td><td>{r['latency']:,} ms</td>"
         f"<td>{'yes' if r.get('https') else 'no'}</td><td>{escape(r.get('anonymity') or '–')}</td>"
         f"<td>{escape((r.get('org') or '–')[:40])}</td></tr>"
@@ -196,8 +197,9 @@ def _nav(specs, counts: Dict[str, int], current: str, root: str) -> str:
             f"<nav aria-label=\"By country\"><h2>By country</h2><ul>{links(countries)}</ul></nav>")
 
 
-def write_pages(rows: List[dict], out: Path, updated: datetime) -> List[str]:
-    """Writes every page with its proxies.txt and the sitemap. -> the paths listed in the sitemap."""
+def write_pages(rows: List[dict], out: Path, updated: datetime, extra: Sequence[str] = ()) -> List[str]:
+    """Writes every page with its proxies.txt and the sitemap (plus the `extra` paths, e.g. the proxy pages)
+    -> the paths listed in the sitemap."""
     rows = sorted(rows, key=lambda r: r["latency"])
     specs = page_specs()
     selected = {p: [r for r in rows if keep(r)] for p, _, _, keep in specs}
@@ -212,6 +214,7 @@ def write_pages(rows: List[dict], out: Path, updated: datetime) -> List[str]:
         (folder / "proxies.txt").write_text("".join(f"{r['url']}\n" for r in page_rows), encoding="utf-8")
         if not path.startswith("country/") or counts[path] >= SITEMAP_MIN:
             listed.append(path)
+    listed.extend(extra)
     lastmod = updated.strftime("%Y-%m-%dT%H:%M:%S+00:00")
     urls = "".join(f"<url><loc>{SITE_URL}{p}</loc><lastmod>{lastmod}</lastmod><changefreq>hourly</changefreq></url>"
                    for p in listed)

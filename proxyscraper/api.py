@@ -42,7 +42,7 @@ from .targets import parse_target
 from .ui import widgets
 
 __all__ = ["CheckResult", "LiveProxy", "check_proxies", "check_proxies_async", "find_proxies", "find_proxies_async",
-           "live_proxies", "live_proxies_async"]
+           "live_proxies", "live_proxies_async", "ProxyResponse", "ProxyRotator"]
 
 
 def _types(types: Iterable[str]) -> List[str]:
@@ -237,3 +237,107 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
 def live_proxies(**kwargs) -> List[LiveProxy]:
     """Like live_proxies_async, just synchronous (starts its own event loop)."""
     return asyncio.run(live_proxies_async(**kwargs))
+
+
+# --------------------------------------------------------------------------- fetching through the list
+
+@dataclass
+class ProxyResponse:
+    """What ProxyRotator.get() returns."""
+    status: int
+    url: str
+    final_url: str                     # after redirects
+    headers: Dict[str, str]
+    content: bytes
+    via: Optional[str]                 # the proxy that delivered it, e.g. socks5://1.2.3.4:1080
+    proxy_country: Optional[str]
+    elapsed_ms: int
+
+    @property
+    def text(self) -> str:
+        match = re.search(r"charset=([\w-]+)", self.headers.get("Content-Type", ""), re.I)
+        try:
+            return self.content.decode(match[1] if match else "utf-8", errors="replace")
+        except LookupError:  # a charset Python doesn't know
+            return self.content.decode("utf-8", errors="replace")
+
+    def raise_for_status(self) -> None:
+        if self.status >= 400:
+            raise ConnectionError(f"HTTP {self.status} from {self.final_url} (via {self.via})")
+
+
+class ProxyRotator:
+    """Loads URLs through proxies from the hourly list and switches to the next one when a proxy fails –
+    the loop every scraper writes by hand. HTTPS only through proxies with verified TLS.
+
+        with ProxyRotator(country="DE") as rotator:
+            print(rotator.get("https://api.ipify.org").text)
+
+    Behind it runs the same rotating server as `proxy-scraper --serve`, on 127.0.0.1 with a random password.
+    The async version is `aget()` (use `async with`). Private and local addresses are refused.
+    """
+
+    def __init__(self, *, protocol: str = "any", country: str = "", timeout: float = 20.0,
+                 _source=None, _allow_private: bool = False):
+        self.protocol, self.country, self.timeout = protocol, country, timeout
+        self._source, self._allow_private = _source, _allow_private
+        self._fetcher = None
+        self._loop: Optional[asyncio.AbstractEventLoop] = None  # the sync API's own loop, in a thread
+        self._thread: Optional[threading.Thread] = None
+
+    def _make_fetcher(self):
+        from .agent import LiveSource, PageFetcher
+
+        return PageFetcher(self._source or LiveSource(fetch=_live_fetch), allow_private=self._allow_private,
+                           timeout=self.timeout)
+
+    async def aget(self, url: str) -> ProxyResponse:
+        from .agent import AgentError
+
+        if self._fetcher is None:
+            self._fetcher = self._make_fetcher()
+        try:
+            url = await asyncio.to_thread(self._fetcher.check, url)
+        except AgentError as e:
+            raise ValueError(str(e)) from None
+        try:
+            page = await self._fetcher.fetch(url, self.protocol, self.country, max_chars=0, raw_html=True,
+                                             with_body=True)
+        except AgentError as e:
+            raise ConnectionError(str(e)) from None
+        return ProxyResponse(status=page["status"], url=url, final_url=page["final_url"], headers=page["headers"],
+                             content=page["body"], via=page["via"], proxy_country=page["proxy_country"],
+                             elapsed_ms=page["elapsed_ms"])
+
+    async def aclose(self) -> None:
+        if self._fetcher is not None:
+            await self._fetcher.close()
+            self._fetcher = None
+
+    async def __aenter__(self) -> "ProxyRotator":
+        return self
+
+    async def __aexit__(self, *exc) -> None:
+        await self.aclose()
+
+    # sync: one event loop in a background thread keeps the proxy server alive between calls
+    def get(self, url: str) -> ProxyResponse:
+        if self._loop is None:
+            self._loop = asyncio.new_event_loop()
+            self._thread = threading.Thread(target=self._loop.run_forever, name="proxy-rotator", daemon=True)
+            self._thread.start()
+        return asyncio.run_coroutine_threadsafe(self.aget(url), self._loop).result()
+
+    def close(self) -> None:
+        if self._loop is not None:
+            asyncio.run_coroutine_threadsafe(self.aclose(), self._loop).result()
+            self._loop.call_soon_threadsafe(self._loop.stop)
+            self._thread.join(timeout=5)
+            self._loop.close()
+            self._loop = self._thread = None
+
+    def __enter__(self) -> "ProxyRotator":
+        return self
+
+    def __exit__(self, *exc) -> None:
+        self.close()

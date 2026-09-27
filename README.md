@@ -403,6 +403,18 @@ r = requests.get("https://api.ipify.org", proxies={"https": next(pool)}, timeout
 
 Same filters as `find_proxies`, plus `min_uptime`, `works_on` (`["google"]`, `"reddit"`, `"amazon"`, `"instagram"`, `"tiktok"`) and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours` and `sites`.
 
+Or let the library do the retrying: `ProxyRotator` loads a URL through the list and moves on to the next proxy when one fails – HTTPS only through proxies with verified TLS.
+
+```python
+from proxyscraper import ProxyRotator
+
+with ProxyRotator(country="DE") as rotator:
+    r = rotator.get("https://httpbin.org/ip")
+    print(r.status, r.text, "via", r.via)
+```
+
+Usually a few seconds; when many proxies in a row are down it can take a minute (`timeout=` is per attempt). There's `aget()` with `async with` for asyncio code.
+
 <a id="proxy-server"></a>
 
 ## Rotating proxy server

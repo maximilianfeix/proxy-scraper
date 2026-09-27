@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- `ProxyRotator` in the Python API: `rotator.get(url)` loads a page through the hourly list and switches to the next proxy when one fails – the loop every scraper writes by hand, on the same failover as `--serve` and the MCP server's fetch_url. Sync and async ([#204](https://github.com/maximilianfeix/proxy-scraper/issues/204))
+
 ## [1.15.0] – 2026-09-27
 
 ### Added

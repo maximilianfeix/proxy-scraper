@@ -502,7 +502,8 @@ class PageFetcher:
         return live
 
     async def fetch(self, url: str, protocol: str = "any", country: str = "", max_chars: int = 20000,
-                    raw_html: bool = False, progress: Optional[Progress] = None, tick: float = 5.0) -> dict:
+                    raw_html: bool = False, progress: Optional[Progress] = None, tick: float = 5.0,
+                    with_body: bool = False) -> dict:
         url = await asyncio.to_thread(self.check, url)  # may look the name up
         protocol = _check_protocol(protocol)
         countries = normalize_countries([country] if country else [])
@@ -566,6 +567,8 @@ class PageFetcher:
             "text": text[:max_chars] if is_text else "",
             "truncated": truncated,
             "note": None if is_text else f"Binary content ({content_type}) isn't returned as text.",
+            # for the Python API (ProxyRotator): the bytes and headers as they came
+            **({"body": body[:MAX_PAGE_BYTES], "headers": dict(headers or {})} if with_body else {}),
         }
 
     async def _download(self, url: str, user: str, port: int, progress: Optional[Progress], tick: float,

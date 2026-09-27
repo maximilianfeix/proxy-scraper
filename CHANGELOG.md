@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- `--export singbox`: a sing-box config with a local HTTP+SOCKS proxy on 127.0.0.1:2080 and a urltest group over all proxies, SOCKS4 included. Checked with `sing-box check` and a real run ([#113](https://github.com/maximilianfeix/proxy-scraper/issues/113))
 - `--list-sources --json` prints the source ranking as JSON for scripts ([#115](https://github.com/maximilianfeix/proxy-scraper/issues/115))
 
 ### Fixed

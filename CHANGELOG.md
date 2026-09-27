@@ -5,7 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
-- Daily snapshots: the first run of each UTC day keeps its proxies.json for good, gzipped, as an asset of the `snapshots` release ([#143](https://github.com/maximilianfeix/proxy-scraper/issues/143))
+- Daily snapshots: the first run of each UTC day keeps its proxies.json for good, gzipped, as an asset of that year's `snapshots-YYYY` release ([#143](https://github.com/maximilianfeix/proxy-scraper/issues/143))
 
 ## [1.10.0] – 2026-09-27
 

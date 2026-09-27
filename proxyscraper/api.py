@@ -41,8 +41,18 @@ from .parsing import PROXY_TYPES
 from .targets import parse_target
 from .ui import widgets
 
-__all__ = ["CheckResult", "LiveProxy", "check_proxies", "check_proxies_async", "find_proxies", "find_proxies_async",
-           "live_proxies", "live_proxies_async", "ProxyResponse", "ProxyRotator"]
+__all__ = [
+    "CheckResult",
+    "LiveProxy",
+    "ProxyResponse",
+    "ProxyRotator",
+    "check_proxies",
+    "check_proxies_async",
+    "find_proxies",
+    "find_proxies_async",
+    "live_proxies",
+    "live_proxies_async",
+]
 
 
 def _types(types: Iterable[str]) -> List[str]:

@@ -12,15 +12,12 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
-import socket
 import sys
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Awaitable, Callable, Dict, List, Optional, Tuple
 
-from .netio import USER_AGENT
-from .paths import atomic_write
+from .runsteps import PROBE_ERRORS, Tunnels, browser_get, https_rows, load_rows, resolve_ipv4, run_limited, save_rows
 
 TIMEOUT = 10.0
 CONCURRENCY = 300
@@ -113,20 +110,16 @@ def page_complete(head: bytes, body: int, tail: bytes) -> bool:
 
 def real_probe(timeout: float = TIMEOUT) -> Probe:
     """Tunnel to the site through the proxy with verified TLS, send a browser-like GET, judge the answer."""
-    from .checker import Checker
-
-    checker = Checker(judge_ip="127.0.0.1", own_ips=(), timeout=timeout, connect_timeout=timeout / 2)
+    tunnels = Tunnels(timeout)
 
     async def probe(row: dict, site: Site, ip: str) -> Optional[bool]:
         async def go() -> Optional[bool]:
-            opened = await checker._tls_tunnel(row["ptype"], row["proxy"], site.host, socket.inet_aton(ip), 443)
+            opened = await tunnels.open(row, site.host, ip)
             if opened is None:
                 return None
             reader, writer = opened
             try:
-                writer.write(f"GET {site.path} HTTP/1.1\r\nHost: {site.host}\r\nUser-Agent: {USER_AGENT}\r\n"
-                             "Accept: text/html,application/xhtml+xml,*/*;q=0.8\r\nAccept-Language: en-US,en;q=0.8\r\n"
-                             "Connection: close\r\n\r\n".encode())
+                writer.write(browser_get(site.host, site.path))
                 await writer.drain()
                 head = await reader.readuntil(b"\r\n\r\n")
                 status, location = parse_head(head)
@@ -145,46 +138,37 @@ def real_probe(timeout: float = TIMEOUT) -> Probe:
             return site.verdict(status, location, body)
         try:
             return await asyncio.wait_for(go(), probe_timeout(site, timeout))
-        except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, ValueError):
+        except PROBE_ERRORS:
             return None
     return probe
 
 
-def _resolve(host: str) -> str:
-    return socket.getaddrinfo(host, 443, family=socket.AF_INET)[0][4][0]
-
-
-async def fill_run(run_dir: Path, probe: Optional[Probe] = None, resolve: Callable[[str], str] = _resolve,
+async def fill_run(run_dir: Path, probe: Optional[Probe] = None, resolve: Callable[[str], str] = resolve_ipv4,
                    concurrency: int = CONCURRENCY) -> Dict[str, int]:
     """Probe every HTTPS-capable proxy of a run against every site; writes "sites" into its proxies.json.
     Returns how many proxies got through to each site."""
     probe = probe or real_probe()
-    path = run_dir / "proxies.json"
-    rows: List[dict] = json.loads(path.read_text(encoding="utf-8"))
+    path, rows = load_rows(run_dir)
     ips = {}
     for site in SITES:
         try:
             ips[site.name] = resolve(site.host)
         except OSError:
             continue  # this site can't be looked up right now – the others still can
-    slots = asyncio.Semaphore(concurrency)
 
-    async def one(row: dict, site: Site) -> None:
-        async with slots:
+    def job(row: dict, site: Site):
+        async def run() -> None:
             verdict = await probe(row, site, ips[site.name])
-        if verdict is not None:
-            row["sites"][site.name] = verdict
+            if verdict is not None:
+                row["sites"][site.name] = verdict
+        return run
 
-    jobs = []
     for row in rows:
         row["sites"] = {}
-        if row.get("https") is True:
-            jobs += [one(row, site) for site in SITES if site.name in ips]
-    await asyncio.gather(*jobs)
+    await run_limited((job(row, site) for row in https_rows(rows) for site in SITES if site.name in ips), concurrency)
     for row in rows:  # always in the same order, whichever answer came first
         row["sites"] = {s.name: row["sites"][s.name] for s in SITES if s.name in row["sites"]}
-    # in one go: if the step gets killed (it has a timeout), the publish step still finds the old file intact
-    atomic_write(path, json.dumps(rows, indent=1, ensure_ascii=False))
+    save_rows(path, rows)
     return {s.name: sum(1 for r in rows if r["sites"].get(s.name)) for s in SITES}
 
 

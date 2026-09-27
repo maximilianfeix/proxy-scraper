@@ -334,6 +334,10 @@ class Checker:
             writer.close()
         return 200 <= status < 400
 
+    async def tls_tunnel(self, ptype: str, proxy: str, host: str, ip: str, port: int = 443):
+        """Public side of _tls_tunnel for the steps after a run (sites, speed): ip as text."""
+        return await self._tls_tunnel(ptype, proxy, host, socket.inet_aton(ip), port)
+
     async def _tls_tunnel(self, ptype: str, proxy: str, host: str, ip_bytes: bytes, port: int):
         """Tunnel through the proxy to host:port with verified TLS inside. None = tunnel refused or MITM."""
         loop = asyncio.get_running_loop()

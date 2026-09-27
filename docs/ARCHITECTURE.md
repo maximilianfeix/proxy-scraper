@@ -43,13 +43,16 @@ flowchart LR
 | `geo.py` · `geodb.py` · `asndb.py` | countries and providers, offline from DB-IP, ip-api.com as fallback |
 | `blocklist.py` | is the exit IP on SpamCop? One cached DNS lookup per IP, skipped when the resolver is refused |
 | `targets.py` | target sites for `--target` |
-| `completion.py` | bash/zsh/fish completion, generated from the argparse parser so it can't go stale |
+| `completion.py` | bash/zsh/fish/PowerShell completion, generated from the argparse parser so it can't go stale |
 | `history.py` | which proxies worked before – they are checked first next time |
 | `output.py` · `exporters.py` · `publish.py` | result files, proxychains/Clash/sing-box/curl configs, the live list and its website |
+| `sites.py` · `speed.py` · `runsteps.py` | extra steps on a finished run in the hourly workflow: which big sites let each proxy through, how fast it downloads. `runsteps.py` is what they share – loading and atomically saving the run's rows, the HTTPS-capable ones, a limit on parallel probes, verified TLS tunnels |
+| `pages.py` · `proxypages.py` · `charts.py` · `report.py` | what the live list publishes besides the data: a page per protocol and country, a page per proxy with its week of checks, the SVG charts in the README, the weekly report with its feed |
+| `action.py` | the GitHub Action (`action.yml` in the root): picks proxies from the live list for a workflow |
 | `site/` | the live list website (one static `index.html` plus images), published next to the JSON files |
 | `server/` | the rotating proxy server (`--serve`) |
 | `agent.py` · `mcp_server.py` · `mcp_entry.py` | the MCP server for AI agents: `agent.py` has the logic and runs without the MCP SDK (so it's tested on 3.9 too), `mcp_server.py` describes it as tools, `mcp_entry.py` is the `proxy-scraper-mcp` command. stdout carries the protocol, everything else goes to stderr |
-| `api.py` | `find_proxies()` / `check_proxies()` for use from Python |
+| `api.py` | `find_proxies()` / `check_proxies()` / `live_proxies()` for use from Python |
 | `ui/` | everything that draws: widgets, dashboard, report, wizard, server view |
 
 `ui/` only draws. It never decides anything, and during a run nothing outside `ui/` prints directly – all output goes through `widgets.console`, which is also how the tests and the Python API silence it. (`publish.py` is the exception: it runs in GitHub Actions and just prints status lines.)

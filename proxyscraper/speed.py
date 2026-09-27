@@ -13,16 +13,13 @@ from __future__ import annotations
 
 import argparse
 import asyncio
-import json
-import socket
 import statistics
 import sys
 import time
 from pathlib import Path
 from typing import Awaitable, Callable, List, Optional
 
-from .netio import USER_AGENT
-from .paths import atomic_write
+from .runsteps import PROBE_ERRORS, Tunnels, browser_get, https_rows, load_rows, resolve_ipv4, run_limited, save_rows
 
 HOST = "speed.cloudflare.com"
 BYTES = 100_000
@@ -42,9 +39,7 @@ def kbps(received: int, seconds: float) -> Optional[int]:
 
 
 def real_probe(deadline: float = DEADLINE) -> Probe:
-    from .checker import Checker
-
-    checker = Checker(judge_ip="127.0.0.1", own_ips=(), timeout=deadline, connect_timeout=deadline / 2)
+    tunnels = Tunnels(deadline)
 
     async def probe(row: dict, ip: str) -> Optional[int]:
         end = time.monotonic() + deadline
@@ -53,7 +48,7 @@ def real_probe(deadline: float = DEADLINE) -> Probe:
             return await asyncio.wait_for(coro, max(0.01, end - time.monotonic()))
 
         try:
-            opened = await within(checker._tls_tunnel(row["ptype"], row["proxy"], HOST, socket.inet_aton(ip), 443))
+            opened = await within(tunnels.open(row, HOST, ip))
             if opened is None:
                 return None
             reader, writer = opened
@@ -61,8 +56,7 @@ def real_probe(deadline: float = DEADLINE) -> Probe:
                 # the clock runs from the request to the last byte: a start at the first body byte would miss
                 # whatever already sat in the buffer with the head, and fast proxies would come out absurdly fast
                 sent = time.monotonic()
-                writer.write(f"GET {PATH} HTTP/1.1\r\nHost: {HOST}\r\nUser-Agent: {USER_AGENT}\r\n"
-                             "Accept-Encoding: identity\r\nConnection: close\r\n\r\n".encode())
+                writer.write(browser_get(HOST, PATH, "Accept-Encoding: identity"))
                 await within(writer.drain())
                 head = await within(reader.readuntil(b"\r\n\r\n"))
                 if b" 200 " not in head.split(b"\r\n", 1)[0] + b" ":
@@ -79,38 +73,33 @@ def real_probe(deadline: float = DEADLINE) -> Probe:
                 return kbps(received, time.monotonic() - sent)
             finally:
                 writer.close()
-        except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, ValueError):
+        except PROBE_ERRORS:
             return None
     return probe
 
 
-def _resolve(host: str) -> str:
-    return socket.getaddrinfo(host, 443, family=socket.AF_INET)[0][4][0]
-
-
-async def fill_run(run_dir: Path, probe: Optional[Probe] = None, resolve: Callable[[str], str] = _resolve,
+async def fill_run(run_dir: Path, probe: Optional[Probe] = None, resolve: Callable[[str], str] = resolve_ipv4,
                    concurrency: int = CONCURRENCY) -> Optional[int]:
     """Measure every HTTPS-capable proxy of a run, write speed_kbps into its proxies.json -> the median."""
     probe = probe or real_probe()
-    path = run_dir / "proxies.json"
-    rows: List[dict] = json.loads(path.read_text(encoding="utf-8"))
+    path, rows = load_rows(run_dir)
     try:
         ip = resolve(HOST)
     except OSError:
         return None
-    slots = asyncio.Semaphore(concurrency)
 
-    async def one(row: dict) -> None:
-        async with slots:
+    def job(row: dict):
+        async def run() -> None:
             try:  # the probe keeps its own deadline – this only catches one that doesn't
                 value = await asyncio.wait_for(probe(row, ip), DEADLINE * 1.5)
             except asyncio.TimeoutError:
                 value = None
-        if value:
-            row["speed_kbps"] = value
+            if value:
+                row["speed_kbps"] = value
+        return run
 
-    await asyncio.gather(*(one(r) for r in rows if r.get("https") is True))
-    atomic_write(path, json.dumps(rows, indent=1, ensure_ascii=False))
+    await run_limited((job(r) for r in https_rows(rows)), concurrency)
+    save_rows(path, rows)
     speeds = [r["speed_kbps"] for r in rows if r.get("speed_kbps")]
     return round(statistics.median(speeds)) if speeds else None
 

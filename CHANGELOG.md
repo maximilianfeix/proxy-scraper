@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.15.0] – 2026-09-27
+
 ### Added
 - A Telegram bot: `/proxy de socks5` answers with a fast proxy and a curl line to try it, `/proxies 10 us https` with a short list, `/stats` with the last run. It runs in the same process as the Discord bot, needs only a `TELEGRAM_TOKEN` secret, and uses long polling – no open port ([#187](https://github.com/maximilianfeix/proxy-scraper/issues/187))
 
@@ -195,7 +197,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.14.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.15.0...HEAD
+[1.15.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.11.0...v1.12.0

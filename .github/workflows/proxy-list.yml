@@ -88,3 +88,24 @@ jobs:
           git commit -q -m "Proxy list of $(date -u +'%Y-%m-%d %H:%M UTC')"
           # a single commit that gets replaced every time – the history doesn't grow
           git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" proxy-list
+
+      # Once a day the list is kept for good: a gzipped proxies.json as an asset of the "snapshots" release, for
+      # anyone who wants to look at free proxies over time. The first run of each UTC day does it.
+      - name: Daily snapshot
+        if: steps.prepare.outputs.publish == 'true'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          name="proxies-$(date -u +%F).json.gz"
+          if ! gh release view snapshots > /dev/null 2>&1; then
+            gh release create snapshots --prerelease --target "$GITHUB_SHA" --title "Daily snapshots of the live list" \
+              --notes "One file a day: every proxy that passed all checks in the first run of that day (UTC), with all details – the same fields as proxies.json on the proxy-list branch. For looking at free proxies over time. Updated automatically."
+          fi
+          if gh release view snapshots --json assets --jq '.assets[].name' | grep -qx "$name"; then
+            echo "$name is already there"
+          else
+            gzip -9 -c public/proxies.json > "$name"
+            gh release upload snapshots "$name"
+            echo "uploaded $name ($(wc -c < "$name") bytes)"
+          fi

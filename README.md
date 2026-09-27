@@ -178,6 +178,8 @@ Every protocol and country also has its own page with a plain download, e.g. [SO
 curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt | head
 ```
 
+**Over time:** every day the first run's `proxies.json` is kept for good as a gzipped asset of the [snapshots release](../../releases/tag/snapshots) – `proxies-2026-09-28.json.gz` and so on, for anyone who wants to look at free proxies over weeks and months.
+
 Every file is also on GitHub Pages, which sits behind a CDN, isn't rate limited like raw.githubusercontent and sends CORS headers, so it works straight from the browser: `https://maximilianfeix.github.io/proxy-scraper/socks5.txt`. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) works too, but can lag behind by a few hours.
 
 Or let the tool start from it: `proxy-scraper --recheck live` downloads the list and checks it again from **your** network – about 30 seconds instead of a full scan (517 of 1,169 worked from here). With `--serve` you have a rotating proxy in under a minute.

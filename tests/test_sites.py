@@ -146,3 +146,17 @@ def test_the_run_file_is_replaced_in_one_go(tmp_path, monkeypatch):
     with pytest.raises(KeyboardInterrupt):
         asyncio.run(sites.fill_run(d, probe=probe, resolve=lambda host: "10.0.0.1"))
     assert (d / "proxies.json").read_text() == before
+
+
+def test_a_cut_off_page_is_no_verdict():
+    head = b"HTTP/1.1 200 OK\r\nContent-Length: 250000\r\n\r\n"
+    assert sites.page_complete(head, 5_000, b"...") is False           # the proxy hung up halfway
+    stub = b"HTTP/1.1 200 OK\r\nContent-Length: 2161\r\n\r\n"
+    assert sites.page_complete(stub, 2_161, b"</html>") is True        # a stub, all of it: blocked
+    chunked = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: chunked\r\n\r\n"
+    assert sites.page_complete(chunked, 2_300, b"</html>\r\n0\r\n\r\n") is True
+    assert sites.page_complete(chunked, 9_000, b"<div>") is False
+
+
+def test_reading_the_page_gets_its_own_time():
+    assert sites.probe_timeout(sites.SITE["amazon"], 10) > sites.probe_timeout(sites.SITE["google"], 10) == 10

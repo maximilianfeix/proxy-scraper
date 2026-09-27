@@ -79,6 +79,26 @@ def parse_head(head: bytes) -> Tuple[int, str]:
     return int(parts[1]), location
 
 
+PAGE_TIME = 10.0  # extra seconds to read the page behind a 200 (min_body), on top of the normal timeout
+
+
+def probe_timeout(site: Site, timeout: float) -> float:
+    return timeout + (PAGE_TIME if site.min_body else 0)
+
+
+def page_complete(head: bytes, body: int, tail: bytes) -> bool:
+    """Did the whole (short) page arrive, or did the proxy hang up halfway? Only a complete short page is a stub –
+    a cut-off one says nothing."""
+    lower = head.lower()
+    marker = b"\r\ncontent-length:"
+    if marker in lower:
+        value = lower.split(marker, 1)[1].split(b"\r\n", 1)[0].strip()
+        return value.isdigit() and body >= int(value)
+    if b"transfer-encoding: chunked" in lower:
+        return tail.endswith(b"0\r\n\r\n")
+    return True  # no length at all: the end of the connection is the end of the page
+
+
 def real_probe(timeout: float = TIMEOUT) -> Probe:
     """Tunnel to the site through the proxy with verified TLS, send a browser-like GET, judge the answer."""
     from .checker import Checker
@@ -98,18 +118,21 @@ def real_probe(timeout: float = TIMEOUT) -> Probe:
                 await writer.drain()
                 head = await reader.readuntil(b"\r\n\r\n")
                 status, location = parse_head(head)
-                body = 0
+                body, tail = 0, b""
                 if site.min_body and status in site.ok:  # read just enough to tell a page from a stub
                     while body < site.min_body:
                         chunk = await reader.read(16384)
                         if not chunk:
                             break
                         body += len(chunk)
+                        tail = (tail + chunk)[-16:]
+                    if body < site.min_body and not page_complete(head, body, tail):
+                        return None  # cut off halfway: neither a page nor a stub
             finally:
                 writer.close()
             return site.verdict(status, location, body)
         try:
-            return await asyncio.wait_for(go(), timeout)
+            return await asyncio.wait_for(go(), probe_timeout(site, timeout))
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, ValueError):
             return None
     return probe

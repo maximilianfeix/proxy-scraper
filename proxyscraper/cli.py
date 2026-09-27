@@ -181,7 +181,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                         "(the interface moves to stderr then)")
     o.add_argument("--export", type=export_list, metavar="FORMATS",
                    help=f"extra formats in the results folder: {', '.join(EXPORTERS)} or all "
-                        "(e.g. --export proxychains,clash)")
+                        "(e.g. --export proxychains,singbox)")
 
     s = p.add_argument_group("Sources")
     s.add_argument("--discover", action="store_true",

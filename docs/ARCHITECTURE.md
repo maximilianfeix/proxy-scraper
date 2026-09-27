@@ -45,7 +45,7 @@ flowchart LR
 | `targets.py` | target sites for `--target` |
 | `completion.py` | bash/zsh/fish completion, generated from the argparse parser so it can't go stale |
 | `history.py` | which proxies worked before – they are checked first next time |
-| `output.py` · `exporters.py` · `publish.py` | result files, proxychains/Clash/curl configs, the live list and its website |
+| `output.py` · `exporters.py` · `publish.py` | result files, proxychains/Clash/sing-box/curl configs, the live list and its website |
 | `site/` | the live list website (one static `index.html` plus images), published next to the JSON files |
 | `server/` | the rotating proxy server (`--serve`) |
 | `agent.py` · `mcp_server.py` · `mcp_entry.py` | the MCP server for AI agents: `agent.py` has the logic and runs without the MCP SDK (so it's tested on 3.9 too), `mcp_server.py` describes it as tools, `mcp_entry.py` is the `proxy-scraper-mcp` command. stdout carries the protocol, everything else goes to stderr |

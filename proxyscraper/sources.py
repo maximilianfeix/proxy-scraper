@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
+import ipaddress
 import json
 import os
 import re
@@ -263,14 +264,18 @@ _FILE_GENERIC_RE = re.compile(r"(^|[/_\-.])(proxy|proxies|all)[^/]*\.txt$")
 _REPO_REJECT_RE = re.compile(r"v2ray|vpn|xray|clash|sing-?box|nekobox|vless|vmess|subscri|config", re.I)
 MAX_FILES_PER_REPO = 12
 # the source lists of other proxy scrapers (sources.json, config.toml, urls.txt …) are full of list URLs
+# (not in hidden folders: .github/ISSUE_TEMPLATE/config.yml or .vscode/settings.json would take the slots)
 _CONFIG_PATH_RE = re.compile(
-    r"(^|/)(sources?|urls?|providers?|proxy[_-]?sources?|sites|config|settings)[^/]*\.(txt|json|ya?ml|toml|py|js|ts)$",
-    re.I)
+    r"^(?!(?:.*/)?\.)(?:.*/)?(sources?|urls?|providers?|proxy[_-]?sources?|sites|config|settings)[^/]*"
+    r"\.(txt|json|ya?ml|toml|py|js|ts)$", re.I)
 _URL_RE = re.compile(rb"https?://[^\s\"'<>)\]}`,]+")
 _LISTISH_RE = re.compile(r"proxy|proxies|socks|\.txt$", re.I)
 MAX_CONFIGS_PER_REPO = 3
 MAX_MINED_CHECKS = 600      # URLs from those files fetched once per discovery to see whether they hold proxies
 MIN_MINED_PROXIES = 20      # ... and kept only with at least this many
+MINE_TIMEOUT = 10.0         # per URL
+MINE_DEADLINE = 120.0       # for all of them: slow hosts from someone else's list mustn't stall the run
+_LOCAL_HOST_RE = re.compile(r"(^|\.)(localhost|local|internal|lan|home|intranet)$", re.I)
 MAX_REPOS_PER_OWNER = 3  # against spam accounts with dozens of identical clone repos
 
 
@@ -306,7 +311,10 @@ def mined_urls(data: bytes) -> List[str]:
         url = raw.decode("utf-8", "replace").rstrip(".;:")
         if "{" in url or "}" in url or "$" in url or _REPO_REJECT_RE.search(url):
             continue
-        path = urlsplit(url).path.lower()
+        parts = urlsplit(url)
+        if not _public_host(parts):  # someone else's file must not point us at localhost or the local network
+            continue
+        path = parts.path.lower()
         if not _LISTISH_RE.search(url) or _PATH_REJECT_RE.search(path) or path.endswith((".md", ".html", ".png")):
             continue
         url = normalize_url(url) or url
@@ -315,9 +323,39 @@ def mined_urls(data: bytes) -> List[str]:
     return urls
 
 
+def _public_host(parts) -> bool:
+    try:
+        port = parts.port
+    except ValueError:
+        return False
+    host = (parts.hostname or "").rstrip(".")
+    if parts.scheme not in ("http", "https") or port not in (None, 80, 443) or not host or _LOCAL_HOST_RE.search(host):
+        return False
+    try:
+        return ipaddress.ip_address(host).is_global
+    except ValueError:
+        return "." in host  # a name – single labels only resolve on a local network
+
+
 def _mined_type(url: str) -> str:
-    m = _PATH_TYPE_RE.search(urlsplit(url).path.lower())
+    """The type a URL names (in the path, or an API's query string like ?protocol=socks4), else "auto"."""
+    parts = urlsplit(url)
+    m = _PATH_TYPE_RE.search(f"{parts.path}?{parts.query}".lower())
     return TYPE_ALIASES[m[1]] if m else "auto"
+
+
+def _readable_type(url: str, data: bytes) -> Optional[str]:
+    """The type to keep a mined list under, so the scrape reads it the way it was checked – None if it doesn't
+    hold enough proxies. "auto" only reads scheme://ip:port lines, so a plain ip:port list without a type
+    becomes http (the most common kind)."""
+    def count(ptype: str) -> int:
+        return len(validate_candidates(extract_candidates(data, ptype)))
+    ptype = _mined_type(url)
+    if ptype != "auto":
+        return ptype if count(ptype) >= MIN_MINED_PROXIES else None
+    if count("auto") >= MIN_MINED_PROXIES:
+        return "auto"
+    return "http" if count("http") >= MIN_MINED_PROXIES else None
 
 
 async def discover_github(
@@ -418,12 +456,12 @@ async def discover_github(
 async def _mine(get: Getter, configs: List[str], known: Set[str],
                 on_progress: Optional[Callable[[str], None]] = None) -> SourceMap:
     """Read other scrapers' source files, then fetch each new URL once: only real proxy lists are kept."""
-    sem = asyncio.Semaphore(16)
+    sem = asyncio.Semaphore(32)
 
     async def fetch(url: str) -> bytes:
         async with sem:
             try:
-                return await get(url, timeout=15)
+                return await get(url, timeout=MINE_TIMEOUT)
             except Exception:
                 return b""
 
@@ -435,16 +473,23 @@ async def _mine(get: Getter, configs: List[str], known: Set[str],
     candidates = candidates[:MAX_MINED_CHECKS]
     checked = 0
 
-    async def check(url: str) -> Optional[str]:
+    async def check(url: str) -> Tuple[str, Optional[str]]:
         nonlocal checked
         data = await fetch(url)
-        n = len(await asyncio.to_thread(lambda: validate_candidates(extract_candidates(data, "http")))) if data else 0
+        ptype = await asyncio.to_thread(_readable_type, url, data) if data else None
         checked += 1
         if on_progress and checked % 50 == 0:
             on_progress(f"{checked}/{len(candidates)} lists from other scrapers checked")
-        return url if n >= MIN_MINED_PROXIES else None
+        return url, ptype
 
-    return {url: _mined_type(url) for url in await asyncio.gather(*(check(u) for u in candidates)) if url}
+    if not candidates:
+        return {}
+    tasks = [asyncio.ensure_future(check(u)) for u in candidates]
+    done, pending = await asyncio.wait(tasks, timeout=MINE_DEADLINE)
+    for task in pending:  # whatever hasn't answered by now gets another chance at the next discovery
+        task.cancel()
+    await asyncio.gather(*pending, return_exceptions=True)
+    return {url: ptype for url, ptype in (t.result() for t in done) if ptype}
 
 
 # --------------------------------------------------------------------------- #

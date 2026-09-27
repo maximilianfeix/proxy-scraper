@@ -4,6 +4,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- A bookmarklet: drag "Get a proxy" from the website to the bookmarks bar, and one click on any page copies a proxy that was on the list in 90 %+ of this week's checks. Plus "copy a reliable one now" right on the site ([#189](https://github.com/maximilianfeix/proxy-scraper/issues/189))
+
+### Fixed
+- Website: long country names wrapped in the Countries chart, the labels share one column now
+
 ## [1.11.0] – 2026-09-27
 
 ### Added

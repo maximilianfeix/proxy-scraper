@@ -25,6 +25,7 @@ from .charts import THEMES, countries_svg, trend_svg
 from .pages import write_pages
 from .parsing import PROXY_TYPES
 from .proxypages import write_proxy_pages
+from .ranking import best_first
 from .report import weekly_facts, write_report
 from .sites import SITES
 
@@ -43,7 +44,7 @@ def is_public(row: dict) -> bool:
 
 def load_rows(run_dir: Path) -> List[dict]:
     rows = json.loads((run_dir / "proxies.json").read_text(encoding="utf-8"))
-    return sorted((r for r in rows if is_public(r)), key=lambda r: r["latency"])
+    return best_first(r for r in rows if is_public(r))
 
 
 def num(n: int) -> str:
@@ -116,7 +117,8 @@ def readme(stats: dict, counts: Dict[str, int]) -> str:
     return f"""# Live proxy list
 
 Generated automatically by [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) with GitHub Actions.
-Every proxy here really worked in the last run – sorted by latency, fastest first.
+Every proxy here really worked in the last run – fastest first, by first answer plus the download speed measured
+right after the run.
 Browse and filter it on the [website](https://maximilianfeix.github.io/proxy-scraper/).
 
 **Updated:** {updated} · **{num(stats["total"])} proxies** · median latency {num(stats["median_latency"])} ms

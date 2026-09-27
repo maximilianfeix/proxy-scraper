@@ -597,7 +597,7 @@
   <section class="block wrap" id="list" aria-labelledby="list-title">
     <div class="head-row">
       <h2 class="h2" id="list-title">Pick your proxies</h2>
-      <p class="intro-text">Filter, sort, then copy or download exactly the ones you need. Click any address to copy it.</p>
+      <p class="intro-text">Best first: the ones that answer quickly and download fast. Filter, sort, then copy or download exactly the ones you need. Click any address to copy it.</p>
     </div>
     <div class="filters" role="group" aria-label="Filters">
       <button class="chip" type="button" data-type="http" aria-pressed="true"><span class="dot http"></span>HTTP</button>
@@ -623,7 +623,7 @@
             <th scope="col" data-key="ptype"><button class="sort" type="button" aria-label="Type"><span class="name">Type</span></button></th>
             <th scope="col" data-key="proxy"><button class="sort" type="button">Proxy</button></th>
             <th scope="col" data-key="country"><button class="sort" type="button">Country</button></th>
-            <th scope="col" data-key="latency" aria-sort="ascending"><button class="sort" type="button">Latency</button></th>
+            <th scope="col" data-key="latency"><button class="sort" type="button">Latency</button></th>
             <th scope="col" data-key="speed_kbps" class="hide-sm"><button class="sort" type="button" title="Download speed in the last run – 100 KB through the proxy">Speed</button></th>
             <th scope="col" data-key="https" class="hide-sm"><button class="sort" type="button">HTTPS</button></th>
             <th scope="col" data-key="uptime_7d" class="hide-sm"><button class="sort" type="button" title="Share of this week's runs it was on the list">Uptime</button></th>
@@ -637,6 +637,7 @@
     <div class="list-foot">
       <span class="count" id="count" aria-live="polite"></span>
       <div class="actions">
+        <button class="btn small" id="best" type="button" hidden title="The ones that answer quickly and download fast">Best first</button>
         <button class="btn small" id="more" type="button" hidden>Show more</button>
         <button class="btn small" id="share" type="button" title="The filters are in the address, so the link opens this exact view">Share view</button>
         <button class="btn small" id="copy-all" type="button">Copy filtered</button>
@@ -871,7 +872,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const speed = (k) => !k ? '<span class="quiet">–</span>'
     : `<span class="${k >= 500 ? "fast" : k >= 100 ? "mid" : "slow"}">${k >= 1024 ? (k / 1024).toFixed(1) + " MB/s" : fmt(k) + " KB/s"}</span>`;
   const latency = (ms) => `<span class="${ms < 1000 ? "fast" : ms < 3000 ? "mid" : "slow"}">${fmt(ms)} ms</span>`;
-  const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http", "socks4", "socks5"]),
+  const state = { rows: [], shown: PAGE, sort: "rank", dir: 1, types: new Set(["http", "socks4", "socks5"]),
                   https: false, elite: false, noDc: false, noBl: false, stable: false, country: "", site: "", maxLat: 8000, q: "" };
 
   // Theme
@@ -1037,6 +1038,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       || '<tr><td colspan="9" class="empty">No proxy matches these filters. Try a higher latency limit or fewer filters.</td></tr>';
     $("#count").textContent = rows.length ? `Showing ${fmt(Math.min(state.shown, rows.length))} of ${fmt(rows.length)} matching proxies` : "";
     $("#more").hidden = rows.length <= state.shown;
+    $("#best").hidden = state.sort === "rank";
     saveView();
     $$("th[data-key]").forEach(th => th.dataset.key === state.sort ? th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending") : th.removeAttribute("aria-sort"));
   }
@@ -1052,7 +1054,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     if (state.site) q.set("site", state.site);
     if (state.maxLat < 8000) q.set("latency", state.maxLat);
     if (state.q.trim()) q.set("q", state.q.trim());
-    if (state.sort !== "latency" || state.dir !== 1) q.set("sort", (state.dir < 0 ? "-" : "") + state.sort);
+    if (state.sort !== "rank") q.set("sort", (state.dir < 0 ? "-" : "") + state.sort);
     return location.pathname + (q.toString() ? `?${q}` : "") + location.hash;
   }
   // debounced: browsers limit replaceState (Safari throws after ~100 calls in 30 s, e.g. while dragging the slider)
@@ -1117,6 +1119,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   $("#f-lat").oninput = (e) => { state.maxLat = +e.target.value; $("#f-lat-v").textContent = state.maxLat >= 8000 ? "any" : `${fmt(state.maxLat)} ms`; refresh(); };
   $("#f-q").oninput = (e) => { state.q = e.target.value; refresh(); };
   $("#more").onclick = () => { state.shown += PAGE * 4; render(); };
+  $("#best").onclick = () => { state.sort = "rank"; state.dir = 1; morph(render); };
   $$("th[data-key]").forEach(th => {
     th.querySelector(".sort").onclick = () => { const k = th.dataset.key; state.dir = state.sort === k ? -state.dir : 1; state.sort = k; morph(render); };
   });
@@ -1353,6 +1356,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
 
   let started = false;
   function apply(rows, st, history) {
+    rows.forEach((r, i) => { r.rank = i; });  // proxies.json comes best first: first answer plus download speed
     state.rows = rows;
     shownRun = st.updated;
     RUN_HOURS = st.run_hours || 6;  // lists from before run_hours existed ran every 6 hours

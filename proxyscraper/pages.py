@@ -14,6 +14,8 @@ from html import escape
 from pathlib import Path
 from typing import Callable, Dict, List, Sequence, Tuple
 
+from .ranking import best_first
+
 SITE_URL = "https://maximilianfeix.github.io/proxy-scraper/"
 REPO_URL = "https://github.com/maximilianfeix/proxy-scraper"
 ROWS_PER_PAGE = 200
@@ -203,8 +205,8 @@ def _render(path: str, title: str, what: str, rows: List[dict], updated: datetim
                 f"<td>{'yes' if r.get('https') else 'no'}</td><td>{escape(through)}</td>"
                 f"<td>{escape((r.get('org') or '–')[:40])}</td></tr>")
     body_rows = "\n".join(cells(r) for r in rows[:ROWS_PER_PAGE])
-    table = (f"<div class=\"table\"><table><caption>The {min(total, ROWS_PER_PAGE):,} fastest, as ip:port. "
-             f"The download has all {total:,} as type://ip:port.</caption>"
+    table = (f"<div class=\"table\"><table><caption>The {min(total, ROWS_PER_PAGE):,} fastest to load a page, "
+             f"as ip:port. The download has all {total:,} as type://ip:port.</caption>"
              "<thead><tr><th scope=\"col\">Proxy</th><th scope=\"col\">Type</th><th scope=\"col\">Country</th>"
              "<th scope=\"col\">Latency</th><th scope=\"col\">Speed</th><th scope=\"col\">Uptime</th>"
              "<th scope=\"col\">HTTPS</th><th scope=\"col\">Gets through</th>"
@@ -307,7 +309,7 @@ def _nav(specs, counts: Dict[str, int], current: str, root: str) -> str:
 def write_pages(rows: List[dict], out: Path, updated: datetime, extra: Sequence[str] = ()) -> List[str]:
     """Writes every page with its proxies.txt and the sitemap (plus the `extra` paths, e.g. the proxy pages)
     -> the paths listed in the sitemap."""
-    rows = sorted(rows, key=lambda r: r["latency"])
+    rows = best_first(rows)
     specs = page_specs()
     selected = {p: [r for r in rows if keep(r)] for p, _, _, keep in specs}
     counts = {p: len(v) for p, v in selected.items()}

@@ -216,7 +216,7 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
     limit       at most this many (0 = all)
     """
     from .agent import AgentError, LiveSource
-    from .server.pool import page_ms, typical_speed
+    from .ranking import page_ms, typical_speed
     from .sites import SITE
 
     types = _types(types)
@@ -242,8 +242,8 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
     found = [_live_proxy(r, data.run_hours) for r in data.rows
              if r.get("ptype") in types and isinstance(r.get("proxy"), str)]
     # fastest first – by how quickly a page comes through when the list has download speeds (#186)
-    typical = typical_speed(found)
-    found.sort(key=lambda p: page_ms(p, typical))
+    typical = typical_speed(p.speed_kbps for p in found)
+    found.sort(key=lambda p: page_ms(p.latency, p.speed_kbps, p.https, typical))
     found = [p for p in found if opts.filters.accepts(p) and (not min_uptime or (p.uptime_7d or 0) >= min_uptime)
              and all(p.sites.get(s) for s in works_on) and (not min_speed or (p.speed_kbps or 0) >= min_speed)]
     return found[:limit] if limit else found

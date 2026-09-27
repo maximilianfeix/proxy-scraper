@@ -56,3 +56,27 @@ def test_proxies_the_speed_step_never_tried_count_as_typical_not_slow():
     pool = ProxyPool([plain_only, measured], strategy="fastest")
     assert pool.pick(set()).result is plain_only
     assert pool.pick(set(), tls=True).result is measured
+
+
+def published(n, latency, speed=None, https=True, ptype="http"):
+    row = {"proxy": f"10.0.0.{n}:80", "ptype": ptype, "url": f"{ptype}://10.0.0.{n}:80", "latency": latency,
+           "https": https, "country": "DE", "exit_ip": f"10.0.0.{n}", "anonymity": "elite"}
+    return {**row, "speed_kbps": speed} if speed else row
+
+
+def test_the_published_lists_start_with_the_ones_that_load_pages_fastest(tmp_path):
+    import json
+
+    from proxyscraper import publish
+
+    (tmp_path / "proxies.json").write_text(json.dumps([published(1, 100), published(2, 400, speed=500)]))
+    assert [r["proxy"] for r in publish.load_rows(tmp_path)] == ["10.0.0.2:80", "10.0.0.1:80"]
+
+
+def test_landing_pages_list_the_best_first(tmp_path):
+    from datetime import datetime, timezone
+
+    from proxyscraper import pages
+
+    pages.write_pages([published(1, 100), published(2, 400, speed=500)], tmp_path, datetime.now(timezone.utc))
+    assert (tmp_path / "country" / "de" / "proxies.txt").read_text().splitlines()[0] == "http://10.0.0.2:80"

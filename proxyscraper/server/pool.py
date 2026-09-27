@@ -13,36 +13,26 @@ from __future__ import annotations
 
 import random
 import re
-import statistics
 import time
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Set, Tuple
 
+from .. import ranking
 from ..checker import CheckResult
 
 DISABLE_AFTER = 3           # this many failures in a row -> out of the rotation
 STRATEGIES = ("weighted", "random", "round-robin", "fastest")
 SESSION_SECONDS = 600       # how long a session (session-…) keeps its proxy when --sticky isn't set
 _TOKEN_RE = re.compile(r"(country|type|session)[-_]([A-Za-z0-9]+)")
-PAGE_KB = 100               # roughly one page – the download the speed step measures
-UNMEASURED_KBPS = 20        # tried in the speed step, no download got through: counted as slow (it passed the checks)
 
 
 def page_ms(result, typical_kbps: Optional[float]) -> float:
-    """Roughly how long a page takes through this proxy: the first answer plus the download.
-
-    typical_kbps is the median measured speed of the set, None when it has no speeds at all (an own scan) – then
-    latency decides alone. The speed step only tries HTTPS-capable proxies: one of those without a speed didn't
-    get the download through, the others were never tried and count as typical."""
-    if not typical_kbps:
-        return result.latency
-    kbps = result.speed_kbps or (UNMEASURED_KBPS if result.https else typical_kbps)
-    return result.latency + PAGE_KB * 1000 / kbps
+    """ranking.page_ms for a CheckResult (or anything with latency, speed_kbps and https)."""
+    return ranking.page_ms(result.latency, result.speed_kbps, result.https, typical_kbps)
 
 
 def typical_speed(results) -> Optional[float]:
-    speeds = [r.speed_kbps for r in results if r.speed_kbps]
-    return statistics.median(speeds) if speeds else None
+    return ranking.typical_speed(r.speed_kbps for r in results)
 
 
 @dataclass(frozen=True)

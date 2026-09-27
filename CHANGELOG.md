@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- The published lists (all.txt, http.txt, socks5.txt, …, proxies.json), the country and protocol pages and the website now come best first too: by first answer plus the download speed of the last check, like `--pick` since 1.18. Whoever takes the first lines of a file gets the ones that load pages. The website has a "Best first" button to go back after sorting by a column ([#212](https://github.com/maximilianfeix/proxy-scraper/issues/212))
+
 ## [1.18.0] – 2026-09-28
 
 ### Changed

@@ -944,7 +944,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
 
   // The filters live in the address bar, so a view can be shared or bookmarked
   const ALL_TYPES = ["http", "socks4", "socks5"], FLAGS = { https: "https", elite: "elite", noDc: "nodc", noBl: "nobl", stable: "stable" };
-  function saveView() {
+  function viewUrl() {
     const q = new URLSearchParams();
     if (state.types.size !== ALL_TYPES.length) q.set("types", [...state.types].join(","));
     Object.entries(FLAGS).forEach(([key, name]) => { if (state[key]) q.set(name, "1"); });
@@ -953,8 +953,18 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     if (state.maxLat < 8000) q.set("latency", state.maxLat);
     if (state.q.trim()) q.set("q", state.q.trim());
     if (state.sort !== "latency" || state.dir !== 1) q.set("sort", (state.dir < 0 ? "-" : "") + state.sort);
-    const search = q.toString() ? `?${q}` : "";
-    if (search !== location.search) history.replaceState(history.state, "", location.pathname + search + location.hash);
+    return location.pathname + (q.toString() ? `?${q}` : "") + location.hash;
+  }
+  // debounced: browsers limit replaceState (Safari throws after ~100 calls in 30 s, e.g. while dragging the slider)
+  let saveTimer = 0;
+  function saveView() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const url = viewUrl();
+      if (url !== location.pathname + location.search + location.hash) {
+        try { history.replaceState(history.state, "", url); } catch (e) {}
+      }
+    }, 400);
   }
   function loadView() {
     const q = new URLSearchParams(location.search);
@@ -976,7 +986,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     $("#f-q").value = state.q;
   }
   loadView();
-  $("#share").onclick = () => copy(location.href, "Link to this view copied");
+  $("#share").onclick = () => copy(new URL(viewUrl(), location.href).href, "Link to this view copied");
   // chips, the country and sorting let the rows settle in; typing and the slider stay instant
   const morph = (fn) => {
     fn();

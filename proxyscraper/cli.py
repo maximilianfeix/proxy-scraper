@@ -4,9 +4,11 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+import json
 import os
 import sys
 from collections import Counter
+from datetime import datetime, timezone
 from typing import List, Optional
 
 from rich.console import Console
@@ -38,13 +40,22 @@ from .ui.keys import is_interactive
 from .ui.wizard import run_wizard
 
 
-def list_sources(limit: int) -> int:
-    """Ranking of every known source by learned hit rate."""
+def list_sources(limit: int, as_json: bool = False) -> int:
+    """Ranking of every known source by learned hit rate – as a table, or as JSON on stdout for scripts."""
     quality = srcs.SourceStats()
     curated, _meta = srcs.load_source_file()
     urls = set(curated) | set(srcs.load_discovered()) | set(quality.records)
     ranking = quality.ranking(urls)
     rows = [(u, r, quality.skip_reason(u) or "active") for u, r in ranking if r.runs][:limit]
+    if as_json:
+        def stamp(t: float) -> Optional[str]:
+            return datetime.fromtimestamp(t, timezone.utc).isoformat(timespec="seconds") if t else None
+        sys.stdout.write(json.dumps([
+            {"url": u, "status": status, "hit_rate": round(r.score, 4), "checked": round(r.checked),
+             "working": round(r.working), "proxies": r.count, "runs": r.runs,
+             "first_seen": stamp(r.first_seen), "last_change": stamp(r.last_change)}
+            for u, r, status in rows], indent=1) + "\n")
+        return 0
     reasons = Counter(quality.skip_reason(u) or "active" for u, _ in ranking)
     widgets.console.print(banner())
     render_source_ranking(rows, len(urls), reasons)
@@ -194,7 +205,11 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="reload every list completely (otherwise unchanged ones are skipped via ETag)")
     s.add_argument("--list-sources", nargs="?", const=50, type=positive_int, metavar="N",
                    help="show the source ranking by hit rate (default: top 50) and exit")
-    return p.parse_args(argv)
+    s.add_argument("--json", action="store_true", help="with --list-sources: print the ranking as JSON to stdout")
+    args = p.parse_args(argv)
+    if args.json and args.list_sources is None:
+        p.error("--json only works together with --list-sources")
+    return args
 
 
 def last_options() -> Optional[RunOptions]:
@@ -244,7 +259,7 @@ def run(argv: Optional[List[str]] = None) -> int:
         from .mcp_entry import main as mcp_main
         return mcp_main()
     if args.list_sources is not None:
-        return list_sources(args.list_sources)
+        return list_sources(args.list_sources, args.json)
     opts = RunOptions.from_args(args)
     if opts.output == STDOUT:
         widgets.console = Console(highlight=False, stderr=True)  # stdout only carries the hits

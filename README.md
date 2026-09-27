@@ -682,7 +682,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `-t`, `--timeout S` | timeout per proxy (default: 8 s) |
 | `--discover` | search GitHub for new sources right now |
 | `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
-| `--list-sources [N]` | show the source ranking |
+| `--list-sources [N]` | show the source ranking (add `--json` for scripts: url, status, hit rate, checks, last change) |
 | `--serve-host ADDR` | where the proxy server listens (default `127.0.0.1`; `0.0.0.0` for Docker, with a warning) |
 | `--serve-password SECRET` | clients must send this password in the proxy login; better set `PROXY_SCRAPER_SERVE_PASSWORD` |
 | `--rotate STRATEGY` · `--sticky SEC` | how the proxy server picks proxies, see [above](#proxy-server) |

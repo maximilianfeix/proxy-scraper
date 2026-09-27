@@ -160,3 +160,12 @@ def test_a_cut_off_page_is_no_verdict():
 
 def test_reading_the_page_gets_its_own_time():
     assert sites.probe_timeout(sites.SITE["amazon"], 10) > sites.probe_timeout(sites.SITE["google"], 10) == 10
+
+
+def test_header_variants_are_understood():
+    no_space = b"HTTP/1.1 200 OK\r\nTransfer-Encoding:chunked\r\n\r\n"
+    assert sites.page_complete(no_space, 9_000, b"<div>") is False
+    listed = b"HTTP/1.1 200 OK\r\nTransfer-Encoding: gzip, chunked\r\n\r\n"
+    assert sites.page_complete(listed, 9_000, b"<div>") is False
+    both = b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nTransfer-Encoding: chunked\r\n\r\n"  # chunked wins
+    assert sites.page_complete(both, 5_000, b"<div>") is False

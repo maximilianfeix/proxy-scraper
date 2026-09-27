@@ -89,13 +89,17 @@ def probe_timeout(site: Site, timeout: float) -> float:
 def page_complete(head: bytes, body: int, tail: bytes) -> bool:
     """Did the whole (short) page arrive, or did the proxy hang up halfway? Only a complete short page is a stub –
     a cut-off one says nothing."""
-    lower = head.lower()
-    marker = b"\r\ncontent-length:"
-    if marker in lower:
-        value = lower.split(marker, 1)[1].split(b"\r\n", 1)[0].strip()
-        return value.isdigit() and body >= int(value)
-    if b"transfer-encoding: chunked" in lower:
+    headers = {}
+    for line in head.split(b"\r\n")[1:]:
+        name, sep, value = line.partition(b":")
+        if sep:
+            headers[name.strip().lower()] = value.strip().lower()
+    encodings = [e.strip() for e in headers.get(b"transfer-encoding", b"").split(b",")]
+    if encodings[-1] == b"chunked":  # takes precedence over Content-Length
         return tail.endswith(b"0\r\n\r\n")
+    length = headers.get(b"content-length", b"")
+    if length:
+        return length.isdigit() and body >= int(length)
     return True  # no length at all: the end of the connection is the end of the page
 
 

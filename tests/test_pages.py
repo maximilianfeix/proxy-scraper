@@ -1,5 +1,6 @@
 """Static pages per protocol and country for search engines, plus the sitemap (#121)."""
 
+import html
 from datetime import datetime, timezone
 
 from proxyscraper import pages
@@ -88,3 +89,14 @@ def test_protocol_pages_pick_by_protocol(tmp_path):
 def test_an_empty_page_still_renders(tmp_path):
     pages.write_pages([], tmp_path, NOW)
     assert "No proxies in Germany" in (tmp_path / "country" / "de" / "index.html").read_text()
+
+
+def test_the_median_speed_is_the_real_median():
+    assert pages._facts([row(1, speed_kbps=100), row(2, speed_kbps=400)])["speed"] == 250
+
+
+def test_pages_dont_claim_google_blocked_proxies_that_were_never_checked(tmp_path):
+    pages.write_pages([row(1, "socks4"), row(2, "socks4")], tmp_path, NOW)
+    page = html.unescape((tmp_path / "socks4" / "index.html").read_text(encoding="utf-8"))
+    assert "none of them got through" not in page and "<dd>get through to Google</dd>" not in page
+    assert "weren't part of the last site check" in page

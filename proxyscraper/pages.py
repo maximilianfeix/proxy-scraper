@@ -8,6 +8,7 @@ that answers exactly that, and every page links back to the full, filterable lis
 from __future__ import annotations
 
 import json
+import statistics
 from datetime import datetime
 from html import escape
 from pathlib import Path
@@ -147,17 +148,24 @@ def _short(path: str) -> str:
 
 
 def _facts(rows: List[dict]) -> Dict[str, object]:
-    speeds = sorted(r["speed_kbps"] for r in rows if r.get("speed_kbps"))
+    speeds = [r["speed_kbps"] for r in rows if r.get("speed_kbps")]
     return {"total": len(rows), "https": sum(1 for r in rows if r.get("https")),
             "stable": sum(1 for r in rows if (r.get("uptime_7d") or 0) >= 90),
-            "google": sum(1 for r in rows if (r.get("sites") or {}).get("google")),
-            "speed": speeds[len(speeds) // 2] if speeds else None}
+            # None when none of them was tried: the site check only runs on HTTPS-capable ones, and not at all
+            # when it couldn't resolve the site – "0 get through" would blame proxies for a check that didn't run
+            "google": (sum(1 for r in rows if (r.get("sites") or {}).get("google"))
+                       if any("google" in (r.get("sites") or {}) for r in rows) else None),
+            "speed": round(statistics.median(speeds)) if speeds else None}
 
 
 def _faq(path: str, facts: Dict[str, object], when: str) -> List[Tuple[str, str]]:
     short, flags = _short(path), _pick_flags(path)
-    got = f"{facts['google']:,} of them got through to Google search without a captcha" if facts["google"] else \
-        "none of them got through to Google search without a captcha in that check"
+    if facts["google"] is None:
+        got = "These proxies weren't part of the last site check – it only tries the ones that tunnel HTTPS."
+    elif facts["google"]:
+        got = f"In the last check, {facts['google']:,} of them got through to Google search without a captcha."
+    else:
+        got = "In the last check, none of them got through to Google search without a captcha."
     return [
         (f"How many free {short} work right now?",
          f"{facts['total']:,} passed every check in the last run ({when}): a real handshake, a honeypot check on two "
@@ -165,7 +173,7 @@ def _faq(path: str, facts: Dict[str, object], when: str) -> List[Tuple[str, str]
          f"{facts['stable']:,} were on the list in 90 % or more of this week's hourly checks. The list is checked "
          "again every hour."),
         (f"Which free {short} get through to Google?",
-         f"In the last check, {got}. The site check also tries Reddit, Amazon, Instagram and TikTok – the full list "
+         f"{got} The site check also tries Reddit, Amazon, Instagram and TikTok – the full list "
          "on the website can be filtered by it."),
         (f"How do I get working {short} in code or the terminal?",
          f"Without installing anything, download proxies.txt from this page. With the tool: pipx install "
@@ -208,7 +216,8 @@ def _render(path: str, title: str, what: str, rows: List[dict], updated: datetim
         f"<div><dt>{facts['total']:,}</dt><dd>working right now</dd></div>"
         f"<div><dt>{facts['https']:,}</dt><dd>tunnel HTTPS</dd></div>"
         f"<div><dt>{facts['stable']:,}</dt><dd>on the list 90 %+ of the week</dd></div>"
-        f"<div><dt>{facts['google']:,}</dt><dd>get through to Google</dd></div>"
+        + (f"<div><dt>{facts['google']:,}</dt><dd>get through to Google</dd></div>"
+           if facts["google"] is not None else "")
         + (f"<div><dt>{facts['speed']:,} KB/s</dt><dd>median download speed</dd></div>" if facts["speed"] else "")
         + "</dl>")
     flags = _pick_flags(path)

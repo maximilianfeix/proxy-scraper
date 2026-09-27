@@ -66,4 +66,5 @@ runs:
         PS_LIMIT: ${{ inputs.limit }}
         PS_RECHECK: ${{ inputs.recheck }}
         PS_FAIL_IF_EMPTY: ${{ inputs.fail-if-empty }}
-      run: "$PROXY_SCRAPER_PY" -m proxyscraper.action
+      run: |
+        "$PROXY_SCRAPER_PY" -m proxyscraper.action

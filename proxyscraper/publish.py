@@ -25,6 +25,7 @@ from .charts import THEMES, countries_svg, trend_svg
 from .pages import write_pages
 from .parsing import PROXY_TYPES
 from .proxypages import write_proxy_pages
+from .report import weekly_facts, write_report
 from .sites import SITES
 
 SKIP_EXIT_CODE = 78
@@ -307,6 +308,8 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     proxy_pages = write_proxy_pages(rows, out, now, timelines, run_times, gone=gone)
     write_pages(rows, out, now, extra=proxy_pages)
     write_json(out / "history.json", runs)
+    # the weekly report: lifetimes, sites, countries – a page, markdown and a short post (report.py)
+    write_report(weekly_facts(rows, runs, {url: e["bits"] for url, e in listed.items()}, now), out)
     for theme in THEMES:  # charts for the README, which embeds them from GitHub Pages
         (out / f"chart-{theme}.svg").write_text(trend_svg(runs, now, theme), encoding="utf-8")
         (out / f"countries-{theme}.svg").write_text(countries_svg(stats["countries"], theme), encoding="utf-8")

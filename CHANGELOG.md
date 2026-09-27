@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.17.0] – 2026-09-28
+
 ### Added
 - The country and protocol pages (like /country/de/ or /socks5/) got a real overview: how many work right now, tunnel HTTPS, stayed on the list all week and get through to Google, the median speed, speed/uptime/sites per proxy in the table, the ready-made `--pick` and curl commands for exactly that selection, and answers to the usual questions ([#207](https://github.com/maximilianfeix/proxy-scraper/issues/207))
 
@@ -205,7 +207,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.16.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.17.0...HEAD
+[1.17.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.13.0...v1.14.0

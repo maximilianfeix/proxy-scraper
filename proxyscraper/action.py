@@ -63,7 +63,7 @@ def main() -> int:
         filters = {"types": _list("PS_TYPES") or ["http", "socks4", "socks5"],
                    "countries": os.environ.get("PS_COUNTRIES", "").strip(),
                    "https": _flag("PS_HTTPS"), "min_uptime": _number("PS_MIN_UPTIME", 0),
-                   "works_on": _list("PS_WORKS_ON")}
+                   "min_speed": _number("PS_MIN_SPEED", 0), "works_on": _list("PS_WORKS_ON")}
         # a recheck starts from all of them – the limit applies to what still works from here
         found = live_proxies(**filters, limit=0 if recheck else limit)
     except (InputError, ValueError) as e:

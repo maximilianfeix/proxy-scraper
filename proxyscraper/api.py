@@ -204,8 +204,9 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
                              anonymity: str = "", max_latency: int = 0, no_datacenter: bool = False,
                              no_blocklisted: bool = False, min_uptime: int = 0, works_on: Iterable[str] = (),
                              min_speed: int = 0, limit: int = 0) -> List[LiveProxy]:
-    """The proxies from the hourly list that pass the filters, fastest first. Nothing is checked here: they
-    worked from GitHub's servers in the last run (at most an hour ago). find_proxies checks from your network.
+    """The proxies from the hourly list that pass the filters, fastest first – by first answer plus measured
+    download speed. Nothing is checked here: they worked from GitHub's servers in the last run (at most an hour
+    ago). find_proxies checks from your network.
 
     Same filters as find_proxies, plus
     min_uptime  only proxies listed in at least this share (percent) of the week's runs, e.g. 90
@@ -215,6 +216,7 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
     limit       at most this many (0 = all)
     """
     from .agent import AgentError, LiveSource
+    from .server.pool import page_ms
     from .sites import SITE
 
     types = _types(types)
@@ -237,9 +239,11 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
         data = await LiveSource(fetch=_live_fetch).get()
     except AgentError as e:
         raise ConnectionError(str(e)) from None
-    found = sorted((_live_proxy(r, data.run_hours) for r in data.rows
-                    if r.get("ptype") in types and isinstance(r.get("proxy"), str)),
-                   key=lambda p: p.latency)
+    found = [_live_proxy(r, data.run_hours) for r in data.rows
+             if r.get("ptype") in types and isinstance(r.get("proxy"), str)]
+    # fastest first – by how quickly a page comes through when the list has download speeds (#186)
+    known = any(p.speed_kbps for p in found)
+    found.sort(key=lambda p: page_ms(p, known))
     found = [p for p in found if opts.filters.accepts(p) and (not min_uptime or (p.uptime_7d or 0) >= min_uptime)
              and all(p.sites.get(s) for s in works_on) and (not min_speed or (p.speed_kbps or 0) >= min_speed)]
     return found[:limit] if limit else found

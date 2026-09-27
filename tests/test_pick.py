@@ -42,3 +42,10 @@ def test_options_for_a_scan_are_an_error_not_ignored(extra, capsys):
     with pytest.raises(SystemExit):
         cli.run(["--pick", *extra])
     assert "--pick" in capsys.readouterr().err
+
+
+def test_min_speed_keeps_only_proxies_that_downloaded_that_fast(monkeypatch, capsys):
+    rows = [dict(ROWS[0], speed_kbps=300), dict(ROWS[2], speed_kbps=40), ROWS[1]]
+    monkeypatch.setattr(api, "_live_fetch", fetch_from({"proxies.json": rows, "stats.json": STATS}))
+    assert cli.run(["--pick", "5", "--min-speed", "100"]) == 0
+    assert capsys.readouterr().out == "socks5://1.1.1.1:1080\n"

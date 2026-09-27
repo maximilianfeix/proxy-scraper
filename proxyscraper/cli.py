@@ -71,7 +71,8 @@ def pick(args) -> int:
         found = live_proxies(types=args.types, countries=args.country or "", https=args.https_only,
                              anonymity=args.anonymity or "", max_latency=args.max_latency,
                              no_datacenter=args.no_datacenter, no_blocklisted=args.no_blocklisted,
-                             min_uptime=args.min_uptime, works_on=args.works_on, limit=args.pick)
+                             min_uptime=args.min_uptime, works_on=args.works_on, min_speed=args.min_speed,
+                             limit=args.pick)
     except (ConnectionError, ValueError) as e:
         print(f"proxy-scraper: {e}", file=sys.stderr)
         return 1
@@ -204,6 +205,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                            "one URL per line, and exit – e.g. curl -x \"$(proxy-scraper --pick --https-only)\" …")
     live.add_argument("--min-uptime", type=percent, default=0, metavar="PERCENT",
                       help="with --pick: only proxies on the list in at least this share of the week's checks")
+    live.add_argument("--min-speed", type=positive_int, default=0, metavar="KBPS",
+                      help="with --pick: only proxies that downloaded at least this many KB/s in the last check")
     live.add_argument("--works-on", type=site_list, default=[], metavar="SITES",
                       help=f"with --pick: only proxies that got through to these sites in the last check "
                            f"({', '.join(s.name for s in SITES)})")
@@ -251,8 +254,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     args = p.parse_args(argv)
     if args.json and args.list_sources is None:
         p.error("--json only works together with --list-sources")
-    if (args.min_uptime or args.works_on) and args.pick is None:
-        p.error("--min-uptime and --works-on only work together with --pick")
+    if (args.min_uptime or args.works_on or args.min_speed) and args.pick is None:
+        p.error("--min-uptime, --min-speed and --works-on only work together with --pick")
     if args.pick is not None:  # --pick exits right away: options for a scan or the server would be silently ignored
         scan_only = [flag for dest, flag in (("target", "--target"), ("serve", "--serve"), ("recheck", "--recheck"),
                                              ("want", "--want"), ("output", "-o/--output"), ("export", "--export"))

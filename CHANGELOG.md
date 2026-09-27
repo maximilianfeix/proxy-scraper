@@ -4,6 +4,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- "Fastest first" now counts the download too, not just the first answer: `--pick`, `live_proxies()`, `ProxyRotator`, the MCP server's fetch_url and the action rank proxies from the live list by the speed measured in the last check. With real pages, the first 25 HTTPS proxies loaded 26 of 50 pages (median 2.8 s) instead of 4 of 50 (20 s). Own scans without speed data rank by latency as before ([#186](https://github.com/maximilianfeix/proxy-scraper/issues/186))
+
+### Added
+- `--pick --min-speed KBPS`, `live_proxies(min_speed=…)` already had it, and `min-speed` for the GitHub Action ([#186](https://github.com/maximilianfeix/proxy-scraper/issues/186))
+
 ## [1.17.0] – 2026-09-28
 
 ### Added

@@ -663,6 +663,7 @@ pip download requests   # git, pip, npm & co. now go through the pool
     types: socks5
     https: true
     min-uptime: 90        # on the list for 90 %+ of the week
+    min-speed: 100        # optional: downloaded 100+ KB/s in the last check
     works-on: google      # optional: google, reddit, amazon
     recheck: true         # optional: check them again from the runner
 - run: curl -x "${{ steps.proxies.outputs.proxy }}" https://api.ipify.org
@@ -675,7 +676,11 @@ pip download requests   # git, pip, npm & co. now go through the pool
 ```bash
 curl -x "$(proxy-scraper --pick --https-only --min-uptime 90)" https://api.ipify.org
 proxy-scraper --pick 10 --country DE --works-on google > de.txt
+proxy-scraper --pick 5 --min-speed 200     # only ones that downloaded 200+ KB/s
 ```
+
+"Fastest first" means the first answer plus the download speed measured in the last check – in a test with real
+pages, the 25 fastest by download loaded four times as many pages as the 25 quickest to answer a tiny request.
 
 **Without installing anything** – straight from the live list
 
@@ -721,7 +726,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--discover` | search GitHub for new sources right now |
 | `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
 | `--list-sources [N]` | show the source ranking (add `--json` for scripts: url, status, hit rate, checks, last change) |
-| `--pick [N]` | print N proxies (default 1) from the hourly checked list and exit – no scan, same filters, plus `--min-uptime PERCENT` and `--works-on google,reddit,…` |
+| `--pick [N]` | print N proxies (default 1) from the hourly checked list and exit – no scan, same filters, plus `--min-uptime PERCENT`, `--min-speed KBPS` and `--works-on google,reddit,…` |
 | `--serve-host ADDR` | where the proxy server listens (default `127.0.0.1`; `0.0.0.0` for Docker, with a warning) |
 | `--serve-password SECRET` | clients must send this password in the proxy login; better set `PROXY_SCRAPER_SERVE_PASSWORD` |
 | `--rotate STRATEGY` · `--sticky SEC` | how the proxy server picks proxies, see [above](#proxy-server) |

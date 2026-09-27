@@ -93,6 +93,7 @@ class CheckResult:
     org: str = ""
     hosting: Optional[bool] = None  # exit probably in a datacenter? None = unknown
     blocklisted: Optional[bool] = None  # exit IP on the SpamCop blocklist? None = unknown
+    speed_kbps: Optional[int] = None  # download speed from the live list (KiB/s), None = not measured
 
     @property
     def url(self) -> str:

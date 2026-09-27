@@ -429,7 +429,8 @@ def _as_result(r: dict) -> Optional[CheckResult]:
         return CheckResult(make_key(r["ptype"], r["proxy"]), r["ptype"], r["proxy"], int(r.get("latency") or 0),
                            str(r.get("exit_ip") or ""), https=r.get("https"), anonymity=r.get("anonymity") or "",
                            country=r.get("country") or "", asn=int(r.get("asn") or 0), org=r.get("org") or "",
-                           hosting=r.get("hosting"), blocklisted=r.get("blocklisted"))
+                           hosting=r.get("hosting"), blocklisted=r.get("blocklisted"),
+                           speed_kbps=r["speed_kbps"] if type(r.get("speed_kbps")) is int else None)
     except (KeyError, TypeError, ValueError):
         return None
 

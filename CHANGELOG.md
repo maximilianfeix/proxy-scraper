@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Tests
+- Property-based tests for the parser with hypothesis: random bytes and list-like text never crash it, every key it returns is well-formed with a public address, and every public address is found in every list format ([#120](https://github.com/maximilianfeix/proxy-scraper/issues/120))
+
 ### Added
 - `--export singbox`: a sing-box config with a local HTTP+SOCKS proxy on 127.0.0.1:2080 and a urltest group over all proxies, SOCKS4 included. Checked with `sing-box check` and a real run ([#113](https://github.com/maximilianfeix/proxy-scraper/issues/113))
 - `--list-sources --json` prints the source ranking as JSON for scripts ([#115](https://github.com/maximilianfeix/proxy-scraper/issues/115))

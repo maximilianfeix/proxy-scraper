@@ -57,6 +57,7 @@ runs:
     - name: Pick proxies
       id: pick
       shell: bash
+      working-directory: ${{ runner.temp }}  # a recheck writes result files: not into the caller's checkout
       env:
         PS_TYPES: ${{ inputs.types }}
         PS_COUNTRIES: ${{ inputs.countries }}

@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import os
 import sys
+import tempfile
 from pathlib import Path
 from typing import List
 
@@ -77,9 +78,11 @@ def main() -> int:
         urls = [r.url for r in sorted(check_proxies(urls, https=filters["https"]), key=lambda r: r.latency)]
     if limit:
         urls = urls[:limit]
-    folder = Path(os.environ.get("RUNNER_TEMP") or ".")
-    file = folder / "proxies.txt"
-    file.write_text("".join(f"{u}\n" for u in urls), encoding="utf-8")
+    # a file of its own per step: a job may use the action twice (socks5 in one step, http in the next)
+    fd, name = tempfile.mkstemp(prefix="proxies-", suffix=".txt", dir=os.environ.get("RUNNER_TEMP") or None)
+    with os.fdopen(fd, "w", encoding="utf-8") as fh:
+        fh.write("".join(f"{u}\n" for u in urls))
+    file = Path(name)
     _output(proxy=urls[0] if urls else "", file=str(file), count=str(len(urls)))
     print(f"{len(urls)} working {'proxy' if len(urls) == 1 else 'proxies'}" + (f", fastest: {urls[0]}" if urls else ""))
     if not urls and fail_if_empty:

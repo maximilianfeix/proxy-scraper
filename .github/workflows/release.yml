@@ -2,7 +2,7 @@ name: release
 
 on:
   push:
-    tags: ["v*"]
+    tags: ["v[0-9]+.[0-9]+.[0-9]+"]  # full versions only – the moving v1 tag below mustn't start a release
 
 permissions:
   contents: write
@@ -40,6 +40,11 @@ jobs:
           else
             gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
           fi
+      - name: Move the major tag for the GitHub Action (uses maximilianfeix/proxy-scraper@v1)
+        run: |
+          major="${GITHUB_REF_NAME%%.*}"
+          git tag -f "$major" "$GITHUB_SHA"
+          git push -f origin "refs/tags/$major"
 
   # Trusted publishing to PyPI: no token in the repo. Switched on with the repository variable
   # PYPI_PUBLISH=true once the project is registered on pypi.org (see issue #42).

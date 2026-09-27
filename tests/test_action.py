@@ -1,5 +1,7 @@
 """The GitHub Action: inputs from the environment, proxies from the hourly list, outputs for the next steps."""
 
+from pathlib import Path
+
 from proxyscraper import action
 from proxyscraper.checker import CheckResult
 
@@ -39,8 +41,14 @@ def test_filters_reach_live_proxies_and_outputs_are_set(monkeypatch, tmp_path):
     assert calls["live"] == {"types": ["socks5", "http"], "countries": "de,nl", "https": True, "min_uptime": 90,
                              "works_on": ["google"], "limit": 2}
     assert out["proxy"] == "socks5://1.1.1.0:1080" and out["count"] == "2"  # limit
-    assert (tmp_path / "proxies.txt").read_text().splitlines()[0] == "socks5://1.1.1.0:1080"
-    assert out["file"] == str(tmp_path / "proxies.txt")
+    file = out["file"]
+    assert file.startswith(str(tmp_path)) and Path(file).read_text().splitlines()[0] == "socks5://1.1.1.0:1080"
+
+
+def test_two_uses_in_one_job_get_their_own_files(monkeypatch, tmp_path):
+    _, first, _ = run(monkeypatch, tmp_path, {"PS_LIMIT": "1"})
+    _, second, _ = run(monkeypatch, tmp_path, {"PS_LIMIT": "2"})
+    assert first["file"] != second["file"] and len(Path(first["file"]).read_text().splitlines()) == 1
 
 
 def test_recheck_keeps_only_what_works_from_the_runner(monkeypatch, tmp_path):

@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.8.1] – 2026-09-27
+
 ### Fixed
 - Generic lists (proxies.txt, all.txt …) with plain ip:port lines gave nothing and were paused as "unreachable" – they're read as HTTP now: 64 more sources deliver
 - The download cache stores parsed proxies, so a parser improvement never reached unchanged lists. It now reloads every list once when the parser changes
@@ -132,7 +134,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.1...HEAD
+[1.8.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.7.0...v1.7.1
 [1.7.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.6.0...v1.7.0

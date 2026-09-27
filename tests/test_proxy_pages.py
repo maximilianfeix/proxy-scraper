@@ -65,3 +65,29 @@ def test_pages_share_one_stylesheet(tmp_path):
     page = (tmp_path / "proxy" / "8.8.8.8-1080" / "index.html").read_text()
     assert '<link rel="stylesheet" href="../style.css">' in page
     assert ".timeline" in (tmp_path / "proxy" / "style.css").read_text()
+
+
+def test_an_address_with_several_protocols_shows_its_best_values(tmp_path):
+    # socks5: reliable and HTTPS; http on the same address: faster, but rarely there and no HTTPS
+    rows = [row("8.8.8.8", uptime_7d=96, https=True, latency=400),
+            row("8.8.8.8", "http", uptime_7d=10, https=False, latency=100, sites={"reddit": True})]
+    assert proxypages.write_proxy_pages(rows, tmp_path, NOW, {}, RUNS) == ["proxy/8.8.8.8-1080/"]
+    page = (tmp_path / "proxy" / "8.8.8.8-1080" / "index.html").read_text(encoding="utf-8")
+    assert "96 %" in page and "10 %" not in page and "yes, verified TLS" in page
+    assert "100 ms" in page and "Google, Reddit" in page  # fastest latency, every site any of them got through
+
+
+def test_timeline_label_counts_only_the_runs_it_shows(tmp_path):
+    bits = (1 << 100) - 1  # seeded from a long streak, but the history only has 48 runs
+    proxypages.write_proxy_pages([row("8.8.8.8")], tmp_path, NOW, {"socks5://8.8.8.8:1080": bits}, RUNS)
+    page = (tmp_path / "proxy" / "8.8.8.8-1080" / "index.html").read_text(encoding="utf-8")
+    assert "On the list in 48 of the last 48 hourly checks" in page
+
+
+def test_a_reliable_proxy_that_missed_this_run_keeps_its_page(tmp_path):
+    gone = {"socks5://7.7.7.7:1080": (0b110, 80, "2026-09-20T10:17:00+00:00")}  # listed the two runs before
+    indexed = proxypages.write_proxy_pages([row("8.8.8.8")], tmp_path, NOW, {}, RUNS, gone=gone)
+    assert "proxy/7.7.7.7-1080/" in indexed
+    page = (tmp_path / "proxy" / "7.7.7.7-1080" / "index.html").read_text(encoding="utf-8")
+    assert "Didn't pass the last check" in page and "80 %" in page and "socks5://7.7.7.7:1080" in page
+    assert page.count('class="cell on"') == 2

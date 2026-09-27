@@ -301,7 +301,10 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     except (KeyError, TypeError, ValueError):
         run_times = []  # a broken entry: no timeline rather than one whose cells don't match the times
     timelines = {url: e["bits"] for url, e in listed.items()} if run_times else {}
-    proxy_pages = write_proxy_pages(rows, out, now, timelines, run_times)
+    current = {r["url"] for r in rows}
+    gone = {url: (e["bits"], uptime(e["bits"], runs, now, 7 * 24), e["first_seen"])
+            for url, e in listed.items() if url not in current} if run_times else {}
+    proxy_pages = write_proxy_pages(rows, out, now, timelines, run_times, gone=gone)
     write_pages(rows, out, now, extra=proxy_pages)
     write_json(out / "history.json", runs)
     for theme in THEMES:  # charts for the README, which embeds them from GitHub Pages

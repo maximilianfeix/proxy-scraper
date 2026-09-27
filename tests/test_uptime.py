@@ -127,3 +127,15 @@ def test_csv_columns_are_not_doubled_when_the_source_has_them(tmp_path):
     publish.publish(d, out, minimum=2, now=NOW)
     header = (out / "proxies.csv").read_text().splitlines()[0].split(",")
     assert header.count("uptime_7d") == 1
+
+
+def test_a_reliable_proxy_that_drops_out_keeps_its_page(tmp_path):
+    history = hourly_history(tmp_path, 29)
+    seen = tmp_path / "seen.json"
+    # 7.7.7.7 was on the list for the 29 runs before this one, but isn't in this run
+    seen.write_text(json.dumps({"last_run": last_run(), "proxies": {
+        "http://7.7.7.7:80": {"first_seen": "2026-09-26T07:17:00+00:00", "bits": format((1 << 29) - 1, "x")}}}))
+    out, _ = publish_once(tmp_path, "public", history, seen)
+    page = (out / "proxy" / "7.7.7.7-80" / "index.html").read_text(encoding="utf-8")
+    assert "Didn't pass the last check" in page
+    assert "proxy/7.7.7.7-80/" in (out / "sitemap.xml").read_text()

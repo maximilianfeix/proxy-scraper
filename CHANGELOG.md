@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.9.0] – 2026-09-27
+
 ### Added
 - A weekly report, rebuilt with every run: how long free proxies last (most are gone within the hour), how many get through to Google, Reddit and Amazon – datacenter exits vs the rest – and where they are. As a page (report/), as markdown to post and as a short post that fits on X
 - A page per proxy on the website: protocol, country, provider, uptime, which big sites let it through, a timeline of every check this week and copy-ready curl/Python commands to test it from your own machine. Linked from the table; only proxies on the list for half the week or more are in the sitemap, the rest are noindex
@@ -140,7 +142,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.1...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.9.0...HEAD
+[1.9.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.0...v1.8.1
 [1.8.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.7.1...v1.8.0
 [1.7.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.7.0...v1.7.1

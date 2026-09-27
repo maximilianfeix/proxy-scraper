@@ -19,7 +19,7 @@ inputs:
     description: "Only proxies that were on the list in at least this share (percent) of the week's hourly checks"
     default: "0"
   works-on:
-    description: "Only proxies that got through to these sites in the last check: google, reddit, amazon"
+    description: "Only proxies that got through to these sites in the last check: google, reddit, amazon, instagram, tiktok"
     default: ""
   limit:
     description: "How many at most, fastest first (0 = all)"

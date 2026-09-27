@@ -253,6 +253,12 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
         p.error("--json only works together with --list-sources")
     if (args.min_uptime or args.works_on) and args.pick is None:
         p.error("--min-uptime and --works-on only work together with --pick")
+    if args.pick is not None:  # --pick exits right away: options for a scan or the server would be silently ignored
+        scan_only = [flag for dest, flag in (("target", "--target"), ("serve", "--serve"), ("recheck", "--recheck"),
+                                             ("want", "--want"), ("output", "-o/--output"), ("export", "--export"))
+                     if getattr(args, dest) != p.get_default(dest)]
+        if scan_only:
+            p.error(f"--pick takes proxies from the live list and exits – {', '.join(scan_only)} belong to a scan")
     return args
 
 

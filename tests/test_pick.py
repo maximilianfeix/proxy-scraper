@@ -34,3 +34,11 @@ def test_pick_only_filters_need_pick(capsys):
     with pytest.raises(SystemExit):
         cli.run(["--min-uptime", "90"])
     assert "--pick" in capsys.readouterr().err
+
+
+@pytest.mark.parametrize("extra", [["--target", "discord.com"], ["--serve"], ["--recheck"], ["--want", "5"],
+                                   ["-o", "x.txt"], ["--export", "clash"]])
+def test_options_for_a_scan_are_an_error_not_ignored(extra, capsys):
+    with pytest.raises(SystemExit):
+        cli.run(["--pick", *extra])
+    assert "--pick" in capsys.readouterr().err

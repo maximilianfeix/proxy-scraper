@@ -44,6 +44,9 @@ FIRST_CHUNK_WAIT = 5.0      # how long to wait for the client's first packet in 
 MAX_REPLAY_BODY = 1024 * 1024  # request bodies up to this size are buffered for switching proxies
 HTTP_ESTABLISHED = b"HTTP/1.1 200 Connection established\r\n\r\n"
 HEAD_LIMIT = 64 * 1024
+# one side of a relay hung up. uvloop reports a write to a closed connection as RuntimeError ("the handler is
+# closed"), the standard loop as ConnectionError – both mean the same here, only caught where we write.
+HANG_UP = (ConnectionError, OSError, RuntimeError)
 
 
 @dataclass
@@ -386,7 +389,7 @@ class RotatingServer:
     async def _send_body(self, reader, writer, body) -> int:
         """Pass exactly the rest of one request body upstream, then stop reading from the client."""
         total = 0
-        with contextlib.suppress(ConnectionError, OSError, ValueError):
+        with contextlib.suppress(*HANG_UP, ValueError):
             while body:
                 data = await reader.read(min(body, 65536) if isinstance(body, int) else 65536)
                 if not data:
@@ -434,12 +437,12 @@ class RotatingServer:
                     self.stats.bytes_down += len(data)
                 writer.write(data)
                 await writer.drain()
-        except (ConnectionError, OSError, asyncio.TimeoutError):
+        except (*HANG_UP, asyncio.TimeoutError):
             # one side hung up – that normally ends the relay just fine. But if no final response came yet
             # (the upstream aborts with an RST, for example, because our body sat unread in its buffer),
             # that's just as much a failure as a clean hang-up.
             if screen:
-                with contextlib.suppress(ConnectionError, OSError):
+                with contextlib.suppress(*HANG_UP):
                     await self._bad_gateway(writer)
                 return -1
         finally:

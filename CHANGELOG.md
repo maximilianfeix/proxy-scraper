@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- Lists that are exact copies of another source (mirrors, re-uploads) are only downloaded once a day instead of every run – 16 fewer downloads per run in a test, with the same proxies
 - Website: the filters live in the address, so a view can be shared or bookmarked (plus a Share view button), and the pages per protocol and country open the list with their filter. Countries show their names ([#116](https://github.com/maximilianfeix/proxy-scraper/issues/116), [#117](https://github.com/maximilianfeix/proxy-scraper/issues/117))
 - Discovery also reads the source lists of other proxy scrapers (sources.json, config.toml, urls.txt …) and keeps every URL in them that really holds 20+ proxies – about 250 more sources in a test run
 

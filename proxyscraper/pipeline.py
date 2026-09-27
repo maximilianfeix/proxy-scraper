@@ -88,7 +88,9 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
                 skipped[reason] += 1
             else:
                 active[url] = ptype
-        sources = active
+        sources, copies = quality.drop_duplicates(active)
+        if copies:
+            skipped["copies of other lists"] += copies
     return SourcePlan(
         sources, skipped, n_curated, len(meta_found), meta_ok, len(meta), len(discovered),
         discovery_ran=run_discovery, discovery_token=token is not None,

@@ -503,6 +503,8 @@ STALE_AFTER = 7 * DAY       # content unchanged for a week -> the list is no lon
 DEAD_MIN_CHECKED = 300      # this many checks without a hit -> the source counts as dead
 UNREACHABLE_STREAK = 3      # failed to load this many times in a row -> pause
 UNREACHABLE_PAUSE = 2 * DAY
+DUP_RECHECK = DAY           # a copy of another source is still fetched this often – it may drift apart
+SAME_RUN = 3600.0           # fetched this close together = the same run, so equal content means a copy
 STALE_RECHECK = 3 * DAY     # an outdated list is still looked at this often – it may be maintained again
 
 
@@ -517,6 +519,7 @@ class SourceRecord:
     checked: float = 0.0  # decaying sums over the runs
     working: float = 0.0
     runs: int = 0
+    dup_of: str = ""  # had exactly the same content as this source in the same run (a mirror or a copy)
 
     @property
     def score(self) -> float:
@@ -587,6 +590,39 @@ class SourceStats:
         if digest != rec.content_hash:
             rec.content_hash = digest
             rec.last_change = now
+        self._note_copy(url, rec, now)
+
+    def _note_copy(self, url: str, rec: SourceRecord, now: float) -> None:
+        """Same content as another source fetched in this run: the younger one is the copy."""
+        rec.dup_of = ""
+        for other_url, other in self.records.items():
+            if (other_url != url and other.content_hash == rec.content_hash and other.fail_streak == 0
+                    and abs(now - other.last_fetch) < SAME_RUN):
+                if (other.first_seen, other_url) < (rec.first_seen, url):
+                    rec.dup_of = other_url
+                else:
+                    other.dup_of = url
+                return
+
+    def drop_duplicates(self, plan: SourceMap, now: Optional[float] = None) -> Tuple[SourceMap, int]:
+        """Leave out sources that were a copy of another planned source (read as the same type) in a recent run.
+        Once a day a copy is fetched anyway, so it's noticed when it drifts apart."""
+        now = time.time() if now is None else now
+        kept: SourceMap = {}
+        dropped = 0
+
+        def order(url: str):
+            rec = self.records.get(url)
+            return (rec.first_seen if rec else now, url)
+
+        for url in sorted(plan, key=order):  # a copy always points at an older source: that one is decided first
+            rec = self.records.get(url)
+            if (rec and rec.dup_of and kept.get(rec.dup_of) == plan[url]
+                    and now - rec.last_fetch < DUP_RECHECK):
+                dropped += 1
+            else:
+                kept[url] = plan[url]
+        return {url: kept[url] for url in plan if url in kept}, dropped
 
     def record_checks(self, results: Dict[str, Tuple[int, int]]) -> None:
         """results: url -> (checked, working) in this run."""

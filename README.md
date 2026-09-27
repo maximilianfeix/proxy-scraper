@@ -538,6 +538,81 @@ for p in proxies:
         continue  # free proxies come and go – just take the next one
 ```
 
+**httpx** (`pip install "httpx[socks]"`) – straight from the hourly list, no scan
+
+```python
+import httpx
+from proxyscraper import live_proxies
+
+for p in live_proxies(https=True, min_uptime=90, limit=10):
+    try:
+        with httpx.Client(proxy=p.url, timeout=10) as client:
+            print(p.url, "→", client.get("https://api.ipify.org").text)
+        break
+    except httpx.HTTPError:
+        continue  # next one
+```
+
+**aiohttp** (`pip install aiohttp aiohttp-socks` – aiohttp alone can't do SOCKS)
+
+```python
+import asyncio
+
+import aiohttp
+from aiohttp_socks import ProxyConnector
+from proxyscraper import live_proxies_async
+
+
+async def main():
+    for p in await live_proxies_async(https=True, min_uptime=90, limit=10):
+        try:
+            async with aiohttp.ClientSession(connector=ProxyConnector.from_url(p.url)) as session:
+                async with session.get("https://api.ipify.org", timeout=aiohttp.ClientTimeout(total=10)) as r:
+                    print(p.url, "→", await r.text())
+                    return
+        except (aiohttp.ClientError, asyncio.TimeoutError, OSError):
+            continue
+
+asyncio.run(main())
+```
+
+**Scrapy** – a downloader middleware that sends every request, retries included, through the next proxy. Scrapy only speaks HTTP proxies, `https=True` picks the ones that can tunnel `https://` pages
+
+```python
+import itertools
+
+import scrapy
+from scrapy.crawler import CrawlerProcess
+from proxyscraper import live_proxies
+
+POOL = itertools.cycle([p.url for p in live_proxies(types="http", https=True, min_uptime=50)])
+
+
+class RotatingProxy:
+    def process_request(self, request):
+        request.meta["proxy"] = next(POOL)
+
+
+class IpSpider(scrapy.Spider):
+    name = "ip"
+    start_urls = [f"https://api.ipify.org/?n={i}" for i in range(3)]
+    custom_settings = {
+        "DOWNLOADER_MIDDLEWARES": {f"{__name__}.RotatingProxy": 350},
+        "RETRY_TIMES": 5, "DOWNLOAD_TIMEOUT": 15,
+    }
+
+    def parse(self, response):
+        print(response.meta["proxy"], "→", response.text)
+
+
+if __name__ == "__main__":
+    process = CrawlerProcess()
+    process.crawl(IpSpider)
+    process.start()
+```
+
+In a Scrapy project, put `RotatingProxy` in `middlewares.py` and add it to `DOWNLOADER_MIDDLEWARES` in `settings.py`. For long crawls, reload the pool now and then – the list changes every hour.
+
 **proxychains, Clash / Mihomo** – ready-made configs with `--export`
 
 ```bash

@@ -74,6 +74,9 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         "run_hours": RUN_HOURS,
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
         "median_latency": round(statistics.median(r["latency"] for r in rows)) if rows else 0,
+        # download speed of the HTTPS-capable ones (speed.py), None when it wasn't measured
+        "median_speed_kbps": round(statistics.median(speeds)) if (speeds := [r["speed_kbps"] for r in rows
+                                                                               if r.get("speed_kbps")]) else None,
     }
 
 
@@ -270,7 +273,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     with (run_dir / "proxies.csv").open(newline="", encoding="utf-8") as src, \
             (out / "proxies.csv").open("w", newline="", encoding="utf-8") as dst:
         reader = csv.DictReader(src)
-        extra = ("first_seen", "uptime_24h", "uptime_7d", "works_with")
+        extra = ("first_seen", "uptime_24h", "uptime_7d", "works_with", "speed_kbps")
         base = list(reader.fieldnames or ["proxy"])
         writer = csv.DictWriter(dst, fieldnames=[*base, *(k for k in extra if k not in base)])
         writer.writeheader()

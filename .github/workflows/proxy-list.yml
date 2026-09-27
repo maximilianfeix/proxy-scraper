@@ -45,6 +45,12 @@ jobs:
         timeout-minutes: 5
         run: python -m proxyscraper.sites "results/$(cat results/latest.txt)"
 
+      # 100 KB through every HTTPS-capable proxy, 12 s at most each (about a minute). Optional like the sites.
+      - name: Measure the download speed
+        continue-on-error: true
+        timeout-minutes: 5
+        run: python -m proxyscraper.speed "results/$(cat results/latest.txt)"
+
       - uses: actions/cache/save@v6
         if: always()
         with:

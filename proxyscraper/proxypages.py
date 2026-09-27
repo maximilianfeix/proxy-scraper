@@ -97,8 +97,10 @@ def _summary(entries: List[dict]) -> dict:
     https = [r.get("https") for r in entries]
     rank = {"elite": 3, "anonymous": 2, "transparent": 1}
     sites = {k for r in entries for k, ok in (r.get("sites") or {}).items() if ok}
+    speeds = [r["speed_kbps"] for r in entries if r.get("speed_kbps")]
     return {
         "uptime": max(uptimes) if uptimes else None,
+        "speed": max(speeds) if speeds else None,
         "latency": min(r["latency"] for r in entries) if all("latency" in r for r in entries) else None,
         "https": True if True in https else False if False in https else None,
         "anonymity": max((r.get("anonymity") or "" for r in entries), key=lambda a: rank.get(a, 0)) or None,
@@ -128,6 +130,7 @@ def _render(proxy: str, entries: List[dict], updated: datetime, bits: Optional[i
             ("Country", _country(cc)),
             ("Provider", f"{info['org'] or 'unknown'}" + (f" (AS{info['asn']})" if info["asn"] else "")),
             ("Latency", f"{info['latency']:,} ms" if info["latency"] is not None else "unknown"),
+            ("Download speed", f"{info['speed']:,} KiB/s" if info["speed"] else "not measured"),
             ("HTTPS", _yes_no(info["https"], "yes, verified TLS", "no")),
             ("Anonymity", info["anonymity"] or "unknown"),
         ]

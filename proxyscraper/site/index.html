@@ -595,10 +595,10 @@
             <th scope="col" data-key="proxy"><button class="sort" type="button">Proxy</button></th>
             <th scope="col" data-key="country"><button class="sort" type="button">Country</button></th>
             <th scope="col" data-key="latency" aria-sort="ascending"><button class="sort" type="button">Latency</button></th>
+            <th scope="col" data-key="speed_kbps" class="hide-sm"><button class="sort" type="button" title="Download speed in the last run – 100 KB through the proxy">Speed</button></th>
             <th scope="col" data-key="https" class="hide-sm"><button class="sort" type="button">HTTPS</button></th>
             <th scope="col" data-key="uptime_7d" class="hide-sm"><button class="sort" type="button" title="Share of this week's runs it was on the list">Uptime</button></th>
             <th scope="col" class="hide-sm"><span class="th-plain" title="Big sites it got through to in the last hourly check">Gets through</span></th>
-            <th scope="col" data-key="anonymity" class="hide-sm"><button class="sort" type="button">Anonymity</button></th>
             <th scope="col" data-key="org" class="hide-sm"><button class="sort" type="button">Provider</button></th>
           </tr></thead>
           <tbody id="rows"><tr><td colspan="9" class="empty">Loading the list</td></tr></tbody>
@@ -805,6 +805,8 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const ok = Object.keys(SITE_NAMES).filter(k => (r.sites || {})[k] === true);
     return ok.length ? `<span class="sites">${ok.map(k => `<span class="site">${SITE_NAMES[k]}</span>`).join("")}</span>` : '<span class="quiet">–</span>';
   };
+  const speed = (k) => !k ? '<span class="quiet">–</span>'
+    : `<span class="${k >= 500 ? "fast" : k >= 100 ? "mid" : "slow"}">${k >= 1024 ? (k / 1024).toFixed(1) + " MB/s" : fmt(k) + " KB/s"}</span>`;
   const latency = (ms) => `<span class="${ms < 1000 ? "fast" : ms < 3000 ? "mid" : "slow"}">${fmt(ms)} ms</span>`;
   const state = { rows: [], shown: PAGE, sort: "latency", dir: 1, types: new Set(["http", "socks4", "socks5"]),
                   https: false, elite: false, noDc: false, noBl: false, stable: false, country: "", site: "", maxLat: 8000, q: "" };
@@ -953,7 +955,9 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       && (state.maxLat >= 8000 || r.latency <= state.maxLat)  // all the way right = no limit
       && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.country ? countryName(r.country) : ""} ${r.exit_ip} ${r.org || ""} AS${r.asn || ""}`.toLowerCase().includes(q)));
     const k = state.sort, d = state.dir;
-    return rows.sort((a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * d || a.latency - b.latency);
+    const missing = (v) => v == null || v === "";  // not measured: always last, whichever way it's sorted
+    return rows.sort((a, b) => (missing(a[k]) - missing(b[k]))
+      || (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * d || a.latency - b.latency);
   }
   function render() {
     const rows = filtered();
@@ -962,10 +966,10 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       <td><button class="addr-btn" type="button" data-url="${esc(r.url)}" aria-label="Copy ${esc(r.url)}">${esc(r.proxy)}<svg aria-hidden="true"><use href="#i-copy"/></svg></button><a class="detail" href="proxy/${esc(r.proxy.replace(":", "-"))}/" aria-label="Details and week of ${esc(r.proxy)}" title="Details and this week's checks"><svg aria-hidden="true"><use href="#i-open"/></svg></a></td>
       <td title="${esc(r.country ? countryName(r.country) : "")}">${flag(r.country)} ${esc(r.country || "–")}</td>
       <td>${latency(r.latency)}</td>
+      <td class="hide-sm">${speed(r.speed_kbps)}</td>
       <td class="hide-sm">${r.https ? "Yes" : '<span class="quiet">No</span>'}</td>
       <td class="hide-sm">${share(r)}</td>
       <td class="hide-sm">${through(r)}</td>
-      <td class="hide-sm">${esc(r.anonymity || "–")}</td>
       <td class="hide-sm provider" title="${esc(r.org ? `AS${r.asn} ${r.org}, exit ${r.exit_ip}` : r.exit_ip)}">${r.hosting ? '<span class="tag" title="Datacenter">DC</span>' : ""}${r.blocklisted ? '<span class="tag bl" title="Exit IP on the SpamCop blocklist">BL</span>' : ""}${esc(short(r.org) || r.exit_ip)}</td></tr>`).join("")
       || '<tr><td colspan="9" class="empty">No proxy matches these filters. Try a higher latency limit or fewer filters.</td></tr>';
     $("#count").textContent = rows.length ? `Showing ${fmt(Math.min(state.shown, rows.length))} of ${fmt(rows.length)} matching proxies` : "";

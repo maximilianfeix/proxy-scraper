@@ -102,6 +102,7 @@ def weekly_facts(rows: List[dict], runs: Sequence[dict], seen: Dict[str, int], n
         if any(r.get("hosting") is not None for r in rows) else None,
         "countries": Counter(r["country"] for r in rows if r.get("country")).most_common(5),
         "latency_now": window[-1][1].get("median_latency") if window else None,
+        "speeds": sorted(r["speed_kbps"] for r in rows if r.get("speed_kbps")),
         "sites": sites,
     }
 
@@ -141,6 +142,11 @@ def _lines(f: dict) -> List[str]:
     line = (f"Between {f['low']:,} and {f['peak']:,} proxies worked at any one time. Right now: {f['total']:,}, "
             f"{f['https']} % of them tunnel HTTPS")
     out.append(line + (f", {f['datacenter']} % exit from a datacenter." if f["datacenter"] is not None else "."))
+    speeds = f.get("speeds") or []
+    if speeds:
+        median, top = speeds[len(speeds) // 2], speeds[9 * len(speeds) // 10]
+        out.append(f"Downloading 100 KB through them: half manage {median:,} KiB/s or more, "
+                   f"the fastest tenth over {top:,} KiB/s.")
     if f["countries"]:
         out.append("Most of them sit in " + ", ".join(f"{_country(cc)} ({n:,})" for cc, n in f["countries"]) + ".")
     return out

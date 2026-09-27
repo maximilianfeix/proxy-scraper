@@ -52,6 +52,8 @@ class Proxy(BaseModel):
     up_for_hours: Optional[int] = Field(description="How long it has worked without a gap (live list only)")
     works_on: List[str] = Field(default_factory=list, description="Big sites it got through to in the last hourly "
                                                                   "check: google, reddit, amazon (live list only)")
+    speed_kbps: Optional[int] = Field(default=None, description="Download speed in KiB/s in the last hourly check "
+                                                                "(HTTPS-capable proxies, live list only)")
     uptime_7d_percent: Optional[int] = Field(default=None, description="Share of the last 7 days' hourly checks it "
                                                                        "passed (live list only)")
 
@@ -124,6 +126,9 @@ def build_server(live: Optional[agent.LiveSource] = None, fetcher: Optional[agen
         works_on: Annotated[List[Literal["google", "reddit", "amazon"]],
                             Field(description="Only proxies that got through to all of these sites in the last "
                                               "hourly check (most free proxies get a captcha or a 403 there)")] = [],  # noqa: B006
+        min_speed_kbps: Annotated[int, Field(ge=0, description="Only proxies that downloaded at least this many KiB/s "
+                                                                "in the last hourly check, e.g. 300 for loading "
+                                                                "real pages")] = 0,
         limit: Annotated[int, Field(ge=1, le=100, description="How many to return (fastest first)")] = 10,
     ) -> ProxyList:
         """Get working free proxies right now, fastest first.
@@ -135,7 +140,7 @@ def build_server(live: Optional[agent.LiveSource] = None, fetcher: Optional[agen
             data = await live.get()
             rows = agent.select(data.rows, protocol, countries, https_only, elite_only, exclude_datacenter,
                                 exclude_blocklisted, stable_only, max_latency_ms, data.run_hours, min_uptime_percent,
-                                works_on)
+                                works_on, min_speed_kbps)
         except agent.AgentError as e:
             _fail(e)
         return ProxyList(proxies=[Proxy(**agent.describe(r, data.run_hours)) for r in rows[:limit]],

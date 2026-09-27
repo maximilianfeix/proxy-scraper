@@ -114,7 +114,7 @@ def test_proxy_as_an_agent_sees_it():
     assert shown == {"url": "socks5://1.1.1.7:80", "protocol": "socks5", "address": "1.1.1.7:80", "country": "DE",
                      "latency_ms": 100, "https": True, "anonymity": "elite", "provider": "Hetzner Online GmbH",
                      "datacenter": True, "blocklisted": False, "up_for_hours": 5, "uptime_7d_percent": None,
-                     "works_on": []}
+                     "works_on": [], "speed_kbps": None}
     assert agent.describe(row(7, "socks5", uptime_7d=93))["uptime_7d_percent"] == 93
 
 

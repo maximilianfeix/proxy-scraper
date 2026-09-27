@@ -179,17 +179,18 @@ def normalize_countries(countries: Iterable[str]) -> List[str]:
 def select(rows: Iterable[dict], protocol: str = "any", countries: Iterable[str] = (), https_only: bool = False,
            elite_only: bool = False, exclude_datacenter: bool = False, exclude_blocklisted: bool = False,
            stable_only: bool = False, max_latency_ms: int = 0, run_hours: int = 1, min_uptime: int = 0,
-           works_on: Iterable[str] = ()) -> List[dict]:
+           works_on: Iterable[str] = (), min_speed_kbps: int = 0) -> List[dict]:
     """The rows that pass every filter, fastest first – the same filters as on the website."""
     return sorted(matching(rows, protocol, countries, https_only, elite_only, exclude_datacenter,
-                           exclude_blocklisted, stable_only, max_latency_ms, run_hours, min_uptime, works_on),
+                           exclude_blocklisted, stable_only, max_latency_ms, run_hours, min_uptime, works_on,
+                           min_speed_kbps),
                   key=lambda r: r.get("latency") or 0)
 
 
 def matching(rows: Iterable[dict], protocol: str = "any", countries: Iterable[str] = (), https_only: bool = False,
              elite_only: bool = False, exclude_datacenter: bool = False, exclude_blocklisted: bool = False,
              stable_only: bool = False, max_latency_ms: int = 0, run_hours: int = 1,
-             min_uptime: int = 0, works_on: Iterable[str] = ()) -> Iterator[dict]:
+             min_uptime: int = 0, works_on: Iterable[str] = (), min_speed_kbps: int = 0) -> Iterator[dict]:
     """The rows that pass every filter, in list order – checks the filters before the first row is asked for."""
     protocol = _check_protocol(protocol)
     wanted = set(normalize_countries(countries))
@@ -205,7 +206,8 @@ def matching(rows: Iterable[dict], protocol: str = "any", countries: Iterable[st
            and (not stable_only or (r.get("streak") or 0) >= stable_runs)
            and (not max_latency_ms or (r.get("latency") or 0) <= max_latency_ms)
            and (not min_uptime or (r.get("uptime_7d") or 0) >= min_uptime)
-           and all((r.get("sites") or {}).get(s) for s in sites))
+           and all((r.get("sites") or {}).get(s) for s in sites)
+           and (not min_speed_kbps or (r.get("speed_kbps") or 0) >= min_speed_kbps))
 
 
 def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) -> dict:
@@ -229,6 +231,7 @@ def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) ->
         "up_for_hours": streak * run_hours if streak and run_hours else None,
         "uptime_7d_percent": item.get("uptime_7d"),
         "works_on": [name for name, ok in (item.get("sites") or {}).items() if ok],
+        "speed_kbps": item.get("speed_kbps"),
     }
 
 

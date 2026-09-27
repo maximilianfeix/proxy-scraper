@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.18.0] – 2026-09-28
+
 ### Changed
 - "Fastest first" now counts the download too, not just the first answer: `--pick`, `live_proxies()`, `ProxyRotator`, the MCP server's fetch_url and the action rank proxies from the live list by the speed measured in the last check. With real pages, the first 25 HTTPS proxies loaded 26 of 50 pages (median 2.8 s) instead of 4 of 50 (20 s). Own scans without speed data rank by latency as before ([#186](https://github.com/maximilianfeix/proxy-scraper/issues/186))
 
@@ -213,7 +215,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.17.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.18.0...HEAD
+[1.18.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.16.0...v1.17.0
 [1.16.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.14.0...v1.15.0

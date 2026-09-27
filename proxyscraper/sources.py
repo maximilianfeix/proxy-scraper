@@ -48,7 +48,9 @@ Getter = Callable[..., Awaitable[bytes]]
 
 _GH_BLOB_RE = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/(?:raw|blob)/(?:refs/heads/)?(.+)$")
 # the same file through a CDN: cdn.jsdelivr.net/gh/owner/repo@branch/path, raw.githack.com/owner/repo/branch/path
-_JSDELIVR_RE = re.compile(r"^https?://(?:cdn|fastly|gcore|testingcf)\.jsdelivr\.net/gh/([^/]+)/([^/@]+)@([^/]+/.+)$")
+# (not @latest or @1.2 – jsDelivr resolves versions itself, on GitHub they're no branch)
+_JSDELIVR_RE = re.compile(
+    r"^https?://(?:cdn|fastly|gcore|testingcf)\.jsdelivr\.net/gh/([^/]+)/([^/@]+)@(?!latest/|v?\d)([^/]+/.+)$")
 _GITHACK_RE = re.compile(r"^https?://(?:raw|rawcdn)\.githack\.com/([^/]+)/([^/]+)/(.+)$")
 
 

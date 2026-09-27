@@ -1,5 +1,6 @@
 """Telegram bot logic without a Telegram connection: commands, filters, answers."""
 
+import contextlib
 import random
 
 import pytest
@@ -18,11 +19,13 @@ def snap():
     ("/proxy de socks5", ("proxy", ["de", "socks5"])),
     ("/proxies@ProxyScraperBot 5 us", ("proxies", ["5", "us"])),  # commands in groups carry the bot's name
     ("/PROXY", ("proxy", [])),
+    ("/proxy@SomeOtherBot", None),     # meant for another bot in the group
+    ("/ban someone", None),            # not one of ours: stay quiet
     ("hello", None),
     ("", None),
 ])
 def test_commands(text, expected):
-    assert telegram.parse_command(text) == expected
+    assert telegram.parse_command(text, me="ProxyScraperBot") == expected
 
 
 def test_filters_from_free_words():
@@ -30,6 +33,7 @@ def test_filters_from_free_words():
                                                                         "https": True, "count": 7}
     assert telegram.parse_filters(["999"])["count"] == telegram.MAX_LIST  # capped
     assert telegram.parse_filters(["what"]) is None  # unknown words: say how it works instead of guessing
+    assert telegram.parse_filters(["\u00b2"]) is None  # "²" passes str.isdigit(), int() can't read it
 
 
 def test_one_proxy_with_a_curl_line(snap):
@@ -51,7 +55,7 @@ def test_nothing_matching_says_what_to_try(snap):
 
 def test_stats_and_help(snap):
     assert "4 working proxies" in telegram.reply("stats", [], snap)
-    for cmd in ("start", "help", "nonsense"):
+    for cmd in ("start", "help"):
         assert "/proxy" in telegram.reply(cmd, [], snap)
 
 
@@ -89,3 +93,27 @@ def test_telegram_alone_is_enough(monkeypatch):
     monkeypatch.setenv("TELEGRAM_TOKEN", "123:abc")
     settings = Settings.from_env()
     assert settings.telegram_token == "123:abc" and settings.token == ""
+
+
+def test_one_bot_failing_leaves_the_other_running(monkeypatch):
+    import asyncio
+
+    from proxybot import __main__ as entry
+
+    monkeypatch.setattr(entry, "RESTART_AFTER", 0.01)
+    runs = {"broken": 0, "fine": 0}
+
+    async def broken():
+        runs["broken"] += 1
+        raise RuntimeError("setMyCommands: Unauthorized")
+
+    async def fine():
+        runs["fine"] += 1
+        await asyncio.sleep(0.2)
+
+    async def go():
+        await asyncio.wait_for(asyncio.gather(entry.supervised("telegram", broken), entry.supervised("discord", fine),
+                                              return_exceptions=True), 0.1)
+    with contextlib.suppress(asyncio.TimeoutError):
+        asyncio.run(go())
+    assert runs["broken"] > 1 and runs["fine"] == 1  # the broken one keeps being retried, the other one never stopped

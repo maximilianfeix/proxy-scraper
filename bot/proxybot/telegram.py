@@ -24,7 +24,8 @@ log = logging.getLogger(__name__)
 API = "https://api.telegram.org/bot{token}/{method}"
 MAX_LIST = 20          # more than this reads badly in a chat – the website has the rest
 DEFAULT_LIST = 10
-_COMMAND_RE = re.compile(r"^/([a-z]+)(?:@\w+)?(?:\s+(.*))?$", re.I | re.S)
+_COMMAND_RE = re.compile(r"^/([a-z]+)(?:@(\w+))?(?:\s+(.*))?$", re.I | re.S)
+COMMANDS = ("proxy", "proxies", "stats", "help", "start")
 
 HELP = f"""<b>Working free proxies, checked every hour</b>
 
@@ -37,12 +38,15 @@ Filters in any order: a country code (de, us, …), a type (http, socks4, socks5
 Everything else: <a href="{SITE}/">the website</a> · <a href="{REPO}">GitHub</a>"""
 
 
-def parse_command(text: str) -> Optional[Tuple[str, List[str]]]:
-    """'/proxies@ProxyScraperBot 5 us' -> ('proxies', ['5', 'us']); anything that isn't a command -> None."""
+def parse_command(text: str, me: str = "") -> Optional[Tuple[str, List[str]]]:
+    """'/proxies@ProxyScraperBot 5 us' -> ('proxies', ['5', 'us']). None for anything that isn't one of our
+    commands, or is addressed to another bot (/help@OtherBot) – in a group, those aren't for us to answer."""
     m = _COMMAND_RE.match((text or "").strip())
-    if not m:
+    if not m or m[1].lower() not in COMMANDS:
         return None
-    return m[1].lower(), (m[2] or "").split()
+    if m[2] and me and m[2].lower() != me.lower():
+        return None
+    return m[1].lower(), (m[3] or "").split()
 
 
 def parse_filters(words: List[str]) -> Optional[Dict]:
@@ -53,7 +57,7 @@ def parse_filters(words: List[str]) -> Optional[Dict]:
             out["ptype"] = word
         elif word == "https":
             out["https"] = True
-        elif word.isdigit():
+        elif re.fullmatch(r"[0-9]+", word):  # not str.isdigit(): "²" passes that, int() can't read it
             out["count"] = max(1, min(MAX_LIST, int(word)))
         elif re.fullmatch(r"[a-z]{2}", word):
             out["country"] = word.upper()
@@ -107,6 +111,7 @@ class TelegramBot:
         self.session = session
         self.snapshot: Optional[Snapshot] = None
         self.offset = 0
+        self.me = ""  # our username, to ignore commands addressed to other bots
 
     async def call(self, method: str, **params):
         async with self.session.post(API.format(token=self.token, method=method), json=params,
@@ -118,7 +123,7 @@ class TelegramBot:
 
     async def handle(self, update: dict) -> None:
         message = update.get("message") or {}
-        parsed = parse_command(message.get("text", ""))
+        parsed = parse_command(message.get("text", ""), self.me)
         chat = (message.get("chat") or {}).get("id")
         if parsed is None or chat is None:
             return  # not a command: stay quiet in groups
@@ -126,6 +131,7 @@ class TelegramBot:
                         disable_web_page_preview=True)
 
     async def run(self) -> None:
+        self.me = (await self.call("getMe")).get("username", "")
         await self.call("setMyCommands", commands=[
             {"command": "proxy", "description": "one fast proxy to try"},
             {"command": "proxies", "description": "a short list, fastest first"},

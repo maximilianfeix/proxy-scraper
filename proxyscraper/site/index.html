@@ -562,7 +562,7 @@
       <select class="field" id="f-site" aria-label="Gets through to" title="Checked every hour: most free proxies get a captcha or a 403 on these sites">
         <option value="">Any site</option><option value="google">Gets through to Google</option><option value="reddit">Gets through to Reddit</option><option value="amazon">Gets through to Amazon</option></select>
       <label class="range">Up to <input type="range" id="f-lat" min="200" max="8000" step="100" value="8000" aria-label="Maximum latency"><output id="f-lat-v" for="f-lat">any</output></label>
-      <input class="field" type="search" id="f-q" placeholder="Search IP, port, country or provider    /" aria-label="Search" aria-keyshortcuts="/">
+      <input class="field" type="search" id="f-q" placeholder="Search IP, country or provider    /" aria-label="Search" aria-keyshortcuts="/">
     </div>
     <div class="table-panel">
       <div class="table-scroll" data-lenis-prevent-horizontal>
@@ -587,6 +587,7 @@
       <span class="count" id="count" aria-live="polite"></span>
       <div class="actions">
         <button class="btn small" id="more" type="button" hidden>Show more</button>
+        <button class="btn small" id="share" type="button" title="The filters are in the address, so the link opens this exact view">Share view</button>
         <button class="btn small" id="copy-all" type="button">Copy filtered</button>
         <button class="btn small primary" id="download" type="button">Download filtered</button>
       </div>
@@ -755,6 +756,11 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const fmt = (n) => Number(n).toLocaleString("en-US");
   const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
   const flag = (cc) => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : "";
+  // "DE" -> "Germany" (the browser knows the names; without Intl.DisplayNames the code stays)
+  const countryName = (() => {
+    try { const names = new Intl.DisplayNames(["en"], { type: "region" }); return (cc) => { try { return names.of(cc) || cc; } catch (e) { return cc; } }; }
+    catch (e) { return (cc) => cc; }
+  })();
   const pct = (n, of) => Math.round(100 * n / Math.max(of, 1));
   const short = (org) => { const s = String(org || "").replace(/,? (Inc|LLC|Ltd|GmbH|Co|Corporation|Limited|S\.?A|B\.?V)\.?$/i, ""); return s.length > 28 ? s.slice(0, 27) + "…" : s; };
   const upFor = (n) => { const h = (n || 1) * RUN_HOURS; return h < 48 ? `${h} h` : `${Math.round(h / 24)} days`; };
@@ -912,7 +918,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const rows = state.rows.filter(r => state.types.has(r.ptype) && (!state.https || r.https) && (!state.elite || r.anonymity === "elite")
       && (!state.noDc || !r.hosting) && (!state.noBl || !r.blocklisted) && (!state.stable || (r.streak || 0) >= STABLE) && (!state.country || r.country === state.country) && (!state.site || (r.sites || {})[state.site] === true)
       && (state.maxLat >= 8000 || r.latency <= state.maxLat)  // all the way right = no limit
-      && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.exit_ip} ${r.org || ""} AS${r.asn || ""}`.toLowerCase().includes(q)));
+      && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.country ? countryName(r.country) : ""} ${r.exit_ip} ${r.org || ""} AS${r.asn || ""}`.toLowerCase().includes(q)));
     const k = state.sort, d = state.dir;
     return rows.sort((a, b) => (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * d || a.latency - b.latency);
   }
@@ -921,7 +927,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     $("#rows").innerHTML = rows.slice(0, state.shown).map(r => `<tr>
       <td><span class="t-type" title="${esc(r.ptype)}"><span class="dot ${esc(r.ptype)}"></span><span class="name">${esc(r.ptype)}</span></span></td>
       <td><button class="addr-btn" type="button" data-url="${esc(r.url)}" aria-label="Copy ${esc(r.url)}">${esc(r.proxy)}<svg aria-hidden="true"><use href="#i-copy"/></svg></button></td>
-      <td>${flag(r.country)} ${esc(r.country || "–")}</td>
+      <td title="${esc(r.country ? countryName(r.country) : "")}">${flag(r.country)} ${esc(r.country || "–")}</td>
       <td>${latency(r.latency)}</td>
       <td class="hide-sm">${r.https ? "Yes" : '<span class="quiet">No</span>'}</td>
       <td class="hide-sm">${share(r)}</td>
@@ -931,9 +937,46 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       || '<tr><td colspan="9" class="empty">No proxy matches these filters. Try a higher latency limit or fewer filters.</td></tr>';
     $("#count").textContent = rows.length ? `Showing ${fmt(Math.min(state.shown, rows.length))} of ${fmt(rows.length)} matching proxies` : "";
     $("#more").hidden = rows.length <= state.shown;
+    saveView();
     $$("th[data-key]").forEach(th => th.dataset.key === state.sort ? th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending") : th.removeAttribute("aria-sort"));
   }
   const refresh = () => { state.shown = PAGE; render(); };
+
+  // The filters live in the address bar, so a view can be shared or bookmarked
+  const ALL_TYPES = ["http", "socks4", "socks5"], FLAGS = { https: "https", elite: "elite", noDc: "nodc", noBl: "nobl", stable: "stable" };
+  function saveView() {
+    const q = new URLSearchParams();
+    if (state.types.size !== ALL_TYPES.length) q.set("types", [...state.types].join(","));
+    Object.entries(FLAGS).forEach(([key, name]) => { if (state[key]) q.set(name, "1"); });
+    if (state.country) q.set("country", state.country);
+    if (state.site) q.set("site", state.site);
+    if (state.maxLat < 8000) q.set("latency", state.maxLat);
+    if (state.q.trim()) q.set("q", state.q.trim());
+    if (state.sort !== "latency" || state.dir !== 1) q.set("sort", (state.dir < 0 ? "-" : "") + state.sort);
+    const search = q.toString() ? `?${q}` : "";
+    if (search !== location.search) history.replaceState(history.state, "", location.pathname + search + location.hash);
+  }
+  function loadView() {
+    const q = new URLSearchParams(location.search);
+    if (q.has("types")) state.types = new Set(q.get("types").split(",").filter(t => ALL_TYPES.includes(t)));
+    Object.entries(FLAGS).forEach(([key, name]) => { state[key] = q.get(name) === "1"; });
+    state.country = /^[A-Z]{2}$/.test(q.get("country") || "") ? q.get("country") : "";
+    state.site = ["google", "reddit", "amazon"].includes(q.get("site")) ? q.get("site") : "";
+    const lat = parseInt(q.get("latency"), 10);
+    state.maxLat = lat >= 200 && lat < 8000 ? Math.round(lat / 100) * 100 : 8000;
+    state.q = (q.get("q") || "").slice(0, 100);
+    const sort = (q.get("sort") || "").replace(/^-/, "");
+    if ($(`th[data-key="${CSS.escape(sort)}"]`)) { state.sort = sort; state.dir = q.get("sort").startsWith("-") ? -1 : 1; }
+    // show it on the controls
+    $$(".chip[data-type]").forEach(b => b.setAttribute("aria-pressed", state.types.has(b.dataset.type)));
+    Object.keys(FLAGS).forEach((key) => { const b = $({ https: "#f-https", elite: "#f-elite", noDc: "#f-dc", noBl: "#f-bl", stable: "#f-stable" }[key]); b.setAttribute("aria-pressed", state[key]); });
+    $("#f-site").value = state.site;
+    $("#f-lat").value = state.maxLat;
+    $("#f-lat-v").textContent = state.maxLat >= 8000 ? "any" : `${fmt(state.maxLat)} ms`;
+    $("#f-q").value = state.q;
+  }
+  loadView();
+  $("#share").onclick = () => copy(location.href, "Link to this view copied");
   // chips, the country and sorting let the rows settle in; typing and the slider stay instant
   const morph = (fn) => {
     fn();
@@ -1139,11 +1182,13 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const byCountry = {};
     rows.forEach(r => { if (/^[A-Z]{2}$/.test(r.country || "")) byCountry[r.country] = (byCountry[r.country] || 0) + 1; });
     const countries = Object.entries(byCountry).sort((a, b) => b[1] - a[1]);
-    bars($("#countries"), countries.slice(0, 7), (cc) => `${flag(cc)} ${cc}`);
+    bars($("#countries"), countries.slice(0, 7), (cc) => `${flag(cc)} ${countryName(cc)}`);
     const buckets = [[300, "< 0.3 s"], [700, "< 0.7 s"], [1500, "< 1.5 s"], [3000, "< 3 s"], [Infinity, "3 s +"]];
     bars($("#latency"), buckets.map(([max, label], i) => [label, rows.filter(r => r.latency < max && (i === 0 || r.latency >= buckets[i - 1][0])).length]), (l) => l);
     const sel = $("#f-country");
-    countries.forEach(([cc, n]) => sel.add(new Option(`${flag(cc)} ${cc} (${n})`, cc)));
+    countries.forEach(([cc, n]) => sel.add(new Option(`${flag(cc)} ${countryName(cc)} (${n})`, cc)));
+    sel.value = state.country;  // from a shared link
+    if (sel.value !== state.country) state.country = "";  // a country that has no proxies this hour
     render();
   });
 })();

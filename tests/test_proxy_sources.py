@@ -147,3 +147,21 @@ def test_broken_entries_in_the_stats_file_dont_crash(tmp_path):
     path.write_text(json.dumps({"u": None, "v": [1], "w": {"count": 3}}))
     st = srcs.SourceStats(path)
     assert st.get("w").count == 3 and "u" not in st.records
+
+
+@pytest.mark.parametrize("mirror", [
+    "https://cdn.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/all/data.txt",
+    "https://fastly.jsdelivr.net/gh/proxifly/free-proxy-list@main/proxies/all/data.txt",
+    "https://raw.githack.com/proxifly/free-proxy-list/main/proxies/all/data.txt",
+    "https://rawcdn.githack.com/proxifly/free-proxy-list/main/proxies/all/data.txt",
+    "https://github.com/proxifly/free-proxy-list/blob/main/proxies/all/data.txt",
+])
+def test_mirrors_of_a_github_file_are_the_same_source(mirror):
+    assert srcs.normalize_url(mirror) == \
+        "https://raw.githubusercontent.com/proxifly/free-proxy-list/main/proxies/all/data.txt"
+
+
+def test_jsdelivr_without_a_branch_is_left_alone():
+    # @latest-style or no ref: which branch it is isn't clear, so it stays as it is
+    url = "https://cdn.jsdelivr.net/gh/someone/list/proxies.txt"
+    assert srcs.normalize_url(url) == url

@@ -47,18 +47,22 @@ Getter = Callable[..., Awaitable[bytes]]
 # --------------------------------------------------------------------------- #
 
 _GH_BLOB_RE = re.compile(r"^https://github\.com/([^/]+)/([^/]+)/(?:raw|blob)/(?:refs/heads/)?(.+)$")
+# the same file through a CDN: cdn.jsdelivr.net/gh/owner/repo@branch/path, raw.githack.com/owner/repo/branch/path
+_JSDELIVR_RE = re.compile(r"^https?://(?:cdn|fastly|gcore|testingcf)\.jsdelivr\.net/gh/([^/]+)/([^/@]+)@([^/]+/.+)$")
+_GITHACK_RE = re.compile(r"^https?://(?:raw|rawcdn)\.githack\.com/([^/]+)/([^/]+)/(.+)$")
 
 
 def normalize_url(url: str) -> Optional[str]:
     """Normalizes source URLs so the same file isn't loaded several times.
 
-    github.com/…/raw/… -> raw.githubusercontent.com/…, '/refs/heads/' is dropped,
+    github.com/…/raw/… and mirrors (jsDelivr, githack) -> raw.githubusercontent.com/…, '/refs/heads/' is dropped,
     format suffixes like ',,ColonURL' are cut off. Templates with {…} -> None.
     """
     url = url.strip().split(",", 1)[0].strip()
     if not url.startswith(("http://", "https://")) or "{" in url:
         return None
-    m = _GH_BLOB_RE.match(url)
+    # CDN mirrors of a GitHub file are the same source
+    m = _GH_BLOB_RE.match(url) or _JSDELIVR_RE.match(url) or _GITHACK_RE.match(url)
     if m:
         url = f"{GH_RAW}/{m[1]}/{m[2]}/{m[3]}"
     if url.startswith(GH_RAW):

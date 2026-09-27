@@ -44,7 +44,18 @@ def facts(**kw):
 def test_lifetimes_come_from_the_timelines():
     f = facts()
     assert f["distinct"] == 100
-    assert f["gone_after_one_run"] == 60 and f["lasted_a_day"] == 20 and f["lasted_whole_window"] == 5
+    # the 5 listed in all 48 runs are still there: their lifetime isn't over, so it isn't counted
+    assert f["ended"] == 95 and f["gone_after_one_run"] == 60 and f["lasted_a_day"] == 15
+    assert f["lasted_whole_window"] == 5
+
+
+def test_a_lifetime_is_checks_in_a_row_and_must_start_inside_the_window():
+    s = {"http://1.1.1.1:80": 0b1010,                   # two single checks, 2 runs apart: the last one counts, 1
+         "http://2.2.2.2:80": ((1 << 47) - 1) << 1,     # from the oldest run of the window: started before, unknown
+         "http://3.3.3.3:80": 0b111100}                 # 4 in a row, ended 2 runs ago
+    f = facts(seen=s)
+    assert f["ended"] == 2 and f["gone_after_one_run"] == 1
+    assert dict(f["lifetimes"])["2–5 checks"] == 1
 
 
 def test_runs_and_totals_of_the_window():
@@ -63,9 +74,9 @@ def test_datacenter_vs_the_rest_per_site():
 def test_markdown_page_and_post(tmp_path):
     report.write_report(facts(), tmp_path)
     md = (tmp_path / "report" / "report.md").read_text(encoding="utf-8")
-    assert "60 %" in md and "100 different proxies" in md and "Google" in md
+    assert "63 %" in md and "100 different proxies" in md and "Google" in md
     html = (tmp_path / "report" / "index.html").read_text(encoding="utf-8")
-    assert "<h1>" in html and "60 %" in html
+    assert "<h1>" in html and "63 %" in html
     post = (tmp_path / "report" / "post.txt").read_text(encoding="utf-8").strip()
     assert len(post) <= 280 and "maximilianfeix.github.io/proxy-scraper/report/" in post
     for theme in ("dark", "light"):
@@ -83,4 +94,20 @@ def test_proxies_new_in_this_run_are_not_counted_as_gone():
     s.update({f"http://8.8.8.{i}:80": 0b1 for i in range(1, 51)})  # first seen right now: not gone, not counted
     s.update({f"http://7.7.7.{i}:80": 0b10 for i in range(1, 11)})  # one check, an hour ago: gone
     f = facts(seen=s)
-    assert f["distinct"] == 110 and f["gone_after_one_run"] == 70
+    assert f["distinct"] == 160 and f["ended"] == 110 and f["gone_after_one_run"] == 70
+
+
+def test_no_made_up_comparisons():
+    rows = [row(i, hosting=None, google=True) for i in range(5)]  # no provider data at all
+    f = report.weekly_facts(rows=rows, runs=runs(3), seen={}, now=NOW)
+    assert f["datacenter"] is None and f["sites"]["google"]["datacenter"] is None
+    md = report.markdown(f)
+    assert "datacenter" not in md
+
+
+def test_long_runners_that_are_still_listed_are_named():
+    s = {"http://1.1.1.1:80": 0b10, "http://2.2.2.2:80": (1 << 30) - 1}  # one gone after a check, one up 30 in a row
+    f = facts(seen=s)
+    assert f["lasted_a_day"] == 0 and f["up_a_day_now"] == 1
+    md = report.markdown(f)
+    assert "None of them lasted 24 checks in a row" in md and "1 proxy on the list right now has" in md

@@ -50,3 +50,11 @@ def test_pages_link_to_each_other(tmp_path):
     assert '<a href="../socks5/" aria-current="page">SOCKS5 (1)</a>' in socks5
     assert '<a href="../country/de/">Germany (3)</a>' in socks5
     assert "Japan" not in socks5  # empty countries aren't linked
+
+
+def test_filter_button_opens_the_list_with_the_same_filter(tmp_path):
+    pages.write_pages(ROWS, tmp_path, NOW)
+    expected = {"socks5": "?types=socks5", "https": "?https=1", "elite": "?elite=1", "country/de": "?country=DE"}
+    for path, query in expected.items():
+        html = (tmp_path / path / "index.html").read_text(encoding="utf-8")
+        assert f'href="{"../" * (path.count("/") + 1)}{query}#list">Filter the full list' in html

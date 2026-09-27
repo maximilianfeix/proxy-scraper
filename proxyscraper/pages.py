@@ -100,6 +100,15 @@ footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
 """
 
 
+def _list_query(path: str) -> str:
+    """The same filter on the full list: the website reads its filters from the address."""
+    kind = path.strip("/")
+    if kind.startswith("country/"):
+        return f"?country={kind.split('/')[1].upper()}"
+    return {"http": "?types=http", "socks4": "?types=socks4", "socks5": "?types=socks5", "https": "?https=1",
+            "elite": "?elite=1"}.get(kind, "")
+
+
 def _render(path: str, title: str, what: str, rows: List[dict], updated: datetime, nav: str) -> str:
     depth = path.count("/")
     root = "../" * depth
@@ -157,7 +166,7 @@ def _render(path: str, title: str, what: str, rows: List[dict], updated: datetim
     <p class="lede">{escape(lede)}</p>
     <div class="actions">
       <a class="btn primary" href="proxies.txt" download>Download {total:,} as .txt</a>
-      <a class="btn" href="{root}#list">Filter the full list</a>
+      <a class="btn" href="{root}{_list_query(path)}#list">Filter the full list</a>
       <a class="btn" href="{REPO_URL}">Check them from your network</a>
     </div>
   </main>

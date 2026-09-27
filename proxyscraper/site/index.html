@@ -323,6 +323,25 @@
 
   /* Trend, countries, latency */
   .insights { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+  /* The map: countries tinted by how many proxies exit there, a click filters the list */
+  .map-panel { grid-column: 1 / -1; position: relative; }
+  .map-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 24px; flex-wrap: wrap; }
+  .map { margin-top: 18px; min-height: 200px; }
+  .map:has(svg) { min-height: 0; }
+  .map svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .map .land { fill: var(--raised); stroke: var(--bg); stroke-width: .6; transition: fill .6s var(--ease), opacity .8s var(--ease); }
+  .map .land.has { fill: color-mix(in srgb, var(--signal-ink) calc(var(--t) * 88% + 12%), var(--raised)); cursor: pointer; }
+  .map .land.has:hover, .map .land.has:focus-visible { fill: var(--text); outline: none; }
+  .map .land.on { fill: var(--text); }
+  html.js .map.pending .land { opacity: 0; }
+  .map .land { transition-delay: calc(var(--d, 0) * 1ms); }
+  .map-tip { position: absolute; pointer-events: none; background: var(--text); color: var(--bg); font-size: 14px; padding: 6px 12px;
+             border-radius: 99px; white-space: nowrap; transform: translate(-50%, calc(-100% - 12px)); z-index: 2; }
+  .map-legend { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .map-legend i { width: 140px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, color-mix(in srgb, var(--signal-ink) 12%, var(--raised)), var(--signal-ink)); }
+  .map-wait { display: grid; place-items: center; height: 100%; margin: 0; }
+  .status .next { color: var(--muted); }
+  .status .next:not(:empty)::before { content: " · "; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: clamp(22px, 3vw, 34px); }
 
   /* For AI agents: a real Claude Code exchange, revealed line by line once it scrolls in */
@@ -507,7 +526,7 @@
     <div class="hero-foot">
       <p class="lede">Every proxy on this list passed a <strong>real handshake</strong>, a <strong>honeypot check</strong> and a <strong>content check</strong> in the last run. The whole list is checked again every hour.</p>
       <div class="hero-side">
-        <div class="status" aria-live="polite"><span class="pulse" aria-hidden="true"></span><span id="updated">Loading the latest run</span></div>
+        <div class="status" aria-live="polite"><span class="pulse" aria-hidden="true"></span><span id="updated">Loading the latest run</span><span class="next" id="next-run"></span></div>
         <div class="ctas">
           <a class="btn primary" href="#list">Browse the list</a>
           <button class="btn" id="dl-all" type="button">Download all</button>
@@ -655,6 +674,12 @@
       <p class="intro-text">Free proxies come and go quickly. This is how the list changed over the last runs and where the proxies are right now. The whole week in numbers is in the <a href="report/">weekly report</a>.</p>
     </div>
     <div class="insights">
+      <div class="panel map-panel" id="map-panel">
+        <div class="map-head"><h3>Where they are</h3><p class="note">The stronger the color, the more working proxies exit there. Pick a country to see them.</p></div>
+        <div class="map" id="map" role="group" aria-label="World map of working proxies by country"><p class="note map-wait">Loading the map</p></div>
+        <div class="map-tip" id="map-tip" role="status" aria-live="polite" hidden></div>
+        <div class="map-legend" aria-hidden="true"><span>1</span><i></i><span id="map-max"></span></div>
+      </div>
       <div class="panel trend-panel">
         <h3>Working proxies per run</h3>
         <p class="note" id="trend-note">One point every hour.</p>
@@ -1007,7 +1032,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   });
   const toggle = (id, key) => { const b = $(id); b.onclick = () => { state[key] = !state[key]; b.setAttribute("aria-pressed", state[key]); morph(refresh); }; };
   toggle("#f-https", "https"); toggle("#f-elite", "elite"); toggle("#f-dc", "noDc"); toggle("#f-stable", "stable"); toggle("#f-bl", "noBl");
-  $("#f-country").onchange = (e) => { state.country = e.target.value; morph(refresh); };
+  $("#f-country").onchange = (e) => { state.country = e.target.value; morph(refresh); if (mapReady) drawMap(mapCounts); };
   $("#f-site").onchange = (e) => { state.site = e.target.value; morph(refresh); };
   $("#f-lat").oninput = (e) => { state.maxLat = +e.target.value; $("#f-lat-v").textContent = state.maxLat >= 8000 ? "any" : `${fmt(state.maxLat)} ms`; refresh(); };
   $("#f-q").oninput = (e) => { state.q = e.target.value; refresh(); };
@@ -1169,29 +1194,103 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   }
 
   // the data sits right next to this page
-  const load = (f) => fetch(f, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
-  Promise.all([load("proxies.json"), load("stats.json"), load("history.json")]).then(([rows, st, history]) => {
-    if (!rows || !st) {
-      $("#rows").innerHTML = '<tr><td colspan="9" class="empty">The list could not be loaded. The plain text files under "Use it" still work.</td></tr>';
-      $("#updated").textContent = "The latest run could not be loaded";
-      $$(".fig .count").forEach(el => { el.textContent = "–"; });
-      return;
+  // The world map: loaded only when it comes near (d3-geo, topojson and the outlines are ~250 KB)
+  const ISO = {"242":"FJ","834":"TZ","732":"EH","124":"CA","840":"US","398":"KZ","860":"UZ","598":"PG","360":"ID","032":"AR","152":"CL","180":"CD","706":"SO","404":"KE","729":"SD","148":"TD","332":"HT","214":"DO","643":"RU","044":"BS","238":"FK","578":"NO","304":"GL","260":"TF","626":"TL","710":"ZA","426":"LS","484":"MX","858":"UY","076":"BR","068":"BO","604":"PE","170":"CO","591":"PA","188":"CR","558":"NI","340":"HN","222":"SV","320":"GT","084":"BZ","862":"VE","328":"GY","740":"SR","250":"FR","218":"EC","630":"PR","388":"JM","192":"CU","716":"ZW","072":"BW","516":"NA","686":"SN","466":"ML","478":"MR","204":"BJ","562":"NE","566":"NG","120":"CM","768":"TG","288":"GH","384":"CI","324":"GN","624":"GW","430":"LR","694":"SL","854":"BF","140":"CF","178":"CG","266":"GA","226":"GQ","894":"ZM","454":"MW","508":"MZ","748":"SZ","024":"AO","108":"BI","376":"IL","422":"LB","450":"MG","275":"PS","270":"GM","788":"TN","012":"DZ","400":"JO","784":"AE","634":"QA","414":"KW","368":"IQ","512":"OM","548":"VU","116":"KH","764":"TH","418":"LA","104":"MM","704":"VN","408":"KP","410":"KR","496":"MN","356":"IN","050":"BD","064":"BT","524":"NP","586":"PK","004":"AF","762":"TJ","417":"KG","795":"TM","364":"IR","760":"SY","051":"AM","752":"SE","112":"BY","804":"UA","616":"PL","040":"AT","348":"HU","498":"MD","642":"RO","440":"LT","428":"LV","233":"EE","276":"DE","100":"BG","300":"GR","792":"TR","008":"AL","191":"HR","756":"CH","442":"LU","056":"BE","528":"NL","620":"PT","724":"ES","372":"IE","540":"NC","090":"SB","554":"NZ","036":"AU","144":"LK","156":"CN","158":"TW","380":"IT","208":"DK","826":"GB","352":"IS","031":"AZ","268":"GE","608":"PH","458":"MY","096":"BN","705":"SI","246":"FI","703":"SK","203":"CZ","232":"ER","392":"JP","600":"PY","887":"YE","682":"SA","010":"AQ","196":"CY","504":"MA","818":"EG","434":"LY","231":"ET","262":"DJ","800":"UG","646":"RW","070":"BA","807":"MK","688":"RS","499":"ME","780":"TT","728":"SS"};
+  const addScript = (src) => new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.appendChild(s); });
+  let mapReady = null, mapCounts = {};
+  function drawMap(counts) {
+    mapCounts = counts;
+    const el = $("#map");
+    if (!mapReady) {
+      mapReady = addScript("https://cdn.jsdelivr.net/npm/d3-array@3/dist/d3-array.min.js")
+        .then(() => addScript("https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js"))
+        .then(() => addScript("https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"))
+        .then(() => fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")).then(r => r.json())
+        .then((world) => {
+          const W = 960;
+          const land = topojson.feature(world, world.objects.countries).features.filter(f => f.properties.name !== "Antarctica");
+          const all = { type: "FeatureCollection", features: land };
+          const projection = d3.geoNaturalEarth1().fitWidth(W, all);
+          const path = d3.geoPath(projection);
+          const H = Math.ceil(path.bounds(all)[1][1]);  // as tall as the land, no empty band above or below
+          el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${land.map(f => `<path class="land" data-cc="${ISO[f.id] || ""}" d="${path(f)}"/>`).join("")}</svg>`;
+          el.classList.add("pending");
+        })
+        .catch(() => { el.innerHTML = '<p class="note map-wait">The map could not be loaded – the country list below still works.</p>'; });
     }
+    return mapReady.then(() => {
+      const max = Math.max(1, ...Object.values(mapCounts));
+      $("#map-max").textContent = fmt(max);
+      el.querySelectorAll(".land").forEach((p) => {
+        const cc = p.dataset.cc, n = mapCounts[cc] || 0;
+        p.classList.toggle("has", n > 0);
+        p.classList.toggle("on", !!cc && cc === state.country);
+        p.style.setProperty("--t", n ? (Math.log(1 + n) / Math.log(1 + max)).toFixed(3) : 0);
+        p.style.setProperty("--d", n ? Math.round(700 * (1 - Math.log(1 + n) / Math.log(1 + max))) : 0);  // busiest first
+        if (n) { p.setAttribute("tabindex", "0"); p.setAttribute("role", "button"); p.setAttribute("aria-label", `${countryName(cc)}: ${fmt(n)} proxies – show them`); }
+        else { p.removeAttribute("tabindex"); p.removeAttribute("role"); p.removeAttribute("aria-label"); }
+      });
+      requestAnimationFrame(() => el.classList.remove("pending"));
+    });
+  }
+  function pickCountry(cc) {
+    state.country = cc;
+    $("#f-country").value = cc;
+    morph(refresh);
+    drawMap(mapCounts);
+    const list = $("#list");
+    if (lenis) lenis.scrollTo(list, { offset: -72, duration: 1.2 }); else list.scrollIntoView({ behavior: calm ? "auto" : "smooth" });
+  }
+  (() => {
+    const el = $("#map"), tip = $("#map-tip"), panel = $("#map-panel");
+    const show = (target, x, y) => {
+      const cc = target.dataset.cc, n = mapCounts[cc] || 0;
+      if (!cc || !n) { tip.hidden = true; return; }
+      tip.textContent = `${flag(cc)} ${countryName(cc)} · ${fmt(n)} ${n === 1 ? "proxy" : "proxies"}`;
+      const box = panel.getBoundingClientRect();
+      tip.style.left = `${x - box.left}px`; tip.style.top = `${y - box.top}px`; tip.hidden = false;
+    };
+    el.addEventListener("pointermove", (e) => { const t = e.target.closest(".land"); if (t) show(t, e.clientX, e.clientY); else tip.hidden = true; });
+    el.addEventListener("pointerleave", () => { tip.hidden = true; });
+    el.addEventListener("focusin", (e) => { const t = e.target.closest(".land.has"); if (t) { const r = t.getBoundingClientRect(); show(t, r.left + r.width / 2, r.top); } });
+    el.addEventListener("focusout", () => { tip.hidden = true; });
+    el.addEventListener("click", (e) => { const t = e.target.closest(".land.has"); if (t) pickCountry(t.dataset.cc); });
+    el.addEventListener("keydown", (e) => { const t = e.target.closest(".land.has"); if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickCountry(t.dataset.cc); } });
+  })();
+
+  const load = (f) => fetch(f, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
+  // The data – on load, and again whenever a new run has been published while the page is open
+  let latest = null, mapWanted = false, shownRun = null;
+  new IntersectionObserver((e, o) => {
+    if (!e[0].isIntersecting) return;
+    o.disconnect(); mapWanted = true;
+    if (latest) drawMap(latest);
+  }, { rootMargin: "600px" }).observe($("#map-panel"));
+
+  function apply(rows, st, history, first) {
     state.rows = rows;
+    shownRun = st.updated;
     RUN_HOURS = st.run_hours || 6;  // lists from before run_hours existed ran every 6 hours
     STABLE = Math.ceil(24 / RUN_HOURS);
     const when = new Date(st.updated).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
     $("#updated").textContent = `${fmt(st.total)} verified, updated ${ago(st.updated)}`;
     $("#updated").title = when;
-    countTo($("#n-total"), st.total);
-    countTo($("#n-https"), pct(st.https, st.total));
-    countTo($("#n-elite"), pct(st.elite, st.total));
-    countTo($("#n-lat"), st.median_latency / 1000, 1);
+    if (first) {
+      countTo($("#n-total"), st.total);
+      countTo($("#n-https"), pct(st.https, st.total));
+      countTo($("#n-elite"), pct(st.elite, st.total));
+      countTo($("#n-lat"), st.median_latency / 1000, 1);
+      sieve(rows, st.total);
+    } else {
+      $("#n-total").textContent = fmt(st.total);
+      $("#n-https").textContent = fmt(pct(st.https, st.total));
+      $("#n-elite").textContent = fmt(pct(st.elite, st.total));
+      $("#n-lat").textContent = (st.median_latency / 1000).toFixed(1);
+    }
     $("#final-n").textContent = fmt(st.total);
     const dc = st.datacenter != null ? ` ${pct(st.datacenter, st.total)} % exit from a datacenter` : "";
     const bl = st.blocklisted != null ? `${dc ? "," : ""} ${pct(st.blocklisted, st.total)} % from an IP on a spam blocklist` : "";
     $("#step5").textContent = `HTTPS with verified TLS, anonymity, country, provider and spam blocklists. This time ${fmt(st.https)} tunnel HTTPS and ${fmt(st.elite)} are elite.${dc}${bl}${dc || bl ? "." : ""}`;
-    sieve(rows, st.total);
     trend(history);
     const byCountry = {};
     rows.forEach(r => { if (/^[A-Z]{2}$/.test(r.country || "")) byCountry[r.country] = (byCountry[r.country] || 0) + 1; });
@@ -1200,10 +1299,47 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const buckets = [[300, "< 0.3 s"], [700, "< 0.7 s"], [1500, "< 1.5 s"], [3000, "< 3 s"], [Infinity, "3 s +"]];
     bars($("#latency"), buckets.map(([max, label], i) => [label, rows.filter(r => r.latency < max && (i === 0 || r.latency >= buckets[i - 1][0])).length]), (l) => l);
     const sel = $("#f-country");
+    while (sel.options.length > 1) sel.remove(1);
     countries.forEach(([cc, n]) => sel.add(new Option(`${flag(cc)} ${countryName(cc)} (${n})`, cc)));
-    sel.value = state.country;  // from a shared link
+    sel.value = state.country;  // from a shared link, or what was picked before the refresh
     if (sel.value !== state.country) state.country = "";  // a country that has no proxies this hour
+    latest = byCountry;
+    if (mapWanted) drawMap(byCountry);
     render();
+    watchNextRun(st);
+  }
+
+  // "next check in 23 min" – and once it's due, look for the new run every minute (only while the tab is visible)
+  let nextTimer = 0;
+  function watchNextRun(st) {
+    clearInterval(nextTimer);
+    const due = Date.parse(st.updated) + (st.run_hours || 1) * 3600e3 + 6 * 60e3;  // a run takes a few minutes
+    let polling = false;
+    const tick = async () => {
+      const left = Math.round((due - Date.now()) / 60e3);
+      $("#next-run").textContent = left > 1 ? `next check in ${left} min` : "next check any minute";
+      if (left > 0 || polling || document.hidden) return;
+      polling = true;
+      const fresh = await load("stats.json");
+      polling = false;
+      if (!fresh || fresh.updated === shownRun) return;
+      const [rows, history] = await Promise.all([load("proxies.json"), load("history.json")]);
+      if (!rows) return;
+      apply(rows, fresh, history, false);
+      toast(`Fresh list: ${fmt(fresh.total)} proxies from the run just now`);
+    };
+    tick();
+    nextTimer = setInterval(tick, 60e3);
+  }
+
+  Promise.all([load("proxies.json"), load("stats.json"), load("history.json")]).then(([rows, st, history]) => {
+    if (!rows || !st) {
+      $("#rows").innerHTML = '<tr><td colspan="9" class="empty">The list could not be loaded. The plain text files under "Use it" still work.</td></tr>';
+      $("#updated").textContent = "The latest run could not be loaded";
+      $$(".fig .count").forEach(el => { el.textContent = "–"; });
+      return;
+    }
+    apply(rows, st, history, true);
   });
 })();
 </script>

@@ -58,8 +58,9 @@ def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
     """Finds proxies in text, HTML tables and JSON.
 
     Lines with a type:// prefix keep their own type; everything else gets the type of the source.
-    For sources of type "auto" only lines with a prefix count – unless there are none at all: a generic
-    proxies.txt of plain ip:port lines is read as HTTP, the most common kind (the checks sort out the rest).
+    For sources of type "auto" the plain lines only count when they are the majority: a generic proxies.txt of
+    plain ip:port lines is read as HTTP, the most common kind (the checks sort out the rest). In a list of mostly
+    prefixed lines, the odd plain one has an unknown type and is left out.
     """
     out: Set[RawCandidate] = set()
     with_scheme = set()
@@ -69,16 +70,18 @@ def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
             if ptype:
                 out.add((ptype, ip, port, auth))
                 with_scheme.add((ip, port))
-    if default_type == "auto":
-        if out:
-            return out
+    auto = default_type == "auto"
+    if auto:
         default_type = "http"
     regex = PROXY_RE if _needs_full_regex(data) else PLAIN_RE
     pairs = set(regex.findall(data))
     if b'"ip"' in data:
         pairs.update(JSON_IP_PORT_RE.findall(data))
         pairs.update((ip, port) for port, ip in JSON_PORT_IP_RE.findall(data))
-    out.update((default_type, ip, port, b"") for ip, port in pairs - with_scheme)
+    plain = pairs - with_scheme
+    if auto and len(plain) <= len(out):
+        return out
+    out.update((default_type, ip, port, b"") for ip, port in plain)
     return out
 
 

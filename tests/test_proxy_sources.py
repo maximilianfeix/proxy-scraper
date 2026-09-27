@@ -140,3 +140,10 @@ def test_stats_with_fields_from_another_version_are_still_read(tmp_path):
     path.write_text(json.dumps({"u": {"first_seen": 1.0, "count": 5, "some_future_field": "x"}}))
     st = srcs.SourceStats(path)
     assert st.get("u").count == 5
+
+
+def test_broken_entries_in_the_stats_file_dont_crash(tmp_path):
+    path = tmp_path / "s.json"
+    path.write_text(json.dumps({"u": None, "v": [1], "w": {"count": 3}}))
+    st = srcs.SourceStats(path)
+    assert st.get("w").count == 3 and "u" not in st.records

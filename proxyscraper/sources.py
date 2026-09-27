@@ -527,7 +527,7 @@ class SourceStats:
                 # fields from another version (newer or older) are left out instead of losing everything
                 known = {f.name for f in fields(SourceRecord)}
                 self.records = {url: SourceRecord(**{k: v for k, v in rec.items() if k in known})
-                                for url, rec in raw.items()}
+                                for url, rec in raw.items() if isinstance(rec, dict)}
             except (OSError, ValueError, TypeError) as e:
                 # broken statistics are no reason to abort – we just learn again
                 warnings.warn(f"{path.name} unreadable ({e}), starting without source statistics", stacklevel=2)

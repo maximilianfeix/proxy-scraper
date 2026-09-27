@@ -1,9 +1,10 @@
 """Download speed per proxy – measured for the live list after every run.
 
 The latency of one tiny request says little about loading a real page. So every HTTPS-capable proxy downloads
-100 KB from Cloudflare's speed test through a verified TLS tunnel. The rate counts from the first byte of the
-body, so the handshake doesn't drag it down. There's a hard deadline: some proxies trickle a few bytes a second
-and would never finish – their rate is taken from what arrived by then, which is a real (slow) measurement too.
+100 KB from Cloudflare's speed test through a verified TLS tunnel. The rate counts from the request to the last
+byte – the tunnel is already open then, so its handshake doesn't drag it down, the first answer does count.
+There's a hard deadline: some proxies trickle a few bytes a second and would never finish – their rate is taken
+from what arrived by then, which is a real (slow) measurement too.
 
     python -m proxyscraper.speed results/<run>      # adds "speed_kbps" to proxies.json
 """
@@ -57,13 +58,16 @@ def real_probe(deadline: float = DEADLINE) -> Probe:
                 return None
             reader, writer = opened
             try:
+                # the clock runs from the request to the last byte: a start at the first body byte would miss
+                # whatever already sat in the buffer with the head, and fast proxies would come out absurdly fast
+                sent = time.monotonic()
                 writer.write(f"GET {PATH} HTTP/1.1\r\nHost: {HOST}\r\nUser-Agent: {USER_AGENT}\r\n"
                              "Accept-Encoding: identity\r\nConnection: close\r\n\r\n".encode())
                 await within(writer.drain())
                 head = await within(reader.readuntil(b"\r\n\r\n"))
                 if b" 200 " not in head.split(b"\r\n", 1)[0] + b" ":
                     return None
-                received, started = 0, None
+                received = 0
                 while received < BYTES:
                     try:
                         chunk = await within(reader.read(65536))
@@ -71,12 +75,8 @@ def real_probe(deadline: float = DEADLINE) -> Probe:
                         break  # the deadline: what arrived so far is the measurement
                     if not chunk:
                         break
-                    if started is None:
-                        started = time.monotonic()
                     received += len(chunk)
-                if started is None:
-                    return None
-                return kbps(received, time.monotonic() - started)
+                return kbps(received, time.monotonic() - sent)
             finally:
                 writer.close()
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, ValueError):

@@ -83,3 +83,39 @@ def test_filters_by_speed_for_agents_and_python(monkeypatch):
     monkeypatch.setattr(api, "_live_fetch", fetch_from({"proxies.json": rows, "stats.json": STATS}))
     found = api.live_proxies(min_speed=100)
     assert [p.url for p in found] == ["http://1.1.1.1:80"] and found[0].speed_kbps == 900
+
+
+def test_a_body_that_is_already_buffered_is_not_absurdly_fast(monkeypatch):
+    # the whole body arrives with the head: the clock must not start after it's already there
+    import time as time_mod
+
+    class Reader:
+        def __init__(self):
+            self.parts = [b"HTTP/1.1 200 OK\r\n\r\n", b"x" * 65536, b"x" * (speed.BYTES - 65536), b""]
+
+        async def readuntil(self, sep):
+            return self.parts.pop(0)
+
+        async def read(self, n):
+            return self.parts.pop(0)
+
+    class Writer:
+        def write(self, data):
+            pass
+
+        async def drain(self):
+            clock[0] += 0.5  # the proxy takes half a second to answer
+
+        def close(self):
+            pass
+
+    clock = [100.0]
+    monkeypatch.setattr(time_mod, "monotonic", lambda: clock[0])
+
+    async def tunnel(*a, **k):
+        return Reader(), Writer()
+
+    from proxyscraper import checker
+    monkeypatch.setattr(checker.Checker, "_tls_tunnel", lambda self, *a, **k: tunnel())
+    rate = asyncio.run(speed.real_probe()({"ptype": "socks5", "proxy": "1.1.1.1:1080"}, "10.0.0.1"))
+    assert rate == speed.kbps(speed.BYTES, 0.5)  # 100 KB in the half second it took, not in 0 s

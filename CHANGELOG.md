@@ -6,7 +6,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ### Added
 - Daily snapshots: the first run of each UTC day keeps its proxies.json for good, gzipped, as an asset of that year's `snapshots-YYYY` release ([#143](https://github.com/maximilianfeix/proxy-scraper/issues/143))
-- Download speed per proxy: after every run each HTTPS-capable proxy downloads 100 KB from Cloudflare's speed test, 12 s at most. `speed_kbps` in proxies.json and the CSV, a sortable Speed column on the website (the Anonymity column made room – the Elite filter is still there), on the proxy pages and in the weekly report, `min_speed` in `live_proxies()` and `min_speed_kbps` in the MCP server ([#140](https://github.com/maximilianfeix/proxy-scraper/issues/140))
+- Download speed per proxy: after every run each HTTPS-capable proxy downloads 100 KB from Cloudflare's speed test, 12 s at most, timed from the request to the last byte. `speed_kbps` in proxies.json and the CSV, a sortable Speed column on the website (the Anonymity column made room – the Elite filter is still there), on the proxy pages and in the weekly report, `min_speed` in `live_proxies()` and `min_speed_kbps` in the MCP server ([#140](https://github.com/maximilianfeix/proxy-scraper/issues/140))
 
 ### Fixed
 - Website: sorting by a column with gaps (speed, uptime) put the proxies without a value in between – they always go last now

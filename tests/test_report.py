@@ -111,3 +111,9 @@ def test_long_runners_that_are_still_listed_are_named():
     assert f["lasted_a_day"] == 0 and f["up_a_day_now"] == 1
     md = report.markdown(f)
     assert "None of them lasted 24 checks in a row" in md and "1 proxy on the list right now has" in md
+
+
+def test_tiny_shares_dont_read_as_zero():
+    assert report._share(3, 11_122) == "under 0.1 %"
+    assert report._share(30, 11_122) == "0.3 %"
+    assert report._share(0, 10) == "0 %"

@@ -40,6 +40,8 @@ def _share(part: int, whole: int) -> str:
     if not whole:
         return "–"
     value = 100 * part / whole
+    if 0 < value < 0.1:
+        return "under 0.1 %"
     return f"{value:.1f} %" if 0 < value < 1 else f"{round(value)} %"
 
 

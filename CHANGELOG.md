@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.16.0] – 2026-09-28
+
 ### Added
 - `ProxyRotator` in the Python API: `rotator.get(url)` loads a page through the hourly list and switches to the next proxy when one fails – the loop every scraper writes by hand, on the same failover as `--serve` and the MCP server's fetch_url. Sync and async ([#204](https://github.com/maximilianfeix/proxy-scraper/issues/204))
 
@@ -200,7 +202,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.15.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.16.0...HEAD
+[1.16.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.15.0...v1.16.0
 [1.15.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.14.0...v1.15.0
 [1.14.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.13.0...v1.14.0
 [1.13.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.12.0...v1.13.0

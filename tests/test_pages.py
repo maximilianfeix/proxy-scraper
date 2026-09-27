@@ -58,3 +58,33 @@ def test_filter_button_opens_the_list_with_the_same_filter(tmp_path):
     for path, query in expected.items():
         html = (tmp_path / path / "index.html").read_text(encoding="utf-8")
         assert f'href="{"../" * (path.count("/") + 1)}{query}#list">Filter the full list' in html
+
+
+def test_a_country_page_has_the_numbers_commands_and_answers(tmp_path):
+    import json
+    import re
+    rows = [row(1, "socks5", https=True, uptime_7d=95, speed_kbps=400, sites={"google": True}),
+            row(2, "http", https=False, uptime_7d=20),
+            row(3, "http", country="US")]
+    pages.write_pages(rows, tmp_path, NOW)
+    de = (tmp_path / "country" / "de" / "index.html").read_text(encoding="utf-8")
+    facts = re.sub(r"\s+", " ", re.sub(r"<[^>]+>", " ", de))
+    assert "2 working right now" in facts and "1 tunnel HTTPS" in facts and "1 on the list 90 %+ of the week" in facts
+    assert "1 get through to Google" in facts and "400 KB/s" in facts
+    assert "proxy-scraper --pick 5 --country DE" in de and 'curl -x "$(proxy-scraper --pick --country DE' in de
+    assert ">Speed<" in de and ">Uptime<" in de
+    ld = [json.loads(b) for b in re.findall(r'<script type="application/ld\+json">(.*?)</script>', de, re.S)]
+    faq = next(d for d in ld if d["@type"] == "FAQPage")
+    assert any("Germany" in q["name"] for q in faq["mainEntity"])
+
+
+def test_protocol_pages_pick_by_protocol(tmp_path):
+    pages.write_pages([row(1, "socks5", https=True)], tmp_path, NOW)
+    assert "proxy-scraper --pick 5 --types socks5" in (tmp_path / "socks5" / "index.html").read_text()
+    assert "proxy-scraper --pick 5 --https-only" in (tmp_path / "https" / "index.html").read_text()
+    assert "proxy-scraper --pick 5 --anonymity elite" in (tmp_path / "elite" / "index.html").read_text()
+
+
+def test_an_empty_page_still_renders(tmp_path):
+    pages.write_pages([], tmp_path, NOW)
+    assert "No proxies in Germany" in (tmp_path / "country" / "de" / "index.html").read_text()

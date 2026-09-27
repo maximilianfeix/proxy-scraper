@@ -7,6 +7,7 @@ that answers exactly that, and every page links back to the full, filterable lis
 
 from __future__ import annotations
 
+import json
 from datetime import datetime
 from html import escape
 from pathlib import Path
@@ -100,6 +101,22 @@ footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
 """
 
 
+PAGE_CSS = """
+.wrap > * { min-width: 0; }  /* grid items default to their content's width: the wide table would push the page */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+         background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.facts div { background: var(--panel); padding: 16px 18px; }
+.facts dt { font-size: 26px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.facts dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+.use pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+           overflow-x: auto; font-size: 14px; margin: 0 0 10px; }
+.note { color: var(--muted); font-size: 14px; }
+.faq h3 { font-size: 18px; font-weight: 500; margin: 22px 0 6px; }
+.faq p { margin: 0; color: var(--muted); max-width: 70ch; }
+"""
+
+
 def _list_query(path: str) -> str:
     """The same filter on the full list: the website reads its filters from the address."""
     kind = path.strip("/")
@@ -107,6 +124,54 @@ def _list_query(path: str) -> str:
         return f"?country={kind.split('/')[1].upper()}"
     return {"http": "?types=http", "socks4": "?types=socks4", "socks5": "?types=socks5", "https": "?https=1",
             "elite": "?elite=1"}.get(kind, "")
+
+
+SITE_NAMES = {"tiktok": "TikTok"}
+
+
+def _pick_flags(path: str) -> str:
+    """The --pick filters that give the same selection as this page."""
+    kind = path.strip("/")
+    if kind.startswith("country/"):
+        return f"--country {kind.split('/')[1].upper()}"
+    return {"http": "--types http", "socks4": "--types socks4", "socks5": "--types socks5", "https": "--https-only",
+            "elite": "--anonymity elite"}.get(kind, "")
+
+
+def _short(path: str) -> str:
+    """How a page's proxies are called in a question: "proxies in Germany", "SOCKS5 proxies"."""
+    kind = path.strip("/")
+    if kind.startswith("country/"):
+        return f"proxies in {_short_name(COUNTRIES.get(kind.split('/')[1].upper(), kind.split('/')[1].upper()))}"
+    return {"https": "HTTPS proxies", "elite": "elite proxies"}.get(kind, f"{kind.upper()} proxies")
+
+
+def _facts(rows: List[dict]) -> Dict[str, object]:
+    speeds = sorted(r["speed_kbps"] for r in rows if r.get("speed_kbps"))
+    return {"total": len(rows), "https": sum(1 for r in rows if r.get("https")),
+            "stable": sum(1 for r in rows if (r.get("uptime_7d") or 0) >= 90),
+            "google": sum(1 for r in rows if (r.get("sites") or {}).get("google")),
+            "speed": speeds[len(speeds) // 2] if speeds else None}
+
+
+def _faq(path: str, facts: Dict[str, object], when: str) -> List[Tuple[str, str]]:
+    short, flags = _short(path), _pick_flags(path)
+    got = f"{facts['google']:,} of them got through to Google search without a captcha" if facts["google"] else \
+        "none of them got through to Google search without a captcha in that check"
+    return [
+        (f"How many free {short} work right now?",
+         f"{facts['total']:,} passed every check in the last run ({when}): a real handshake, a honeypot check on two "
+         f"sites and a content check. {facts['https']:,} of them tunnel HTTPS with verified TLS, and "
+         f"{facts['stable']:,} were on the list in 90 % or more of this week's hourly checks. The list is checked "
+         "again every hour."),
+        (f"Which free {short} get through to Google?",
+         f"In the last check, {got}. The site check also tries Reddit, Amazon, Instagram and TikTok – the full list "
+         "on the website can be filtered by it."),
+        (f"How do I get working {short} in code or the terminal?",
+         f"Without installing anything, download proxies.txt from this page. With the tool: pipx install "
+         f"proxy-scraper-cli, then proxy-scraper --pick 5 {flags} prints five from the hourly list. From Python, "
+         "live_proxies() takes the same filters."),
+    ]
 
 
 def _render(path: str, title: str, what: str, rows: List[dict], updated: datetime, nav: str) -> str:
@@ -120,19 +185,48 @@ def _render(path: str, title: str, what: str, rows: List[dict], updated: datetim
     else:
         lede = (f"No {what} passed every check in the last run ({when}). The list is checked again every hour, "
                 "so look again later or try the full list.")
-    body_rows = "\n".join(
-        f"<tr><td class=\"mono\"><a href=\"{root}proxy/{escape(r['proxy'].replace(':', '-'))}/\">"
-        f"{escape(r['proxy'])}</a></td><td>{escape(r['ptype'].upper())}</td>"
-        f"<td>{escape(r.get('country') or '–')}</td><td>{r['latency']:,} ms</td>"
-        f"<td>{'yes' if r.get('https') else 'no'}</td><td>{escape(r.get('anonymity') or '–')}</td>"
-        f"<td>{escape((r.get('org') or '–')[:40])}</td></tr>"
-        for r in rows[:ROWS_PER_PAGE])
+    def cells(r: dict) -> str:
+        through = ", ".join(SITE_NAMES.get(n, n.title()) for n, ok in (r.get("sites") or {}).items() if ok) or "–"
+        return (f"<tr><td class=\"mono\"><a href=\"{root}proxy/{escape(r['proxy'].replace(':', '-'))}/\">"
+                f"{escape(r['proxy'])}</a></td><td>{escape(r['ptype'].upper())}</td>"
+                f"<td>{escape(r.get('country') or '–')}</td><td>{r['latency']:,} ms</td>"
+                f"<td>{(str(r['speed_kbps']) + ' KB/s') if r.get('speed_kbps') else '–'}</td>"
+                f"<td>{(str(r['uptime_7d']) + ' %') if r.get('uptime_7d') is not None else '–'}</td>"
+                f"<td>{'yes' if r.get('https') else 'no'}</td><td>{escape(through)}</td>"
+                f"<td>{escape((r.get('org') or '–')[:40])}</td></tr>")
+    body_rows = "\n".join(cells(r) for r in rows[:ROWS_PER_PAGE])
     table = (f"<div class=\"table\"><table><caption>The {min(total, ROWS_PER_PAGE):,} fastest, as ip:port. "
              f"The download has all {total:,} as type://ip:port.</caption>"
              "<thead><tr><th scope=\"col\">Proxy</th><th scope=\"col\">Type</th><th scope=\"col\">Country</th>"
-             "<th scope=\"col\">Latency</th><th scope=\"col\">HTTPS</th><th scope=\"col\">Anonymity</th>"
+             "<th scope=\"col\">Latency</th><th scope=\"col\">Speed</th><th scope=\"col\">Uptime</th>"
+             "<th scope=\"col\">HTTPS</th><th scope=\"col\">Gets through</th>"
              f"<th scope=\"col\">Provider</th></tr></thead><tbody>{body_rows}</tbody></table></div>"
              if total else "")
+    facts = _facts(rows)
+    facts_html = "" if not total else (
+        "<dl class=\"facts\">"
+        f"<div><dt>{facts['total']:,}</dt><dd>working right now</dd></div>"
+        f"<div><dt>{facts['https']:,}</dt><dd>tunnel HTTPS</dd></div>"
+        f"<div><dt>{facts['stable']:,}</dt><dd>on the list 90 %+ of the week</dd></div>"
+        f"<div><dt>{facts['google']:,}</dt><dd>get through to Google</dd></div>"
+        + (f"<div><dt>{facts['speed']:,} KB/s</dt><dd>median download speed</dd></div>" if facts["speed"] else "")
+        + "</dl>")
+    flags = _pick_flags(path)
+    # curl goes to an https:// address, so only proxies that can tunnel it
+    curl_flags = flags if "--https-only" in flags else f"{flags} --https-only".strip()
+    commands = (
+        "<section class=\"use\"><h2>In the terminal or in code</h2>"
+        f"<pre class=\"mono\">pipx install proxy-scraper-cli\nproxy-scraper --pick 5 {escape(flags)}\n"
+        f"curl -x \"$(proxy-scraper --pick {escape(curl_flags)})\" https://api.ipify.org</pre>"
+        "<p class=\"note\">--pick takes proxies from the same hourly list in about half a second. "
+        f"From Python: <code>live_proxies()</code>, see the <a href=\"{REPO_URL}#from-python\">README</a>."
+        "</p></section>")
+    faq = _faq(path, facts, when)
+    faq_html = "<section class=\"faq\"><h2>Questions</h2>" + "".join(
+        f"<h3>{escape(q)}</h3><p>{escape(a)}</p>" for q, a in faq) + "</section>"
+    faq_ld = json.dumps({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
+        {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq]},
+        ensure_ascii=False).replace("</", "<\\/")
     description = (f"{total:,} free {what}, checked every hour: real handshake, honeypot and content check. "
                    "Download as text or filter the full list.")
     return f"""<!doctype html>
@@ -154,7 +248,8 @@ def _render(path: str, title: str, what: str, rows: List[dict], updated: datetim
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
       rel="stylesheet">
-<style>{CSS}</style>
+<style>{CSS}{PAGE_CSS}</style>
+<script type="application/ld+json">{faq_ld}</script>
 </head>
 <body>
 <div class="wrap">
@@ -171,7 +266,10 @@ def _render(path: str, title: str, what: str, rows: List[dict], updated: datetim
       <a class="btn" href="{REPO_URL}">Check them from your network</a>
     </div>
   </main>
+  {facts_html}
   {table}
+  {commands}
+  {faq_html}
   {nav}
   <footer>
     <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>

@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- The country and protocol pages (like /country/de/ or /socks5/) got a real overview: how many work right now, tunnel HTTPS, stayed on the list all week and get through to Google, the median speed, speed/uptime/sites per proxy in the table, the ready-made `--pick` and curl commands for exactly that selection, and answers to the usual questions ([#207](https://github.com/maximilianfeix/proxy-scraper/issues/207))
+
 ## [1.16.0] – 2026-09-28
 
 ### Added

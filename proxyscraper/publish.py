@@ -247,7 +247,8 @@ def load_streaks(path: Optional[Path]) -> Dict[str, int]:
 
 
 def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None,
-            history: Optional[Path] = None, streaks: Optional[Path] = None, seen: Optional[Path] = None) -> int:
+            history: Optional[Path] = None, streaks: Optional[Path] = None, seen: Optional[Path] = None,
+            feed: Optional[Path] = None) -> int:
     rows = load_rows(run_dir)
     if len(rows) < minimum:
         print(f"Only {len(rows)} hits (< {minimum}) – the old list stays online.")
@@ -312,7 +313,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     write_pages(rows, out, now, extra=proxy_pages)
     write_json(out / "history.json", runs)
     # the weekly report: lifetimes, sites, countries – a page, markdown and a short post (report.py)
-    write_report(weekly_facts(rows, runs, {url: e["bits"] for url, e in listed.items()}, now), out)
+    write_report(weekly_facts(rows, runs, {url: e["bits"] for url, e in listed.items()}, now), out, previous_feed=feed)
     for theme in THEMES:  # charts for the README, which embeds them from GitHub Pages
         (out / f"chart-{theme}.svg").write_text(trend_svg(runs, now, theme), encoding="utf-8")
         (out / f"countries-{theme}.svg").write_text(countries_svg(stats["countries"], theme), encoding="utf-8")
@@ -338,8 +339,10 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--streaks", type=Path, help="streaks.json from last time (how long each proxy has been listed)")
     p.add_argument("--seen", type=Path,
                    help="seen.json from last time (which runs each proxy was listed in, for the uptime)")
+    p.add_argument("--feed", type=Path, help="report/feed.xml from last time (the weekly entries it keeps)")
     args = p.parse_args(argv)
-    return publish(args.run_dir, args.out_dir, args.min, history=args.history, streaks=args.streaks, seen=args.seen)
+    return publish(args.run_dir, args.out_dir, args.min, history=args.history, streaks=args.streaks, seen=args.seen,
+                   feed=args.feed)
 
 
 if __name__ == "__main__":

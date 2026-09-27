@@ -5,6 +5,7 @@ get through to the big sites, where they are. Rebuilt with every run from the sa
 
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from collections import Counter
 from datetime import datetime, timedelta
 from html import escape
@@ -265,12 +266,39 @@ picture img {{ width: 100%; height: auto; border-radius: 16px; }}
 """
 
 
-def feed(f: dict) -> str:
-    """Atom feed with one entry per ISO week: the id stays the same all week, so feed readers show one new entry
-    a week (updated as the week goes on) and keep the past weeks themselves."""
-    year, week, _ = f["now"].isocalendar()
-    stamp = f["now"].strftime("%Y-%m-%dT%H:%M:%SZ")
+FEED_WEEKS = 12
+_ATOM = "{http://www.w3.org/2005/Atom}"
+
+
+def feed(f: dict, previous: Optional[str]) -> str:
+    """Atom feed with one entry per finished ISO week. The first run of a week adds the entry for the week that just
+    ended; every later run that week hands back the feed unchanged – feed readers and Slack/Discord bridges see one
+    new entry a week, not an update every hour. `previous`: the feed from the last run (None or garbage: start over)."""
+    now = f["now"]
+    monday = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
+    year, week, _ = (monday - timedelta(days=1)).isocalendar()
+    entry_id = f"{REPORT_URL}{year}-W{week:02d}"
+    kept: List[str] = []
+    if previous:
+        try:
+            root = ET.fromstring(previous)
+            old = root.findall(f"{_ATOM}entry")
+        except ET.ParseError:
+            old = []
+        if any((e.findtext(f"{_ATOM}id") or "") == entry_id for e in old):
+            return previous  # this week's entry is out already – leave it exactly as it is
+        ET.register_namespace("", _ATOM[1:-1])
+        kept = [ET.tostring(e, encoding="unicode") for e in old][:FEED_WEEKS - 1]
+    stamp = monday.strftime("%Y-%m-%dT%H:%M:%SZ")
     text = "\n\n".join(_lines(f))
+    new = f"""<entry>
+    <title>The week in free proxies: {escape(_period(f))}</title>
+    <link rel="alternate" href="{REPORT_URL}"/>
+    <id>{entry_id}</id>
+    <updated>{stamp}</updated>
+    <content type="text">{escape(text)}</content>
+  </entry>"""
+    body = "\n  ".join([new, *kept])
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>The week in free proxies</title>
@@ -280,23 +308,21 @@ def feed(f: dict) -> str:
   <id>{REPORT_URL}</id>
   <updated>{stamp}</updated>
   <author><name>proxy-scraper</name></author>
-  <entry>
-    <title>The week in free proxies: {escape(_period(f))}</title>
-    <link rel="alternate" href="{REPORT_URL}"/>
-    <id>{REPORT_URL}{year}-W{week:02d}</id>
-    <updated>{stamp}</updated>
-    <content type="text">{escape(text)}</content>
-  </entry>
+  {body}
 </feed>
 """
 
 
-def write_report(f: dict, out: Path) -> None:
+def write_report(f: dict, out: Path, previous_feed: Optional[Path] = None) -> None:
     folder = out / "report"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "index.html").write_text(page(f), encoding="utf-8")
     (folder / "report.md").write_text(markdown(f), encoding="utf-8")
     (folder / "post.txt").write_text(post(f) + "\n", encoding="utf-8")
-    (folder / "feed.xml").write_text(feed(f), encoding="utf-8")
+    try:
+        previous = previous_feed.read_text(encoding="utf-8") if previous_feed else None
+    except OSError:
+        previous = None
+    (folder / "feed.xml").write_text(feed(f, previous), encoding="utf-8")
     for theme in THEMES:
         (folder / f"lifetimes-{theme}.svg").write_text(lifetimes_svg(f, theme), encoding="utf-8")

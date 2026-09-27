@@ -119,15 +119,44 @@ def test_tiny_shares_dont_read_as_zero():
     assert report._share(0, 10) == "0 %"
 
 
-def test_an_atom_feed_with_one_entry_per_week(tmp_path):
+ATOM = "{http://www.w3.org/2005/Atom}"
+
+
+def at(when):
+    """The same facts, as if the run happened at `when` (the feed only looks at the time and the sentences)."""
+    f = facts()
+    f["now"] = when
+    return f
+
+
+def entries(xml):
+    return [(e.find(f"{ATOM}id").text, e.find(f"{ATOM}updated").text)
+            for e in ET.fromstring(xml).findall(f"{ATOM}entry")]
+
+
+def test_the_feed_gets_one_frozen_entry_per_finished_week():
+    monday = datetime(2026, 9, 28, 0, 17, tzinfo=timezone.utc)  # the first run of ISO week 40
+    first = report.feed(at(monday), None)
+    assert entries(first) == [(f"{report.REPORT_URL}2026-W39", "2026-09-28T00:00:00Z")]  # the week that just ended
+    # later runs that week leave it exactly as it was: no hourly "updated" for feed readers and bridges
+    assert report.feed(at(monday + timedelta(days=3)), first) == first
+    # next Monday: a new entry on top, the old one kept as it was
+    second = report.feed(at(monday + timedelta(days=7)), first)
+    assert [i for i, _ in entries(second)] == [f"{report.REPORT_URL}2026-W40", f"{report.REPORT_URL}2026-W39"]
+    assert "63 %" in ET.fromstring(second).find(f"{ATOM}entry").find(f"{ATOM}content").text
+
+
+def test_the_feed_keeps_twelve_weeks_and_survives_garbage():
+    xml = None
+    for week in range(15):
+        xml = report.feed(at(datetime(2026, 9, 28, 0, 17, tzinfo=timezone.utc) + timedelta(weeks=week)), xml)
+    assert len(entries(xml)) == report.FEED_WEEKS
+    assert len(entries(report.feed(at(NOW), "<not xml"))) == 1
+
+
+def test_the_page_links_the_feed(tmp_path):
     report.write_report(facts(), tmp_path)
+    assert (tmp_path / "report" / "feed.xml").exists()
     feed = ET.fromstring((tmp_path / "report" / "feed.xml").read_text(encoding="utf-8"))
-    atom = "{http://www.w3.org/2005/Atom}"
-    entries = feed.findall(f"{atom}entry")
-    assert len(entries) == 1
-    week = NOW.isocalendar()
-    assert entries[0].find(f"{atom}id").text.endswith(f"{week[0]}-W{week[1]:02d}")  # same id all week long
-    assert "63 %" in entries[0].find(f"{atom}content").text
-    assert feed.find(f"{atom}link[@rel='self']").get("href").endswith("/report/feed.xml")
-    page = (tmp_path / "report" / "index.html").read_text(encoding="utf-8")
-    assert 'type="application/atom+xml"' in page
+    assert feed.find(f"{ATOM}link[@rel='self']").get("href").endswith("/report/feed.xml")
+    assert 'type="application/atom+xml"' in (tmp_path / "report" / "index.html").read_text(encoding="utf-8")

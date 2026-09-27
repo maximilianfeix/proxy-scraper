@@ -567,8 +567,9 @@ class PageFetcher:
             "text": text[:max_chars] if is_text else "",
             "truncated": truncated,
             "note": None if is_text else f"Binary content ({content_type}) isn't returned as text.",
-            # for the Python API (ProxyRotator): the bytes and headers as they came
-            **({"body": body[:MAX_PAGE_BYTES], "headers": dict(headers or {})} if with_body else {}),
+            # for the Python API (ProxyRotator): the bytes and every header line as they came
+            **({"body": body[:MAX_PAGE_BYTES], "header_items": list(headers.items()) if headers else [],
+                "body_truncated": len(body) > MAX_PAGE_BYTES} if with_body else {}),
         }
 
     async def _download(self, url: str, user: str, port: int, progress: Optional[Progress], tick: float,

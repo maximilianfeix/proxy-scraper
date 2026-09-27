@@ -72,3 +72,58 @@ def test_private_addresses_are_refused_by_default():
             await rotator.aget("http://127.0.0.1/")
     with pytest.raises(ValueError):
         asyncio.run(go())
+
+
+def response(headers, content=b"x", truncated=False):
+    from proxyscraper.api import ProxyResponse, _Headers
+    return ProxyResponse(200, "u", "u", _Headers(headers), content, "http://p:1", None, 1, truncated=truncated)
+
+
+def test_headers_ignore_case_and_keep_every_value():
+    r = response([("content-type", "text/html"), ("Set-Cookie", "a=1"), ("set-cookie", "b=2")])
+    assert r.headers["Content-Type"] == "text/html" and r.headers.get("CONTENT-TYPE") == "text/html"
+    assert r.headers.get_all("Set-Cookie") == ["a=1", "b=2"]
+
+
+def test_the_charset_is_read_like_a_browser_would():
+    latin = "Grüße".encode("latin-1")
+    assert response([("Content-Type", 'text/html; charset="ISO-8859-1"')], latin).text == "Grüße"
+    assert response([("Content-Type", "text/html; Charset=latin-1")], latin).text == "Grüße"
+    assert response([("Content-Type", "text/html; charset=nonsense")], "ä".encode()).text == "ä"
+
+
+def test_a_cut_off_body_says_so():
+    r = response([], b"x" * 10, truncated=True)
+    assert r.truncated
+    with pytest.raises(ConnectionError, match="cut off"):
+        r.raise_for_status()
+
+
+def test_sync_get_from_many_threads_shares_one_loop(monkeypatch):
+    import concurrent.futures as cf
+
+    from proxyscraper import api
+
+    async def fake_aget(self, url):
+        return response([], url.encode())
+    monkeypatch.setattr(api.ProxyRotator, "_aget", fake_aget)
+    rotator = api.ProxyRotator()
+    with cf.ThreadPoolExecutor(8) as pool:
+        results = list(pool.map(rotator.get, [f"http://x/{i}" for i in range(32)]))
+    assert [r.content for r in results] == [f"http://x/{i}".encode() for i in range(32)]
+    loops = rotator._loop
+    rotator.close()
+    assert loops.is_closed()
+
+
+def test_mixing_sync_and_async_is_refused(monkeypatch):
+    from proxyscraper import api
+
+    async def fake_aget(self, url):
+        return response([])
+    monkeypatch.setattr(api.ProxyRotator, "_aget", fake_aget)
+    rotator = api.ProxyRotator()
+    rotator.get("http://x/")
+    with pytest.raises(RuntimeError, match="async"):
+        asyncio.run(rotator.aget("http://x/"))
+    rotator.close()

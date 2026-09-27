@@ -112,6 +112,7 @@ def test_powershell_completes_options_and_values(capsys, tmp_path):
     assert set(complete_pwsh(script, "proxy-scraper --rotate ")) == set(STRATEGIES)
     assert complete_pwsh(script, "proxy-scraper --types http so") == ["socks4", "socks5"]  # several values
     assert "-c" in complete_pwsh(script, "proxy-scraper -")
+    assert "--json" in complete_pwsh(script, "proxy-scraper --list-sources ")  # optional value: options too
     (tmp_path / "hits.txt").write_text("")
     assert {"live", str(tmp_path / "hits.txt")} <= set(complete_pwsh(script, f"proxy-scraper --recheck {tmp_path}/")
                                                     + complete_pwsh(script, "proxy-scraper --recheck "))

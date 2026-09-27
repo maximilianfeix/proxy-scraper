@@ -190,9 +190,11 @@ def powershell(opts: List[Option]) -> str:
     several values in a row, --types http socks5), and PowerShell's own path completion for file options."""
     rows = []
     for o in opts:
+        # an optional value without choices (--serve, --list-sources): options may follow right away, like in bash
+        expects_value = o.takes_value and not (o.optional_value and not o.is_file and not o.choices)
         fields = [f"Flags = @({', '.join(_ps_quote(f) for f in o.flags)})", f"Help = {_ps_quote(o.help)}",
                   f"Choices = @({', '.join(_ps_quote(c) for c in (*o.choices, *o.extra))})",
-                  f"Value = ${str(o.takes_value).lower()}", f"Multi = ${str(o.multi).lower()}",
+                  f"Value = ${str(expects_value).lower()}", f"Multi = ${str(o.multi).lower()}",
                   f"File = ${str(o.is_file).lower()}"]
         rows.append("        @{ " + "; ".join(fields) + " }")
     table = ",\n".join(rows)

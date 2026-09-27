@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.11.0] – 2026-09-27
+
 ### Added
 - An Atom feed for the weekly report (report/feed.xml): one entry per week, to follow it in a feed reader or pipe it into Slack, Discord or Mastodon ([#185](https://github.com/maximilianfeix/proxy-scraper/issues/185))
 - Instagram and TikTok in the check of which sites let a proxy through – on the website, in works-with/, the MCP server and `live_proxies()`. Measured first: ChatGPT, eBay and Indeed block every proxy and LinkedIn and Twitch let all of them through, so those would say nothing
@@ -169,7 +171,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.10.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.11.0...HEAD
+[1.11.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.1...v1.9.0
 [1.8.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.0...v1.8.1

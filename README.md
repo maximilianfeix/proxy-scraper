@@ -544,7 +544,7 @@ for p in proxies:
 import httpx
 from proxyscraper import live_proxies
 
-for p in live_proxies(https=True, min_uptime=90, limit=10):
+for p in live_proxies(types=["http", "socks5"], https=True, min_uptime=90, limit=10):  # httpx can't do SOCKS4
     try:
         with httpx.Client(proxy=p.url, timeout=10) as client:
             print(p.url, "→", client.get("https://api.ipify.org").text)
@@ -559,7 +559,7 @@ for p in live_proxies(https=True, min_uptime=90, limit=10):
 import asyncio
 
 import aiohttp
-from aiohttp_socks import ProxyConnector
+from aiohttp_socks import ProxyConnector, ProxyError
 from proxyscraper import live_proxies_async
 
 
@@ -570,8 +570,8 @@ async def main():
                 async with session.get("https://api.ipify.org", timeout=aiohttp.ClientTimeout(total=10)) as r:
                     print(p.url, "→", await r.text())
                     return
-        except (aiohttp.ClientError, asyncio.TimeoutError, OSError):
-            continue
+        except (aiohttp.ClientError, ProxyError, asyncio.TimeoutError, OSError):
+            continue  # free proxies come and go – just take the next one
 
 asyncio.run(main())
 ```
@@ -585,11 +585,14 @@ import scrapy
 from scrapy.crawler import CrawlerProcess
 from proxyscraper import live_proxies
 
-POOL = itertools.cycle([p.url for p in live_proxies(types="http", https=True, min_uptime=50)])
+PROXIES = [p.url for p in live_proxies(types="http", https=True, min_uptime=50)]
+if not PROXIES:
+    raise SystemExit("No proxy matches right now – loosen the filters (e.g. min_uptime)")
+POOL = itertools.cycle(PROXIES)
 
 
 class RotatingProxy:
-    def process_request(self, request):
+    def process_request(self, request, spider=None):  # newer Scrapy leaves out spider
         request.meta["proxy"] = next(POOL)
 
 

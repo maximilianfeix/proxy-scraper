@@ -38,11 +38,11 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # for the GitHub discovery
         run: python proxy_scraper.py -y --limit 150000 --timeout 6 --connect-timeout 3
 
-      # Google, Reddit and Amazon turn most free proxies away – note which ones got through (about a minute).
+      # Google, Reddit, Amazon, Instagram and TikTok turn many free proxies away – note which got through (~2 min).
       # Optional: if it fails, the list is published without it.
       - name: Check which big sites let them through
         continue-on-error: true
-        timeout-minutes: 5
+        timeout-minutes: 8
         run: python -m proxyscraper.sites "results/$(cat results/latest.txt)"
 
       # 100 KB through every HTTPS-capable proxy, 12 s at most each (about a minute). Optional like the sites.

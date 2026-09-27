@@ -36,6 +36,7 @@ class Site:
     blocked_redirect: str = ""          # a redirect to a URL containing this is a block too (a captcha page)
     ok_redirect: str = ""               # ... and one containing this is fine (a consent screen)
     min_body: int = 0                   # an "ok" answer must come with at least this much page, else it's a stub
+    title: str = ""                     # for people: "Google"
 
     def verdict(self, status: int, location: str = "", body: Optional[int] = None) -> Optional[bool]:
         """True = got through, False = blocked, None = the answer says neither. body: bytes of page read after
@@ -54,11 +55,18 @@ class Site:
 
 SITES = (
     Site("google", "www.google.com", "/search?q=weather", ok=(200,), blocked=(429,),
-         blocked_redirect="/sorry/", ok_redirect="consent.google."),
-    Site("reddit", "www.reddit.com", "/", ok=(200,), blocked=(403, 429)),
+         blocked_redirect="/sorry/", ok_redirect="consent.google.", title="Google"),
+    Site("reddit", "www.reddit.com", "/", ok=(200,), blocked=(403, 429), title="Reddit"),
     # Amazon answers bots with a 2-4 KB stub or captcha page, and since 2026-09 with status 200 on the home page
     # too – even without a proxy. The search tells them apart: real results are well over 100 KB.
-    Site("amazon", "www.amazon.com", "/s?k=usb+cable", ok=(200,), blocked=(202, 503), min_body=32_000),
+    Site("amazon", "www.amazon.com", "/s?k=usb+cable", ok=(200,), blocked=(202, 503), min_body=32_000,
+         title="Amazon"),
+    # measured on 60 live proxies (2026-09-27): most get Instagram's login wall, a few the real profile page;
+    # TikTok gives some a 403 or a small stub. ChatGPT, eBay and Indeed block everyone (the last two even without
+    # a proxy) and LinkedIn and Twitch let everyone through – those say nothing, so they're not in here.
+    Site("instagram", "www.instagram.com", "/instagram/", ok=(200,), blocked=(429,), blocked_redirect="accounts/login",
+         min_body=30_000, title="Instagram"),
+    Site("tiktok", "www.tiktok.com", "/@tiktok", ok=(200,), blocked=(403, 429), min_body=30_000, title="TikTok"),
 )
 SITE = {s.name: s for s in SITES}
 

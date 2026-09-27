@@ -13,11 +13,12 @@ from typing import Dict, List, Optional, Sequence
 
 from .charts import FONT, THEMES, WIDTH
 from .pages import COUNTRIES, CSS, SITE_URL, _short_name
+from .sites import SITES
 
 DAYS = 7
 RUN_HOURS = 1
 REPORT_URL = f"{SITE_URL}report/"
-SITE_NAMES = {"google": "Google", "reddit": "Reddit", "amazon": "Amazon"}
+SITE_NAMES = {s.name: s.title for s in SITES}
 # checks in a row a proxy was on the list for -> label (the runs are roughly hourly, but not always)
 BUCKETS = [(1, 1, "1 check"), (2, 5, "2–5 checks"), (6, 23, "6–23 checks"), (24, 71, "24–71 checks"),
            (72, 10 ** 6, "72 checks +")]

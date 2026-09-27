@@ -14,9 +14,10 @@ from pathlib import Path
 from typing import Dict, List, Optional, Sequence, Tuple
 
 from .pages import COUNTRIES, CSS, SITE_URL, _short_name
+from .sites import SITES
 
 INDEX_MIN_UPTIME = 50  # percent of the week's runs
-SITE_NAMES = {"google": "Google", "reddit": "Reddit", "amazon": "Amazon"}
+SITE_NAMES = {s.name: s.title for s in SITES}
 
 EXTRA_CSS = """
 .wrap > * { min-width: 0; }

@@ -166,7 +166,7 @@ class LiveProxy(CheckResult):
     uptime_7d: Optional[int] = None   # the same over the week
     first_seen: str = ""              # ISO time of the first run it was listed in
     up_for_hours: int = 0             # listed without a gap for this long
-    sites: Dict[str, bool] = field(default_factory=dict)  # "google", "reddit", "amazon" -> got through last run?
+    sites: Dict[str, bool] = field(default_factory=dict)  # "google", "reddit", … -> got through in the last run?
     speed_kbps: Optional[int] = None  # download speed in KiB/s in the last run (HTTPS-capable ones only)
 
 
@@ -198,7 +198,8 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
 
     Same filters as find_proxies, plus
     min_uptime  only proxies listed in at least this share (percent) of the week's runs, e.g. 90
-    works_on    only proxies that got through to these sites in the last run: "google", "reddit", "amazon"
+    works_on    only proxies that got through to these sites in the last run: google, reddit, amazon, instagram,
+                tiktok
     min_speed   only proxies that downloaded at least this many KiB/s in the last run
     limit       at most this many (0 = all)
     """

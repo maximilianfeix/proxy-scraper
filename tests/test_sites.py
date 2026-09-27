@@ -36,6 +36,20 @@ def test_amazon_needs_a_real_page_behind_the_200():
     assert AMAZON.path.startswith("/s?")                # the search: the home page no longer tells them apart
 
 
+@pytest.mark.parametrize("name,status,location,body,expected", [
+    ("instagram", 200, "", 60_000, True),
+    ("instagram", 302, "https://www.instagram.com/accounts/login/?next=x", 0, False),  # the login wall
+    ("instagram", 200, "", 3_000, False),                                              # a stub
+    ("tiktok", 200, "", 60_000, True),
+    ("tiktok", 403, "", 0, False),
+    ("tiktok", 200, "", 4_000, False),
+])
+def test_instagram_and_tiktok(name, status, location, body, expected):
+    # measured on 60 live proxies: both tell "through" from "blocked" apart – ChatGPT, eBay and Indeed block
+    # everyone (the last two even without a proxy), LinkedIn and Twitch let everyone through
+    assert sites.SITE[name].verdict(status, location, body=body) is expected
+
+
 def test_head_parsing():
     head = b"HTTP/1.1 302 Found\r\nContent-Type: text/html\r\nlocation: https://www.google.com/sorry/index\r\n\r\n"
     assert sites.parse_head(head) == (302, "https://www.google.com/sorry/index")
@@ -66,11 +80,12 @@ def test_only_https_proxies_are_probed_and_only_clear_answers_are_kept(tmp_path)
     d = run_dir(tmp_path, [row(1), row(2), row(3, https=False)])
     stats = asyncio.run(sites.fill_run(d, probe=probe, resolve=lambda host: "10.0.0.1"))
     rows = {r["proxy"]: r for r in json.loads((d / "proxies.json").read_text())}
-    assert rows["1.1.1.1:1080"]["sites"] == {"google": True, "reddit": False, "amazon": True}
+    assert rows["1.1.1.1:1080"]["sites"] == {"google": True, "reddit": False, "amazon": True, "instagram": True,
+                                             "tiktok": True}
     assert rows["1.1.1.2:1080"]["sites"] == {}
     assert "sites" not in rows["1.1.1.3:1080"] or rows["1.1.1.3:1080"]["sites"] == {}
     assert {p for p, _ in asked} == {"1.1.1.1:1080", "1.1.1.2:1080"}
-    assert stats == {"google": 1, "reddit": 0, "amazon": 1}
+    assert stats == {"google": 1, "reddit": 0, "amazon": 1, "instagram": 1, "tiktok": 1}
 
 
 def test_a_site_that_cant_be_resolved_is_skipped(tmp_path):
@@ -84,7 +99,8 @@ def test_a_site_that_cant_be_resolved_is_skipped(tmp_path):
 
     d = run_dir(tmp_path, [row(1)])
     asyncio.run(sites.fill_run(d, probe=probe, resolve=resolve))
-    assert json.loads((d / "proxies.json").read_text())[0]["sites"] == {"google": True, "amazon": True}
+    assert json.loads((d / "proxies.json").read_text())[0]["sites"] == {"google": True, "amazon": True,
+                                                                         "instagram": True, "tiktok": True}
 
 
 # --------------------------------------------------------------------------- using the verdicts
@@ -103,7 +119,8 @@ def test_publish_writes_a_list_per_site_and_counts(tmp_path):
     assert (out / "works-with" / "reddit.txt").read_text() == ""
     assert (out / "works-with" / "amazon.txt").read_text() == ""
     stats = json.loads((out / "stats.json").read_text())
-    assert stats["sites"] == {"google": 1, "reddit": 0, "amazon": 0}
+    assert stats["sites"] == {"google": 1, "reddit": 0, "amazon": 0, "instagram": 0, "tiktok": 0}
+    assert (out / "works-with" / "tiktok.txt").read_text() == ""
     import csv
     with (out / "proxies.csv").open(newline="", encoding="utf-8") as fh:
         by_url = {r["url"]: r for r in csv.DictReader(fh)}

@@ -119,7 +119,8 @@ def test_publish_writes_a_list_per_site_and_counts(tmp_path):
     assert (out / "works-with" / "reddit.txt").read_text() == ""
     assert (out / "works-with" / "amazon.txt").read_text() == ""
     stats = json.loads((out / "stats.json").read_text())
-    assert stats["sites"] == {"google": 1, "reddit": 0, "amazon": 0, "instagram": 0, "tiktok": 0}
+    # amazon, instagram and tiktok weren't checked at all in this run: that's "not measured", not zero
+    assert stats["sites"] == {"google": 1, "reddit": 0, "amazon": None, "instagram": None, "tiktok": None}
     assert (out / "works-with" / "tiktok.txt").read_text() == ""
     import csv
     with (out / "proxies.csv").open(newline="", encoding="utf-8") as fh:

@@ -70,7 +70,9 @@ def stats_for(rows: List[dict], now: datetime) -> dict:
         if any(r.get("blocklisted") is not None for r in rows) else None,
         "stable": sum(1 for r in rows if r.get("streak", 0) >= STABLE_RUNS),
         # proxies that got through to Google, Reddit, ... in the site check after the run (sites.py)
-        "sites": {s.name: sum(1 for r in rows if (r.get("sites") or {}).get(s.name)) for s in SITES},
+        # None when a site wasn't checked at all (the step failed, its DNS lookup didn't work) – not a measured 0
+        "sites": {s.name: sum(1 for r in rows if (r.get("sites") or {}).get(s.name))
+                  if any(s.name in (r.get("sites") or {}) for r in rows) else None for s in SITES},
         "run_hours": RUN_HOURS,
         "countries": dict(Counter(r["country"] for r in rows if r.get("country")).most_common(15)),
         "median_latency": round(statistics.median(r["latency"] for r in rows)) if rows else 0,

@@ -166,6 +166,9 @@ def parse_blob(data: bytes, default_type: str, wanted: Tuple[str, ...]) -> str:
     return "\n".join(keys)
 
 
+_ASCII_NUMBER = re.compile(r"[0-9]+")
+
+
 def parse_proxy_line(line: str, default_type: Optional[str] = None) -> Optional[str]:
     """A line from a result file ('socks5://user:pass@1.2.3.4:1080' or '1.2.3.4:80') -> key."""
     line = line.strip()
@@ -184,7 +187,9 @@ def parse_proxy_line(line: str, default_type: Optional[str] = None) -> Optional[
     auth, _, line = line.rpartition("@")
     ip, _, port = line.partition(":")
     port = port.rstrip("/")
-    if not port.isdigit() or ip.count(".") != 3 or not all(p.isdigit() for p in ip.split(".")):
+    # ASCII digits only: "²" and other Unicode digits pass str.isdigit(), but int() can't read them
+    octets = ip.split(".")
+    if not _ASCII_NUMBER.fullmatch(port) or len(octets) != 4 or not all(map(_ASCII_NUMBER.fullmatch, octets)):
         return None
     proxy = normalize_proxy(ip.encode(), port.encode())
     if not proxy:

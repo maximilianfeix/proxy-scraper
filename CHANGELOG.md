@@ -12,6 +12,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - `--list-sources --json` prints the source ranking as JSON for scripts ([#115](https://github.com/maximilianfeix/proxy-scraper/issues/115))
 
 ### Fixed
+- A result file line with a Unicode digit ("1.2.3.4:²") crashed the parser – found by the new fuzz tests
 - Proxy server: when a free proxy hung up in the middle of an upload, uvloop reported it as RuntimeError, the handler died and the failure was never counted against that proxy
 - The Amazon check counted nearly every proxy as "through": Amazon now answers bots with a 2 KB stub page and status 200, even without a proxy. It checks the search page now and only counts a 200 with a real page behind it
 

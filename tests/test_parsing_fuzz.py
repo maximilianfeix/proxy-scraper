@@ -6,7 +6,7 @@ import re
 import pytest
 
 hypothesis = pytest.importorskip("hypothesis")
-from hypothesis import assume, given, settings  # noqa: E402
+from hypothesis import assume, example, given, settings  # noqa: E402
 from hypothesis import strategies as st  # noqa: E402
 
 from proxyscraper.parsing import (  # noqa: E402
@@ -75,6 +75,8 @@ def test_scheme_lines_keep_their_type(ip, port, ptype):
 
 @settings(max_examples=300, deadline=None)
 @given(st.text(max_size=200), st.sampled_from([None, *PROXY_TYPES]))
+@example("1.2.3.4:\u00b2", "http")   # "²" passes str.isdigit(), int() can't read it (found in review)
+@example("1.2.3.\u0661:80", "http")  # an Arabic-Indic digit
 def test_result_file_lines_never_crash(line, default_type):
     key = parse_proxy_line(line, default_type)
     if key is not None:

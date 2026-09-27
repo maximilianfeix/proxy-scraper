@@ -43,6 +43,11 @@ RawCandidate = Tuple[str, bytes, bytes, bytes]  # type, ip, port, credentials (b
 _SPACE_SEPARATED_RE = re.compile(rb"\d\.\d{1,3}[ \t]+\d{2,5}(?![\d.])")
 
 
+# Bump whenever parsing finds different proxies in the same bytes: the fetch cache stores parsed keys and
+# reloads every list once when this changes (2: plain lists of "auto" sources are read as http)
+PARSER_VERSION = 2
+
+
 def _needs_full_regex(data: bytes) -> bool:
     """Only space/HTML lists need the slower regex (sample from the start of the file)."""
     sample = data[:8192]
@@ -53,7 +58,8 @@ def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
     """Finds proxies in text, HTML tables and JSON.
 
     Lines with a type:// prefix keep their own type; everything else gets the type of the source.
-    For sources of type "auto" only lines with a prefix count.
+    For sources of type "auto" only lines with a prefix count – unless there are none at all: a generic
+    proxies.txt of plain ip:port lines is read as HTTP, the most common kind (the checks sort out the rest).
     """
     out: Set[RawCandidate] = set()
     with_scheme = set()
@@ -64,7 +70,9 @@ def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
                 out.add((ptype, ip, port, auth))
                 with_scheme.add((ip, port))
     if default_type == "auto":
-        return out
+        if out:
+            return out
+        default_type = "http"
     regex = PROXY_RE if _needs_full_regex(data) else PLAIN_RE
     pairs = set(regex.findall(data))
     if b'"ip"' in data:

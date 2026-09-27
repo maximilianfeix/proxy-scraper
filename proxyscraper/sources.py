@@ -20,7 +20,7 @@ import subprocess
 import time
 import warnings
 from collections import Counter
-from dataclasses import asdict, dataclass
+from dataclasses import asdict, dataclass, fields
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Set, Tuple
@@ -345,17 +345,10 @@ def _mined_type(url: str) -> str:
 
 
 def _readable_type(url: str, data: bytes) -> Optional[str]:
-    """The type to keep a mined list under, so the scrape reads it the way it was checked – None if it doesn't
-    hold enough proxies. "auto" only reads scheme://ip:port lines, so a plain ip:port list without a type
-    becomes http (the most common kind)."""
-    def count(ptype: str) -> int:
-        return len(validate_candidates(extract_candidates(data, ptype)))
+    """The type to keep a mined list under (the one the scrape will read it with) – None if it doesn't hold
+    enough proxies that way."""
     ptype = _mined_type(url)
-    if ptype != "auto":
-        return ptype if count(ptype) >= MIN_MINED_PROXIES else None
-    if count("auto") >= MIN_MINED_PROXIES:
-        return "auto"
-    return "http" if count("http") >= MIN_MINED_PROXIES else None
+    return ptype if len(validate_candidates(extract_candidates(data, ptype))) >= MIN_MINED_PROXIES else None
 
 
 async def discover_github(
@@ -531,7 +524,10 @@ class SourceStats:
         if path.exists():
             try:
                 raw = json.loads(path.read_text(encoding="utf-8"))
-                self.records = {url: SourceRecord(**rec) for url, rec in raw.items()}
+                # fields from another version (newer or older) are left out instead of losing everything
+                known = {f.name for f in fields(SourceRecord)}
+                self.records = {url: SourceRecord(**{k: v for k, v in rec.items() if k in known})
+                                for url, rec in raw.items()}
             except (OSError, ValueError, TypeError) as e:
                 # broken statistics are no reason to abort – we just learn again
                 warnings.warn(f"{path.name} unreadable ({e}), starting without source statistics", stacklevel=2)

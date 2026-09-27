@@ -133,3 +133,10 @@ def test_curated_sources_file_is_valid():
     assert len(sources) > 100
     assert set(sources.values()) <= set(srcs.SOURCE_TYPES)
     assert meta and all("url" in m for m in meta)
+
+
+def test_stats_with_fields_from_another_version_are_still_read(tmp_path):
+    path = tmp_path / "s.json"
+    path.write_text(json.dumps({"u": {"first_seen": 1.0, "count": 5, "some_future_field": "x"}}))
+    st = srcs.SourceStats(path)
+    assert st.get("u").count == 5

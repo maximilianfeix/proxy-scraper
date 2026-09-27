@@ -41,7 +41,7 @@ def test_urls_from_scraper_configs_are_checked_before_they_count():
                                              known={"https://known.example/http.txt"}))
     assert found == {
         "https://raw.githubusercontent.com/someone/lists/main/socks5.txt": "socks5",
-        "https://example.org/api/proxies?format=text": "http",
+        "https://example.org/api/proxies?format=text": "auto",   # plain ip:port lines: auto reads them as http
     }
     assert not any("{protocol}" in u or "v2ray" in u or "known.example" in u for u in fetched)
     # only files that look like source lists are read
@@ -63,12 +63,7 @@ def test_mined_urls_are_capped():
     assert len(found) == srcs.MAX_MINED_CHECKS
 
 
-def test_untyped_lists_are_kept_with_a_type_the_scrape_can_read():
-    # plain ip:port without a scheme: an "auto" source would give nothing, so it becomes http
-    fetched = []
-    found = asyncio.run(srcs.discover_github(fake_get(fetched), token=None, max_repos=10))
-    assert found["https://example.org/api/proxies?format=text"] == "http"
-    # the type can also sit in the query string
+def test_the_type_can_sit_in_the_query_string():
     assert srcs._mined_type("https://api.example.com/v2/?request=get&protocol=socks4") == "socks4"
 
 
@@ -104,4 +99,4 @@ def test_slow_hosts_cant_stall_discovery(monkeypatch):
 
     async def go():
         return await asyncio.wait_for(srcs._mine(get, ["cfg"], set()), 5)
-    assert asyncio.run(go()) == {"https://fast.example/proxy.txt": "http"}
+    assert asyncio.run(go()) == {"https://fast.example/proxy.txt": "auto"}

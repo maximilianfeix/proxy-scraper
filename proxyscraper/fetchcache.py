@@ -5,7 +5,7 @@ On the next run the download asks with If-None-Match / If-Modified-Since; if 304
 the keys come from the cache. They are stored unfiltered (all types), because --types can
 change between two runs.
 
-  data/fetch-cache/index.json      url -> {etag, modified, type, file, used}
+  data/fetch-cache/index.json      url -> {etag, modified, type, file, used, parser}
   data/fetch-cache/<sha1>.txt.gz   the keys, one per line
 """
 
@@ -19,6 +19,7 @@ import zlib
 from pathlib import Path
 from typing import Dict, Optional
 
+from . import parsing
 from .paths import DATA_DIR, atomic_write
 
 CACHE_DIR = DATA_DIR / "fetch-cache"
@@ -53,7 +54,9 @@ class FetchCache:
         ptype is the type the list is parsed with: if it changes (e.g. http -> auto),
         the stored keys no longer fit and the list is loaded again."""
         entry = self.entries.get(url) if self.enabled else None
-        if not entry or entry.get("type") != ptype or not (self.dir / entry["file"]).is_file():
+        # keys from an older parser may miss proxies the current one finds -> load the list again
+        if (not entry or entry.get("type") != ptype or entry.get("parser") != parsing.PARSER_VERSION
+                or not (self.dir / entry["file"]).is_file()):
             return {}
         headers = {}
         if entry.get("etag"):
@@ -91,7 +94,8 @@ class FetchCache:
         tmp = self.dir / (name + ".tmp")
         tmp.write_bytes(gzip.compress(keys.encode("utf-8"), compresslevel=5))
         tmp.replace(self.dir / name)
-        self.entries[url] = {"etag": etag, "modified": modified, "type": ptype, "file": name, "used": time.time()}
+        self.entries[url] = {"etag": etag, "modified": modified, "type": ptype, "file": name, "used": time.time(),
+                             "parser": parsing.PARSER_VERSION}
 
     def save(self, now: Optional[float] = None) -> None:
         index = self.dir / "index.json"

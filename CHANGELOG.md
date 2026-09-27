@@ -4,6 +4,11 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed
+- Generic lists (proxies.txt, all.txt …) with plain ip:port lines gave nothing and were paused as "unreachable" – they're read as HTTP now: 64 more sources deliver
+- The download cache stores parsed proxies, so a parser improvement never reached unchanged lists. It now reloads every list once when the parser changes
+- Source statistics written by another version are read instead of thrown away
+
 ### Added
 - Website: the filters live in the address, so a view can be shared or bookmarked (plus a Share view button), and the pages per protocol and country open the list with their filter. Countries show their names ([#116](https://github.com/maximilianfeix/proxy-scraper/issues/116), [#117](https://github.com/maximilianfeix/proxy-scraper/issues/117))
 - Discovery also reads the source lists of other proxy scrapers (sources.json, config.toml, urls.txt …) and keeps every URL in them that really holds 20+ proxies – about 250 more sources in a test run

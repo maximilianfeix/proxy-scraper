@@ -153,6 +153,19 @@ def test_changed_source_type_invalidates_the_entry(tmp_path):
     assert cache.conditional_headers("http://x/list", "socks5") == {}
 
 
+def test_a_newer_parser_reloads_lists_once(tmp_path, monkeypatch):
+    # the cache holds parsed keys: after a parser change, a 304 would keep serving what the old parser found
+    from proxyscraper import fetchcache, parsing
+    cache = FetchCache(tmp_path / "cache")
+    cache.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
+    cache.save()
+    monkeypatch.setattr(parsing, "PARSER_VERSION", parsing.PARSER_VERSION + 1)
+    again = fetchcache.FetchCache(tmp_path / "cache")
+    assert again.conditional_headers("http://x/list", "http") == {}
+    again.store("http://x/list", {b"etag": b'"a"'}, "http 1.1.1.1:80", "http")
+    assert again.conditional_headers("http://x/list", "http") == {"If-None-Match": '"a"'}
+
+
 @pytest.mark.parametrize("method, headers, body, allowed", [
     ("GET", None, None, True),                                  # public list
     ("GET", {"If-None-Match": '"a"'}, None, True),              # conditional fetch for the cache

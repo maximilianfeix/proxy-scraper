@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- Website: "Why this list, not another one" – for each thing you'd want to know about a proxy, what a typical free list tells you and what this one measured in the last run, with live numbers. And an FAQ (safety, why free proxies die, updates, license, Python and AI agents) with FAQPage structured data for search engines ([#196](https://github.com/maximilianfeix/proxy-scraper/issues/196))
+
 ## [1.12.0] – 2026-09-27
 
 ### Added

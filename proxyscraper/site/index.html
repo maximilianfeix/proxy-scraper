@@ -22,6 +22,9 @@
 <meta property="og:description" content="Every proxy on this list passed a real handshake, a honeypot check and a content check. Re-checked every hour.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23D4F77A'/%3E%3Cpath d='M13 31.5 26.5 44.5 51 18' fill='none' stroke='%23121113' stroke-width='5.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='13' cy='31.5' r='4.6' fill='%23121113'/%3E%3Ccircle cx='51' cy='18' r='4.6' fill='%23121113'/%3E%3Ccircle cx='26.5' cy='44.5' r='7.6' fill='%23D4F77A' stroke='%23121113' stroke-width='5'/%3E%3C/svg%3E">
 <script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Are free proxies safe to use?", "acceptedAnswer": {"@type": "Answer", "text": "They're run by strangers, so treat them as untrusted. Anything that isn't encrypted can be read by whoever runs the proxy – never send passwords or personal data through one. Every proxy on this list has passed a content check (it didn't change a known page), and the HTTPS ones tunnel TLS that's verified end to end, so an https:// site can't be read or altered. That makes them fine for scraping public pages or seeing a site from another country, not for your bank."}}, {"@type": "Question", "name": "Why do most free proxies not work?", "acceptedAnswer": {"@type": "Answer", "text": "They don't live long. Of the proxies that drop off this list again, most are gone by the next hourly check, and only a few last a whole day – the weekly report tracks it. Many lists never re-check, so a large share of what they hold is long dead, and some of what still answers are honeypots or proxies that inject ads."}}, {"@type": "Question", "name": "How often is the list updated?", "acceptedAnswer": {"@type": "Answer", "text": "Every hour. GitHub Actions collects proxies from 700+ public lists, checks them and publishes whatever passed. This page loads the new list by itself when a run lands."}}, {"@type": "Question", "name": "Can I use it in my own projects?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The code is open source under the MIT license, and the lists are free to use, including in commercial projects. The proxies themselves belong to other people, so stick to the terms of the sites you visit through them."}}, {"@type": "Question", "name": "How do I use it from Python or an AI agent?", "acceptedAnswer": {"@type": "Answer", "text": "From Python: pip install proxy-scraper-cli, then live_proxies() returns the checked list with filters for country, protocol, uptime and the sites a proxy gets through to. AI agents like Claude Code or Cursor can use the MCP server, which gives them working proxies and can load pages through them."}}, {"@type": "Question", "name": "A proxy from the list doesn't work for me – why?", "acceptedAnswer": {"@type": "Answer", "text": "It worked from GitHub's servers in the last run, but free proxies come and go, and some block certain networks. proxy-scraper --recheck live checks the list again from your own connection in about 30 seconds and keeps what works from there."}}]}
+</script>
+<script type="application/ld+json">
 {"@context": "https://schema.org", "@type": "Dataset",
  "name": "Free proxy list, checked every hour",
  "description": "HTTP, SOCKS4 and SOCKS5 proxies from 700+ public lists that passed a real handshake, a honeypot check on two sites and a content check. With country, provider, latency, anonymity and HTTPS support.",
@@ -343,6 +346,25 @@
   .status .next:not(:empty)::before { content: " · "; }
   .bookmarklet .btn { cursor: grab; margin: 6px 0 4px; }
   .link-btn { font: inherit; color: var(--text); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
+  /* Why this list: one question per row, what a typical list says against what was measured here */
+  .ledger { border-top: 1px solid var(--line); }
+  .ledger-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr) minmax(0, 1.6fr); gap: 8px 32px; padding: 20px 0;
+                border-bottom: 1px solid var(--line); align-items: baseline; }
+  .ledger-head { padding: 14px 0; color: var(--muted); font-size: 14px; }
+  .ledger-row .q { font-size: 18px; font-weight: 500; letter-spacing: -.01em; }
+  .ledger-row .them { color: var(--muted); }
+  .ledger-row .us b { color: var(--signal-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  /* FAQ: opens on click, nothing moves on its own */
+  .faq-list { border-top: 1px solid var(--line); }
+  .faq-item { border-bottom: 1px solid var(--line); }
+  .faq-item summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 22px 0; }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary h3 { margin: 0; font-size: clamp(18px, 2vw, 21px); font-weight: 500; letter-spacing: -.01em; }
+  .faq-item summary::after { content: ""; flex: none; width: 12px; height: 12px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+                             transform: translateY(-3px) rotate(45deg); transition: transform .3s var(--ease); }
+  .faq-item[open] summary::after { transform: translateY(3px) rotate(225deg); }
+  .faq-item summary:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 4px; border-radius: 6px; }
+  .faq-item p { margin: 0 0 24px; max-width: 70ch; color: var(--muted); font-size: 17px; }
   .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: clamp(22px, 3vw, 34px); }
 
   /* For AI agents: a real Claude Code exchange, revealed line by line once it scrolls in */
@@ -440,6 +462,9 @@
     .ctas { justify-content: flex-start; }
     .figures { grid-template-columns: minmax(0, 1fr); }
     .head-row, .agent, .closing { grid-template-columns: minmax(0, 1fr); }
+    .ledger-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .ledger-head { display: none; }
+    .ledger-row .them::before { content: "Typical list: "; }
     .tools li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
     .transcript p { grid-template-columns: minmax(0, 1fr); gap: 4px; }
     .head-row .intro-text { justify-self: start; }
@@ -507,7 +532,7 @@
   <div class="wrap">
     <a class="brand" href="#top" aria-label="proxy-scraper, back to top"><svg class="mark" aria-hidden="true"><use href="#mark"/></svg>proxy-scraper</a>
     <nav class="nav-links" aria-label="Sections">
-      <a href="#list">The list</a><a href="#agents">AI agents</a><a href="#checks">How it's checked</a><a href="#runs">Last runs</a><a href="#use">Use it</a>
+      <a href="#list">The list</a><a href="#agents">AI agents</a><a href="#checks">How it's checked</a><a href="#why">Why this one</a><a href="#runs">Last runs</a><a href="#use">Use it</a>
     </nav>
     <div class="nav-actions">
       <button class="toggle" id="theme" type="button" aria-label="Switch to light theme">
@@ -670,6 +695,23 @@
       </div>
     </div>
   </section>
+  <section class="block wrap" id="why" aria-labelledby="why-title">
+    <div class="head-row">
+      <h2 class="h2" id="why-title">Why this list, not another one</h2>
+      <p class="intro-text">Most free proxy lists are a dump of addresses that answered at some point. This is what you'd want to know before you use one – and what this list measured in the last run.</p>
+    </div>
+    <div class="ledger" role="table" aria-label="What a typical free proxy list tells you, and what this one measures">
+      <div class="ledger-row ledger-head" role="row"><span role="columnheader">What you'd want to know</span><span role="columnheader">A typical free list</span><span role="columnheader">Here, in the last run</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Is it a proxy at all?</span><span class="them" role="cell">That the port answered once</span><span class="us" role="cell">A real HTTP/SOCKS handshake and a page fetched through it: <b data-live="total">–</b> passed in the last run</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Is it a honeypot?</span><span class="them" role="cell">Often not checked</span><span class="us" role="cell">The exit IP is checked on two different sites and has to match both times</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Does it change the pages you load?</span><span class="them" role="cell">Not checked</span><span class="us" role="cell">A known page has to arrive byte for byte. Proxies that inject scripts or ads are dropped</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Does HTTPS work through it?</span><span class="them" role="cell">Sometimes a flag in the list</span><span class="us" role="cell">A verified TLS handshake through the tunnel: <b data-live="https">–</b> of them</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Will it still be there tomorrow?</span><span class="them" role="cell">Unknown</span><span class="us" role="cell">Every proxy's week of hourly checks. <b data-live="stable">–</b> were on the list for 90&nbsp;%+ of the week</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Does Google let it through?</span><span class="them" role="cell">Unknown</span><span class="us" role="cell">Tried on Google, Reddit, Amazon, Instagram and TikTok: <b data-live="google">–</b> got through to Google</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Is it fast enough for real pages?</span><span class="them" role="cell">A latency number, if any</span><span class="us" role="cell">100&nbsp;KB downloaded through it: half manage <b data-live="speed">–</b> or more</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">How fresh is it?</span><span class="them" role="cell">Scraped once, rarely checked again</span><span class="us" role="cell">Checked again every hour, the last run <b data-live="ago">–</b></span></div>
+    </div>
+  </section>
 
   <section class="block wrap" id="runs" aria-labelledby="runs-title">
     <div class="head-row">
@@ -746,6 +788,20 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   "uptime_7d": 94,
   "sites": { "google": true, "reddit": false, "amazon": false }
 }</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the example"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+    </div>
+  </section>
+  <section class="block wrap faq" id="faq" aria-labelledby="faq-title">
+    <div class="head-row">
+      <h2 class="h2" id="faq-title">Questions people ask</h2>
+      <p class="intro-text">Short answers. The <a href="https://github.com/maximilianfeix/proxy-scraper#faq">README</a> has more.</p>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item"><summary><h3>Are free proxies safe to use?</h3></summary><p>They're run by strangers, so treat them as untrusted. Anything that isn't encrypted can be read by whoever runs the proxy – never send passwords or personal data through one. Every proxy on this list has passed a content check (it didn't change a known page), and the HTTPS ones tunnel TLS that's verified end to end, so an https:// site can't be read or altered. That makes them fine for scraping public pages or seeing a site from another country, not for your bank.</p></details>
+      <details class="faq-item"><summary><h3>Why do most free proxies not work?</h3></summary><p>They don't live long. Of the proxies that drop off this list again, most are gone by the next hourly check, and only a few last a whole day – the weekly report tracks it. Many lists never re-check, so a large share of what they hold is long dead, and some of what still answers are honeypots or proxies that inject ads.</p></details>
+      <details class="faq-item"><summary><h3>How often is the list updated?</h3></summary><p>Every hour. GitHub Actions collects proxies from 700+ public lists, checks them and publishes whatever passed. This page loads the new list by itself when a run lands.</p></details>
+      <details class="faq-item"><summary><h3>Can I use it in my own projects?</h3></summary><p>Yes. The code is open source under the MIT license, and the lists are free to use, including in commercial projects. The proxies themselves belong to other people, so stick to the terms of the sites you visit through them.</p></details>
+      <details class="faq-item"><summary><h3>How do I use it from Python or an AI agent?</h3></summary><p>From Python: pip install proxy-scraper-cli, then live_proxies() returns the checked list with filters for country, protocol, uptime and the sites a proxy gets through to. AI agents like Claude Code or Cursor can use the MCP server, which gives them working proxies and can load pages through them.</p></details>
+      <details class="faq-item"><summary><h3>A proxy from the list doesn't work for me – why?</h3></summary><p>It worked from GitHub's servers in the last run, but free proxies come and go, and some block certain networks. proxy-scraper --recheck live checks the list again from your own connection in about 30 seconds and keeps what works from there.</p></details>
     </div>
   </section>
   <section class="block wrap closing" aria-labelledby="star-title">
@@ -1311,6 +1367,10 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     sieve(rows, st.total);
     started = true;
     $("#final-n").textContent = fmt(st.total);
+    const live = { total: fmt(st.total), https: fmt(st.https), stable: fmt(rows.filter(r => (r.uptime_7d || 0) >= 90).length),
+                   google: st.sites && st.sites.google != null ? fmt(st.sites.google) : "–",
+                   speed: st.median_speed_kbps ? `${fmt(st.median_speed_kbps)} KB/s` : "–", ago: ago(st.updated) };
+    $$("[data-live]").forEach((el) => { el.textContent = live[el.dataset.live] ?? "–"; });
     const dc = st.datacenter != null ? ` ${pct(st.datacenter, st.total)} % exit from a datacenter` : "";
     const bl = st.blocklisted != null ? `${dc ? "," : ""} ${pct(st.blocklisted, st.total)} % from an IP on a spam blocklist` : "";
     $("#step5").textContent = `HTTPS with verified TLS, anonymity, country, provider and spam blocklists. This time ${fmt(st.https)} tunnel HTTPS and ${fmt(st.elite)} are elite.${dc}${bl}${dc || bl ? "." : ""}`;

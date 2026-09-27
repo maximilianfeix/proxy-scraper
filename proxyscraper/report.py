@@ -222,6 +222,7 @@ def page(f: dict) -> str:
 <title>The week in free proxies ({escape(_period(f))}) | proxy-scraper</title>
 <meta name="description" content="{escape(_lines(f)[0])}">
 <link rel="canonical" href="{REPORT_URL}">
+<link rel="alternate" type="application/atom+xml" title="The week in free proxies" href="{REPORT_URL}feed.xml">
 <meta property="og:title" content="The week in free proxies">
 <meta property="og:description" content="{escape(_lines(f)[0])}">
 <meta property="og:image" content="{SITE_URL}og.png">
@@ -256,10 +257,37 @@ picture img {{ width: 100%; height: auto; border-radius: 16px; }}
     <img src="{root}chart-dark.svg" alt="Working proxies over the week, by protocol">
   </picture>
   <footer><span>Want to share it? <a href="report.md">Markdown</a> · <a href="post.txt">a short post</a> ·
+  <a href="feed.xml">RSS/Atom feed</a> ·
   <a href="https://github.com/maximilianfeix/proxy-scraper">the code</a></span></footer>
 </div>
 </body>
 </html>
+"""
+
+
+def feed(f: dict) -> str:
+    """Atom feed with one entry per ISO week: the id stays the same all week, so feed readers show one new entry
+    a week (updated as the week goes on) and keep the past weeks themselves."""
+    year, week, _ = f["now"].isocalendar()
+    stamp = f["now"].strftime("%Y-%m-%dT%H:%M:%SZ")
+    text = "\n\n".join(_lines(f))
+    return f"""<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>The week in free proxies</title>
+  <subtitle>How long free proxies last and which sites let them through – from hourly checks by proxy-scraper</subtitle>
+  <link rel="self" href="{REPORT_URL}feed.xml"/>
+  <link rel="alternate" href="{REPORT_URL}"/>
+  <id>{REPORT_URL}</id>
+  <updated>{stamp}</updated>
+  <author><name>proxy-scraper</name></author>
+  <entry>
+    <title>The week in free proxies: {escape(_period(f))}</title>
+    <link rel="alternate" href="{REPORT_URL}"/>
+    <id>{REPORT_URL}{year}-W{week:02d}</id>
+    <updated>{stamp}</updated>
+    <content type="text">{escape(text)}</content>
+  </entry>
+</feed>
 """
 
 
@@ -269,5 +297,6 @@ def write_report(f: dict, out: Path) -> None:
     (folder / "index.html").write_text(page(f), encoding="utf-8")
     (folder / "report.md").write_text(markdown(f), encoding="utf-8")
     (folder / "post.txt").write_text(post(f) + "\n", encoding="utf-8")
+    (folder / "feed.xml").write_text(feed(f), encoding="utf-8")
     for theme in THEMES:
         (folder / f"lifetimes-{theme}.svg").write_text(lifetimes_svg(f, theme), encoding="utf-8")

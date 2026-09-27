@@ -117,3 +117,17 @@ def test_tiny_shares_dont_read_as_zero():
     assert report._share(3, 11_122) == "under 0.1 %"
     assert report._share(30, 11_122) == "0.3 %"
     assert report._share(0, 10) == "0 %"
+
+
+def test_an_atom_feed_with_one_entry_per_week(tmp_path):
+    report.write_report(facts(), tmp_path)
+    feed = ET.fromstring((tmp_path / "report" / "feed.xml").read_text(encoding="utf-8"))
+    atom = "{http://www.w3.org/2005/Atom}"
+    entries = feed.findall(f"{atom}entry")
+    assert len(entries) == 1
+    week = NOW.isocalendar()
+    assert entries[0].find(f"{atom}id").text.endswith(f"{week[0]}-W{week[1]:02d}")  # same id all week long
+    assert "63 %" in entries[0].find(f"{atom}content").text
+    assert feed.find(f"{atom}link[@rel='self']").get("href").endswith("/report/feed.xml")
+    page = (tmp_path / "report" / "index.html").read_text(encoding="utf-8")
+    assert 'type="application/atom+xml"' in page

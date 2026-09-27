@@ -35,11 +35,13 @@ class Site:
     blocked: Tuple[int, ...]            # these mean: the site turned the proxy away
     blocked_redirect: str = ""          # a redirect to a URL containing this is a block too (a captcha page)
     ok_redirect: str = ""               # ... and one containing this is fine (a consent screen)
+    min_body: int = 0                   # an "ok" answer must come with at least this much page, else it's a stub
 
-    def verdict(self, status: int, location: str = "") -> Optional[bool]:
-        """True = got through, False = blocked, None = the answer says neither."""
+    def verdict(self, status: int, location: str = "", body: Optional[int] = None) -> Optional[bool]:
+        """True = got through, False = blocked, None = the answer says neither. body: bytes of page read after
+        the head (only needed with min_body)."""
         if status in self.ok:
-            return True
+            return not self.min_body or (body or 0) >= self.min_body
         if status in self.blocked:
             return False
         if 300 <= status < 400:
@@ -54,7 +56,9 @@ SITES = (
     Site("google", "www.google.com", "/search?q=weather", ok=(200,), blocked=(429,),
          blocked_redirect="/sorry/", ok_redirect="consent.google."),
     Site("reddit", "www.reddit.com", "/", ok=(200,), blocked=(403, 429)),
-    Site("amazon", "www.amazon.com", "/", ok=(200,), blocked=(202, 503)),
+    # Amazon answers bots with a 2-4 KB stub or captcha page, and since 2026-09 with status 200 on the home page
+    # too – even without a proxy. The search tells them apart: real results are well over 100 KB.
+    Site("amazon", "www.amazon.com", "/s?k=usb+cable", ok=(200,), blocked=(202, 503), min_body=32_000),
 )
 SITE = {s.name: s for s in SITES}
 
@@ -93,9 +97,17 @@ def real_probe(timeout: float = TIMEOUT) -> Probe:
                              "Connection: close\r\n\r\n".encode())
                 await writer.drain()
                 head = await reader.readuntil(b"\r\n\r\n")
+                status, location = parse_head(head)
+                body = 0
+                if site.min_body and status in site.ok:  # read just enough to tell a page from a stub
+                    while body < site.min_body:
+                        chunk = await reader.read(16384)
+                        if not chunk:
+                            break
+                        body += len(chunk)
             finally:
                 writer.close()
-            return site.verdict(*parse_head(head))
+            return site.verdict(status, location, body)
         try:
             return await asyncio.wait_for(go(), timeout)
         except (OSError, asyncio.TimeoutError, asyncio.IncompleteReadError, asyncio.LimitOverrunError, ValueError):

@@ -20,13 +20,20 @@ GOOGLE, REDDIT, AMAZON = (sites.SITE[n] for n in ("google", "reddit", "amazon"))
     (REDDIT, 403, "", False),
     (REDDIT, 429, "", False),
     (REDDIT, 301, "https://www.reddit.com/", None),
-    (AMAZON, 200, "", True),
     (AMAZON, 202, "", False),                                               # the bot check
     (AMAZON, 503, "", False),
     (AMAZON, 0, "", None),
 ])
 def test_verdicts(site, status, location, expected):
     assert site.verdict(status, location) is expected
+
+
+def test_amazon_needs_a_real_page_behind_the_200():
+    # Amazon answers bots with a 2-4 KB stub or captcha page – with status 200 (seen 2026-09-27, even without proxy)
+    assert AMAZON.verdict(200, "", body=40_000) is True
+    assert AMAZON.verdict(200, "", body=2_161) is False
+    assert GOOGLE.verdict(200, "", body=500) is True  # the other sites don't need a body
+    assert AMAZON.path.startswith("/s?")                # the search: the home page no longer tells them apart
 
 
 def test_head_parsing():

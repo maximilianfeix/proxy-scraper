@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed
+- The Amazon check counted nearly every proxy as "through": Amazon now answers bots with a 2 KB stub page and status 200, even without a proxy. It checks the search page now and only counts a 200 with a real page behind it
+
 ## [1.9.0] – 2026-09-27
 
 ### Added

@@ -34,6 +34,7 @@ from .output import has_latest_results
 from .parsing import PROXY_TYPES
 from .preferences import load_last_argv, save_last_argv
 from .server.pool import STRATEGIES
+from .sites import SITES
 from .targets import parse_target
 from .ui import ACCENT, BAD, MUTED, banner, note, render_source_ranking, widgets
 from .ui.keys import is_interactive
@@ -60,6 +61,36 @@ def list_sources(limit: int, as_json: bool = False) -> int:
     widgets.console.print(banner())
     render_source_ranking(rows, len(urls), reasons)
     return 0
+
+
+def pick(args) -> int:
+    """--pick: proxies from the hourly list, nothing but their URLs on stdout (for $(…) in a shell)."""
+    from .api import live_proxies
+
+    try:
+        found = live_proxies(types=args.types, countries=args.country or "", https=args.https_only,
+                             anonymity=args.anonymity or "", max_latency=args.max_latency,
+                             no_datacenter=args.no_datacenter, no_blocklisted=args.no_blocklisted,
+                             min_uptime=args.min_uptime, works_on=args.works_on, limit=args.pick)
+    except (ConnectionError, ValueError) as e:
+        print(f"proxy-scraper: {e}", file=sys.stderr)
+        return 1
+    if not found:
+        print("proxy-scraper: no proxy in the live list matches these filters right now – loosen them, "
+              "or run a scan of your own", file=sys.stderr)
+        return 1
+    sys.stdout.write("".join(f"{p.url}\n" for p in found))
+    return 0
+
+
+def site_list(text: str) -> List[str]:
+    """argparse type for --works-on: google,reddit -> ["google", "reddit"]"""
+    names = [n.strip().lower() for n in text.split(",") if n.strip()]
+    known = [s.name for s in SITES]
+    for n in names:
+        if n not in known:
+            raise argparse.ArgumentTypeError(f"unknown site {n!r}, use {', '.join(known)}")
+    return names
 
 
 def _number(kind, minimum, strict=False, maximum=None):
@@ -96,6 +127,7 @@ def export_list(text: str) -> List[str]:
 positive_int = _number(int, 1)
 port_number = _number(int, 1, maximum=65535)
 non_negative_int = _number(int, 0)
+percent = _number(int, 0, maximum=100)
 positive_float = _number(float, 0, strict=True)
 non_negative_float = _number(float, 0)
 
@@ -166,6 +198,16 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     f.add_argument("--target", action="append", type=target_url, metavar="URL",
                    help="only proxies that reach this site (repeatable), e.g. --target google.com")
 
+    live = p.add_argument_group("Live list (no scan)")
+    live.add_argument("--pick", nargs="?", const=1, type=positive_int, metavar="N",
+                      help="print N proxies (default 1) from the hourly checked list that match the filters above, "
+                           "one URL per line, and exit – e.g. curl -x \"$(proxy-scraper --pick --https-only)\" …")
+    live.add_argument("--min-uptime", type=percent, default=0, metavar="PERCENT",
+                      help="with --pick: only proxies on the list in at least this share of the week's checks")
+    live.add_argument("--works-on", type=site_list, default=[], metavar="SITES",
+                      help=f"with --pick: only proxies that got through to these sites in the last check "
+                           f"({', '.join(s.name for s in SITES)})")
+
     v = p.add_argument_group("Proxy server")
     v.add_argument("--serve", nargs="?", const=DEFAULT_SERVE_PORT, default=0, type=port_number, metavar="PORT",
                    help=f"serve the hits as a rotating proxy on 127.0.0.1:PORT after the run "
@@ -209,6 +251,8 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     args = p.parse_args(argv)
     if args.json and args.list_sources is None:
         p.error("--json only works together with --list-sources")
+    if (args.min_uptime or args.works_on) and args.pick is None:
+        p.error("--min-uptime and --works-on only work together with --pick")
     return args
 
 
@@ -260,6 +304,8 @@ def run(argv: Optional[List[str]] = None) -> int:
         return mcp_main()
     if args.list_sources is not None:
         return list_sources(args.list_sources, args.json)
+    if args.pick is not None:
+        return pick(args)
     opts = RunOptions.from_args(args)
     if opts.output == STDOUT:
         widgets.console = Console(highlight=False, stderr=True)  # stdout only carries the hits

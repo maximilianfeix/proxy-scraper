@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- `proxy-scraper --pick [N]`: proxies from the hourly checked list in about half a second, no scan – with the usual filters plus `--min-uptime` and `--works-on`, only the URLs on stdout, so `curl -x "$(proxy-scraper --pick)"` works ([#199](https://github.com/maximilianfeix/proxy-scraper/issues/199))
+
 ## [1.13.0] – 2026-09-27
 
 ### Added

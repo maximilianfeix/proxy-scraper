@@ -658,6 +658,13 @@ pip download requests   # git, pip, npm & co. now go through the pool
 
 `proxy` is the fastest one, `file` a text file with all of them (up to `limit`, default 20), `count` how many. Without a match the step fails, unless `fail-if-empty: false`.
 
+**In the shell, without a scan** – `--pick` takes proxies from the hourly list in about half a second
+
+```bash
+curl -x "$(proxy-scraper --pick --https-only --min-uptime 90)" https://api.ipify.org
+proxy-scraper --pick 10 --country DE --works-on google > de.txt
+```
+
 **Without installing anything** – straight from the live list
 
 ```bash
@@ -702,6 +709,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--discover` | search GitHub for new sources right now |
 | `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
 | `--list-sources [N]` | show the source ranking (add `--json` for scripts: url, status, hit rate, checks, last change) |
+| `--pick [N]` | print N proxies (default 1) from the hourly checked list and exit – no scan, same filters, plus `--min-uptime PERCENT` and `--works-on google,reddit,…` |
 | `--serve-host ADDR` | where the proxy server listens (default `127.0.0.1`; `0.0.0.0` for Docker, with a warning) |
 | `--serve-password SECRET` | clients must send this password in the proxy login; better set `PROXY_SCRAPER_SERVE_PASSWORD` |
 | `--rotate STRATEGY` · `--sticky SEC` | how the proxy server picks proxies, see [above](#proxy-server) |

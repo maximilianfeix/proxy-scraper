@@ -34,6 +34,7 @@ from .netio import http_get
 from .pages import SITE_URL
 from .parsing import PROXY_TYPES, make_key
 from .publish import RAW_BASE
+from .ranking import best_first
 from .server import ProxyPool, RotatingServer
 from .sites import SITES
 
@@ -180,11 +181,11 @@ def select(rows: Iterable[dict], protocol: str = "any", countries: Iterable[str]
            elite_only: bool = False, exclude_datacenter: bool = False, exclude_blocklisted: bool = False,
            stable_only: bool = False, max_latency_ms: int = 0, run_hours: int = 1, min_uptime: int = 0,
            works_on: Iterable[str] = (), min_speed_kbps: int = 0) -> List[dict]:
-    """The rows that pass every filter, fastest first – the same filters as on the website."""
-    return sorted(matching(rows, protocol, countries, https_only, elite_only, exclude_datacenter,
-                           exclude_blocklisted, stable_only, max_latency_ms, run_hours, min_uptime, works_on,
-                           min_speed_kbps),
-                  key=lambda r: r.get("latency") or 0)
+    """The rows that pass every filter, best first (answer plus download speed) – the same filters as on the
+    website."""
+    return best_first(matching(rows, protocol, countries, https_only, elite_only, exclude_datacenter,
+                               exclude_blocklisted, stable_only, max_latency_ms, run_hours, min_uptime, works_on,
+                               min_speed_kbps))
 
 
 def matching(rows: Iterable[dict], protocol: str = "any", countries: Iterable[str] = (), https_only: bool = False,

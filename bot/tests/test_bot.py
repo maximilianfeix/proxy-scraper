@@ -13,11 +13,11 @@ from proxybot.state import State
 
 STATS = {"updated": "2026-09-25T12:40:56+00:00", "total": 4, "by_type": {"http": 2, "socks4": 1, "socks5": 1},
          "https": 2, "elite": 3, "median_latency": 2119, "countries": {"US": 2, "DE": 1, "NL": 1}}
-ROWS = [
-    {"ptype": "http", "proxy": "1.1.1.1:80", "latency": 900, "country": "US", "https": True, "anonymity": "elite"},
+ROWS = [  # in the order the list is published: best first
     {"ptype": "socks5", "proxy": "2.2.2.2:1080", "latency": 120, "country": "DE", "https": True,
      "anonymity": "elite", "hosting": True, "org": "DigitalOcean, LLC", "streak": 5, "blocklisted": True},
     {"ptype": "socks4", "proxy": "3.3.3.3:4145", "latency": 400, "country": "NL", "anonymity": "elite"},
+    {"ptype": "http", "proxy": "1.1.1.1:80", "latency": 900, "country": "US", "https": True, "anonymity": "elite"},
     {"ptype": "http", "proxy": "4.4.4.4:3128", "latency": 3000, "country": "US", "anonymity": "anonymous"},
     {"ptype": "ftp", "proxy": "5.5.5.5:21", "latency": 1},             # unknown type
     {"ptype": "http", "proxy": "", "latency": 1},                      # no address
@@ -32,10 +32,19 @@ def snap():
     return parse_snapshot(STATS, ROWS, HISTORY)
 
 
-def test_parse_skips_broken_rows_and_sorts_by_latency(snap):
+def test_parse_skips_broken_rows(snap):
     assert [p.address for p in snap.proxies] == ["2.2.2.2:1080", "3.3.3.3:4145", "1.1.1.1:80", "4.4.4.4:3128"]
     assert snap.updated == datetime(2026, 9, 25, 12, 40, 56, tzinfo=timezone.utc)
     assert snap.previous_total() == 3  # the run before, not this one
+
+
+def test_the_lists_order_is_kept():
+    # the published list comes best first (answer plus download speed) – re-sorting by latency would undo that
+    rows = [{"ptype": "http", "proxy": "1.1.1.1:80", "latency": 900, "speed_kbps": 800},
+            {"ptype": "http", "proxy": "2.2.2.2:80", "latency": 100}]
+    snap = parse_snapshot(STATS, rows)
+    assert [p.address for p in snap.proxies] == ["1.1.1.1:80", "2.2.2.2:80"]
+    assert [p.address for p in select(snap.proxies)] == ["1.1.1.1:80", "2.2.2.2:80"]
 
 
 def test_filters(snap):

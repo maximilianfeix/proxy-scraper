@@ -282,10 +282,10 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
         base = list(reader.fieldnames or ["proxy"])
         writer = csv.DictWriter(dst, fieldnames=[*base, *(k for k in extra if k not in base)])
         writer.writeheader()
-        by_url = {r["url"]: r for r in rows}
-        for r in reader:
-            if is_public(r):
-                listed_row = by_url.get(r.get("url", ""), {})
+        csv_rows = {r.get("url", ""): r for r in reader if is_public(r)}
+        for listed_row in rows:  # in the order of proxies.json: best first
+            r = csv_rows.get(listed_row.get("url", ""))
+            if r is not None:
                 works = " ".join(name for name, ok in (listed_row.get("sites") or {}).items() if ok)
                 writer.writerow({**r, **{k: listed_row.get(k, "") for k in extra}, "works_with": works})
     stats = stats_for(rows, now)

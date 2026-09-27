@@ -84,8 +84,8 @@ def _time(text) -> Optional[datetime]:
 
 def parse_snapshot(stats: dict, rows: Sequence[dict], history: Optional[Sequence[dict]] = None) -> Snapshot:
     updated = datetime.fromisoformat(stats["updated"])
+    # in the list's order: it comes best first (answer plus download speed), latency alone would undo that
     proxies = [p for p in (Proxy.from_row(r) for r in rows if isinstance(r, dict)) if p]
-    proxies.sort(key=lambda p: p.latency)
     return Snapshot(updated, stats, proxies, [h for h in history or [] if isinstance(h, dict)])
 
 
@@ -122,7 +122,7 @@ def select(proxies: Iterable[Proxy], ptype: str = "", country: str = "", https: 
            and (not not_blocklisted or not p.blocklisted)
            and (not stable or p.streak >= stable_runs)
            and (not max_latency or p.latency <= max_latency)]
-    return sorted(out, key=lambda p: p.latency)
+    return out
 
 
 def pick_one(proxies: Sequence[Proxy], rng: Optional[random.Random] = None) -> Optional[Proxy]:

@@ -80,3 +80,29 @@ def test_landing_pages_list_the_best_first(tmp_path):
 
     pages.write_pages([published(1, 100), published(2, 400, speed=500)], tmp_path, datetime.now(timezone.utc))
     assert (tmp_path / "country" / "de" / "proxies.txt").read_text().splitlines()[0] == "http://10.0.0.2:80"
+
+
+def test_the_csv_comes_in_the_same_order_as_the_json(tmp_path):
+    import csv
+    import json
+
+    from proxyscraper import publish
+    from proxyscraper.output import ResultWriter
+
+    results = [CheckResult(f"http 1.1.1.{i}:80", "http", f"1.1.1.{i}:80", 100 * (i + 1), "9.9.9.9", True, "elite", "DE")
+               for i in range(3)]
+    ResultWriter(run_dir=tmp_path / "run").finalize(results)
+    rows = json.loads((tmp_path / "run" / "proxies.json").read_text())
+    rows[2]["speed_kbps"] = 900  # the slowest to answer downloads fastest
+    (tmp_path / "run" / "proxies.json").write_text(json.dumps(rows))
+    publish.publish(tmp_path / "run", tmp_path / "out", minimum=1)
+    order = [r["proxy"] for r in json.loads((tmp_path / "out" / "proxies.json").read_text())]
+    with (tmp_path / "out" / "proxies.csv").open(newline="") as fh:
+        assert [r["proxy"] for r in csv.DictReader(fh)] == order and order[0] == "1.1.1.2:80"
+
+
+def test_the_mcp_tools_list_best_first_too():
+    from proxyscraper.agent import select
+
+    rows = [published(1, 100), published(2, 400, speed=500)]
+    assert [r["proxy"] for r in select(rows)] == ["10.0.0.2:80", "10.0.0.1:80"]

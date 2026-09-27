@@ -4,8 +4,13 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.12.0] – 2026-09-27
+
 ### Added
 - A bookmarklet: drag "Get a proxy" from the website to the bookmarks bar, and one click on any page copies a proxy that was on the list in 90 %+ of this week's checks. Plus "copy a reliable one now" right on the site ([#189](https://github.com/maximilianfeix/proxy-scraper/issues/189))
+
+### Changed
+- The steps after a run (site check, speed) share their plumbing in `runsteps.py`, and nothing outside the checker touches its private TLS tunnel anymore ([#192](https://github.com/maximilianfeix/proxy-scraper/issues/192))
 
 ### Fixed
 - Website: long country names wrapped in the Countries chart, the labels share one column now
@@ -177,7 +182,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.11.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.12.0...HEAD
+[1.12.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.9.0...v1.10.0
 [1.9.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.8.1...v1.9.0

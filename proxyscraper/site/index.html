@@ -329,12 +329,11 @@
   .map { margin-top: 18px; min-height: 200px; }
   .map:has(svg) { min-height: 0; }
   .map svg { width: 100%; height: 100%; display: block; overflow: visible; }
-  .map .land { fill: var(--raised); stroke: var(--bg); stroke-width: .6; transition: fill .6s var(--ease), opacity .8s var(--ease); }
+  .map .land { fill: var(--raised); stroke: var(--bg); stroke-width: .6; transition: fill .25s var(--ease), opacity .8s var(--ease) calc(var(--d, 0) * 1ms); }
   .map .land.has { fill: color-mix(in srgb, var(--signal-ink) calc(var(--t) * 88% + 12%), var(--raised)); cursor: pointer; }
   .map .land.has:hover, .map .land.has:focus-visible { fill: var(--text); outline: none; }
   .map .land.on { fill: var(--text); }
   html.js .map.pending .land { opacity: 0; }
-  .map .land { transition-delay: calc(var(--d, 0) * 1ms); }
   .map-tip { position: absolute; pointer-events: none; background: var(--text); color: var(--bg); font-size: 14px; padding: 6px 12px;
              border-radius: 99px; white-space: nowrap; transform: translate(-50%, calc(-100% - 12px)); z-index: 2; }
   .map-legend { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); font-size: 13px; }
@@ -884,13 +883,17 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   // Count up once the number is visible
   function countTo(el, to, decimals = 0) {
     const show = (v) => { el.textContent = decimals ? v.toFixed(decimals) : fmt(Math.round(v)); };
-    if (calm) return show(to);
+    el._to = to;  // a newer run replaces the target, also while the count waits for the figure to scroll in
+    if (calm || el._counted) return show(to);
+    if (el._waiting) return;
+    el._waiting = true;
     const io = new IntersectionObserver((entries) => {
       const e = entries[0];  // from half visible – or if we already jumped past it
       if (e.intersectionRatio < 0.5 && e.boundingClientRect.top > 0) return;
       io.disconnect();
+      el._counted = true;
       const start = performance.now(), dur = 1600;
-      const step = (t) => { const k = Math.min(1, (t - start) / dur); show(to * (1 - Math.pow(2, -10 * k)) / (1 - Math.pow(2, -10))); if (k < 1) requestAnimationFrame(step); };
+      const step = (t) => { const k = Math.min(1, (t - start) / dur); show(el._to * (1 - Math.pow(2, -10 * k)) / (1 - Math.pow(2, -10))); if (k < 1) requestAnimationFrame(step); };
       requestAnimationFrame(step);
     }, { threshold: [0, 0.5] });
     io.observe(el);
@@ -1121,10 +1124,13 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   }
   // The sieve: a sped-up replay of one run. The mix of outcomes on screen is a readable sample (a real run drops
   // ~99.8 % as dead), the counters climb to the real totals, and every proxy that passes is one from this list.
+  let sieveRun = null;  // -> (rows, total) once the replay is running: a newer run swaps in its proxies
   function sieve(rows, total) {
+    if (sieveRun) return sieveRun(rows, total);
     const list = $("#sieve-rows"), box = $("#sieve"), MAX = 6;
     if (!rows.length) return;
-    const good = [...rows].sort(() => Math.random() - .5).slice(0, 60);
+    let good = [...rows].sort(() => Math.random() - .5).slice(0, 60);
+    sieveRun = (newRows, newTotal) => { if (newRows.length) good = [...newRows].sort(() => Math.random() - .5).slice(0, 60); total = newTotal; };
     const OUTCOMES = [["dead", 1, "no handshake, just an open port – or not even that"], ["dead", 1, "timed out"],
                       ["honeypot", 2, "different exit IP on the second site"], ["dead", 1, "connection refused"],
                       ["tamper", 3, "rewrote the page: injected a <script>"], ["dead", 1, "not a proxy"],
@@ -1230,6 +1236,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
         if (n) { p.setAttribute("tabindex", "0"); p.setAttribute("role", "button"); p.setAttribute("aria-label", `${countryName(cc)}: ${fmt(n)} proxies – show them`); }
         else { p.removeAttribute("tabindex"); p.removeAttribute("role"); p.removeAttribute("aria-label"); }
       });
+      void el.offsetWidth;  // let the browser see the paths at opacity 0 first, or there's nothing to fade from
       requestAnimationFrame(() => el.classList.remove("pending"));
     });
   }
@@ -1267,7 +1274,8 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     if (latest) drawMap(latest);
   }, { rootMargin: "600px" }).observe($("#map-panel"));
 
-  function apply(rows, st, history, first) {
+  let started = false;
+  function apply(rows, st, history) {
     state.rows = rows;
     shownRun = st.updated;
     RUN_HOURS = st.run_hours || 6;  // lists from before run_hours existed ran every 6 hours
@@ -1275,23 +1283,17 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     const when = new Date(st.updated).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
     $("#updated").textContent = `${fmt(st.total)} verified, updated ${ago(st.updated)}`;
     $("#updated").title = when;
-    if (first) {
-      countTo($("#n-total"), st.total);
-      countTo($("#n-https"), pct(st.https, st.total));
-      countTo($("#n-elite"), pct(st.elite, st.total));
-      countTo($("#n-lat"), st.median_latency / 1000, 1);
-      sieve(rows, st.total);
-    } else {
-      $("#n-total").textContent = fmt(st.total);
-      $("#n-https").textContent = fmt(pct(st.https, st.total));
-      $("#n-elite").textContent = fmt(pct(st.elite, st.total));
-      $("#n-lat").textContent = (st.median_latency / 1000).toFixed(1);
-    }
+    countTo($("#n-total"), st.total);
+    countTo($("#n-https"), pct(st.https, st.total));
+    countTo($("#n-elite"), pct(st.elite, st.total));
+    countTo($("#n-lat"), st.median_latency / 1000, 1);
+    sieve(rows, st.total);
+    started = true;
     $("#final-n").textContent = fmt(st.total);
     const dc = st.datacenter != null ? ` ${pct(st.datacenter, st.total)} % exit from a datacenter` : "";
     const bl = st.blocklisted != null ? `${dc ? "," : ""} ${pct(st.blocklisted, st.total)} % from an IP on a spam blocklist` : "";
     $("#step5").textContent = `HTTPS with verified TLS, anonymity, country, provider and spam blocklists. This time ${fmt(st.https)} tunnel HTTPS and ${fmt(st.elite)} are elite.${dc}${bl}${dc || bl ? "." : ""}`;
-    trend(history);
+    if (history) trend(history);  // a failed history.json on a refresh keeps the chart that's there
     const byCountry = {};
     rows.forEach(r => { if (/^[A-Z]{2}$/.test(r.country || "")) byCountry[r.country] = (byCountry[r.country] || 0) + 1; });
     const countries = Object.entries(byCountry).sort((a, b) => b[1] - a[1]);
@@ -1313,7 +1315,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   let nextTimer = 0;
   function watchNextRun(st) {
     clearInterval(nextTimer);
-    const due = Date.parse(st.updated) + (st.run_hours || 1) * 3600e3 + 6 * 60e3;  // a run takes a few minutes
+    const due = Date.parse(st.updated) + RUN_HOURS * 3600e3 + 6 * 60e3;  // a run takes a few minutes
     let polling = false;
     const tick = async () => {
       const left = Math.round((due - Date.now()) / 60e3);
@@ -1325,8 +1327,9 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       if (!fresh || fresh.updated === shownRun) return;
       const [rows, history] = await Promise.all([load("proxies.json"), load("history.json")]);
       if (!rows) return;
-      apply(rows, fresh, history, false);
-      toast(`Fresh list: ${fmt(fresh.total)} proxies from the run just now`);
+      const wasStarted = started;
+      apply(rows, fresh, history);
+      if (wasStarted) toast(`Fresh list: ${fmt(fresh.total)} proxies from the run just now`);
     };
     tick();
     nextTimer = setInterval(tick, 60e3);
@@ -1337,9 +1340,12 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       $("#rows").innerHTML = '<tr><td colspan="9" class="empty">The list could not be loaded. The plain text files under "Use it" still work.</td></tr>';
       $("#updated").textContent = "The latest run could not be loaded";
       $$(".fig .count").forEach(el => { el.textContent = "–"; });
+      $("#map").innerHTML = '<p class="note map-wait">The map needs the list, which could not be loaded. It tries again every minute.</p>';
+      RUN_HOURS = 0;
+      watchNextRun({ updated: new Date(Date.now() - 3600e3).toISOString() });  // keep trying, once a minute
       return;
     }
-    apply(rows, st, history, true);
+    apply(rows, st, history);
   });
 })();
 </script>

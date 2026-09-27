@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- Discovery also reads the source lists of other proxy scrapers (sources.json, config.toml, urls.txt …) and keeps every URL in them that really holds 20+ proxies – about 250 more sources in a test run
+
 ## [1.8.0] – 2026-09-27
 
 ### Added

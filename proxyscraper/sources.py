@@ -22,10 +22,10 @@ from collections import Counter
 from dataclasses import asdict, dataclass
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
-from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Tuple
-from urllib.parse import quote, urlencode
+from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Set, Tuple
+from urllib.parse import quote, urlencode, urlsplit
 
-from .parsing import PROXY_TYPES, TYPE_ALIASES
+from .parsing import PROXY_TYPES, TYPE_ALIASES, extract_candidates, validate_candidates
 from .paths import DATA_DIR, PACKAGE_DIR, atomic_write
 
 SOURCES_FILE = PACKAGE_DIR / "sources.json"
@@ -262,6 +262,15 @@ _FILE_GENERIC_RE = re.compile(r"(^|[/_\-.])(proxy|proxies|all)[^/]*\.txt$")
 # repos that collect VPN configs: their addresses aren't HTTP/SOCKS proxies, only dead candidates
 _REPO_REJECT_RE = re.compile(r"v2ray|vpn|xray|clash|sing-?box|nekobox|vless|vmess|subscri|config", re.I)
 MAX_FILES_PER_REPO = 12
+# the source lists of other proxy scrapers (sources.json, config.toml, urls.txt …) are full of list URLs
+_CONFIG_PATH_RE = re.compile(
+    r"(^|/)(sources?|urls?|providers?|proxy[_-]?sources?|sites|config|settings)[^/]*\.(txt|json|ya?ml|toml|py|js|ts)$",
+    re.I)
+_URL_RE = re.compile(rb"https?://[^\s\"'<>)\]}`,]+")
+_LISTISH_RE = re.compile(r"proxy|proxies|socks|\.txt$", re.I)
+MAX_CONFIGS_PER_REPO = 3
+MAX_MINED_CHECKS = 600      # URLs from those files fetched once per discovery to see whether they hold proxies
+MIN_MINED_PROXIES = 20      # ... and kept only with at least this many
 MAX_REPOS_PER_OWNER = 3  # against spam accounts with dozens of identical clone repos
 
 
@@ -290,14 +299,37 @@ def github_token() -> Optional[str]:
     return res.stdout.strip() or None
 
 
+def mined_urls(data: bytes) -> List[str]:
+    """URLs in another scraper's source file that could be proxy lists (not templates, not VPN configs)."""
+    urls = []
+    for raw in _URL_RE.findall(data):
+        url = raw.decode("utf-8", "replace").rstrip(".;:")
+        if "{" in url or "}" in url or "$" in url or _REPO_REJECT_RE.search(url):
+            continue
+        path = urlsplit(url).path.lower()
+        if not _LISTISH_RE.search(url) or _PATH_REJECT_RE.search(path) or path.endswith((".md", ".html", ".png")):
+            continue
+        url = normalize_url(url) or url
+        if url not in urls:
+            urls.append(url)
+    return urls
+
+
+def _mined_type(url: str) -> str:
+    m = _PATH_TYPE_RE.search(urlsplit(url).path.lower())
+    return TYPE_ALIASES[m[1]] if m else "auto"
+
+
 async def discover_github(
     get: Getter,
     token: Optional[str],
     max_repos: int,
     days: int = 3,
     on_progress: Optional[Callable[[str], None]] = None,
+    known: Iterable[str] = (),
 ) -> SourceMap:
-    """Looks for actively maintained proxy list repos and their list files."""
+    """Looks for actively maintained proxy list repos and their list files – and for the source lists of other
+    scrapers, whose URLs are kept if they really hold proxies. `known`: sources that needn't be tried again."""
     headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -366,15 +398,53 @@ async def discover_github(
                 if ptype:
                     files.append((entry["path"].count("/"), entry["path"], ptype))
         files.sort()  # shallow paths first – those are usually the complete lists
+        configs = sorted((e["path"].count("/"), e["path"]) for e in tree
+                         if e.get("type") == "blob" and 100 <= e.get("size", 0) <= 300_000
+                         and e["path"].count("/") <= 3 and _CONFIG_PATH_RE.search(e["path"]))
+        configs_found.extend(f"{GH_RAW}/{name}/{branch}/{quote(path)}" for _d, path in configs[:MAX_CONFIGS_PER_REPO])
         return {
             f"{GH_RAW}/{name}/{branch}/{quote(path)}": ptype
             for _depth, path, ptype in files[:MAX_FILES_PER_REPO]
         }
 
+    configs_found: List[str] = []
     found: SourceMap = {}
     for res in await asyncio.gather(*(scan(n, b) for n, b in chosen)):
         found.update(res)
+    found.update(await _mine(get, configs_found, set(known) | set(found), on_progress))
     return found
+
+
+async def _mine(get: Getter, configs: List[str], known: Set[str],
+                on_progress: Optional[Callable[[str], None]] = None) -> SourceMap:
+    """Read other scrapers' source files, then fetch each new URL once: only real proxy lists are kept."""
+    sem = asyncio.Semaphore(16)
+
+    async def fetch(url: str) -> bytes:
+        async with sem:
+            try:
+                return await get(url, timeout=15)
+            except Exception:
+                return b""
+
+    candidates: List[str] = []
+    for data in await asyncio.gather(*(fetch(u) for u in configs)):
+        for url in mined_urls(data):
+            if url not in known and url not in candidates:
+                candidates.append(url)
+    candidates = candidates[:MAX_MINED_CHECKS]
+    checked = 0
+
+    async def check(url: str) -> Optional[str]:
+        nonlocal checked
+        data = await fetch(url)
+        n = len(await asyncio.to_thread(lambda: validate_candidates(extract_candidates(data, "http")))) if data else 0
+        checked += 1
+        if on_progress and checked % 50 == 0:
+            on_progress(f"{checked}/{len(candidates)} lists from other scrapers checked")
+        return url if n >= MIN_MINED_PROXIES else None
+
+    return {url: _mined_type(url) for url in await asyncio.gather(*(check(u) for u in candidates)) if url}
 
 
 # --------------------------------------------------------------------------- #

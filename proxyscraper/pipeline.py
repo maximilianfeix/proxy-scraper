@@ -65,6 +65,7 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
             found = await srcs.discover_github(
                 http_get, token, max_repos,
                 on_progress=lambda msg: status.update(f"[bold {ACCENT}]GitHub-Discovery:[/] {msg}"),
+                known=sources,  # curated ones needn't be tried; found ones are, so they stay fresh
             )
         if found:
             srcs.save_discovered(found)

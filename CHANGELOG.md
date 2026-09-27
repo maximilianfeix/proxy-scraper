@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.13.0] – 2026-09-27
+
 ### Added
 - Website: "Why this list, not another one" – for each thing you'd want to know about a proxy, what a typical free list tells you and what this one measured in the last run, with live numbers. And an FAQ (safety, why free proxies die, updates, license, Python and AI agents) with FAQPage structured data for search engines ([#196](https://github.com/maximilianfeix/proxy-scraper/issues/196))
 
@@ -185,7 +187,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.12.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.13.0...HEAD
+[1.13.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.12.0...v1.13.0
 [1.12.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.11.0...v1.12.0
 [1.11.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.10.0...v1.11.0
 [1.10.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.9.0...v1.10.0

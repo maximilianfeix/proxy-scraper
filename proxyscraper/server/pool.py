@@ -13,6 +13,7 @@ from __future__ import annotations
 
 import random
 import re
+import statistics
 import time
 from dataclasses import dataclass
 from typing import Callable, Dict, List, Optional, Set, Tuple
@@ -24,19 +25,24 @@ STRATEGIES = ("weighted", "random", "round-robin", "fastest")
 SESSION_SECONDS = 600       # how long a session (session-…) keeps its proxy when --sticky isn't set
 _TOKEN_RE = re.compile(r"(country|type|session)[-_]([A-Za-z0-9]+)")
 PAGE_KB = 100               # roughly one page – the download the speed step measures
-UNMEASURED_KBPS = 20        # no download got through in the speed step: counted as slow (it did pass the checks)
+UNMEASURED_KBPS = 20        # tried in the speed step, no download got through: counted as slow (it passed the checks)
 
 
-def page_ms(result: CheckResult, speed_known: bool) -> float:
-    """Roughly how long a page takes through this proxy: the first answer plus the download. speed_known says
-    whether speeds were measured for this set of proxies at all – without them (an own scan), latency decides."""
-    if not speed_known:
+def page_ms(result, typical_kbps: Optional[float]) -> float:
+    """Roughly how long a page takes through this proxy: the first answer plus the download.
+
+    typical_kbps is the median measured speed of the set, None when it has no speeds at all (an own scan) – then
+    latency decides alone. The speed step only tries HTTPS-capable proxies: one of those without a speed didn't
+    get the download through, the others were never tried and count as typical."""
+    if not typical_kbps:
         return result.latency
-    return result.latency + PAGE_KB * 1000 / (result.speed_kbps or UNMEASURED_KBPS)
+    kbps = result.speed_kbps or (UNMEASURED_KBPS if result.https else typical_kbps)
+    return result.latency + PAGE_KB * 1000 / kbps
 
 
-def _speed_known(results) -> bool:
-    return any(r.speed_kbps for r in results)
+def typical_speed(results) -> Optional[float]:
+    speeds = [r.speed_kbps for r in results if r.speed_kbps]
+    return statistics.median(speeds) if speeds else None
 
 
 @dataclass(frozen=True)
@@ -74,11 +80,11 @@ class PoolEntry:
     fail_streak: int = 0
     active: int = 0
     disabled: bool = False
-    speed_known: bool = False  # set by the pool: do its proxies have measured download speeds?
+    typical_kbps: Optional[float] = None  # set by the pool: median measured speed of its proxies
 
     @property
     def cost(self) -> float:
-        return page_ms(self.result, self.speed_known)
+        return page_ms(self.result, self.typical_kbps)
 
     @property
     def weight(self) -> float:
@@ -93,8 +99,8 @@ class ProxyPool:
                  clock: Callable[[], float] = time.monotonic, strict_tls: bool = False):
         if strategy not in STRATEGIES:
             raise ValueError(f"unknown strategy {strategy!r} (possible: {', '.join(STRATEGIES)})")
-        known = _speed_known(results)
-        self.entries = sorted((PoolEntry(r, speed_known=known) for r in results), key=lambda e: e.cost)
+        typical = typical_speed(results)
+        self.entries = sorted((PoolEntry(r, typical_kbps=typical) for r in results), key=lambda e: e.cost)
         self.rng = rng or random.Random()
         self.strategy = strategy
         self.sticky_seconds = sticky_seconds
@@ -209,9 +215,9 @@ class ProxyPool:
         for r in fresh.values():
             kept.append(PoolEntry(r))
             added += 1
-        known = _speed_known(e.result for e in kept)
+        typical = typical_speed([e.result for e in kept])
         for entry in kept:
-            entry.speed_known = known
+            entry.typical_kbps = typical
         self.entries = sorted(kept, key=lambda e: e.cost)
         return added
 

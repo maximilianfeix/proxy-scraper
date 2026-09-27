@@ -20,7 +20,7 @@ def result(n, latency, speed=None, https=True):
 
 def test_a_proxy_that_downloads_fast_beats_one_that_only_answers_fast():
     quick_ping, fast_download = result(1, 100), result(2, 400, speed=500)
-    assert page_ms(fast_download, speed_known=True) < page_ms(quick_ping, speed_known=True)
+    assert page_ms(fast_download, typical_kbps=100) < page_ms(quick_ping, typical_kbps=100)
     pool = ProxyPool([quick_ping, fast_download], strategy="fastest")
     assert pool.pick(set()).result is fast_download
 
@@ -46,4 +46,13 @@ def test_live_proxies_put_the_measured_fast_ones_first(monkeypatch):
     rows = [dict(r) for r in ROWS]
     rows[0]["speed_kbps"] = 400  # socks5, latency 300 – the slowest to answer, the only one that downloaded
     monkeypatch.setattr(api, "_live_fetch", fetch_from({"proxies.json": rows, "stats.json": STATS}))
-    assert [p.url for p in live_proxies()][0] == "socks5://1.1.1.1:1080"
+    # the socks4 one answers faster but got no download through in the speed step
+    assert [p.url for p in live_proxies(https=True)] == ["socks5://1.1.1.1:1080", "socks4://3.3.3.3:4145"]
+
+
+def test_proxies_the_speed_step_never_tried_count_as_typical_not_slow():
+    # it only measures HTTPS-capable ones – a plain-HTTP-only proxy wasn't slow, it just wasn't measured
+    plain_only, measured = result(1, 50, https=False), result(2, 900, speed=100)
+    pool = ProxyPool([plain_only, measured], strategy="fastest")
+    assert pool.pick(set()).result is plain_only
+    assert pool.pick(set(), tls=True).result is measured

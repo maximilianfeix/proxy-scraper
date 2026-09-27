@@ -75,7 +75,9 @@ def main() -> int:
     urls = [p.url for p in found]
     if recheck and urls:
         print(f"Checking {len(urls)} proxies again from this runner …")
-        urls = [r.url for r in sorted(check_proxies(urls, https=filters["https"]), key=lambda r: r.latency)]
+        # in the live list's order: it's ranked by page load, the recheck only knows the first answer
+        working = {r.url for r in check_proxies(urls, https=filters["https"])}
+        urls = [u for u in urls if u in working]
     if limit:
         urls = urls[:limit]
     # a file of its own per step: a job may use the action twice (socks5 in one step, http in the next)

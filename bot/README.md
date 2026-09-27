@@ -1,4 +1,4 @@
-# Discord bot
+# Discord and Telegram bot
 
 Posts every run of the [live proxy list](https://maximilianfeix.github.io/proxy-scraper/) into a Discord server and answers slash commands. It sets up its own channels, so after inviting it there is nothing to click.
 
@@ -63,3 +63,21 @@ DISCORD_TOKEN=... .venv/bin/python -m proxybot
 | `PROXYBOT_STATE` | `state.json` | remembers which run was posted where, so restarts don't post twice |
 
 Tests: `cd bot && python -m pytest tests`
+
+## Telegram
+
+The same process can answer on Telegram too – it runs whichever bots have a token.
+
+| Command | |
+|---|---|
+| `/proxy de socks5` | one fast proxy, with a `curl` line to try it |
+| `/proxies 10 us https` | a short list, fastest first (up to 20) |
+| `/stats` | numbers of the last run |
+
+Filters come in any order: a country code, a type (`http`, `socks4`, `socks5`), `https` and a number.
+
+1. Talk to [@BotFather](https://t.me/BotFather), send `/newbot` and copy the token.
+2. Add it as the repository secret `TELEGRAM_TOKEN`. The deploy writes it next to `DISCORD_TOKEN`; either one alone is enough.
+3. Run the *discord bot* workflow by hand (or push to `bot/`) – it restarts the service with both.
+
+It uses long polling, so the server needs no open port and no webhook.

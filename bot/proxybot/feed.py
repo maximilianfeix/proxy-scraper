@@ -89,6 +89,25 @@ def parse_snapshot(stats: dict, rows: Sequence[dict], history: Optional[Sequence
     return Snapshot(updated, stats, proxies, [h for h in history or [] if isinstance(h, dict)])
 
 
+async def fetch_snapshot(session, base: str) -> "Snapshot":
+    """The live list from GitHub Pages (stats, proxies and – for the trend, if it loads – the history)."""
+    import asyncio
+
+    import aiohttp
+
+    async def get(name: str):
+        async with session.get(f"{base}/{name}") as response:
+            response.raise_for_status()
+            return await response.json(content_type=None)
+
+    stats, rows = await asyncio.gather(get("stats.json"), get("proxies.json"))
+    try:
+        history = await get("history.json")
+    except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
+        history = []  # only needed for the trend
+    return parse_snapshot(stats, rows, history if isinstance(history, list) else [])
+
+
 def select(proxies: Iterable[Proxy], ptype: str = "", country: str = "", https: bool = False, elite: bool = False,
            no_datacenter: bool = False, stable: bool = False, max_latency: int = 0,
            not_blocklisted: bool = False, stable_runs: int = 4) -> List[Proxy]:

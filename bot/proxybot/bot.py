@@ -15,7 +15,7 @@ from discord.ext import tasks
 
 from . import layout, messages
 from .config import Settings
-from .feed import TYPES, Snapshot, parse_snapshot, pick_one, select
+from .feed import TYPES, Snapshot, fetch_snapshot, pick_one, select
 from .state import State
 
 log = logging.getLogger(__name__)
@@ -106,20 +106,8 @@ class ProxyBot(discord.Client):
         await self._layout_done.wait()  # channels first, otherwise the first run has nowhere to go
 
     async def fetch(self) -> Snapshot:
-        base = self.settings.feed_url
         assert self.http_session is not None
-
-        async def get(name: str):
-            async with self.http_session.get(f"{base}/{name}") as response:
-                response.raise_for_status()
-                return await response.json(content_type=None)
-
-        stats, rows = await asyncio.gather(get("stats.json"), get("proxies.json"))
-        try:
-            history = await get("history.json")
-        except (aiohttp.ClientError, asyncio.TimeoutError, ValueError):
-            history = []  # only needed for the trend
-        return parse_snapshot(stats, rows, history if isinstance(history, list) else [])
+        return await fetch_snapshot(self.http_session, self.settings.feed_url)
 
     async def post_run(self, guild: discord.Guild, snap: Snapshot) -> None:
         async with self._post_lock:  # the watch loop and a new server joining could meet here

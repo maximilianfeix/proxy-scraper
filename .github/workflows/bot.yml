@@ -40,12 +40,13 @@ jobs:
           KEY: ${{ secrets.DEPLOY_SSH_KEY }}
           KNOWN: ${{ secrets.DEPLOY_KNOWN_HOSTS }}
           TOKEN: ${{ secrets.DISCORD_TOKEN }}
+          TELEGRAM: ${{ secrets.TELEGRAM_TOKEN }}
         run: |
           missing=""
           [ -n "$HOST" ] || missing="$missing DEPLOY_HOST"
           [ -n "$KEY" ] || missing="$missing DEPLOY_SSH_KEY"
           [ -n "$KNOWN" ] || missing="$missing DEPLOY_KNOWN_HOSTS"
-          [ -n "$TOKEN" ] || missing="$missing DISCORD_TOKEN"
+          [ -n "$TOKEN$TELEGRAM" ] || missing="$missing DISCORD_TOKEN or TELEGRAM_TOKEN"
           if [ -n "$missing" ]; then
             echo "::notice::Not deploying, secrets missing:$missing (see bot/README.md)"
             echo "ready=false" >> "$GITHUB_OUTPUT"
@@ -75,11 +76,14 @@ jobs:
              rm -rf /opt/proxybot/app.old; [ -d /opt/proxybot/app ] && mv /opt/proxybot/app /opt/proxybot/app.old;
              mv /opt/proxybot/app.new /opt/proxybot/app'
 
-      - name: Write the token
+      - name: Write the tokens
         if: steps.secrets.outputs.ready == 'true'
         env:
           TOKEN: ${{ secrets.DISCORD_TOKEN }}
-        run: printf 'DISCORD_TOKEN=%s\n' "$TOKEN" | ssh -o BatchMode=yes "$USER_AT_HOST" 'umask 077; cat > /etc/proxybot.env'
+          TELEGRAM: ${{ secrets.TELEGRAM_TOKEN }}
+        run: |
+          printf 'DISCORD_TOKEN=%s\nTELEGRAM_TOKEN=%s\n' "$TOKEN" "$TELEGRAM" \
+            | ssh -o BatchMode=yes "$USER_AT_HOST" 'umask 077; cat > /etc/proxybot.env'
 
       - name: Install and restart
         if: steps.secrets.outputs.ready == 'true'

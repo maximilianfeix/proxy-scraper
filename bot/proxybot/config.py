@@ -12,8 +12,9 @@ REPO = "https://github.com/maximilianfeix/proxy-scraper"
 
 @dataclass(frozen=True)
 class Settings:
-    token: str
+    token: str                     # Discord – empty when only the Telegram bot runs
     feed_url: str = SITE
+    telegram_token: str = ""
     state_file: Path = Path("state.json")
     poll_seconds: int = 300
     post_every_hours: float = 6  # the list runs every hour – a summary in #live-feed at most this often
@@ -21,10 +22,12 @@ class Settings:
     @classmethod
     def from_env(cls) -> "Settings":
         token = os.environ.get("DISCORD_TOKEN", "").strip()
-        if not token:
-            raise SystemExit("DISCORD_TOKEN is not set")
+        telegram = os.environ.get("TELEGRAM_TOKEN", "").strip()
+        if not token and not telegram:
+            raise SystemExit("neither DISCORD_TOKEN nor TELEGRAM_TOKEN is set")
         return cls(
             token=token,
+            telegram_token=telegram,
             feed_url=os.environ.get("PROXYBOT_FEED_URL", SITE).rstrip("/"),
             state_file=Path(os.environ.get("PROXYBOT_STATE", "state.json")),
             poll_seconds=max(60, int(os.environ.get("PROXYBOT_POLL_SECONDS", "300"))),

@@ -47,7 +47,7 @@ Most free proxy lists are 95 % dead, and a good part of the rest are honeypots o
 - [Examples](#examples)
 - [Recipes](#recipes)
 - [Rotating proxy server](#proxy-server)
-- [Discord bot](#discord-bot)
+- [Discord and Telegram bot](#discord-bot)
 - [How it works](#how-it-works)
 - [Output](#output)
 - [Options](#options)
@@ -453,9 +453,9 @@ In testing: 20 of 20 HTTPS requests succeeded, over 15 different exit IPs. In th
 
 <a id="discord-bot"></a>
 
-## Discord bot
+## Discord and Telegram bot
 
-The live list can also come to you: [`bot/`](bot/) is a Discord bot that posts every run into a server – a summary with the fastest proxies, the full lists per protocol as files, and slash commands like `/proxies type:socks5 country:DE https:true`. It sets up its own read-only channels when you invite it, and a GitHub Action deploys it to a server as a systemd service. Setup in [bot/README.md](bot/README.md).
+The live list can also come to you: [`bot/`](bot/) is a Discord bot that posts every run into a server – a summary with the fastest proxies, the full lists per protocol as files, and slash commands like `/proxies type:socks5 country:DE https:true`. It sets up its own read-only channels when you invite it, and a GitHub Action deploys it to a server as a systemd service. The same process answers on Telegram too: `/proxy de socks5` for one proxy with a curl line, `/proxies 10 us https` for a short list. Setup in [bot/README.md](bot/README.md).
 
 <a id="how-it-works"></a>
 

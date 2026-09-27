@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- A Telegram bot: `/proxy de socks5` answers with a fast proxy and a curl line to try it, `/proxies 10 us https` with a short list, `/stats` with the last run. It runs in the same process as the Discord bot, needs only a `TELEGRAM_TOKEN` secret, and uses long polling – no open port ([#187](https://github.com/maximilianfeix/proxy-scraper/issues/187))
+
 ## [1.14.0] – 2026-09-27
 
 ### Added

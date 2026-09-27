@@ -708,7 +708,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       <div class="panel"><h3>Recheck from your network</h3><p>Starts from this list and checks it again from where you are. Takes about 30 seconds, then serves a rotating proxy on port 8899.</p>
         <div class="cmd"><pre>proxy-scraper --recheck live --serve</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the recheck command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
       <div class="panel bookmarklet"><h3>One click, on any site</h3><p>Drag this button to your bookmarks bar. Clicking it copies a proxy that worked in 90&nbsp;%+ of this week's checks – on whatever page you're on, nothing to install.</p>
-        <a class="btn primary" id="bookmarklet" href="javascript:(async()=>{const%20b=&quot;https://maximilianfeix.github.io/proxy-scraper/&quot;,g=async%20f=>(await(await%20fetch(b+f,{cache:&quot;no-cache&quot;})).text()).split(&quot;%5Cn&quot;).filter(Boolean);try{let%20l=await%20g(&quot;stable.txt&quot;);if(!l.length)l=(await%20g(&quot;https.txt&quot;)).slice(0,30);if(!l.length)throw%200;const%20p=l[Math.floor(Math.random()*l.length)];try{await%20navigator.clipboard.writeText(p);alert(&quot;Copied%20a%20working%20proxy:%5Cn&quot;+p)}catch(e){prompt(&quot;A%20working%20proxy%20%E2%80%93%20copy%20it:&quot;,p)}}catch(e){alert(&quot;proxy-scraper:%20the%20list%20could%20not%20be%20loaded&quot;)}})()" title="Drag me to your bookmarks bar">Get a proxy</a>
+        <a class="btn primary" id="bookmarklet" href="javascript:(async()=>{const%20b=&quot;https://maximilianfeix.github.io/proxy-scraper/&quot;,g=async%20f=>{const%20r=await%20fetch(b+f,{cache:&quot;no-cache&quot;});if(!r.ok)throw%200;return(await%20r.text()).split(&quot;%5Cn&quot;).filter(l=>/%5E[a-z0-9]+:%5C/%5C/%5CS+%24/.test(l))};try{let%20l=await%20g(&quot;stable.txt&quot;);if(!l.length)l=(await%20g(&quot;https.txt&quot;)).slice(0,30);if(!l.length)throw%200;const%20p=l[Math.floor(Math.random()*l.length)];try{await%20navigator.clipboard.writeText(p);alert(&quot;Copied%20a%20working%20proxy:%5Cn&quot;+p)}catch(e){prompt(&quot;A%20working%20proxy%20%E2%80%93%20copy%20it:&quot;,p)}}catch(e){alert(&quot;proxy-scraper:%20the%20list%20could%20not%20be%20loaded&quot;)}})()" title="Drag me to your bookmarks bar">Get a proxy</a>
         <p class="note">Or right here: <button class="link-btn" type="button" id="pick-one">copy a reliable one now</button>.</p></div>
       </div>
       <div class="panel"><h3>Plain lists</h3><p>One proxy per line, fastest first, updated with every run.</p><div class="raw" id="raw"></div></div>
@@ -1033,7 +1033,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   $("#share").onclick = () => copy(new URL(viewUrl(), location.href).href, "Link to this view copied");
   // the same as the bookmarklet, without the round trip: a random proxy from the reliable ones in the list
   $("#pick-one").onclick = () => {
-    const pool = state.rows.filter(r => r.https && (r.uptime_7d || 0) >= 90);
+    const pool = state.rows.filter(r => (r.uptime_7d || 0) >= 90);  // exactly what stable.txt holds
     const from = pool.length ? pool : state.rows.filter(r => r.https).slice(0, 30);
     if (!from.length) return toast("The list isn't loaded yet");
     const p = from[Math.floor(Math.random() * from.length)];

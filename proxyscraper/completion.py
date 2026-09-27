@@ -1,4 +1,4 @@
-"""Tab completion for bash, zsh and fish – generated straight from the argparse parser.
+"""Tab completion for bash, zsh, fish and PowerShell – generated straight from the argparse parser.
 
 That way the script can never go stale: every new option shows up automatically, with its choices
 (--types, --rotate, …) and the start of its help text as the description (zsh, fish).
@@ -12,7 +12,7 @@ import sys
 from dataclasses import dataclass
 from typing import List, Optional, Tuple
 
-SHELLS = ("bash", "zsh", "fish")
+SHELLS = ("bash", "zsh", "fish", "powershell")
 PROG = "proxy-scraper"
 FILE_OPTIONS = {"--recheck": ("live",), "--output": ()}  # the value is a file path (or one of these words)
 OWN_HELP = {"help": "show help", "version": "show the version"}  # shorter than argparse's own texts
@@ -181,8 +181,64 @@ def fish(opts: List[Option]) -> str:
     return "\n".join(lines) + "\n"
 
 
+def _ps_quote(text: str) -> str:
+    return "'" + text.replace("'", "''") + "'"
+
+
+def powershell(opts: List[Option]) -> str:
+    """A native argument completer: options with their help as tooltip, the choices after an option (also for
+    several values in a row, --types http socks5), and PowerShell's own path completion for file options."""
+    rows = []
+    for o in opts:
+        fields = [f"Flags = @({', '.join(_ps_quote(f) for f in o.flags)})", f"Help = {_ps_quote(o.help)}",
+                  f"Choices = @({', '.join(_ps_quote(c) for c in (*o.choices, *o.extra))})",
+                  f"Value = ${str(o.takes_value).lower()}", f"Multi = ${str(o.multi).lower()}",
+                  f"File = ${str(o.is_file).lower()}"]
+        rows.append("        @{ " + "; ".join(fields) + " }")
+    table = ",\n".join(rows)
+    return f"""# PowerShell completion for {PROG}
+# enable: {PROG} --completion powershell | Out-String | Invoke-Expression   (add that line to $PROFILE)
+Register-ArgumentCompleter -Native -CommandName '{PROG}' -ScriptBlock {{
+    param($wordToComplete, $commandAst, $cursorPosition)
+    $options = @(
+{table}
+    )
+    $words = @($commandAst.CommandElements | Where-Object {{ $_.Extent.EndOffset -le $cursorPosition }} |
+               ForEach-Object {{ $_.ToString() }})
+    if ($wordToComplete -and $words.Count -gt 0 -and $words[-1] -eq $wordToComplete) {{
+        $words = @($words | Select-Object -SkipLast 1)
+    }}
+    # the last option before the cursor, and whether the cursor is right after it
+    $last = $null; $distance = 0
+    for ($i = $words.Count - 1; $i -ge 1; $i--) {{
+        if ($words[$i].StartsWith('-')) {{ $last = $options | Where-Object {{ $_.Flags -contains $words[$i] }} |
+                                          Select-Object -First 1; break }}
+        $distance++
+    }}
+    if ($last -and $last.Value -and -not $wordToComplete.StartsWith('-') -and ($distance -eq 0 -or $last.Multi)) {{
+        if ($last.Choices.Count -gt 0) {{
+            $last.Choices | Where-Object {{ $_ -like "$wordToComplete*" }} | ForEach-Object {{
+                [System.Management.Automation.CompletionResult]::new($_, $_, 'ParameterValue', $_)
+            }}
+            if ($last.File) {{  # a file works too (--recheck live or a path)
+                [System.Management.Automation.CompletionCompleters]::CompleteFilename($wordToComplete)
+            }}
+        }}
+        return  # nothing to suggest (a number, a path): PowerShell falls back to its own completion
+    }}
+    foreach ($option in $options) {{
+        foreach ($flag in $option.Flags) {{
+            if ($flag -like "$wordToComplete*") {{
+                [System.Management.Automation.CompletionResult]::new($flag, $flag, 'ParameterName', $option.Help)
+            }}
+        }}
+    }}
+}}
+"""
+
+
 def script(parser: argparse.ArgumentParser, shell: str) -> str:
-    return {"bash": bash, "zsh": zsh, "fish": fish}[shell](options(parser))
+    return {"bash": bash, "zsh": zsh, "fish": fish, "powershell": powershell}[shell](options(parser))
 
 
 class CompletionAction(argparse.Action):

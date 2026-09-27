@@ -98,11 +98,12 @@ python3 proxy_scraper.py
 
 Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) also ships a wheel you can install with `pip install <file>.whl`, and a multi-arch image (amd64/arm64) on `ghcr.io`. In the container the wizard never shows up, it runs straight away. For the proxy server use `--serve --serve-host 0.0.0.0` with `-p 127.0.0.1:8899:8899`, so the port is only open on your own machine.
 
-Tab completion for bash, zsh and fish:
+Tab completion for bash, zsh, fish and PowerShell:
 
 ```bash
 eval "$(proxy-scraper --completion zsh)"     # in ~/.zshrc (after compinit), same for bash in ~/.bashrc
 proxy-scraper --completion fish > ~/.config/fish/completions/proxy-scraper.fish
+proxy-scraper --completion powershell | Out-String | Invoke-Expression   # in $PROFILE
 ```
 
 Installed, the learned state lives in your user data folder (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` or `~/.local/share/proxy-scraper`; override with `PROXY_SCRAPER_HOME`) and results go to `./results`. Run from a clone, both stay inside the project.
@@ -691,7 +692,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `-o FILE` | also write all hits to this file; `-o -` prints them to stdout |
 | `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `singbox`, `curl` or `all` |
 | `-V`, `--version` | print the version |
-| `--completion SHELL` | print the tab completion script for bash, zsh or fish |
+| `--completion SHELL` | print the tab completion script for bash, zsh, fish or PowerShell |
 
 Everything else: `proxy-scraper --help`
 
@@ -773,10 +774,12 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 ## Roadmap
 
-What's next is tracked in the milestone [**v1.8**](../../milestone/8) – ideas and wishes are welcome as an [issue](../../issues/new/choose). During Hacktoberfest there are [beginner-friendly issues](../../issues?q=is%3Aopen+label%3Ahacktoberfest) with pointers on where to start.
+What's next is in the [open issues](../../issues) – ideas and wishes are welcome as an [issue](../../issues/new/choose). During Hacktoberfest there are [beginner-friendly issues](../../issues?q=is%3Aopen+label%3Ahacktoberfest) with pointers on where to start.
 
-- [ ] [Protocol detection on the same connection](../../issues/44)
-- [ ] [sing-box export](../../issues/113), [PowerShell completion](../../issues/114), [shareable filters on the website](../../issues/116)
+- [ ] [Measure throughput, not just latency](../../issues/140)
+- [ ] [Daily snapshots as a dataset](../../issues/143)
+
+Shipped in v1.8 and v1.9: uptime per proxy and `stable.txt`, which proxies get through to Google, Reddit and Amazon, `live_proxies()` in Python, a page per proxy with its week of checks, a weekly report, live charts in this README, shareable filters on the website, sources mined from other scrapers' lists, untyped lists tried as HTTP and SOCKS5, `--export singbox`, PowerShell completion and recipes for httpx, aiohttp and Scrapy.
 
 Shipped in [v1.7](../../milestone/7): an MCP server so AI agents get working proxies and can load pages through them, 28 new sources and a GitHub search that runs daily and keeps what it found, and a cleaner website.
 

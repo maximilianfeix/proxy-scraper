@@ -81,3 +81,37 @@ def test_zsh_script_parses(capsys, tmp_path):
     script = tmp_path / "comp.zsh"
     script.write_text(generate("zsh", capsys))
     subprocess.run(["zsh", "-n", str(script)], check=True)
+
+
+# PowerShell: runs the real completer through TabExpansion2 wherever pwsh is installed (PROXY_SCRAPER_PWSH to point
+# at a portable one)
+PWSH = __import__("os").environ.get("PROXY_SCRAPER_PWSH") or shutil.which("pwsh")
+needs_pwsh = pytest.mark.skipif(not PWSH, reason="no pwsh")
+
+
+def complete_pwsh(script_path, line):
+    code = (f". '{script_path}'; (TabExpansion2 -inputScript '{line}' -cursorColumn {len(line)})"
+            ".CompletionMatches | ForEach-Object { $_.CompletionText }")
+    out = subprocess.run([PWSH, "-NoProfile", "-NonInteractive", "-Command", code], capture_output=True, text=True,
+                         check=True).stdout
+    return [line for line in out.splitlines() if line]
+
+
+def test_powershell_script_registers_a_native_completer(capsys):
+    out = generate("powershell", capsys)
+    assert "Register-ArgumentCompleter -Native -CommandName 'proxy-scraper'" in out
+    assert "'--no-datacenter'" in out and "'round-robin'" in out
+
+
+@needs_pwsh
+def test_powershell_completes_options_and_values(capsys, tmp_path):
+    script = tmp_path / "comp.ps1"
+    script.write_text(generate("powershell", capsys))
+    assert "--types" in complete_pwsh(script, "proxy-scraper --ty")
+    from proxyscraper.server.pool import STRATEGIES
+    assert set(complete_pwsh(script, "proxy-scraper --rotate ")) == set(STRATEGIES)
+    assert complete_pwsh(script, "proxy-scraper --types http so") == ["socks4", "socks5"]  # several values
+    assert "-c" in complete_pwsh(script, "proxy-scraper -")
+    (tmp_path / "hits.txt").write_text("")
+    assert {"live", str(tmp_path / "hits.txt")} <= set(complete_pwsh(script, f"proxy-scraper --recheck {tmp_path}/")
+                                                    + complete_pwsh(script, "proxy-scraper --recheck "))

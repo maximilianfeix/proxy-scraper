@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.20.0] – 2026-09-28
+
 ### Added
 - `ProxyRotator.proxy_url()`: one local proxy address for requests, httpx, Playwright, Scrapy or curl that rotates through the live list behind the scenes – best first, with failover, HTTPS only through verified-TLS proxies, country and protocol from the rotator. `playwright_proxy()` gives the same as Playwright's proxy settings. It takes over each new hourly list by itself ([#215](https://github.com/maximilianfeix/proxy-scraper/issues/215))
 
@@ -223,7 +225,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.19.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.20.0...HEAD
+[1.20.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.18.0...v1.19.0
 [1.18.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.17.0...v1.18.0
 [1.17.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.16.0...v1.17.0

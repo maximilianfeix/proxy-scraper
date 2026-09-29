@@ -879,8 +879,9 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 What's next is in the [open issues](../../issues) – ideas and wishes are welcome as an [issue](../../issues/new/choose). During Hacktoberfest there are [beginner-friendly issues](../../issues?q=is%3Aopen+label%3Ahacktoberfest) with pointers on where to start.
 
-- [ ] [Measure throughput, not just latency](../../issues/140)
-- [ ] [Daily snapshots as a dataset](../../issues/143)
+- [ ] [Mirror the daily snapshots to a Hugging Face dataset](../../issues/188)
+
+Shipped in v1.10 to v1.21: download speed per proxy and "best first" everywhere, daily snapshots, a rotating proxy URL for requests, httpx and Playwright, `--pick` for working proxies without a scan, a proxy pool API compatible with jhao104/proxy_pool, your own lists with `--source`, a GitHub Action, a Telegram bot and an Atom feed for the weekly report.
 
 Shipped in v1.8 and v1.9: uptime per proxy and `stable.txt`, which proxies get through to Google, Reddit and Amazon, `live_proxies()` in Python, a page per proxy with its week of checks, a weekly report, live charts in this README, shareable filters on the website, sources mined from other scrapers' lists, untyped lists tried as HTTP and SOCKS5, `--export singbox`, PowerShell completion and recipes for httpx, aiohttp and Scrapy.
 

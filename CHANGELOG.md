@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- Website: a format picker next to "Copy filtered" and the downloads – `type://ip:port`, plain `ip:port`, JSON or CSV. The choice is remembered in the browser
 - A one-time hint after the second run that found proxies, pointing to the GitHub repo. Only in an interactive terminal, never in CI (`CI` set) or with `PROXY_SCRAPER_NO_STAR_HINT=1`
 - [docs/free-proxies-in-numbers.md](docs/free-proxies-in-numbers.md): what 24 hourly runs (3.6 million checks) and a week of lists found
 

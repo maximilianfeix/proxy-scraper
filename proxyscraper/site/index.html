@@ -307,6 +307,7 @@
   .list-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 20px; }
   .list-foot .count { color: var(--muted); font-size: 15px; }
   .list-foot .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .list-foot .fmt { height: 40px; }
 
   /* Route: how a proxy gets on the list */
   .route { height: 460vh; position: relative; }
@@ -649,6 +650,12 @@
         <button class="btn small" id="best" type="button" hidden title="The ones that answer quickly and download fast">Best first</button>
         <button class="btn small" id="more" type="button" hidden>Show more</button>
         <button class="btn small" id="share" type="button" title="The filters are in the address, so the link opens this exact view">Share view</button>
+        <select class="field fmt" id="fmt" aria-label="Format for copy and download" title="Format for copy and download">
+          <option value="url">type://ip:port</option>
+          <option value="plain">ip:port</option>
+          <option value="json">JSON</option>
+          <option value="csv">CSV</option>
+        </select>
         <button class="btn small" id="copy-all" type="button">Copy filtered</button>
         <button class="btn small primary" id="download" type="button">Download filtered</button>
       </div>
@@ -917,9 +924,23 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const toastEl = $("#toast");
   function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(toastEl._t); toastEl._t = setTimeout(() => toastEl.classList.remove("show"), 1800); }
   async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg); } catch (e) { toast("Copying isn't allowed here. Select the text instead."); } }
-  function download(rows, name) {
-    const blob = new Blob([rows.map(r => r.url).join("\n") + "\n"], { type: "text/plain" });
-    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: name });
+  // Copy and download in the format the viewer picked – plain ip:port is what many tools want
+  const CSV_COLS = ["proxy", "ptype", "country", "latency", "speed_kbps", "https", "anonymity", "uptime_7d", "org", "hosting", "blocklisted"];
+  const csvCell = (v) => v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+  const FORMATS = {
+    url: { ext: "txt", type: "text/plain", text: (rows) => rows.map(r => r.url).join("\n") + "\n" },
+    plain: { ext: "txt", type: "text/plain", text: (rows) => rows.map(r => r.proxy).join("\n") + "\n" },
+    json: { ext: "json", type: "application/json", text: (rows) => JSON.stringify(rows.map(({ rank, ...r }) => r), null, 1) + "\n" },
+    csv: { ext: "csv", type: "text/csv", text: (rows) => [CSV_COLS.join(","), ...rows.map(r => CSV_COLS.map(c => csvCell(r[c])).join(","))].join("\n") + "\n" },
+  };
+  const fmtSelect = $("#fmt");
+  try { const f = localStorage.getItem("format"); if (FORMATS[f]) fmtSelect.value = f; } catch (e) {}
+  fmtSelect.onchange = () => { try { localStorage.setItem("format", fmtSelect.value); } catch (e) {} };
+  const format = () => FORMATS[fmtSelect.value] || FORMATS.url;
+  function download(rows, base) {
+    const f = format();
+    const blob = new Blob([f.text(rows)], { type: f.type });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${base}.${f.ext}` });
     document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
   }
   function ago(iso) {
@@ -1136,9 +1157,9 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     th.querySelector(".sort").onclick = () => { const k = th.dataset.key; state.dir = state.sort === k ? -state.dir : 1; state.sort = k; morph(render); };
   });
   $("#rows").onclick = (e) => { const b = e.target.closest(".addr-btn"); if (b) copy(b.dataset.url, `Copied ${b.dataset.url}`); };
-  $("#copy-all").onclick = () => { const rows = filtered(); copy(rows.map(r => r.url).join("\n") + "\n", `Copied ${fmt(rows.length)} proxies`); };
-  $("#download").onclick = () => download(filtered(), "proxies.txt");
-  $("#dl-all").onclick = () => state.rows.length ? download(state.rows, "all.txt") : toast("The list is still loading");
+  $("#copy-all").onclick = () => { const rows = filtered(); copy(format().text(rows), `Copied ${fmt(rows.length)} proxies`); };
+  $("#download").onclick = () => download(filtered(), "proxies");
+  $("#dl-all").onclick = () => state.rows.length ? download(state.rows, "all") : toast("The list is still loading");
   // the transcript plays once when it comes into view
   const transcript = $("#transcript");
   if (calm || !("IntersectionObserver" in window)) transcript.classList.remove("pending");

@@ -119,7 +119,8 @@ def readme(stats: dict, counts: Dict[str, int]) -> str:
 Generated automatically by [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) with GitHub Actions.
 Every proxy here really worked in the last run – fastest first, by first answer plus the download speed measured
 right after the run.
-Browse and filter it on the [website](https://maximilianfeix.github.io/proxy-scraper/).
+Browse and filter it on the [website](https://maximilianfeix.github.io/proxy-scraper/), or get the lists alone,
+one per country too, from [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list).
 
 **Updated:** {updated} · **{num(stats["total"])} proxies** · median latency {num(stats["median_latency"])} ms
 

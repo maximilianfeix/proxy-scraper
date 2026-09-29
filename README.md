@@ -15,6 +15,7 @@
 [![License](https://img.shields.io/badge/license-MIT-D4F77A?style=flat-square&labelColor=121113)](LICENSE)
 
 <a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="https://img.shields.io/badge/Browse_the_live_list-D4F77A?style=for-the-badge&labelColor=121113" alt="Browse the live list"></a>
+<a href="https://github.com/maximilianfeix/free-proxy-list"><img src="https://img.shields.io/badge/Just_the_lists-121113?style=for-the-badge" alt="Just the lists: free-proxy-list"></a>
 <a href="#install"><img src="https://img.shields.io/badge/Install-121113?style=for-the-badge" alt="Install"></a>
 <a href="#from-python"><img src="https://img.shields.io/badge/Python_API-121113?style=for-the-badge" alt="Python API"></a>
 <a href="#mcp"><img src="https://img.shields.io/badge/MCP_server-121113?style=for-the-badge" alt="MCP server for AI agents"></a>
@@ -138,6 +139,8 @@ Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</
 ## Live proxy list
 
 Don't want to scan yourself? Every hour **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, fastest first.
+
+> **Just want the lists?** They also live in a repository of their own, **[maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)** – one list per protocol, per country and per site, updated every hour, with the numbers of the last run on the front page. Watch or star it to keep it at hand.
 
 <a href="https://maximilianfeix.github.io/proxy-scraper/"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://maximilianfeix.github.io/proxy-scraper/chart-dark.svg">
@@ -934,6 +937,7 @@ proxyscraper/
 ├── agent.py            MCP tools without the SDK: live list, filters, fetch through proxies
 ├── mcp_server.py       MCP server (proxy-scraper-mcp) for AI agents
 ├── publish.py          live list for GitHub Actions
+├── mirror.py           the same lists in their own repo (free-proxy-list)
 ├── paths.py            where state and results are stored
 ├── compat.py           differences between Unix and Windows
 ├── netio.py            small HTTP client on asyncio

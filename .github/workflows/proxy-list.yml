@@ -95,6 +95,41 @@ jobs:
           # a single commit that gets replaced every time – the history doesn't grow
           git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" proxy-list
 
+      # The lists alone in a repository of their own – easier to find and to bookmark than a branch (mirror.py).
+      # One commit per run, squashed at the start of every month so clones stay small.
+      # Needs the secret LIST_REPO_KEY, a deploy key with write access there; without it this does nothing.
+      - name: Mirror to the list repository
+        if: steps.prepare.outputs.publish == 'true'
+        continue-on-error: true
+        env:
+          LIST_REPO: maximilianfeix/free-proxy-list
+          LIST_REPO_KEY: ${{ secrets.LIST_REPO_KEY }}
+        run: |
+          if [ -z "$LIST_REPO_KEY" ]; then echo "LIST_REPO_KEY isn't set – skipped"; exit 0; fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$LIST_REPO_KEY" > ~/.ssh/list_repo && chmod 600 ~/.ssh/list_repo
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/list_repo -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          # without file contents: only the commits are needed to see when the history started
+          git clone -q --filter=blob:none "git@github.com:${LIST_REPO}.git" list-repo
+          message=$(python -m proxyscraper.mirror public list-repo --repo "$LIST_REPO")
+          cd list-repo
+          git config user.name "Maxi"
+          git config user.email "223365242+maximilianfeix@users.noreply.github.com"
+          git add -A
+          if git diff --cached --quiet; then echo "nothing changed"; exit 0; fi
+          started=$(git log --reverse --format=%cd --date=format:%Y-%m | head -n 1)
+          if [ -n "$started" ] && [ "$started" != "$(date -u +%Y-%m)" ]; then
+            git checkout -q --orphan fresh
+            git commit -q -m "$message"
+            git branch -M main
+            git push -q -f origin main
+            echo "new month – history squashed"
+          else
+            git commit -q -m "$message"
+            git push -q origin main
+          fi
+          echo "pushed: $message"
+
       # Once a day the list is kept for good: a gzipped proxies.json as an asset of that year's snapshot release
       # (a release holds at most 1,000 files), for anyone who wants to look at free proxies over time.
       - name: Daily snapshot

@@ -41,6 +41,7 @@ from .judges import JudgeProbe, JudgeWatch, rank_judges
 from .netio import INSECURE_HOSTS, http_get
 from .options import STDOUT, RunOptions
 from .output import ResultWriter, latest_results
+from .pages import REPO_URL
 from .parsing import PROXY_TYPES, parse_keys, split_key
 from .paths import is_checkout
 from .pipeline import (
@@ -53,6 +54,7 @@ from .pipeline import (
     run_checks,
     scrape,
 )
+from .preferences import star_hint_due
 from .publish import RAW_BASE
 from .server import ProxyPool, RotatingServer
 from .targets import Target, parse_target
@@ -591,6 +593,9 @@ class Run:
             note(f"{fmt(stats.blocklisted)} of {fmt(len(run.results))} hits ({share}) "
                  "exit from an IP on the SpamCop blocklist – sites that use it show captchas or block them. "
                  "Only the others: --no-blocklisted", MUTED, "ℹ")
+        if kept and opts.output != STDOUT and widgets.console.is_terminal and star_hint_due():
+            note("Found what you needed? A star on GitHub is how others find this: "
+                 f"[link={REPO_URL}]{REPO_URL}[/link] [{MUTED}](shown once)[/]", ACCENT, "★")
         if run.reached_goal:
             note(f"Goal of {fmt(opts.want)} hits reached – stopped early.", GOOD, "✔")
         elif run.interrupted:

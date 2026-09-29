@@ -28,6 +28,8 @@
 
 Most free proxy lists are 95 % dead, and a good part of the rest are honeypots or proxies that inject scripts into your pages. **proxy-scraper** collects public HTTP, SOCKS4 and SOCKS5 proxies from 700+ sources and keeps only the ones that pass every check. It learns with every run which sources are worth it, and it can turn the result into a single rotating proxy.
 
+**In numbers:** in one day it checked 3.6 million free proxies – 1.1 % worked, and more than half of the ones that answered failed a second request. [What's actually out there →](docs/free-proxies-in-numbers.md)
+
 <picture>
   <source media="(prefers-color-scheme: dark)" srcset="docs/checks-dark.svg">
   <source media="(prefers-color-scheme: light)" srcset="docs/checks-light.svg">
@@ -107,7 +109,7 @@ proxy-scraper --completion fish > ~/.config/fish/completions/proxy-scraper.fish
 proxy-scraper --completion powershell | Out-String | Invoke-Expression   # in $PROFILE
 ```
 
-Installed, the learned state lives in your user data folder (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` or `~/.local/share/proxy-scraper`; override with `PROXY_SCRAPER_HOME`) and results go to `./results`. Run from a clone, both stay inside the project.
+Installed, the learned state lives in your user data folder (`~/Library/Application Support/proxy-scraper`, `%LOCALAPPDATA%\proxy-scraper` or `~/.local/share/proxy-scraper`; override with `PROXY_SCRAPER_HOME`) and results go to `./results`. Run from a clone, both stay inside the project. After the second run that finds proxies it asks once for a GitHub star; `PROXY_SCRAPER_NO_STAR_HINT=1` turns that off (it never shows in CI).
 
 </details>
 

@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.22.0] – 2026-09-29
+
 ### Added
 - Website: a format picker next to "Copy filtered" and the downloads – `type://ip:port`, plain `ip:port`, JSON or CSV. The choice is remembered in the browser
 - A one-time hint after the second run that found proxies, pointing to the GitHub repo. Only in an interactive terminal, never in CI (`CI` set) or with `PROXY_SCRAPER_NO_STAR_HINT=1`
@@ -239,7 +241,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.21.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.22.0...HEAD
+[1.22.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.21.0...v1.22.0
 [1.21.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.19.0...v1.20.0
 [1.19.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.18.0...v1.19.0

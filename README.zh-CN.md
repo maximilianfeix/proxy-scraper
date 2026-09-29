@@ -50,6 +50,12 @@ proxy-scraper
 
 PyPI 上的包名是 `proxy-scraper-cli`，命令是 `proxy-scraper`。支持 Python 3.9–3.13，macOS、Linux 和 Windows 均可运行，只依赖 `rich` 和 `certifi`。
 
+macOS 和 Linux 也可以用 [Homebrew](https://brew.sh) 安装：
+
+```bash
+brew install maximilianfeix/tap/proxy-scraper
+```
+
 在国内下载较慢时，可以使用 PyPI 镜像：
 
 ```bash

@@ -76,6 +76,14 @@ proxy-scraper
 
 The package is called `proxy-scraper-cli` on PyPI (the plain name is taken), the command is `proxy-scraper`.
 
+**With [Homebrew](https://brew.sh)** on macOS and Linux:
+
+```bash
+brew install maximilianfeix/tap/proxy-scraper
+```
+
+The formula follows each release within about a day.
+
 <details>
 <summary><b>Other ways: Docker, pip, a faster event loop, or straight from the repo</b></summary>
 <br>

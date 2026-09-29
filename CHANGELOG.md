@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed
+- Website: the proxy table fits the page from 360 px phones to wide screens. Before, the provider column sat behind a sideways scroll even at 1440 px, and on phones the latency was cut off. Narrower screens drop the least needed columns (provider, then HTTPS and "Gets through", then speed), and "Gets through" shows two sites and a "+N" count so rows stay one line high
+
 ## [1.21.0] – 2026-09-28
 
 ### Added

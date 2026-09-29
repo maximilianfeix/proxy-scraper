@@ -288,16 +288,22 @@
   .stable-badge { color: var(--signal-ink); font-weight: 500; }
   .sites { display: inline-flex; gap: 4px; }
   .site { font-size: 12px; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--text); white-space: nowrap; }
+  .site.more { color: var(--muted); }
   .th-plain { display: block; padding: 16px 18px; }
   .uptime { display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
   .meter { width: 32px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
   .meter::after { content: ""; display: block; height: 100%; width: var(--v); background: var(--signal-ink); border-radius: inherit; }
-  .provider { max-width: 240px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+  .provider { max-width: 160px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
   .icon-btn { width: 34px; height: 34px; border-radius: 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; display: inline-grid; place-items: center;
               transition: background-color .25s, color .25s; }
   .icon-btn:hover { background: var(--line); color: var(--text); }
   .icon-btn svg { width: 16px; height: 16px; }
   .empty { padding: 64px 24px; text-align: center; color: var(--muted); }
+  /* The table fits the page from phone to desktop instead of hiding columns behind a sideways scroll */
+  @media (max-width: 1300px) { td { padding: 13px 12px; } .sort, .th-plain { padding: 16px 12px; } }
+  @media (max-width: 1100px) { th:nth-child(9), td:nth-child(9) { display: none; } .addr-btn svg { display: none; } }
+  @media (max-width: 960px) { th:nth-child(6), td:nth-child(6), th:nth-child(8), td:nth-child(8) { display: none; } }
+  @media (max-width: 800px) { th:nth-child(5), td:nth-child(5) { display: none; } }
   .list-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 20px; }
   .list-foot .count { color: var(--muted); font-size: 15px; }
   .list-foot .actions { display: flex; gap: 10px; flex-wrap: wrap; }
@@ -474,12 +480,14 @@
     .route-svg .gate-label { font-size: 19px; }
     .filters { position: static; }
     .t-type .name, th .name { display: none; }
-    .addr-btn { font-size: 13.5px; }
+    table { font-size: 13.5px; }
+    .addr-btn { font-size: 12.5px; gap: 0; }
     .addr-btn svg { display: none; }
-    .sort { padding: 14px 9px; }
-    th:first-child .sort { padding-left: 16px; }
-    td { padding-inline: 9px; }
-    td:first-child { padding-left: 16px; }
+    .detail { margin-left: 0; width: 22px; }
+    .sort { padding: 14px 6px; }
+    th:first-child .sort { padding-left: 14px; }
+    td { padding-inline: 6px; }
+    td:first-child { padding-left: 14px; }
     .steps { min-height: 17em; }
     .gh .label, .gh .star-count { display: none; }
     .gh { padding: 0; width: 36px; justify-content: center; }
@@ -490,6 +498,7 @@
     .hide-sm { display: none; }
     .btn { height: 48px; padding: 0 20px; }
   }
+  @media (max-width: 380px) { .addr-btn { font-size: 11.5px; } td { padding-inline: 4px; } }
   @media (prefers-reduced-motion: reduce) {
     html.js .transcript.pending p { opacity: 1; transform: none; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -867,7 +876,10 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   const SITE_NAMES = { google: "Google", reddit: "Reddit", amazon: "Amazon", instagram: "Instagram", tiktok: "TikTok" };
   const through = (r) => {
     const ok = Object.keys(SITE_NAMES).filter(k => (r.sites || {})[k] === true);
-    return ok.length ? `<span class="sites">${ok.map(k => `<span class="site">${SITE_NAMES[k]}</span>`).join("")}</span>` : '<span class="quiet">–</span>';
+    if (!ok.length) return '<span class="quiet">–</span>';
+    // two chips and a count keep the column one line high; the title lists them all
+    const names = ok.map(k => SITE_NAMES[k]), more = names.length - 2;
+    return `<span class="sites" title="Gets through to ${names.join(", ")}">${names.slice(0, 2).map(n => `<span class="site">${n}</span>`).join("")}${more > 0 ? `<span class="site more">+${more}</span>` : ""}</span>`;
   };
   const speed = (k) => !k ? '<span class="quiet">–</span>'
     : `<span class="${k >= 500 ? "fast" : k >= 100 ? "mid" : "slow"}">${k >= 1024 ? (k / 1024).toFixed(1) + " MB/s" : fmt(k) + " KB/s"}</span>`;

@@ -79,16 +79,17 @@ def urls(rows):
     return [r["url"] for r in rows]
 
 
-def test_select_filters_and_sorts_fastest_first():
-    assert urls(agent.select(ROWS))[:2] == ["socks5://1.1.1.2:80", "http://1.1.1.3:80"]
+def test_select_filters_and_sorts_best_first():
+    # the one listed for 30 runs first, then the fastest of the new ones
+    assert urls(agent.select(ROWS))[:2] == ["http://1.1.1.5:80", "socks5://1.1.1.2:80"]
     assert urls(agent.select(ROWS, protocol="socks5")) == ["socks5://1.1.1.2:80"]
     assert set(urls(agent.select(ROWS, countries=["us"]))) == {"http://1.1.1.3:80"}  # case doesn't matter
     assert "http://1.1.1.3:80" not in urls(agent.select(ROWS, https_only=True))
     assert "socks4://1.1.1.4:80" not in urls(agent.select(ROWS, elite_only=True))
     assert "socks4://1.1.1.4:80" not in urls(agent.select(ROWS, exclude_datacenter=True))
     assert "http://1.1.1.5:80" not in urls(agent.select(ROWS, exclude_blocklisted=True))
-    assert urls(agent.select(ROWS, max_latency_ms=150)) == ["socks5://1.1.1.2:80", "http://1.1.1.3:80",
-                                                            "socks4://1.1.1.4:80", "http://1.1.1.5:80"]
+    assert urls(agent.select(ROWS, max_latency_ms=150)) == ["http://1.1.1.5:80", "socks5://1.1.1.2:80",
+                                                            "http://1.1.1.3:80", "socks4://1.1.1.4:80"]
 
 
 def test_stable_means_listed_for_24_hours_whatever_the_interval():

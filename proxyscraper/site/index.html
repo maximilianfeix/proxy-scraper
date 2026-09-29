@@ -607,7 +607,7 @@
   <section class="block wrap" id="list" aria-labelledby="list-title">
     <div class="head-row">
       <h2 class="h2" id="list-title">Pick your proxies</h2>
-      <p class="intro-text">Best first: the ones that answer quickly and download fast. Filter, sort, then copy or download exactly the ones you need. Click any address to copy it.</p>
+      <p class="intro-text">Best first: the ones that answer quickly, download fast and are likely to still be up. Filter, sort, then copy or download exactly the ones you need. Click any address to copy it.</p>
     </div>
     <div class="filters" role="group" aria-label="Filters">
       <button class="chip" type="button" data-type="http" aria-pressed="true"><span class="dot http"></span>HTTP</button>
@@ -647,7 +647,7 @@
     <div class="list-foot">
       <span class="count" id="count" aria-live="polite"></span>
       <div class="actions">
-        <button class="btn small" id="best" type="button" hidden title="The ones that answer quickly and download fast">Best first</button>
+        <button class="btn small" id="best" type="button" hidden title="The ones that answer quickly, download fast and are likely to still be up">Best first</button>
         <button class="btn small" id="more" type="button" hidden>Show more</button>
         <button class="btn small" id="share" type="button" title="The filters are in the address, so the link opens this exact view">Share view</button>
         <select class="field fmt" id="fmt" aria-label="Format for copy and download" title="Format for copy and download">
@@ -1389,7 +1389,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
 
   let started = false;
   function apply(rows, st, history) {
-    rows.forEach((r, i) => { r.rank = i; });  // proxies.json comes best first: first answer plus download speed
+    rows.forEach((r, i) => { r.rank = i; });  // proxies.json comes best first: first answer plus download speed, weighted by the chance it's still up
     state.rows = rows;
     shownRun = st.updated;
     RUN_HOURS = st.run_hours || 6;  // lists from before run_hours existed ran every 6 hours

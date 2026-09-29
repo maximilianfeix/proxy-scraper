@@ -138,7 +138,7 @@ Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</
 
 ## Live proxy list
 
-Don't want to scan yourself? Every hour **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, fastest first.
+Don't want to scan yourself? Every hour **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, best first: fast ones that are likely to still be up come on top.
 
 > **Just want the lists?** They also live in a repository of their own, **[maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)** – one list per protocol, per country and per site, updated every hour, with the numbers of the last run on the front page. Watch or star it to keep it at hand.
 
@@ -281,7 +281,7 @@ Started without arguments, the tool asks what you need using the arrow keys – 
 <td valign="top">
 
 **Real verification**<br>
-Every hit has to fetch two independent pages – that weeds out **honeypots** that only answer check requests (in some runs 5 out of 6 “hits”). A third request catches proxies that **tamper with content**: in our measurements one in five working proxies injected a script into a plain HTML page. Plus: HTTPS through a tunnel with **verified TLS**, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
+Every hit has to fetch two independent pages – that weeds out **honeypots** that only answer check requests: over 3.6 million checks, 54 % of the proxies that answered the first request failed the second. A third request catches proxies that **tamper with content**: about one in 40 working proxies changed a known page, usually by injecting a script ([the numbers](docs/free-proxies-in-numbers.md)). Plus: HTTPS through a tunnel with **verified TLS**, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
 
 </td>
 <td valign="top">
@@ -329,7 +329,7 @@ macOS, Linux and Windows, Python 3.9 to 3.14. Only two dependencies: `rich` and 
 <td valign="top">
 
 **Thoroughly tested**<br>
-450+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11, 3.13 and 3.14.
+760+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11, 3.13 and 3.14.
 
 </td>
 </tr>

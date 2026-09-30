@@ -42,4 +42,9 @@ ruff check .
 
 Maintainers bump `__version__` in `proxyscraper/__init__.py`, update `CHANGELOG.md` and push a `vX.Y.Z` tag – the release workflow does the rest.
 
+The daily snapshot workflow can also mirror its data to a Hugging Face dataset. Create the dataset repository, set
+`HF_DATASET_REPO` (for example `owner/proxy-scraper-snapshots`) as a GitHub Actions repository variable, and add a
+fine-grained write token scoped to that dataset as the `HF_TOKEN` repository secret. The workflow uploads one Parquet
+file per UTC day and includes a `snapshot_date` column in every row.
+
 By contributing you agree that your work is released under the [MIT License](LICENSE) and that you follow the [Code of Conduct](CODE_OF_CONDUCT.md).

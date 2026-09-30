@@ -133,6 +133,7 @@ jobs:
       # Once a day the list is kept for good: a gzipped proxies.json as an asset of that year's snapshot release
       # (a release holds at most 1,000 files), for anyone who wants to look at free proxies over time.
       - name: Daily snapshot
+        id: snapshot
         if: steps.prepare.outputs.publish == 'true'
         continue-on-error: true
         env:
@@ -151,3 +152,79 @@ jobs:
             gh release upload "$release" "$name"
             echo "uploaded $name ($(wc -c < "$name") bytes)"
           fi
+
+      # The owner creates the dataset once, then sets HF_DATASET_REPO as a repository variable and a
+      # fine-grained write token as the HF_TOKEN secret. Parquet lets the Hub expose the snapshots directly.
+      - name: Mirror the daily snapshot to Hugging Face
+        if: steps.prepare.outputs.publish == 'true' && steps.snapshot.outcome == 'success'
+        continue-on-error: true
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HF_DATASET_REPO: ${{ vars.HF_DATASET_REPO }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_DATASET_REPO" ] || [ -z "$HF_TOKEN" ]; then
+            echo "::notice::Set HF_DATASET_REPO and HF_TOKEN to enable the Hugging Face snapshot mirror"
+            exit 0
+          fi
+
+          day="$(date -u +%F)"
+          year="${day%%-*}"
+          release="snapshots-$year"
+          snapshot="proxies-$day.json.gz"
+          parquet="proxies-$day.parquet"
+          target="data/$year/$parquet"
+
+          python -m pip install --quiet "huggingface_hub>=0.34,<3"
+          if python - "$target" <<'PY'
+          import os
+          import sys
+
+          from huggingface_hub import HfApi
+
+          exists = HfApi(token=os.environ["HF_TOKEN"]).file_exists(
+              repo_id=os.environ["HF_DATASET_REPO"],
+              filename=sys.argv[1],
+              repo_type="dataset",
+          )
+          raise SystemExit(0 if exists else 1)
+          PY
+          then
+            echo "$target is already on Hugging Face"
+            exit 0
+          fi
+
+          gh release download "$release" --pattern "$snapshot" --output "$RUNNER_TEMP/$snapshot"
+          python -m pip install --quiet "pyarrow>=18,<24"
+          python - "$RUNNER_TEMP/$snapshot" "$RUNNER_TEMP/$parquet" "$day" <<'PY'
+          import gzip
+          import json
+          import sys
+
+          import pyarrow as pa
+          import pyarrow.parquet as pq
+
+          def parquet_value(value):
+              if isinstance(value, dict):
+                  return {key: parquet_value(item) for key, item in value.items()} or None
+              if isinstance(value, list):
+                  return [parquet_value(item) for item in value]
+              return value
+
+          source, destination, snapshot_date = sys.argv[1:]
+          with gzip.open(source, "rt", encoding="utf-8") as handle:
+              rows = json.load(handle)
+          rows = [parquet_value({**row, "snapshot_date": snapshot_date}) for row in rows]
+          pq.write_table(pa.Table.from_pylist(rows), destination, compression="zstd")
+          print(f"wrote {destination} with {len(rows):,} rows")
+          PY
+
+          for attempt in 1 2 3; do
+            if hf upload "$HF_DATASET_REPO" "$RUNNER_TEMP/$parquet" "$target" --repo-type dataset \
+                --commit-message "Add snapshot $day"; then
+              exit 0
+            fi
+            echo "::warning::Hugging Face upload attempt $attempt failed"
+            sleep $((attempt * 5))
+          done
+          exit 1

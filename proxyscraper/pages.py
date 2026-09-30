@@ -23,18 +23,23 @@ SITEMAP_MIN = 3  # countries with fewer proxies still get their page, but aren't
 
 # every country here always gets a page, so its URL never disappears between runs (empty ones say so)
 COUNTRIES = {
-    "AE": "the United Arab Emirates", "AR": "Argentina", "AT": "Austria", "AU": "Australia", "BD": "Bangladesh",
-    "BE": "Belgium", "BG": "Bulgaria", "BR": "Brazil", "CA": "Canada", "CH": "Switzerland", "CL": "Chile",
-    "CN": "China", "CO": "Colombia", "CZ": "Czechia", "DE": "Germany", "DK": "Denmark", "EC": "Ecuador",
-    "EE": "Estonia", "EG": "Egypt", "ES": "Spain", "FI": "Finland", "FR": "France", "GB": "the United Kingdom",
-    "GR": "Greece", "HK": "Hong Kong", "HR": "Croatia", "HU": "Hungary", "ID": "Indonesia", "IE": "Ireland",
-    "IL": "Israel", "IN": "India", "IQ": "Iraq", "IR": "Iran", "IT": "Italy", "JP": "Japan", "KE": "Kenya",
-    "KH": "Cambodia", "KR": "South Korea", "KZ": "Kazakhstan", "LT": "Lithuania", "LV": "Latvia", "MA": "Morocco",
-    "MX": "Mexico", "MY": "Malaysia", "NG": "Nigeria", "NL": "the Netherlands", "NO": "Norway", "NP": "Nepal",
-    "NZ": "New Zealand", "PE": "Peru", "PH": "the Philippines", "PK": "Pakistan", "PL": "Poland", "PT": "Portugal",
-    "RO": "Romania", "RS": "Serbia", "RU": "Russia", "SA": "Saudi Arabia", "SE": "Sweden", "SG": "Singapore",
-    "TH": "Thailand", "TR": "Turkey", "TW": "Taiwan", "UA": "Ukraine", "US": "the United States",
-    "VE": "Venezuela", "VN": "Vietnam", "ZA": "South Africa",
+    "AE": "the United Arab Emirates", "AL": "Albania", "AR": "Argentina", "AT": "Austria", "AU": "Australia",
+    "AZ": "Azerbaijan", "BD": "Bangladesh", "BE": "Belgium", "BF": "Burkina Faso", "BG": "Bulgaria",
+    "BI": "Burundi", "BM": "Bermuda", "BR": "Brazil", "CA": "Canada", "CH": "Switzerland", "CL": "Chile",
+    "CN": "China", "CO": "Colombia", "CY": "Cyprus", "CZ": "Czechia", "DE": "Germany", "DK": "Denmark",
+    "EC": "Ecuador", "EE": "Estonia", "EG": "Egypt", "ES": "Spain", "FI": "Finland", "FR": "France",
+    "GB": "the United Kingdom", "GH": "Ghana", "GR": "Greece", "HK": "Hong Kong", "HN": "Honduras",
+    "HR": "Croatia", "HU": "Hungary", "ID": "Indonesia", "IE": "Ireland", "IL": "Israel", "IN": "India",
+    "IQ": "Iraq", "IR": "Iran", "IT": "Italy", "JP": "Japan", "KE": "Kenya", "KH": "Cambodia",
+    "KR": "South Korea", "KZ": "Kazakhstan", "LR": "Liberia", "LT": "Lithuania", "LU": "Luxembourg",
+    "LV": "Latvia", "MA": "Morocco", "MD": "Moldova", "MK": "North Macedonia", "ML": "Mali",
+    "MO": "Macao", "MX": "Mexico", "MY": "Malaysia", "MZ": "Mozambique", "NE": "Niger", "NG": "Nigeria",
+    "NL": "the Netherlands", "NO": "Norway", "NP": "Nepal", "NZ": "New Zealand", "PE": "Peru",
+    "PH": "the Philippines", "PK": "Pakistan", "PL": "Poland", "PT": "Portugal", "PY": "Paraguay",
+    "RO": "Romania", "RS": "Serbia", "RU": "Russia", "SA": "Saudi Arabia", "SC": "Seychelles",
+    "SE": "Sweden", "SG": "Singapore", "SI": "Slovenia", "SK": "Slovakia", "SN": "Senegal",
+    "SY": "Syria", "TH": "Thailand", "TR": "Turkey", "TW": "Taiwan", "UA": "Ukraine",
+    "US": "the United States", "VE": "Venezuela", "VN": "Vietnam", "ZA": "South Africa",
 }
 
 Filter = Callable[[dict], bool]

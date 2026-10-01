@@ -10,7 +10,7 @@
 [![Release](https://img.shields.io/github/v/release/maximilianfeix/proxy-scraper?style=flat-square&color=D4F77A&labelColor=121113)](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
 [![Live proxies](https://img.shields.io/endpoint?url=https%3A%2F%2Fraw.githubusercontent.com%2Fmaximilianfeix%2Fproxy-scraper%2Fproxy-list%2Fbadges%2Ftotal.json&style=flat-square&labelColor=121113)](#live-list)
 [![PyPI](https://img.shields.io/pypi/v/proxy-scraper-cli?style=flat-square&color=D4F77A&labelColor=121113&label=pypi)](https://pypi.org/project/proxy-scraper-cli/)
-[![Python](https://img.shields.io/badge/python-3.9–3.13-D4F77A?style=flat-square&labelColor=121113)](pyproject.toml)
+[![Python](https://img.shields.io/badge/python-3.9–3.14-D4F77A?style=flat-square&labelColor=121113)](pyproject.toml)
 [![Stars](https://img.shields.io/github/stars/maximilianfeix/proxy-scraper?style=flat-square&color=D4F77A&labelColor=121113)](https://github.com/maximilianfeix/proxy-scraper/stargazers)
 [![License](https://img.shields.io/badge/license-MIT-D4F77A?style=flat-square&labelColor=121113)](LICENSE)
 
@@ -323,13 +323,13 @@ Speed chart, latency histogram, protocols, countries and the latest hits in real
 <td valign="top">
 
 **Runs everywhere**<br>
-macOS, Linux and Windows, Python 3.9 to 3.13. Only two dependencies: `rich` and `certifi`. It even notices when a firewall blocks proxies.
+macOS, Linux and Windows, Python 3.9 to 3.14. Only two dependencies: `rich` and `certifi`. It even notices when a firewall blocks proxies.
 
 </td>
 <td valign="top">
 
 **Thoroughly tested**<br>
-450+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11 and 3.13.
+450+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11, 3.13 and 3.14.
 
 </td>
 </tr>

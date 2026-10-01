@@ -35,6 +35,19 @@ def test_mirror_writes_lists_countries_and_readme(tmp_path):
     assert "🇩🇪 Germany | 3 |" in readme
     assert "2026-09-24 18:00 UTC" in readme and "github.com/maximilianfeix/proxy-scraper" in readme
 
+    # check that new headings are present in the Quick start section
+    assert "### Python" in readme
+    assert "### Node.js" in readme
+    assert "### Go" in readme
+    assert "### curl" in readme
+
+    # check key contents of the new examples
+    assert "dispatcher: new ProxyAgent(proxy.trim())" in readme
+    assert "signal: AbortSignal.timeout(10_000)" in readme
+    assert "Timeout:   10 * time.Second" in readme
+    assert "Proxy: http.ProxyURL(proxyURL)" in readme
+    assert 'curl -x "$(curl -sL' in readme and 'socks5.txt | head -n 1)" https://api.ipify.org' in readme
+
 
 def test_mirror_drops_countries_that_are_gone_and_keeps_foreign_files(tmp_path):
     out = tmp_path / "list"

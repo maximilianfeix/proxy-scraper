@@ -131,4 +131,4 @@ Some things look like obvious improvements and turned out not to be. The numbers
 
 ## Testing
 
-Everything runs offline: `tests/fakes.py` has real HTTP, SOCKS4 and SOCKS5 proxies, honeypots, login-protected proxies and target sites on `localhost`. Network code is tested against those, not against mocks of our own functions. CI runs the suite on Linux, macOS and Windows with Python 3.9, 3.11 and 3.13, builds the package, and does a real scan inside the Docker image.
+Everything runs offline: `tests/fakes.py` has real HTTP, SOCKS4 and SOCKS5 proxies, honeypots, login-protected proxies and target sites on `localhost`. Network code is tested against those, not against mocks of our own functions. CI runs the suite on Linux, macOS and Windows with Python 3.9, 3.11, 3.13 and 3.14, builds the package, and does a real scan inside the Docker image.

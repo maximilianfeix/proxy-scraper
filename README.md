@@ -323,13 +323,13 @@ Speed chart, latency histogram, protocols, countries and the latest hits in real
 <td valign="top">
 
 **Runs everywhere**<br>
-macOS, Linux and Windows, Python 3.9 to 3.13. Only two dependencies: `rich` and `certifi`. It even notices when a firewall blocks proxies.
+macOS, Linux and Windows, Python 3.9 to 3.14. Only two dependencies: `rich` and `certifi`. It even notices when a firewall blocks proxies.
 
 </td>
 <td valign="top">
 
 **Thoroughly tested**<br>
-450+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11 and 3.13.
+450+ tests run offline against real mini proxies and honeypots on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11, 3.13 and 3.14.
 
 </td>
 </tr>

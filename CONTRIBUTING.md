@@ -28,7 +28,7 @@ ruff check .
 
 - **Tests run without internet.** They start real mini proxies, honeypots and target sites on `localhost` (see `tests/`). New checks or handshakes should come with a test like that.
 - **UI changes:** attach a screenshot, and regenerate the README images with `python3 docs/make_demo.py`.
-- **Python 3.9 compatible:** CI runs 3.9, 3.11 and 3.13 on Linux, macOS and Windows.
+- **Python 3.9 compatible:** CI runs 3.9, 3.11, 3.13 and 3.14 on Linux, macOS and Windows.
 - **Dependencies:** the runtime only needs `rich` and `certifi`. Please discuss new ones in an issue first.
 - Everything is in English: UI text, code, comments, commits and pull requests.
 

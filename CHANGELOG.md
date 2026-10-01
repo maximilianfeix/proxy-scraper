@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- Python 3.14 support: tested in CI on Linux, macOS and Windows ([#229](https://github.com/maximilianfeix/proxy-scraper/issues/229))
 - The hourly lists in a repository of their own: [maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) – every protocol, HTTPS, elite, stable, the big sites and now one list per country (`countries/de.txt`), plus JSON and CSV, with the numbers of the last run on its README. `proxyscraper/mirror.py` builds it after `publish.py`; the workflow pushes one commit per run and squashes the history at the start of every month. Without the `LIST_REPO_KEY` secret (forks) the step does nothing
 - The README on the `proxy-list` branch links to it
 

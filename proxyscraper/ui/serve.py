@@ -70,6 +70,8 @@ class ServeDashboard:
         usage.add_row("One country", Text(f"curl -x http://country-de:{pw}@{address} https://api.ipify.org"))
         usage.add_row("Fixed session", Text(f"curl -x http://session-abc:{pw}@{address} …  (keeps the same proxy)"))
         usage.add_row("Terminal", Text(f"export http_proxy=http://{login}{address} https_proxy=http://{login}{address}"))
+        usage.add_row("Dashboard", Text(f"http://{'any:' + pw + '@' if server.password else ''}"
+                                        f"{address}/__proxy-scraper/", style="bold"))
         usage.add_row("Status (JSON)", Text(f"curl {'-u any:' + pw + ' ' if server.password else ''}"
                                             f"http://{address}/__proxy-scraper/status"))
         usage.add_row("Prometheus", Text(f"http://{'any:' + pw + '@' if server.password else ''}"

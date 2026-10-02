@@ -1,13 +1,17 @@
-"""Status as JSON (/__proxy-scraper/status), metrics for Prometheus (/__proxy-scraper/metrics) and
-wishes from the proxy login."""
+"""Status as JSON (/__proxy-scraper/status), metrics for Prometheus (/__proxy-scraper/metrics), the live dashboard
+(/__proxy-scraper/) and wishes from the proxy login."""
 
 from __future__ import annotations
 
 import base64
 import binascii
+import hashlib
 import hmac
 import json
+import re
 import time
+from collections import Counter
+from pathlib import Path
 from statistics import median
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -19,6 +23,22 @@ STATUS_PREFIX = b"GET /__proxy-scraper/"
 STATUS_PATH = b"/__proxy-scraper/status"
 METRICS_PATH = b"/__proxy-scraper/metrics"
 METRICS_TYPE = b"text/plain; version=0.0.4; charset=utf-8"
+DASHBOARD_PATHS = (b"/__proxy-scraper/", b"/__proxy-scraper/dashboard")
+DASHBOARD_TYPE = b"text/html; charset=utf-8"
+DASHBOARD_HTML = (Path(__file__).parent / "dashboard.html").read_bytes()
+
+
+def _dashboard_headers(page: bytes) -> bytes:
+    """A strict CSP: the page's own script (by hash), its inline styles, and fetches to this server only."""
+    script = re.search(rb"<script>(.*?)</script>", page, re.S)
+    digest = base64.b64encode(hashlib.sha256(script.group(1) if script else b"").digest()).decode()
+    csp = (f"default-src 'none'; script-src 'sha256-{digest}'; style-src 'unsafe-inline'; img-src data:; "
+           "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
+    return (f"Content-Security-Policy: {csp}\r\n"
+            "X-Content-Type-Options: nosniff\r\nReferrer-Policy: no-referrer\r\n").encode()
+
+
+DASHBOARD_HEADERS = _dashboard_headers(DASHBOARD_HTML)
 
 
 def basic_credentials(headers: List[Tuple[bytes, bytes]], header: bytes = b"proxy-authorization"
@@ -63,6 +83,11 @@ def status_json(server: Any) -> str:
         "pool": {"total": len(pool.entries), "usable": len(pool.usable), "https": len(pool.tls_capable),
                  "revived": server.revived, "refilled": server.refilled,
                  "last_refill": server.last_refill and round(server.last_refill)},
+        # newest first; who sent a request isn't shown – only where it went and how
+        "recent": [{"target": r.target, "via": r.via, "ok": r.ok, "ms": r.ms, "attempts": r.attempts}
+                   for r in reversed(st.recent)],
+        "countries": dict(Counter(e.result.country for e in pool.entries if not e.disabled and e.result.country)
+                          .most_common()),
         "proxies": [
             {"url": f"{e.result.ptype}://{shown_proxy(e.result.proxy)}", "country": e.result.country,
              "latency_ms": e.result.latency, "https": e.result.https, "ok": e.ok, "fail": e.fail,

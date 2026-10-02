@@ -125,7 +125,7 @@ Some things look like obvious improvements and turned out not to be. The numbers
 - **Protocol detection before checking** ([#3](../../../issues/3)) – a third of the addresses are listed under all three types, but sniffing the protocol with an extra connection made runs slower (77 s vs 60 s). Dropped.
 - **IPv6** ([#1](../../../issues/1)) – about 300 entries across all 726 sources, mostly V2Ray configs. Not worth it yet.
 - **Check targets are ranked by quality, not latency** ([#8](../../../issues/8)) – the same 300 proxies found 255 hits through checkip.amazonaws.com but only 199 through ident.me, although ident.me answered faster.
-- **Tamper check** ([#46](../../../issues/46)) – one in five working proxies injected something into a plain HTML page. That's why it's always on.
+- **Tamper check** ([#46](../../../issues/46)) – in the first measurement one in five working proxies injected something into a plain HTML page; over the 3.6 million checks in [the numbers](free-proxies-in-numbers.md) it was about one in 40, still around 100 per hourly run. That's why it's always on.
 - **Cloudflare is never a check target** – many "proxies" are Cloudflare addresses that would answer a request to a Cloudflare-hosted site themselves.
 - **Blocklists** ([#66](../../../issues/66)) – Spamhaus refuses public resolvers, DroneBL lists 59 % of exit IPs (it's essentially a list of open proxies), SpamCop lists 29 %. Only SpamCop is used, and only after a probe with the documented test address proves the resolver gets real answers.
 

@@ -14,12 +14,12 @@ def offline(monkeypatch):
 
 def test_one_proxy_by_default_and_nothing_else_on_stdout(capsys):
     assert cli.run(["--pick"]) == 0
-    assert capsys.readouterr().out == "http://2.2.2.2:80\n"  # the fastest
+    assert capsys.readouterr().out == "socks5://1.1.1.1:1080\n"  # the best: fast enough and up for 30 hours
 
 
 def test_the_usual_filters_apply(capsys):
     assert cli.run(["--pick", "5", "--types", "socks4", "socks5", "--country", "DE", "--https-only"]) == 0
-    assert capsys.readouterr().out.splitlines() == ["socks4://3.3.3.3:4145", "socks5://1.1.1.1:1080"]
+    assert capsys.readouterr().out.splitlines() == ["socks5://1.1.1.1:1080", "socks4://3.3.3.3:4145"]
     assert cli.run(["--pick", "--min-uptime", "90", "--works-on", "google"]) == 0
     assert capsys.readouterr().out == "socks5://1.1.1.1:1080\n"
 

@@ -32,18 +32,19 @@ def offline(monkeypatch):
     monkeypatch.setattr(api, "_live_fetch", fetch_from({"proxies.json": ROWS, "stats.json": STATS}))
 
 
-def test_fastest_first_with_the_usual_fields():
+def test_best_first_with_the_usual_fields():
     found = live_proxies()
-    assert [p.url for p in found] == ["http://2.2.2.2:80", "socks4://3.3.3.3:4145", "socks5://1.1.1.1:1080"]
-    best = found[2]
+    # 300 ms but listed for 30 hours beats 100 ms that showed up in the last run (most new ones are gone an hour later)
+    assert [p.url for p in found] == ["socks5://1.1.1.1:1080", "http://2.2.2.2:80", "socks4://3.3.3.3:4145"]
+    best = found[0]
     assert (best.latency, best.country, best.https, best.anonymity) == (300, "DE", True, "elite")
     assert best.uptime_7d == 95 and best.first_seen.startswith("2026-09-20") and best.up_for_hours == 30
-    assert found[1].uptime_7d is None  # older lists have no uptime yet
+    assert found[2].uptime_7d is None  # older lists have no uptime yet
 
 
 def test_same_filter_names_as_find_proxies():
     assert [p.url for p in live_proxies(types=["socks4", "socks5"], countries="de", https=True)] == [
-        "socks4://3.3.3.3:4145", "socks5://1.1.1.1:1080"]
+        "socks5://1.1.1.1:1080", "socks4://3.3.3.3:4145"]
     assert [p.url for p in live_proxies(no_datacenter=True, anonymity="elite", min_uptime=90)] == [
         "socks5://1.1.1.1:1080"]
     assert [p.url for p in live_proxies(max_latency=250, limit=1)] == ["http://2.2.2.2:80"]

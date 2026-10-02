@@ -94,7 +94,8 @@ def test_get_proxies_returns_structured_proxies():
     result = session(go)
     assert not result.is_error
     data = result.structured_content
-    assert [p["url"] for p in data["proxies"]] == ["http://1.1.1.3:80", "http://1.1.1.5:80"]
+    # the one listed for 30 runs first (ranking.SURVIVAL)
+    assert [p["url"] for p in data["proxies"]] == ["http://1.1.1.5:80", "http://1.1.1.3:80"]
     assert data["matched"] == 3 and data["list_updated"] == STATS["updated"] and data["note"] is None
 
 

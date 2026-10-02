@@ -117,8 +117,9 @@ def readme(stats: dict, counts: Dict[str, int]) -> str:
     return f"""# Live proxy list
 
 Generated automatically by [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) with GitHub Actions.
-Every proxy here really worked in the last run – fastest first, by first answer plus the download speed measured
-right after the run.
+Every proxy here really worked in the last run – best first: by first answer plus the download speed measured
+right after the run, and by how likely it is to still be up (a proxy that has been listed for a day almost always is,
+a new one only in 1 of 4 cases).
 Browse and filter it on the [website](https://maximilianfeix.github.io/proxy-scraper/), or get the lists alone,
 one per country too, from [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list).
 
@@ -265,6 +266,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     previous = {url: n * factor for url, n in load_streaks(streaks).items()}
     for row in rows:
         row["streak"] = previous.get(row["url"], 0) + 1
+    rows = best_first(rows)  # again, now that the streaks say who is likely to last
     runs = [*past_runs, history_entry(stats_for(rows, now))][-HISTORY_LIMIT:]
     listed = update_seen(rows, load_seen(seen, past_runs[-1].get("updated") if past_runs else None), now)
     for row in rows:

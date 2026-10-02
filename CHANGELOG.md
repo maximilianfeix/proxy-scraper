@@ -10,6 +10,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - The README on the `proxy-list` branch links to it
 - Quick start code examples for Node.js, Go, and curl in the free-proxy-list README generator
 
+### Changed
+- "Best first" now counts how likely a proxy is still up. Over a week of hourly runs, 25 % of new proxies were listed again an hour later, 99 % of those listed for a day. The published lists, the pages, the website, `--pick`, `live_proxies()`, `ProxyRotator` and the MCP tools rank by page time divided by that chance, so the first lines of a file hold proxies that last: on the list of 2026-09-29 the share of the top 50 expected to still work went from 67 % to 88 %, with the median page time from 1.1 to 1.4 s. Own scans have no streaks and rank by speed as before
+
+### Fixed
+- README and ARCHITECTURE quoted early measurements ("one in five" proxies inject scripts, "5 out of 6" hits are honeypots, 450+ tests) – now the numbers from 3.6 million checks (one in 40, 54 %) and 760+ tests
+
 ## [1.22.0] – 2026-09-29
 
 ### Added

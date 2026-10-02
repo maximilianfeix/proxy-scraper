@@ -181,8 +181,8 @@ def select(rows: Iterable[dict], protocol: str = "any", countries: Iterable[str]
            elite_only: bool = False, exclude_datacenter: bool = False, exclude_blocklisted: bool = False,
            stable_only: bool = False, max_latency_ms: int = 0, run_hours: int = 1, min_uptime: int = 0,
            works_on: Iterable[str] = (), min_speed_kbps: int = 0) -> List[dict]:
-    """The rows that pass every filter, best first (answer plus download speed) – the same filters as on the
-    website."""
+    """The rows that pass every filter, best first (answer plus download speed, and how likely it's still up) – the
+    same filters as on the website."""
     return best_first(matching(rows, protocol, countries, https_only, elite_only, exclude_datacenter,
                                exclude_blocklisted, stable_only, max_latency_ms, run_hours, min_uptime, works_on,
                                min_speed_kbps))

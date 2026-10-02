@@ -181,6 +181,8 @@ Need CORS, or hitting the raw.githubusercontent rate limit? The same lists are o
 curl -sL {raw}/socks5.txt | head -n 20
 ```
 
+### Python
+
 ```python
 import requests  # pip install "requests[socks]"
 
@@ -192,6 +194,77 @@ for proxy in proxies[:20]:  # best first
         break
     except requests.RequestException:
         continue
+```
+
+### Node.js
+
+```javascript
+// needs "type": "module" in package.json or .mjs
+import {{ fetch, ProxyAgent }} from 'undici';  // npm install undici
+// Note: ProxyAgent only speaks HTTP(S) proxies; socks4:// and socks5:// lines will be skipped by the loop
+
+const response = await fetch("{raw}/https.txt");
+const proxies = (await response.text()).split("\\n");
+for (const proxy of proxies.slice(0, 20)) {{
+    try {{
+        const r = await fetch("https://api.ipify.org", {{
+            dispatcher: new ProxyAgent(proxy.trim()),
+            signal: AbortSignal.timeout(10_000)
+        }});
+        console.log(proxy.trim(), "->", await r.text());
+        break;
+    }} catch {{}}
+}}
+```
+
+### Go
+
+```go
+package main
+
+import (
+	"fmt"
+	"io"
+	"net/http"
+	"net/url"
+	"strings"
+	"time"
+)
+
+func main() {{
+	resp, err := http.Get("{raw}/https.txt")
+	if err != nil {{
+		return
+	}}
+	defer resp.Body.Close()
+	body, _ := io.ReadAll(resp.Body)
+	proxies := strings.Fields(string(body))
+	if len(proxies) > 20 {{
+		proxies = proxies[:20]
+	}}
+	for _, proxy := range proxies {{
+		proxyURL, err := url.Parse(proxy)
+		if err != nil {{
+			continue
+		}}
+		client := &http.Client{{
+			Timeout:   10 * time.Second,
+			Transport: &http.Transport{{Proxy: http.ProxyURL(proxyURL)}},
+		}}
+		if r, err := client.Get("https://api.ipify.org"); err == nil {{
+			ip, _ := io.ReadAll(r.Body)
+			r.Body.Close()
+			fmt.Printf("%s -> %s\\n", proxy, ip)
+			break
+		}}
+	}}
+}}
+```
+
+### curl
+
+```bash
+curl -m 10 -x "socks5h://$(curl -sL {raw}/socks5.txt | head -n 1)" https://api.ipify.org
 ```
 
 Or let [proxy-scraper]({REPO_URL}) do the rotating and retrying for you:

@@ -111,3 +111,34 @@ def test_the_page_is_the_module_constant():
 def test_the_tab_icon_is_inline_so_the_browser_never_asks_the_proxy_for_favicon_ico():
     page = status.DASHBOARD_HTML.decode()
     assert '<link rel="icon" href="data:image/svg+xml,' in page
+
+
+def test_status_never_shows_an_upstream_password():
+    recent = [RequestLog("127.0.0.1:5000", "example.com:443", "socks5://alice:secret@1.2.3.4:1080", True, 90, 1)]
+
+    async def client(port, _):
+        return await _get(port, "/__proxy-scraper/status")
+
+    body = split(run(client, recent=recent))[1].decode()
+    assert "secret" not in body
+    assert json.loads(body)["recent"][0]["via"] == "socks5://alice:•••@1.2.3.4:1080"
+
+
+def test_status_says_whether_the_proxy_wants_a_password():
+    async def client(port, _):
+        return await _get(port, "/__proxy-scraper/status", auth=b"any:s3cret")
+
+    assert json.loads(split(run(client, password="s3cret"))[1])["auth"] is True
+    assert json.loads(split(run(lambda port, _: _get(port, "/__proxy-scraper/status")))[1])["auth"] is False
+
+
+def test_the_page_fetches_without_credentials_in_the_url():
+    """Opened as http://user:pw@host/…, a relative fetch would inherit the login – and fetch refuses such URLs."""
+    page = status.DASHBOARD_HTML.decode()
+    assert 'new URL("/__proxy-scraper/status", location.origin)' in page
+
+
+def test_the_copied_command_uses_the_address_in_the_browser_and_asks_for_the_password():
+    page = status.DASHBOARD_HTML.decode()
+    assert "location.host" in page  # not the bind address – 0.0.0.0 is no proxy address for a client
+    assert "any:PASSWORD@" in page  # with --serve-password the command must carry the login

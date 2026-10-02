@@ -192,7 +192,8 @@ footer a { color: inherit; }
     $("traffic-sub").textContent = `${bytes(s.bytes.up)} sent`;
     $("uptime").textContent = duration(s.uptime_seconds);
     $("mode").textContent = s.strategy + (s.sticky_seconds ? ` · sticky ${s.sticky_seconds}s` : "");
-    $("cmd").textContent = `curl -x http://${s.listening} https://api.ipify.org`;
+    // the address this browser reached the server at – the bind address may be 0.0.0.0
+    $("cmd").textContent = `curl -x http://${s.auth ? "any:PASSWORD@" : ""}${location.host} https://api.ipify.org`;
 
     // chart: per-second rates from the change since the last sample
     const now = performance.now();
@@ -294,7 +295,9 @@ footer a { color: inherit; }
   async function poll() {
     clearTimeout(timer);
     try {
-      const res = await fetch("/__proxy-scraper/status", { cache: "no-store", credentials: "same-origin" });
+      // from the origin, not relative: opened as http://user:pw@host/…, a relative URL would carry the login,
+      // and fetch refuses those – the browser still sends the Basic auth it already has for this origin
+      const res = await fetch(new URL("/__proxy-scraper/status", location.origin), { cache: "no-store", credentials: "same-origin" });
       if (!res.ok) throw new Error(res.status);
       render(await res.json());
       $("live").className = "live on";

@@ -27,6 +27,7 @@ from .widgets import (
     pct,
     row,
     shown_proxy,
+    shown_via,
     table,
 )
 
@@ -70,8 +71,10 @@ class ServeDashboard:
         usage.add_row("One country", Text(f"curl -x http://country-de:{pw}@{address} https://api.ipify.org"))
         usage.add_row("Fixed session", Text(f"curl -x http://session-abc:{pw}@{address} …  (keeps the same proxy)"))
         usage.add_row("Terminal", Text(f"export http_proxy=http://{login}{address} https_proxy=http://{login}{address}"))
-        usage.add_row("Dashboard", Text(f"http://{'any:' + pw + '@' if server.password else ''}"
-                                        f"{address}/__proxy-scraper/", style="bold"))
+        # without the login in the URL: the browser asks for it, and the page's own requests keep working
+        usage.add_row("Dashboard", Text(f"http://{address}/__proxy-scraper/"
+                                        + ("  (the browser asks for the password)" if server.password else ""),
+                                        style="bold"))
         usage.add_row("Status (JSON)", Text(f"curl {'-u any:' + pw + ' ' if server.password else ''}"
                                             f"http://{address}/__proxy-scraper/status"))
         usage.add_row("Prometheus", Text(f"http://{'any:' + pw + '@' if server.password else ''}"
@@ -138,7 +141,3 @@ class ServeDashboard:
         )
 
 
-def shown_via(via: str) -> str:
-    """'socks5://user:pass@1.2.3.4:1080' -> password masked; '–' (no proxy) stays."""
-    scheme, sep, proxy = via.partition("://")
-    return f"{scheme}://{shown_proxy(proxy)}" if sep else via

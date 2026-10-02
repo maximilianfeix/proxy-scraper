@@ -16,7 +16,7 @@ from statistics import median
 from typing import Any, Dict, List, Optional, Tuple
 
 from ..parsing import PROXY_TYPES
-from ..ui.widgets import shown_proxy
+from ..ui.widgets import shown_proxy, shown_via
 from .pool import Selection
 
 STATUS_PREFIX = b"GET /__proxy-scraper/"
@@ -77,6 +77,7 @@ def status_json(server: Any) -> str:
         "listening": f"{server.host}:{server.port}",
         "uptime_seconds": round(time.perf_counter() - st.started),
         "strategy": pool.strategy,
+        "auth": bool(server.password),  # whether clients need the login – never the password itself
         "sticky_seconds": pool.sticky_seconds,
         "requests": {"total": st.requests, "ok": st.ok, "failed": st.failed, "active": st.active},
         "bytes": {"up": st.bytes_up, "down": st.bytes_down},
@@ -84,7 +85,7 @@ def status_json(server: Any) -> str:
                  "revived": server.revived, "refilled": server.refilled,
                  "last_refill": server.last_refill and round(server.last_refill)},
         # newest first; who sent a request isn't shown – only where it went and how
-        "recent": [{"target": r.target, "via": r.via, "ok": r.ok, "ms": r.ms, "attempts": r.attempts}
+        "recent": [{"target": r.target, "via": shown_via(r.via), "ok": r.ok, "ms": r.ms, "attempts": r.attempts}
                    for r in reversed(st.recent)],
         "countries": dict(Counter(e.result.country for e in pool.entries if not e.disabled and e.result.country)
                           .most_common()),

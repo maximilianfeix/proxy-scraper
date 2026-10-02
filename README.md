@@ -719,6 +719,16 @@ proxychains4 -f results/latest/proxychains.conf curl https://api.ipify.org
 
 **Browsers and the OS** – `--export pac` writes `proxy.pac`: point Firefox, Chrome (via the system settings), FoxyProxy or macOS/Windows proxy settings at it and every request goes through the best 30 HTTP and SOCKS5 proxies in order, the browser moving on by itself when one fails. Local names and private IP addresses stay direct (a host name like `10.example.com` doesn't count as private). The file itself has no `DIRECT` fallback and resolves no host names, and SOCKS4 is left out because it would make the browser resolve names with your own DNS. Two Firefox settings matter: turn on *Proxy DNS when using SOCKS v5*, and set `network.proxy.failover_direct` to `false` in `about:config` – otherwise Firefox goes direct once every proxy has failed. No install at all: the live list publishes one every hour at `https://maximilianfeix.github.io/proxy-scraper/proxy.pac`.
 
+**Burp Suite, OWASP ZAP, mitmproxy** – put the rotating server behind your intercepting proxy, so a scan or a brute-force test comes from many IPs while you still see every request. Start it with `proxy-scraper --recheck live --serve`, then:
+
+| Tool | Where | Set |
+|---|---|---|
+| Burp Suite | *Settings → Network → Connections → Upstream proxy servers* | a rule for destination host `*`, proxy host `127.0.0.1`, port `8899`; with `--serve-password` add Basic auth (user `any` or a wish like `country-de`, the password) |
+| OWASP ZAP | *Options → Network → Connection → HTTP Proxy* | host `127.0.0.1`, port `8899` – use the HTTP setting, not SOCKS: ZAP never sends loopback addresses through its SOCKS proxy |
+| mitmproxy | command line | `mitmproxy --mode upstream:http://127.0.0.1:8899 --upstream-auth country-us:x` |
+
+The username wishes work through all three – `country-us` above sends everything out through US proxies, `session-NAME` keeps one exit IP for a login flow. HTTPS still goes only through proxies that passed the verified-TLS test; your tool's own certificate handling is separate. Tested end to end with mitmproxy 12: HTTP and HTTPS through mitmproxy and the rotating server, every request out through a US proxy. Only test what you're allowed to.
+
 **In a pipe** – `-o -` prints the hits to stdout, the interface moves to stderr
 
 ```bash

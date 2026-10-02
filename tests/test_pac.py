@@ -30,14 +30,25 @@ process.stdout.write(FindProxyForURL({json.dumps(url)}, {json.dumps(host)}));
 
 def test_entries_best_first_with_the_right_keywords():
     text = pac(ROWS, NOW)
-    assert "PROXY 198.51.100.24:8080" in text and "SOCKS5 203.0.113.10:1080" in text and "SOCKS 192.0.2.40:4145" in text
+    assert "PROXY 198.51.100.24:8080" in text and "SOCKS5 203.0.113.10:1080" in text
     assert text.index("SOCKS5 203.0.113.10:1080") < text.index("PROXY 198.51.100.24:8080")  # rows come best first
+
+
+def test_socks4_is_left_out_because_it_resolves_names_locally():
+    # SOCKS4 can't take a host name, so the browser would look it up with the user's own DNS
+    assert "192.0.2.40" not in pac(ROWS, NOW) and "SOCKS " not in pac(ROWS, NOW)
+
+
+def test_old_pac_engines_can_run_it():
+    """Windows evaluates PAC files with an old JScript engine: no const, let or arrow functions."""
+    text = pac(ROWS, NOW)
+    assert "const " not in text and "let " not in text and "=>" not in text
 
 
 def test_no_direct_fallback_after_the_proxies():
     """When every proxy is down the browser must not quietly fall back to the real IP."""
     text = pac(ROWS, NOW)
-    chain = text.split('const PROXIES = "', 1)[1].split('"', 1)[0]
+    chain = text.split('var PROXIES = "', 1)[1].split('"', 1)[0]
     assert "DIRECT" not in chain
 
 
@@ -72,13 +83,17 @@ def test_listed_as_an_export_format():
     ("http://172.20.0.5/", "172.20.0.5", True),
     ("http://172.40.0.5/", "172.40.0.5", False),  # public, despite the 172.
     ("http://printer.local/", "printer.local", True),
+    # host names that merely look like private addresses are public sites – they must not go direct
+    ("http://10.attacker.example/", "10.attacker.example", False),
+    ("http://192.168.1.1.nip.io/", "192.168.1.1.nip.io", False),
+    ("http://127.0.0.1.example.com/", "127.0.0.1.example.com", False),
 ])
 def test_runs_in_a_browser_like_runtime(url, host, direct):
     answer = find_proxy(pac(ROWS, NOW), url, host)
     if direct:
         assert answer == "DIRECT"
     else:
-        assert answer.split("; ") == ["SOCKS5 203.0.113.10:1080", "PROXY 198.51.100.24:8080", "SOCKS 192.0.2.40:4145"]
+        assert answer.split("; ") == ["SOCKS5 203.0.113.10:1080", "PROXY 198.51.100.24:8080"]
 
 
 @pytest.mark.skipif(not NODE, reason="needs node to run the PAC like a browser")

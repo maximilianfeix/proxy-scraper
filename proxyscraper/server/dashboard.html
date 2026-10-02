@@ -171,6 +171,15 @@ footer a { color: inherit; }
   };
   const replaceRows = (tbody, rows) => tbody.replaceChildren(...rows);
 
+  // "100 %" only when nothing failed – 996 of 1000 is 99.6 %, not a rounded 100
+  function rateText(ok, failed) {
+    const done = ok + failed;
+    if (!done) return "–";
+    if (!failed) return "100 %";
+    const rate = Math.min((100 * ok) / done, 99.9);
+    return rate.toFixed(rate < 10 ? 0 : 1) + " %";
+  }
+
   const HISTORY = 60; // 60 samples × 2 s = 2 minutes
   const history = [];
   let last = null;
@@ -183,7 +192,7 @@ footer a { color: inherit; }
     $("usable-meter").style.width = (p.total ? (100 * p.usable) / p.total : 0) + "%";
     const done = r.ok + r.failed;
     const rate = done ? (100 * r.ok) / done : null;
-    $("rate").textContent = rate === null ? "–" : rate.toFixed(rate >= 99.5 || rate < 10 ? 0 : 1) + " %";
+    $("rate").textContent = rateText(r.ok, r.failed);
     $("rate-sub").textContent = `${fmt(r.ok)} ok · ${fmt(r.failed)} failed`;
     $("rate-meter").style.width = (rate ?? 0) + "%";
     $("requests").textContent = fmt(r.total);

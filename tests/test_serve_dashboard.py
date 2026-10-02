@@ -3,6 +3,10 @@
 import asyncio
 import json
 import re
+import shutil
+import subprocess
+
+import pytest
 
 from proxyscraper.server import RotatingServer, status
 from proxyscraper.server.core import RequestLog
@@ -216,3 +220,15 @@ def test_the_chart_starts_over_after_the_tab_was_hidden():
     page = status.DASHBOARD_HTML.decode()
     handler = page.split('addEventListener("visibilitychange"', 1)[1].split("});", 1)[0]
     assert "history.length = 0" in handler and "last = null" in handler
+
+
+@pytest.mark.skipif(not shutil.which("node"), reason="needs node to run the page's function")
+@pytest.mark.parametrize("ok,failed,shown", [
+    (0, 0, "–"), (10, 0, "100 %"), (996, 4, "99.6 %"), (9999, 1, "99.9 %"), (1, 19, "5 %"), (50, 50, "50.0 %"),
+])
+def test_the_success_rate_never_rounds_failures_away(ok, failed, shown):
+    page = status.DASHBOARD_HTML.decode()
+    source = "function rateText" + page.split("function rateText", 1)[1].split("\n  }\n", 1)[0] + "\n  }\n"
+    out = subprocess.run(["node", "-e", source + f"process.stdout.write(rateText({ok}, {failed}))"],
+                         check=True, capture_output=True, text=True).stdout
+    assert out == shown

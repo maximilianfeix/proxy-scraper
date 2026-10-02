@@ -487,7 +487,7 @@ Without a password, `--serve-host` means **anyone who reaches the port can use i
 
 - every connection goes through a different proxy (unless sticky); fast and proven ones are preferred
 - `CONNECT` for HTTPS and plain HTTP requests; HTTP, SOCKS4 and SOCKS5 proxies can sit behind it (SOCKS5 with DNS through the proxy)
-- HTTPS only uses proxies that passed the test with **verified TLS** – no broken encryption
+- HTTPS prefers proxies that passed the test with **verified TLS**; if none of those match a wish (say `country-de`), it uses the others – your client's own certificate check still catches a proxy that breaks the encryption, so leave it on
 - if a proxy stays silent inside the tunnel or returns an error page instead of TLS, the same first packet quietly goes to the next one
 - three failures in a row and a proxy leaves the rotation – every 5 minutes those get re-checked and come back if they work again
 - `--serve-refill 6` checks fresh proxies every 6 hours in the background (the live list with `--recheck live`, otherwise the last run + history) with the same checks and filters, and adds the hits – a server that runs for days doesn't run dry
@@ -724,10 +724,10 @@ proxychains4 -f results/latest/proxychains.conf curl https://api.ipify.org
 | Tool | Where | Set |
 |---|---|---|
 | Burp Suite | *Settings → Network → Connections → Upstream proxy servers* | a rule for destination host `*`, proxy host `127.0.0.1`, port `8899`; with `--serve-password` add Basic auth (user `any` or a wish like `country-de`, the password) |
-| OWASP ZAP | *Options → Network → Connection → HTTP Proxy* | host `127.0.0.1`, port `8899` – use the HTTP setting, not SOCKS: ZAP never sends loopback addresses through its SOCKS proxy |
+| OWASP ZAP | *Options → Network → Connection → HTTP Proxy* | host `127.0.0.1`, port `8899`, and under its authentication the user (`any` or a wish) and the password – use the HTTP setting, not SOCKS: ZAP never sends loopback addresses through its SOCKS proxy |
 | mitmproxy | command line | `mitmproxy --mode upstream:http://127.0.0.1:8899 --upstream-auth country-us:x` |
 
-The username wishes work through all three – `country-us` above sends everything out through US proxies, `session-NAME` keeps one exit IP for a login flow. HTTPS still goes only through proxies that passed the verified-TLS test; your tool's own certificate handling is separate. Tested end to end with mitmproxy 12: HTTP and HTTPS through mitmproxy and the rotating server, every request out through a US proxy. Only test what you're allowed to.
+Username wishes – `country-us` sends everything out through US proxies, `session-NAME` keeps one exit IP for a login flow – reach the server as the proxy login. mitmproxy sends it right away; Burp and ZAP may wait to be asked, so start the server with `--serve-password` when you rely on a wish there. **Keep your tool's upstream certificate checks on** (no `--ssl-insecure` in mitmproxy, no "ignore certificate errors" upstream in Burp or ZAP): free proxies are strangers, and that check is what stops one from reading or changing your HTTPS traffic. Tested end to end with mitmproxy 12, certificate checks on: HTTP and HTTPS through mitmproxy and the rotating server, every request out through a US proxy, and a site with an expired certificate refused. Only test what you're allowed to.
 
 **In a pipe** – `-o -` prints the hits to stdout, the interface moves to stderr
 

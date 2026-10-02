@@ -30,10 +30,15 @@ from .http import (
 from .pool import ANY, ProxyPool, Selection
 from .socks import SOCKS5_VERSION, Socks5Refused, socks5_accept, socks5_reply
 from .status import (
+    DASHBOARD_HEADERS,
+    DASHBOARD_HTML,
+    DASHBOARD_PATHS,
+    DASHBOARD_TYPE,
     METRICS_PATH,
     METRICS_TYPE,
     STATUS_PATH,
     STATUS_PREFIX,
+    host_allowed,
     metrics_text,
     password_ok,
     selection_from_headers,
@@ -496,15 +501,20 @@ class RotatingServer:
     async def _serve_status(self, writer, head: bytes) -> None:
         if not await self._local_auth(writer, head):
             return
+        headers = [tuple(part.strip() for part in line.split(b":", 1)) for line in head.split(b"\r\n")[1:]
+                   if b":" in line]
         target = head.split(b" ", 2)[1].split(b"?", 1)[0]
-        kind = b"application/json"
-        if target == STATUS_PATH:
-            status, body = b"200 OK", status_json(self).encode()
+        kind, extra = b"application/json", b""
+        if target in DASHBOARD_PATHS:
+            status, body, kind, extra = b"200 OK", DASHBOARD_HTML, DASHBOARD_TYPE, DASHBOARD_HEADERS
+        elif target == STATUS_PATH:
+            status, body = b"200 OK", status_json(self, show_recent=host_allowed(headers, self.password)).encode()
         elif target == METRICS_PATH:
             status, body, kind = b"200 OK", metrics_text(self).encode(), METRICS_TYPE
         else:  # only exactly these paths – typos shouldn't silently return the status
-            status, body = b"404 Not Found", b'{"error": "unknown path, try /__proxy-scraper/status or /metrics"}'
-        await self._answer(writer, status, kind, body)
+            status, body = (b"404 Not Found",
+                            b'{"error": "unknown path, try /__proxy-scraper/ (dashboard), /status or /metrics"}')
+        await self._answer(writer, status, kind, body, extra)
 
     async def _serve_api(self, writer, head: bytes) -> None:
         if not await self._local_auth(writer, head):
@@ -524,9 +534,9 @@ class RotatingServer:
         return False
 
     @staticmethod
-    async def _answer(writer, status: bytes, kind: bytes, body: bytes) -> None:
+    async def _answer(writer, status: bytes, kind: bytes, body: bytes, extra: bytes = b"") -> None:
         writer.write(b"HTTP/1.1 " + status + b"\r\nContent-Type: " + kind + b"\r\nCache-Control: no-store\r\n"
-                     b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body)
+                     + extra + b"Content-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body)
         await writer.drain()
 
     async def keep_fresh(self, recheck, interval: float = 300.0) -> None:

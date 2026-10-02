@@ -248,3 +248,9 @@ def shown_proxy(proxy: str) -> str:
     # user names come from third-party lists – never let control characters (newline, ESC) into the terminal
     user = "".join(c if c.isprintable() else "?" for c in user)
     return f"{user}:•••@{address}"
+
+
+def shown_via(via: str) -> str:
+    """'socks5://user:pass@1.2.3.4:1080' -> password masked; '–' (no proxy) stays."""
+    scheme, sep, proxy = via.partition("://")
+    return f"{scheme}://{shown_proxy(proxy)}" if sep else via

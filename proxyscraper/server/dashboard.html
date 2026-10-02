@@ -1,0 +1,351 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="dark light">
+<title>proxy-scraper · rotating proxy</title>
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='8' fill='%23d4f77a'/%3E%3Ccircle cx='16' cy='16' r='7' fill='none' stroke='%23121113' stroke-width='3.5'/%3E%3C/svg%3E">
+<style>
+/* Self-contained on purpose: the server often runs offline, so no CDN and no web fonts.
+   Tokens follow the proxy-scraper website: lime signal on near-black, a paper-light variant. */
+:root {
+  --bg: #121113; --panel: #1a191c; --raised: #232226; --line: #2b292f;
+  --text: #edebe6; --muted: #9a97a0; --signal: #d4f77a; --signal-ink: #d4f77a; --on-signal: #121113;
+  --bad: #ff8c7a; --warn: #f5c46b; --http: #8db8ff;
+  --sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
+  color-scheme: dark;
+}
+@media (prefers-color-scheme: light) {
+  :root {
+    --bg: #efefec; --panel: #ffffff; --raised: #f6f6f3; --line: #dad9d4;
+    --text: #121113; --muted: #5f5c66; --signal: #d4f77a; --signal-ink: #3f5a00; --on-signal: #121113;
+    --bad: #b4461f; --warn: #9a5b00; --http: #2a5db0;
+    color-scheme: light;
+  }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 15px/1.5 var(--sans); }
+.wrap { max-width: 1180px; margin: 0 auto; padding: 24px clamp(16px, 3vw, 32px) 48px; display: grid; gap: 20px; }
+header { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 18px; }
+.brand { font: 600 18px var(--sans); letter-spacing: -0.01em; display: flex; align-items: center; gap: 10px; }
+.mark { width: 22px; height: 22px; border-radius: 6px; background: var(--signal); position: relative; }
+.mark::after { content: ""; position: absolute; inset: 6px; border-radius: 50%; border: 2.5px solid var(--on-signal); }
+.where { font: 13px var(--mono); color: var(--muted); }
+.live { margin-left: auto; display: inline-flex; align-items: center; gap: 8px; font: 500 13px var(--mono); color: var(--muted); }
+.dot { width: 8px; height: 8px; border-radius: 50%; background: var(--signal-ink); box-shadow: 0 0 0 0 var(--signal-ink); }
+.live.on .dot { animation: ping 2s infinite; }
+.live.off .dot { background: var(--bad); }
+@keyframes ping { 0% { box-shadow: 0 0 0 0 color-mix(in srgb, var(--signal-ink) 55%, transparent); } 80%, 100% { box-shadow: 0 0 0 8px transparent; } }
+.cards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.card { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; }
+.label { font: 500 12px var(--mono); letter-spacing: 0.05em; text-transform: uppercase; color: var(--muted); }
+.value { font: 600 28px/1.15 var(--sans); letter-spacing: -0.02em; margin-top: 6px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.sub { color: var(--muted); font-size: 13px; margin-top: 2px; font-variant-numeric: tabular-nums; }
+.meter { height: 6px; border-radius: 99px; background: var(--raised); margin-top: 10px; overflow: hidden; }
+.meter > span { display: block; height: 100%; width: 0; background: var(--signal); border-radius: inherit; transition: width .4s ease-out; }
+.grid2 { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 12px; }
+.grid2.even { grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; min-width: 0; display: grid; gap: 12px; align-content: start; }
+.panel h2 { margin: 0; font: 600 15px var(--sans); display: flex; align-items: baseline; gap: 10px; }
+.panel h2 small { font: 12px var(--mono); color: var(--muted); font-weight: 400; }
+canvas { width: 100%; height: 170px; display: block; }
+.legend { display: flex; gap: 16px; font-size: 12.5px; color: var(--muted); }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 3px; margin-right: 6px; vertical-align: -1px; }
+.bars { display: grid; gap: 8px; }
+.bar { display: grid; grid-template-columns: 34px minmax(0, 1fr) 44px; gap: 10px; align-items: center; font: 13px var(--mono); }
+.bar .track { display: block; height: 8px; background: var(--raised); border-radius: 99px; overflow: hidden; }
+.bar .fill { display: block; height: 100%; background: var(--http); border-radius: inherit; transition: width .4s ease-out; }
+.bar .n { text-align: right; color: var(--muted); font-variant-numeric: tabular-nums; }
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th, td { text-align: left; padding: 7px 10px 7px 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font: 500 11.5px var(--mono); text-transform: uppercase; letter-spacing: 0.05em; color: var(--muted); }
+td.num { text-align: right; font-variant-numeric: tabular-nums; }
+td.mono { font-family: var(--mono); font-size: 12.5px; }
+td.trunc { max-width: 260px; overflow: hidden; text-overflow: ellipsis; }
+td.trunc-s { max-width: 190px; overflow: hidden; text-overflow: ellipsis; }
+.pill { font: 500 11.5px var(--mono); padding: 1px 8px; border-radius: 99px; border: 1px solid currentColor; }
+.pill.ok { color: var(--signal-ink); } .pill.bad { color: var(--bad); } .pill.off { color: var(--muted); }
+.empty { color: var(--muted); font-size: 13.5px; padding: 8px 0; }
+.use { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; }
+.use code { font: 13px var(--mono); background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; overflow-x: auto; max-width: 100%; }
+button { font: 500 13px var(--sans); color: var(--text); background: var(--raised); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; min-height: 36px; cursor: pointer; }
+button:hover { border-color: var(--muted); }
+button:focus-visible, a:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 2px; }
+footer { color: var(--muted); font-size: 13px; display: flex; flex-wrap: wrap; gap: 6px 18px; }
+footer a { color: inherit; }
+@media (max-width: 1000px) { .cards { grid-template-columns: repeat(3, minmax(0, 1fr)); } .grid2 { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 560px) { .cards { grid-template-columns: repeat(2, minmax(0, 1fr)); } .value { font-size: 24px; } }
+@media (prefers-reduced-motion: reduce) { * { animation: none !important; transition: none !important; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <div class="brand"><span class="mark" aria-hidden="true"></span>proxy-scraper</div>
+    <span class="where" id="where">rotating proxy</span>
+    <span class="live" id="live" role="status"><span class="dot" aria-hidden="true"></span><span id="live-text">connecting…</span></span>
+  </header>
+
+  <section class="cards" aria-label="Overview">
+    <div class="card"><div class="label">Usable proxies</div><div class="value" id="usable">–</div><div class="sub" id="usable-sub">&nbsp;</div><div class="meter"><span id="usable-meter"></span></div></div>
+    <div class="card"><div class="label">Success rate</div><div class="value" id="rate">–</div><div class="sub" id="rate-sub">&nbsp;</div><div class="meter"><span id="rate-meter"></span></div></div>
+    <div class="card"><div class="label">Requests</div><div class="value" id="requests">–</div><div class="sub" id="requests-sub">&nbsp;</div></div>
+    <div class="card"><div class="label">Traffic</div><div class="value" id="traffic">–</div><div class="sub" id="traffic-sub">&nbsp;</div></div>
+    <div class="card"><div class="label">Uptime</div><div class="value" id="uptime">–</div><div class="sub" id="mode">&nbsp;</div></div>
+  </section>
+
+  <section class="grid2">
+    <div class="panel">
+      <h2>Requests <small>per second, last 2 minutes</small></h2>
+      <canvas id="chart" role="img" aria-label="Requests per second over the last two minutes, successful and failed"></canvas>
+      <div class="legend"><span><i style="background: var(--signal)"></i>through a proxy</span><span><i style="background: var(--bad)"></i>failed</span></div>
+    </div>
+    <div class="panel">
+      <h2>Countries <small>usable proxies</small></h2>
+      <div class="bars" id="countries"><div class="empty">No proxies yet.</div></div>
+    </div>
+  </section>
+
+  <section class="grid2 even">
+    <div class="panel">
+      <h2>Latest connections</h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Target</th><th scope="col">Via</th><th scope="col">Result</th><th scope="col" class="num">ms</th><th scope="col" class="num">Tries</th></tr></thead>
+        <tbody id="recent"></tbody>
+      </table></div>
+      <div class="empty" id="recent-empty">No connections yet – send one with the command below.</div>
+    </div>
+    <div class="panel">
+      <h2>Best proxies <small>by successes</small></h2>
+      <div class="table-wrap"><table>
+        <thead><tr><th scope="col">Proxy</th><th scope="col"></th><th scope="col" class="num">ms</th><th scope="col" class="num">ok</th><th scope="col" class="num">fail</th></tr></thead>
+        <tbody id="proxies"></tbody>
+      </table></div>
+    </div>
+  </section>
+
+  <section class="panel" aria-label="Use it">
+    <h2>Use it</h2>
+    <div class="use"><code id="cmd">curl -x http://127.0.0.1:8899 https://api.ipify.org</code><button type="button" id="copy">Copy</button></div>
+  </section>
+
+  <footer>
+    <span>Refreshes every 2 seconds</span>
+    <a href="/__proxy-scraper/status">JSON status</a>
+    <a href="/__proxy-scraper/metrics">Prometheus metrics</a>
+    <a href="https://github.com/maximilianfeix/proxy-scraper#proxy-server" rel="noreferrer">Documentation</a>
+  </footer>
+</div>
+<script>
+(() => {
+  "use strict";
+  const $ = (id) => document.getElementById(id);
+  const fmt = (n) => Math.round(n).toLocaleString("en-US");
+  const bytes = (n) => {
+    const units = ["B", "KB", "MB", "GB", "TB"];
+    let i = 0;
+    while (n >= 1024 && i < units.length - 1) { n /= 1024; i++; }
+    return (i ? n.toFixed(n < 10 ? 1 : 0) : Math.round(n)) + " " + units[i];
+  };
+  const duration = (s) => {
+    const d = Math.floor(s / 86400), h = Math.floor(s / 3600) % 24, m = Math.floor(s / 60) % 60;
+    return d ? `${d}d ${h}h` : h ? `${h}h ${m}m` : m ? `${m}m ${s % 60}s` : `${s}s`;
+  };
+  // client data (target hosts) is only ever set as text – never as markup
+  const cell = (row, text, cls) => {
+    const td = document.createElement("td");
+    td.textContent = text;
+    if (cls) td.className = cls;
+    row.appendChild(td);
+    return td;
+  };
+  const pill = (td, text, cls) => {
+    td.textContent = "";
+    const span = document.createElement("span");
+    span.className = "pill " + cls;
+    span.textContent = text;
+    td.appendChild(span);
+  };
+  const replaceRows = (tbody, rows) => tbody.replaceChildren(...rows);
+
+  // "100 %" only when nothing failed – 996 of 1000 is 99.6 %, not a rounded 100
+  function rateText(ok, failed) {
+    const done = ok + failed;
+    if (!done) return "–";
+    if (!failed) return "100 %";
+    const rate = Math.min((100 * ok) / done, 99.9);
+    return rate.toFixed(rate < 10 ? 0 : 1) + " %";
+  }
+
+  const HISTORY = 60; // 60 samples × 2 s = 2 minutes
+  const history = [];
+  let last = null;
+
+  function render(s) {
+    $("where").textContent = `listening on ${s.listening}`;
+    const p = s.pool, r = s.requests;
+    $("usable").textContent = fmt(p.usable);
+    $("usable-sub").textContent = `of ${fmt(p.total)} · ${fmt(p.https)} HTTPS-capable`;
+    $("usable-meter").style.width = (p.total ? (100 * p.usable) / p.total : 0) + "%";
+    const done = r.ok + r.failed;
+    const rate = done ? (100 * r.ok) / done : null;
+    $("rate").textContent = rateText(r.ok, r.failed);
+    $("rate-sub").textContent = `${fmt(r.ok)} ok · ${fmt(r.failed)} failed`;
+    $("rate-meter").style.width = (rate ?? 0) + "%";
+    $("requests").textContent = fmt(r.total);
+    $("requests-sub").textContent = `${fmt(r.active)} active now`;
+    $("traffic").textContent = bytes(s.bytes.down);
+    $("traffic-sub").textContent = `${bytes(s.bytes.up)} sent`;
+    $("uptime").textContent = duration(s.uptime_seconds);
+    $("mode").textContent = s.strategy + (s.sticky_seconds ? ` · sticky ${s.sticky_seconds}s` : "");
+    // the address this browser reached the server at – the bind address may be 0.0.0.0
+    $("cmd").textContent = `curl -x http://${s.auth ? "any:PASSWORD@" : ""}${location.host} https://api.ipify.org`;
+
+    // chart: per-second rates from the change since the last sample
+    const now = performance.now();
+    if (last) {
+      const dt = Math.max((now - last.t) / 1000, 0.5);
+      history.push({ ok: Math.max(r.ok - last.ok, 0) / dt, failed: Math.max(r.failed - last.failed, 0) / dt });
+      if (history.length > HISTORY) history.shift();
+    }
+    last = { t: now, ok: r.ok, failed: r.failed };
+    draw();
+
+    const countries = Object.entries(s.countries || {}).sort((a, b) => b[1] - a[1]).slice(0, 8);
+    const top = countries.length ? countries[0][1] : 1;
+    $("countries").replaceChildren(...(countries.length ? countries.map(([cc, n]) => {
+      const row = document.createElement("div");
+      row.className = "bar";
+      const code = document.createElement("span");
+      code.textContent = cc || "??";
+      const track = document.createElement("span");
+      track.className = "track";
+      const fill = document.createElement("span");
+      fill.className = "fill";
+      fill.style.width = (100 * n) / top + "%";
+      track.appendChild(fill);
+      const count = document.createElement("span");
+      count.className = "n";
+      count.textContent = fmt(n);
+      row.append(code, track, count);
+      return row;
+    }) : [Object.assign(document.createElement("div"), { className: "empty", textContent: "No proxies with a known country." })]));
+
+    const recent = s.recent || [];
+    $("recent-empty").hidden = recent.length > 0;
+    $("recent-empty").textContent = s.recent_hidden
+      ? "Hidden for this address: open the page with an IP address or localhost, or set --serve-password."
+      : "No connections yet – send one with the command below.";
+    replaceRows($("recent"), recent.map((c) => {
+      const row = document.createElement("tr");
+      cell(row, c.target, "mono trunc").title = c.target;
+      cell(row, c.via || "–", "mono trunc-s").title = c.via || "";
+      pill(cell(row, ""), c.ok ? "ok" : "failed", c.ok ? "ok" : "bad");
+      cell(row, fmt(c.ms), "num");
+      cell(row, fmt(c.attempts), "num");
+      return row;
+    }));
+
+    replaceRows($("proxies"), (s.proxies || []).slice(0, 12).map((x) => {
+      const row = document.createElement("tr");
+      cell(row, x.url, "mono trunc-s").title = x.url;
+      const state = cell(row, "");
+      if (x.disabled) pill(state, "out", "off");
+      else if (x.active) pill(state, `${x.active} live`, "ok");
+      else state.textContent = x.country || "";
+      cell(row, fmt(x.latency_ms), "num");
+      cell(row, fmt(x.ok), "num");
+      cell(row, fmt(x.fail), "num");
+      return row;
+    }));
+  }
+
+  function draw() {
+    const canvas = $("chart");
+    const css = getComputedStyle(document.documentElement);
+    const ratio = window.devicePixelRatio || 1;
+    const w = canvas.clientWidth, h = canvas.clientHeight;
+    canvas.width = w * ratio;
+    canvas.height = h * ratio;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(ratio, ratio);
+    ctx.clearRect(0, 0, w, h);
+    const max = Math.max(1, ...history.map((p) => p.ok + p.failed));
+    const pad = { l: 34, b: 18, t: 6 };
+    const plotH = h - pad.b - pad.t, plotW = w - pad.l;
+    ctx.font = "11px " + css.getPropertyValue("--mono");
+    ctx.fillStyle = css.getPropertyValue("--muted");
+    ctx.strokeStyle = css.getPropertyValue("--line");
+    ctx.lineWidth = 1;
+    for (const f of [0, 0.5, 1]) {
+      const y = pad.t + plotH * (1 - f);
+      ctx.beginPath();
+      ctx.moveTo(pad.l, y + 0.5);
+      ctx.lineTo(w, y + 0.5);
+      ctx.stroke();
+      ctx.fillText((max * f).toFixed(max * f < 10 && f ? 1 : 0), 0, y + 4);
+    }
+    ctx.fillText("2 min ago", pad.l, h - 3);
+    ctx.textAlign = "right";
+    ctx.fillText("now", w, h - 3);
+    ctx.textAlign = "left";
+    const slot = plotW / HISTORY, barW = Math.max(slot - 2, 1);
+    history.forEach((p, i) => {
+      const x = pad.l + (HISTORY - history.length + i) * slot + 1;
+      const okH = (p.ok / max) * plotH, badH = (p.failed / max) * plotH;
+      ctx.fillStyle = css.getPropertyValue("--signal");
+      ctx.fillRect(x, pad.t + plotH - okH, barW, okH);
+      ctx.fillStyle = css.getPropertyValue("--bad");
+      ctx.fillRect(x, pad.t + plotH - okH - badH, barW, badH);
+    });
+  }
+
+  let timer = null;
+  let inflight = false;
+  async function poll() {
+    if (inflight) return; // a tab switch during a fetch must not start a second loop
+    inflight = true;
+    clearTimeout(timer);
+    try {
+      // from the origin, not relative: opened as http://user:pw@host/…, a relative URL would carry the login,
+      // and fetch refuses those – the browser still sends the Basic auth it already has for this origin
+      const res = await fetch(new URL("/__proxy-scraper/status", location.origin), { cache: "no-store", credentials: "same-origin" });
+      if (!res.ok) throw new Error(res.status);
+      render(await res.json());
+      $("live").className = "live on";
+      $("live-text").textContent = "live";
+    } catch (e) {
+      $("live").className = "live off";
+      $("live-text").textContent = "server not reachable";
+    } finally {
+      inflight = false;
+    }
+    clearTimeout(timer);
+    if (!document.hidden) timer = setTimeout(poll, 2000);
+  }
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    // the chart covers the last two minutes – after a pause, the old samples and the gap don't belong in it
+    history.length = 0;
+    last = null;
+    poll();
+  });
+  addEventListener("resize", draw);
+  $("copy").addEventListener("click", async () => {
+    try {
+      await navigator.clipboard.writeText($("cmd").textContent);
+      $("copy").textContent = "Copied";
+    } catch (e) {
+      getSelection().selectAllChildren($("cmd"));
+      $("copy").textContent = "Selected";
+    }
+    setTimeout(() => { $("copy").textContent = "Copy"; }, 1500);
+  });
+  poll();
+})();
+</script>
+</body>
+</html>

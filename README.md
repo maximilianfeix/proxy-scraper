@@ -495,6 +495,10 @@ Without a password, `--serve-host` means **anyone who reaches the port can use i
 
 In testing: 20 of 20 HTTPS requests succeeded, over 15 different exit IPs. In the wizard this is **Proxy server right away**.
 
+**Live dashboard:** open `http://127.0.0.1:8899/__proxy-scraper/` in a browser – the pool, success rate, traffic, a live chart of requests, countries, the best proxies and the latest connections, refreshed every two seconds. It needs nothing from the internet, and `--serve-password` protects it like the rest.
+
+<div align="center"><img src="docs/dashboard-live.png" alt="The live dashboard of the rotating proxy server: usable proxies, success rate, requests per second, countries and the latest connections" width="860"></div>
+
 <a id="pool-api"></a>
 
 ### Proxy pool API

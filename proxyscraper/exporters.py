@@ -6,6 +6,7 @@
   singbox       singbox.json for sing-box: a local mixed (HTTP+SOCKS) inbound on 127.0.0.1:2080 and a
                 urltest outbound over every proxy (SOCKS4 too – sing-box can do it)
   curl          curl.txt, one URL per line in the format for `curl -x` (SOCKS5 with DNS through the proxy)
+  pac           proxy.pac for browsers, FoxyProxy and the OS proxy settings: the best 30, tried in order
 """
 
 from __future__ import annotations
@@ -142,11 +143,46 @@ def curl(rows: Sequence[CheckResult], now: datetime) -> str:
     return "".join(f"{CURL_SCHEMES[r.ptype]}://{r.proxy}\n" for r in rows)
 
 
+PAC_KEYWORDS = {"http": "PROXY", "socks5": "SOCKS5", "socks4": "SOCKS"}
+PAC_MAX = 30  # browsers try the entries in order; more than this only slows down the failure case
+PAC_FAIL_CLOSED = "PROXY 127.0.0.1:1"  # nothing listens there – better no page than the real IP
+# hosts that stay direct, matched by name only: isInNet()/dnsResolve() would send every host name to the local DNS
+PAC_LOCAL = ("localhost", "*.localhost", "*.local", "127.*", "10.*", "192.168.*", "169.254.*",
+             *(f"172.{n}.*" for n in range(16, 32)))
+
+
+def pac(rows: Sequence[CheckResult], now: datetime) -> str:
+    entries = []
+    for r in rows:
+        ep = parse_endpoint(r.proxy)
+        if ep.has_auth or not tunnels(r):
+            continue  # PAC can't carry a login; HTTP proxies without CONNECT can't load https:// pages
+        entries.append(f"{PAC_KEYWORDS[r.ptype]} {ep.host}:{ep.port}")
+        if len(entries) == PAC_MAX:
+            break
+    # no "; DIRECT" at the end: when every proxy is down the browser must not quietly use the real IP
+    chain = "; ".join(entries) or PAC_FAIL_CLOSED
+    local = " ||\n    ".join(f'shExpMatch(host, "{pattern}")' for pattern in PAC_LOCAL)
+    return f"""// proxy-scraper, {now:%Y-%m-%d %H:%M}, {len(entries)} proxies, best first.
+// The browser tries them in order. Local and private hosts go direct; no DIRECT fallback for the rest.
+const PROXIES = "{chain}";
+
+function FindProxyForURL(url, host) {{
+  if (isPlainHostName(host) ||
+    {local}) {{
+    return "DIRECT";
+  }}
+  return PROXIES;
+}}
+"""
+
+
 EXPORTERS: Dict[str, Tuple[str, Exporter]] = {
     "proxychains": ("proxychains.conf", proxychains),
     "clash": ("clash.yaml", clash),
     "singbox": ("singbox.json", singbox),
     "curl": ("curl.txt", curl),
+    "pac": ("proxy.pac", pac),
 }
 
 

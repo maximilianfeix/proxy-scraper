@@ -19,9 +19,11 @@ import sys
 from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Dict, List, Optional
 
 from .charts import THEMES, countries_svg, trend_svg
+from .exporters import pac
 from .pages import write_pages
 from .parsing import PROXY_TYPES
 from .proxypages import write_proxy_pages
@@ -276,6 +278,9 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
         row["uptime_7d"] = uptime(entry["bits"], runs, now, 7 * 24)
     out.mkdir(parents=True, exist_ok=True)
     counts = write_lists(rows, out)
+    # one URL for a browser's proxy settings – the same proxies, best first, as a PAC file
+    pac_rows = [SimpleNamespace(ptype=r["ptype"], proxy=r["proxy"], https=r.get("https")) for r in rows]
+    (out / "proxy.pac").write_text(pac(pac_rows, now), encoding="utf-8")
     # don't just copy: rewrite the details so nothing with credentials ends up there either
     (out / "proxies.json").write_text(json.dumps(rows, indent=1, ensure_ascii=False), encoding="utf-8")
     with (run_dir / "proxies.csv").open(newline="", encoding="utf-8") as src, \

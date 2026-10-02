@@ -4,11 +4,16 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.23.0] – 2026-10-02
+
 ### Added
-- Python 3.14 support: tested in CI on Linux, macOS and Windows ([#229](https://github.com/maximilianfeix/proxy-scraper/issues/229))
+- Python 3.14 support: tested in CI on Linux, macOS and Windows ([#229](https://github.com/maximilianfeix/proxy-scraper/issues/229)) – thanks [@sameer-dhande](https://github.com/sameer-dhande)
 - The hourly lists in a repository of their own: [maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) – every protocol, HTTPS, elite, stable, the big sites and now one list per country (`countries/de.txt`), plus JSON and CSV, with the numbers of the last run on its README. `proxyscraper/mirror.py` builds it after `publish.py`; the workflow pushes one commit per run and squashes the history at the start of every month. Without the `LIST_REPO_KEY` secret (forks) the step does nothing
 - The README on the `proxy-list` branch links to it
-- Quick start code examples for Node.js, Go, and curl in the free-proxy-list README generator
+- Quick start examples for Node.js, Go and curl with SOCKS5 in the free-proxy-list README ([#230](https://github.com/maximilianfeix/proxy-scraper/issues/230)) – thanks [@sameer-dhande](https://github.com/sameer-dhande)
+- The daily snapshots also go to a Hugging Face dataset as Parquet, one file per UTC day with a `snapshot_date` column, when `HF_DATASET_REPO` and `HF_TOKEN` are set ([#188](https://github.com/maximilianfeix/proxy-scraper/issues/188)) – thanks [@arm21-afk](https://github.com/arm21-afk)
+- A new source: the hproxy-com HTTP list, 1.3 % of 3,000 candidates working in a test run – thanks [@arm21-afk](https://github.com/arm21-afk)
+- Country names for 22 more countries, so their proxies get a page on the website – thanks [@sujaljadhav14](https://github.com/sujaljadhav14)
 - A live dashboard for the rotating server at `/__proxy-scraper/`: usable proxies, success rate, requests, traffic and uptime, a chart of requests per second, countries, the best proxies and the latest connections, refreshed every two seconds. Self-contained (no CDN, works offline), client data rendered only as text, a strict Content-Security-Policy with the script pinned by hash, and `--serve-password` protects it. `/__proxy-scraper/status` now also lists the latest connections (without who sent them and with upstream passwords masked) and the countries of the pool. Without `--serve-password`, the latest connections are only in answers to requests made to an IP address or `localhost` – a website using DNS rebinding can't read them ([#240](https://github.com/maximilianfeix/proxy-scraper/issues/240))
 - [README.zh-CN.md](README.zh-CN.md): a Simplified Chinese README – install (with a PyPI mirror), the checks, the hourly list with GitHub Pages and jsDelivr for networks where raw.githubusercontent is unreliable, the proxy_pool-compatible API, the rotating server, Python, MCP and an FAQ. The English README links to it
 - `brew install maximilianfeix/tap/proxy-scraper` in the install section of both READMEs. The formula in [maximilianfeix/homebrew-tap](https://github.com/maximilianfeix/homebrew-tap) updates itself within about a day of each release
@@ -258,7 +263,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.22.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.23.0...HEAD
+[1.23.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.21.0...v1.22.0
 [1.21.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.20.0...v1.21.0
 [1.20.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.19.0...v1.20.0

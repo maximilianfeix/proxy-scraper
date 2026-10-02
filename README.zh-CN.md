@@ -144,7 +144,7 @@ curl -x http://country-us:x@127.0.0.1:8899 https://api.ipify.org     # 只用美
 curl -x http://session-cart42:x@127.0.0.1:8899 https://shop.example  # 同一会话保持同一个代理
 ```
 
-和商业轮换代理一样，通过**用户名**指定需求：`country-XX`、`type-http|socks4|socks5`、`session-名称`，可以组合使用。HTTPS 优先使用 TLS 验证通过的代理；如果符合需求（例如 `country-de`）的代理都没有通过验证，则使用其他代理——客户端自己的证书校验仍然有效，请不要关闭；连续失败三次的代理会被移出轮换，之后定期重新检测。默认只监听 `127.0.0.1`；如需对外开放，请用 `PROXY_SCRAPER_SERVE_PASSWORD` 设置密码。更多选项见[英文文档](README.md#proxy-server)。
+和商业轮换代理一样，通过**用户名**指定需求：`country-XX`、`type-http|socks4|socks5`、`session-名称`，可以组合使用。HTTPS 优先使用 TLS 验证通过的代理；如果当前没有合适的已验证代理（没有符合需求的，例如 `country-de`，或者它们都已被移出轮换），则使用其他代理——客户端自己的证书校验仍然有效，请不要关闭；连续失败三次的代理会被移出轮换，之后定期重新检测。默认只监听 `127.0.0.1`；如需对外开放，请用 `PROXY_SCRAPER_SERVE_PASSWORD` 设置密码。更多选项见[英文文档](README.md#proxy-server)。
 
 <a id="python"></a>
 

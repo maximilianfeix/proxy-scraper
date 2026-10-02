@@ -487,7 +487,7 @@ Without a password, `--serve-host` means **anyone who reaches the port can use i
 
 - every connection goes through a different proxy (unless sticky); fast and proven ones are preferred
 - `CONNECT` for HTTPS and plain HTTP requests; HTTP, SOCKS4 and SOCKS5 proxies can sit behind it (SOCKS5 with DNS through the proxy)
-- HTTPS prefers proxies that passed the test with **verified TLS**; if none of those match a wish (say `country-de`), it uses the others – your client's own certificate check still catches a proxy that breaks the encryption, so leave it on
+- HTTPS prefers proxies that passed the test with **verified TLS**; when no such proxy fits right now – none matches a wish like `country-de`, or they have all dropped out – it uses the others – your client's own certificate check still catches a proxy that breaks the encryption, so leave it on
 - if a proxy stays silent inside the tunnel or returns an error page instead of TLS, the same first packet quietly goes to the next one
 - three failures in a row and a proxy leaves the rotation – every 5 minutes those get re-checked and come back if they work again
 - `--serve-refill 6` checks fresh proxies every 6 hours in the background (the live list with `--recheck live`, otherwise the last run + history) with the same checks and filters, and adds the hits – a server that runs for days doesn't run dry

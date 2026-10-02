@@ -7,6 +7,7 @@ import base64
 import binascii
 import hashlib
 import hmac
+import ipaddress
 import json
 import re
 import time
@@ -31,7 +32,9 @@ DASHBOARD_HTML = (Path(__file__).parent / "dashboard.html").read_bytes()
 def _dashboard_headers(page: bytes) -> bytes:
     """A strict CSP: the page's own script (by hash), its inline styles, and fetches to this server only."""
     script = re.search(rb"<script>(.*?)</script>", page, re.S)
-    digest = base64.b64encode(hashlib.sha256(script.group(1) if script else b"").digest()).decode()
+    # browsers hash the script after turning CRLF into LF – a Windows checkout must give the same hash
+    source = (script.group(1) if script else b"").replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    digest = base64.b64encode(hashlib.sha256(source).digest()).decode()
     csp = (f"default-src 'none'; script-src 'sha256-{digest}'; style-src 'unsafe-inline'; img-src data:; "
            "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")
     return (f"Content-Security-Policy: {csp}\r\n"
@@ -61,6 +64,29 @@ def password_ok(headers: List[Tuple[bytes, bytes]], password: str, header: bytes
         return True
     creds = basic_credentials(headers, header)
     return creds is not None and hmac.compare_digest(creds[1].encode(), password.encode())
+
+
+def host_allowed(headers: List[Tuple[bytes, bytes]], password: str) -> bool:
+    """Against DNS rebinding: a website that points its own name at 127.0.0.1 can read pages here as
+    same-origin, but its name is in the Host header. Without a password only an IP address or localhost
+    may ask; with one, the login already keeps such a page out."""
+    if password:
+        return True
+    host = next((value for name, value in headers if name.lower() == b"host"), None)
+    if host is None:  # HTTP/1.0 without Host – browsers always send one
+        return True
+    name = host.decode("latin-1").strip().lower()
+    if name.startswith("["):  # [::1]:8899
+        name = name[1:].partition("]")[0]
+    elif name.count(":") == 1:
+        name = name.partition(":")[0]
+    if name == "localhost":
+        return True
+    try:
+        ipaddress.ip_address(name)
+        return True
+    except ValueError:
+        return False
 
 
 def selection_from_headers(headers: List[Tuple[bytes, bytes]]) -> Selection:

@@ -308,7 +308,13 @@ footer a { color: inherit; }
     }
     if (!document.hidden) timer = setTimeout(poll, 2000);
   }
-  document.addEventListener("visibilitychange", () => { if (!document.hidden) poll(); });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) return;
+    // the chart covers the last two minutes – after a pause, the old samples and the gap don't belong in it
+    history.length = 0;
+    last = null;
+    poll();
+  });
   addEventListener("resize", draw);
   $("copy").addEventListener("click", async () => {
     try {

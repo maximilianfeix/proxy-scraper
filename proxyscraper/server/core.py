@@ -38,6 +38,7 @@ from .status import (
     METRICS_TYPE,
     STATUS_PATH,
     STATUS_PREFIX,
+    host_allowed,
     metrics_text,
     password_ok,
     selection_from_headers,
@@ -499,6 +500,13 @@ class RotatingServer:
 
     async def _serve_status(self, writer, head: bytes) -> None:
         if not await self._local_auth(writer, head):
+            return
+        headers = [tuple(part.strip() for part in line.split(b":", 1)) for line in head.split(b"\r\n")[1:]
+                   if b":" in line]
+        if not host_allowed(headers, self.password):
+            await self._answer(writer, b"403 Forbidden", b"text/plain; charset=utf-8",
+                               b"Open this with an IP address or localhost, or set --serve-password "
+                               b"to use a host name.\n")
             return
         target = head.split(b" ", 2)[1].split(b"?", 1)[0]
         kind, extra = b"application/json", b""

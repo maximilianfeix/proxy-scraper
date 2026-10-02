@@ -142,3 +142,53 @@ def test_the_copied_command_uses_the_address_in_the_browser_and_asks_for_the_pas
     page = status.DASHBOARD_HTML.decode()
     assert "location.host" in page  # not the bind address – 0.0.0.0 is no proxy address for a client
     assert "any:PASSWORD@" in page  # with --serve-password the command must carry the login
+
+
+async def _get_host(port, path, host, auth=None):
+    import base64
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    extra = f"Authorization: Basic {base64.b64encode(auth).decode()}\r\n" if auth else ""
+    writer.write(f"GET {path} HTTP/1.1\r\nHost: {host}\r\n{extra}\r\n".encode())
+    await writer.drain()
+    data = await asyncio.wait_for(reader.read(1 << 20), 5)
+    writer.close()
+    return data
+
+
+def test_without_a_password_only_ip_or_localhost_hosts_get_the_status():
+    """DNS rebinding: a website points its own name at 127.0.0.1 and reads the status same-origin.
+    Its name is in the Host header – an IP address or localhost is not."""
+    async def client(port, _):
+        return [await _get_host(port, path, host) for path, host in [
+            ("/__proxy-scraper/status", "evil.example"),
+            ("/__proxy-scraper/", f"evil.example:{port}"),
+            ("/__proxy-scraper/metrics", "rebind.attacker.test"),
+            ("/__proxy-scraper/status", f"127.0.0.1:{port}"),
+            ("/__proxy-scraper/status", f"localhost:{port}"),
+            ("/__proxy-scraper/status", f"[::1]:{port}"),
+            ("/__proxy-scraper/status", "192.168.1.20"),
+        ]]
+
+    answers = [r.split(b"\r\n", 1)[0] for r in run(client)]
+    assert answers[:3] == [b"HTTP/1.1 403 Forbidden"] * 3
+    assert answers[3:] == [b"HTTP/1.1 200 OK"] * 4
+
+
+def test_with_a_password_any_host_name_works():
+    async def client(port, _):
+        return await _get_host(port, "/__proxy-scraper/status", "proxy.example.com", auth=b"any:s3cret")
+
+    assert run(client, password="s3cret").startswith(b"HTTP/1.1 200")
+
+
+def test_the_csp_hash_survives_windows_line_endings():
+    """Browsers hash an inline script after turning CRLF into LF – so must the server."""
+    lf = status._dashboard_headers(b"<script>\nrun();\n</script>")
+    crlf = status._dashboard_headers(b"<script>\r\nrun();\r\n</script>")
+    assert lf == crlf
+
+
+def test_the_chart_starts_over_after_the_tab_was_hidden():
+    page = status.DASHBOARD_HTML.decode()
+    handler = page.split('addEventListener("visibilitychange"', 1)[1].split("});", 1)[0]
+    assert "history.length = 0" in handler and "last = null" in handler

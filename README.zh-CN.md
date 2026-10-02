@@ -74,7 +74,7 @@ docker run --rm ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
 
 ## 每小时更新的代理列表
 
-不想自己扫描？GitHub Actions 每小时运行一次本工具并发布结果。列表中的每个代理在上一次运行中都通过了全部检测，按「最优优先」排序：加载网页最快的排在最前面。
+不想自己扫描？GitHub Actions 每小时运行一次本工具并发布结果。列表中的每个代理在上一次运行中都通过了全部检测，按「最优优先」排序：加载网页快、并且很可能仍然在线的排在最前面（已连续在线一天的代理，一小时后仍可用的比例为 99%；新出现的只有 25%）。
 
 - **网页版**（可按协议、国家、HTTPS、运营商、延迟筛选）：https://maximilianfeix.github.io/proxy-scraper/
 - **纯列表仓库**（按协议、按国家、按网站分类的 TXT，以及 JSON / CSV）：[maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)

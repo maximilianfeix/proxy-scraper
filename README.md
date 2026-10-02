@@ -21,6 +21,8 @@
 <a href="#mcp"><img src="https://img.shields.io/badge/MCP_server-121113?style=for-the-badge" alt="MCP server for AI agents"></a>
 <a href="bot/"><img src="https://img.shields.io/badge/Discord_bot-121113?style=for-the-badge" alt="Discord bot"></a>
 
+**English** · [简体中文](README.zh-CN.md)
+
 [Install](#install) · [Live list](#live-list) · [For AI agents](#mcp) · [Proxy server](#proxy-server) · [How it works](#how-it-works) · [Recipes](#recipes) · [Options](#options) · [FAQ](#faq)
 
 </div>
@@ -73,6 +75,14 @@ proxy-scraper
 ```
 
 The package is called `proxy-scraper-cli` on PyPI (the plain name is taken), the command is `proxy-scraper`.
+
+**With [Homebrew](https://brew.sh)** on macOS and Linux:
+
+```bash
+brew install maximilianfeix/tap/proxy-scraper
+```
+
+The formula follows each release within about a day.
 
 <details>
 <summary><b>Other ways: Docker, pip, a faster event loop, or straight from the repo</b></summary>

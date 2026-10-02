@@ -6,6 +6,8 @@
   singbox       singbox.json for sing-box: a local mixed (HTTP+SOCKS) inbound on 127.0.0.1:2080 and a
                 urltest outbound over every proxy (SOCKS4 too – sing-box can do it)
   curl          curl.txt, one URL per line in the format for `curl -x` (SOCKS5 with DNS through the proxy)
+  pac           proxy.pac for browsers, FoxyProxy and the OS proxy settings: the best 30 HTTP and SOCKS5,
+                tried in order
 """
 
 from __future__ import annotations
@@ -142,11 +144,57 @@ def curl(rows: Sequence[CheckResult], now: datetime) -> str:
     return "".join(f"{CURL_SCHEMES[r.ptype]}://{r.proxy}\n" for r in rows)
 
 
+# SOCKS4 is left out: it can't take a host name, so the browser would look the name up with the user's own DNS
+PAC_KEYWORDS = {"http": "PROXY", "socks5": "SOCKS5"}
+PAC_MAX = 30  # browsers try the entries in order; more than this only slows down the failure case
+PAC_FAIL_CLOSED = "PROXY 127.0.0.1:1"  # nothing listens there – better no page than the real IP
+# ES5 only: Windows runs PAC files in an old JScript engine. Local means a local name or a private IPv4
+# *address* – "10.attacker.example" is a public site. No isInNet()/dnsResolve(): they'd send every host name
+# to the local DNS.
+PAC_TEMPLATE = """// proxy-scraper, {when}, {count} proxies, best first.
+// The browser tries them in order. Local names and private IPv4 addresses go direct; no DIRECT fallback.
+var PROXIES = "{chain}";
+
+function isLocal(host) {{
+  if (isPlainHostName(host) || host === "localhost" ||
+      shExpMatch(host, "*.localhost") || shExpMatch(host, "*.local")) {{
+    return true;
+  }}
+  var ip = /^(\\d{{1,3}})\\.(\\d{{1,3}})\\.\\d{{1,3}}\\.\\d{{1,3}}$/.exec(host);
+  if (!ip) {{
+    return false;
+  }}
+  var a = parseInt(ip[1], 10), b = parseInt(ip[2], 10);
+  return a === 127 || a === 10 || (a === 192 && b === 168) || (a === 169 && b === 254) ||
+    (a === 172 && b >= 16 && b <= 31);
+}}
+
+function FindProxyForURL(url, host) {{
+  return isLocal(host) ? "DIRECT" : PROXIES;
+}}
+"""
+
+
+def pac(rows: Sequence[CheckResult], now: datetime) -> str:
+    entries = []
+    for r in rows:
+        ep = parse_endpoint(r.proxy)
+        if r.ptype not in PAC_KEYWORDS or ep.has_auth or not tunnels(r):
+            continue  # PAC can't carry a login; HTTP proxies without CONNECT can't load https:// pages
+        entries.append(f"{PAC_KEYWORDS[r.ptype]} {ep.host}:{ep.port}")
+        if len(entries) == PAC_MAX:
+            break
+    # no "; DIRECT" at the end: when every proxy is down the browser must not quietly use the real IP
+    return PAC_TEMPLATE.format(when=f"{now:%Y-%m-%d %H:%M}", count=len(entries),
+                               chain="; ".join(entries) or PAC_FAIL_CLOSED)
+
+
 EXPORTERS: Dict[str, Tuple[str, Exporter]] = {
     "proxychains": ("proxychains.conf", proxychains),
     "clash": ("clash.yaml", clash),
     "singbox": ("singbox.json", singbox),
     "curl": ("curl.txt", curl),
+    "pac": ("proxy.pac", pac),
 }
 
 

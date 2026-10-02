@@ -713,6 +713,8 @@ proxychains4 -f results/latest/proxychains.conf curl https://api.ipify.org
 
 `clash.yaml` has all HTTP and SOCKS5 proxies plus a `url-test` group that always picks the fastest. `singbox.json` does the same for sing-box, SOCKS4 included, and opens a local proxy: `sing-box run -c results/latest/singbox.json`, then use `127.0.0.1:2080` as HTTP or SOCKS5 proxy. All three leave out HTTP proxies that can't tunnel (`CONNECT`), because these tools tunnel everything.
 
+**Browsers and the OS** – `--export pac` writes `proxy.pac`: point Firefox, Chrome (via the system settings), FoxyProxy or macOS/Windows proxy settings at it and every request goes through the best 30 HTTP and SOCKS5 proxies in order, the browser moving on by itself when one fails. Local names and private IP addresses stay direct (a host name like `10.example.com` doesn't count as private). The file itself has no `DIRECT` fallback and resolves no host names, and SOCKS4 is left out because it would make the browser resolve names with your own DNS. Two Firefox settings matter: turn on *Proxy DNS when using SOCKS v5*, and set `network.proxy.failover_direct` to `false` in `about:config` – otherwise Firefox goes direct once every proxy has failed. No install at all: the live list publishes one every hour at `https://maximilianfeix.github.io/proxy-scraper/proxy.pac`.
+
 **In a pipe** – `-o -` prints the hits to stdout, the interface moves to stderr
 
 ```bash
@@ -806,7 +808,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--serve-refill HOURS` | while serving, check fresh proxies every HOURS and add the hits to the pool |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |
 | `-o FILE` | also write all hits to this file; `-o -` prints them to stdout |
-| `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `singbox`, `curl` or `all` |
+| `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `singbox`, `curl`, `pac` or `all` |
 | `-V`, `--version` | print the version |
 | `--completion SHELL` | print the tab completion script for bash, zsh, fish or PowerShell |
 
@@ -941,7 +943,7 @@ proxyscraper/
 ├── geodb.py            DB-IP country database (monthly, binary search)
 ├── targets.py          target sites for --target
 ├── output.py           result files
-├── exporters.py        proxychains, Clash, sing-box and curl formats (--export)
+├── exporters.py        proxychains, Clash, sing-box, curl and PAC formats (--export)
 ├── server/             rotating proxy server (--serve): pool · http · upstream · socks · status · api · core
 ├── api.py              find_proxies() / check_proxies() for Python
 ├── agent.py            MCP tools without the SDK: live list, filters, fetch through proxies

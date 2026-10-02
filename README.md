@@ -487,7 +487,7 @@ Without a password, `--serve-host` means **anyone who reaches the port can use i
 
 - every connection goes through a different proxy (unless sticky); fast and proven ones are preferred
 - `CONNECT` for HTTPS and plain HTTP requests; HTTP, SOCKS4 and SOCKS5 proxies can sit behind it (SOCKS5 with DNS through the proxy)
-- HTTPS only uses proxies that passed the test with **verified TLS** – no broken encryption
+- HTTPS prefers proxies that passed the test with **verified TLS**; when no such proxy fits right now – none matches a wish like `country-de`, or they have all dropped out – it uses the others – your client's own certificate check still catches a proxy that breaks the encryption, so leave it on
 - if a proxy stays silent inside the tunnel or returns an error page instead of TLS, the same first packet quietly goes to the next one
 - three failures in a row and a proxy leaves the rotation – every 5 minutes those get re-checked and come back if they work again
 - `--serve-refill 6` checks fresh proxies every 6 hours in the background (the live list with `--recheck live`, otherwise the last run + history) with the same checks and filters, and adds the hits – a server that runs for days doesn't run dry
@@ -718,6 +718,16 @@ proxychains4 -f results/latest/proxychains.conf curl https://api.ipify.org
 `clash.yaml` has all HTTP and SOCKS5 proxies plus a `url-test` group that always picks the fastest. `singbox.json` does the same for sing-box, SOCKS4 included, and opens a local proxy: `sing-box run -c results/latest/singbox.json`, then use `127.0.0.1:2080` as HTTP or SOCKS5 proxy. All three leave out HTTP proxies that can't tunnel (`CONNECT`), because these tools tunnel everything.
 
 **Browsers and the OS** – `--export pac` writes `proxy.pac`: point Firefox, Chrome (via the system settings), FoxyProxy or macOS/Windows proxy settings at it and every request goes through the best 30 HTTP and SOCKS5 proxies in order, the browser moving on by itself when one fails. Local names and private IP addresses stay direct (a host name like `10.example.com` doesn't count as private). The file itself has no `DIRECT` fallback and resolves no host names, and SOCKS4 is left out because it would make the browser resolve names with your own DNS. Two Firefox settings matter: turn on *Proxy DNS when using SOCKS v5*, and set `network.proxy.failover_direct` to `false` in `about:config` – otherwise Firefox goes direct once every proxy has failed. No install at all: the live list publishes one every hour at `https://maximilianfeix.github.io/proxy-scraper/proxy.pac`.
+
+**Burp Suite, OWASP ZAP, mitmproxy** – put the rotating server behind your intercepting proxy, so a scan or a brute-force test comes from many IPs while you still see every request. Start it with `proxy-scraper --recheck live --serve`, then:
+
+| Tool | Where | Set |
+|---|---|---|
+| Burp Suite | *Settings → Network → Connections → Upstream proxy servers* | a rule for destination host `*`, proxy host `127.0.0.1`, port `8899`; with `--serve-password` add Basic auth (user `any` or a wish like `country-de`, the password) |
+| OWASP ZAP | *Options → Network → Connection → HTTP Proxy* | host `127.0.0.1`, port `8899`, and under its authentication the user (`any` or a wish) and the password – use the HTTP setting, not SOCKS: ZAP never sends loopback addresses through its SOCKS proxy |
+| mitmproxy | command line | `mitmproxy --mode upstream:http://127.0.0.1:8899 --upstream-auth country-us:x` |
+
+Username wishes – `country-us` sends everything out through US proxies, `session-NAME` keeps one exit IP for a login flow – reach the server as the proxy login. mitmproxy sends it right away; Burp and ZAP may wait to be asked, so start the server with `--serve-password` when you rely on a wish there. **Keep your tool's upstream certificate checks on** (no `--ssl-insecure` in mitmproxy, no "ignore certificate errors" upstream in Burp or ZAP): free proxies are strangers, and that check is what stops one from reading or changing your HTTPS traffic. Tested end to end with mitmproxy 12, certificate checks on: HTTP and HTTPS through mitmproxy and the rotating server, every request out through a US proxy, and a site with an expired certificate refused. Only test what you're allowed to.
 
 **In a pipe** – `-o -` prints the hits to stdout, the interface moves to stderr
 

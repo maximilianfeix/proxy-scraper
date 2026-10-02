@@ -204,7 +204,7 @@ def test_the_page_explains_hidden_connections():
 
 
 def test_a_tab_switch_during_a_fetch_doesnt_start_a_second_polling_loop():
-    page = status.DASHBOARD_HTML.decode()
+    page = status.DASHBOARD_HTML.decode().replace("\r\n", "\n")
     poll = page.split("async function poll()", 1)[1].split("\n  }\n", 1)[0]
     assert "if (inflight) return;" in poll and "inflight = false" in poll
 
@@ -227,8 +227,8 @@ def test_the_chart_starts_over_after_the_tab_was_hidden():
     (0, 0, "–"), (10, 0, "100 %"), (996, 4, "99.6 %"), (9999, 1, "99.9 %"), (1, 19, "5 %"), (50, 50, "50.0 %"),
 ])
 def test_the_success_rate_never_rounds_failures_away(ok, failed, shown):
-    page = status.DASHBOARD_HTML.decode()
+    page = status.DASHBOARD_HTML.decode().replace("\r\n", "\n")  # a Windows checkout has CRLF
     source = "function rateText" + page.split("function rateText", 1)[1].split("\n  }\n", 1)[0] + "\n  }\n"
     out = subprocess.run(["node", "-e", source + f"process.stdout.write(rateText({ok}, {failed}))"],
-                         check=True, capture_output=True, text=True).stdout
+                         check=True, capture_output=True, encoding="utf-8").stdout
     assert out == shown

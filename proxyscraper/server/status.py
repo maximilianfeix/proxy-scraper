@@ -9,7 +9,6 @@ import hashlib
 import hmac
 import ipaddress
 import json
-import re
 import time
 from collections import Counter
 from pathlib import Path
@@ -31,9 +30,12 @@ DASHBOARD_HTML = (Path(__file__).parent / "dashboard.html").read_bytes()
 
 def _dashboard_headers(page: bytes) -> bytes:
     """A strict CSP: the page's own script (by hash), its inline styles, and fetches to this server only."""
-    script = re.search(rb"<script>(.*?)</script>", page, re.S)
+    # the page's one inline script, exactly as written (our own constant page, not something to sanitize)
+    start = page.find(b"<script>")
+    end = page.find(b"</script>", start)
+    source = page[start + len(b"<script>"):end] if start != -1 and end != -1 else b""
     # browsers hash the script after turning CRLF into LF – a Windows checkout must give the same hash
-    source = (script.group(1) if script else b"").replace(b"\r\n", b"\n").replace(b"\r", b"\n")
+    source = source.replace(b"\r\n", b"\n").replace(b"\r", b"\n")
     digest = base64.b64encode(hashlib.sha256(source).digest()).decode()
     csp = (f"default-src 'none'; script-src 'sha256-{digest}'; style-src 'unsafe-inline'; img-src data:; "
            "connect-src 'self'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'")

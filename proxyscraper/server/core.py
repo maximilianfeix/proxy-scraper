@@ -503,17 +503,12 @@ class RotatingServer:
             return
         headers = [tuple(part.strip() for part in line.split(b":", 1)) for line in head.split(b"\r\n")[1:]
                    if b":" in line]
-        if not host_allowed(headers, self.password):
-            await self._answer(writer, b"403 Forbidden", b"text/plain; charset=utf-8",
-                               b"Open this with an IP address or localhost, or set --serve-password "
-                               b"to use a host name.\n")
-            return
         target = head.split(b" ", 2)[1].split(b"?", 1)[0]
         kind, extra = b"application/json", b""
         if target in DASHBOARD_PATHS:
             status, body, kind, extra = b"200 OK", DASHBOARD_HTML, DASHBOARD_TYPE, DASHBOARD_HEADERS
         elif target == STATUS_PATH:
-            status, body = b"200 OK", status_json(self).encode()
+            status, body = b"200 OK", status_json(self, show_recent=host_allowed(headers, self.password)).encode()
         elif target == METRICS_PATH:
             status, body, kind = b"200 OK", metrics_text(self).encode(), METRICS_TYPE
         else:  # only exactly these paths – typos shouldn't silently return the status

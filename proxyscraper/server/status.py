@@ -68,8 +68,8 @@ def password_ok(headers: List[Tuple[bytes, bytes]], password: str, header: bytes
 
 def host_allowed(headers: List[Tuple[bytes, bytes]], password: str) -> bool:
     """Against DNS rebinding: a website that points its own name at 127.0.0.1 can read pages here as
-    same-origin, but its name is in the Host header. Without a password only an IP address or localhost
-    may ask; with one, the login already keeps such a page out."""
+    same-origin, but its name is in the Host header. Without a password, only a request to an IP address or
+    localhost may see private details (where requests went); with one, the login already keeps such a page out."""
     if password:
         return True
     host = next((value for name, value in headers if name.lower() == b"host"), None)
@@ -95,7 +95,7 @@ def selection_from_headers(headers: List[Tuple[bytes, bytes]]) -> Selection:
     return Selection.from_username(creds[0]) if creds else Selection()
 
 
-def status_json(server: Any) -> str:
+def status_json(server: Any, show_recent: bool = True) -> str:
     """server: the RotatingServer (not imported, otherwise core and status would depend on each other in a circle)."""
     st, pool = server.stats, server.pool
     entries = sorted(pool.entries, key=lambda e: (e.disabled, -e.ok, e.result.latency))
@@ -110,9 +110,7 @@ def status_json(server: Any) -> str:
         "pool": {"total": len(pool.entries), "usable": len(pool.usable), "https": len(pool.tls_capable),
                  "revived": server.revived, "refilled": server.refilled,
                  "last_refill": server.last_refill and round(server.last_refill)},
-        # newest first; who sent a request isn't shown – only where it went and how
-        "recent": [{"target": r.target, "via": shown_via(r.via), "ok": r.ok, "ms": r.ms, "attempts": r.attempts}
-                   for r in reversed(st.recent)],
+        "recent_hidden": not show_recent,
         "countries": dict(Counter(e.result.country for e in pool.entries if not e.disabled and e.result.country)
                           .most_common()),
         "proxies": [
@@ -122,6 +120,9 @@ def status_json(server: Any) -> str:
             for e in entries[:100]
         ],
     }
+    if show_recent:  # newest first; who sent a request isn't shown – only where it went and how
+        payload["recent"] = [{"target": r.target, "via": shown_via(r.via), "ok": r.ok, "ms": r.ms,
+                              "attempts": r.attempts} for r in reversed(st.recent)]
     return json.dumps(payload, indent=1, ensure_ascii=False)
 
 

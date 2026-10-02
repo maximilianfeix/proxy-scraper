@@ -227,6 +227,9 @@ footer a { color: inherit; }
 
     const recent = s.recent || [];
     $("recent-empty").hidden = recent.length > 0;
+    $("recent-empty").textContent = s.recent_hidden
+      ? "Hidden for this address: open the page with an IP address or localhost, or set --serve-password."
+      : "No connections yet – send one with the command below.";
     replaceRows($("recent"), recent.map((c) => {
       const row = document.createElement("tr");
       cell(row, c.target, "mono trunc").title = c.target;
@@ -292,7 +295,10 @@ footer a { color: inherit; }
   }
 
   let timer = null;
+  let inflight = false;
   async function poll() {
+    if (inflight) return; // a tab switch during a fetch must not start a second loop
+    inflight = true;
     clearTimeout(timer);
     try {
       // from the origin, not relative: opened as http://user:pw@host/…, a relative URL would carry the login,
@@ -305,7 +311,10 @@ footer a { color: inherit; }
     } catch (e) {
       $("live").className = "live off";
       $("live-text").textContent = "server not reachable";
+    } finally {
+      inflight = false;
     }
+    clearTimeout(timer);
     if (!document.hidden) timer = setTimeout(poll, 2000);
   }
   document.addEventListener("visibilitychange", () => {

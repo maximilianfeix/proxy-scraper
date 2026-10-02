@@ -155,30 +155,54 @@ async def _get_host(port, path, host, auth=None):
     return data
 
 
-def test_without_a_password_only_ip_or_localhost_hosts_get_the_status():
-    """DNS rebinding: a website points its own name at 127.0.0.1 and reads the status same-origin.
-    Its name is in the Host header – an IP address or localhost is not."""
+def test_without_a_password_a_host_name_gets_everything_but_the_latest_connections():
+    """DNS rebinding: a website points its own name at 127.0.0.1 and reads /status same-origin. Its name is in
+    the Host header, so the latest connections – the user's destinations – stay out of that answer. Everything
+    else keeps working by host name (Prometheus in Docker, a LAN name), as before."""
+    recent = [RequestLog("127.0.0.1:5000", "bank.example:443", "http 10.0.0.1:80", True, 90, 1)]
+
     async def client(port, _):
-        return [await _get_host(port, path, host) for path, host in [
-            ("/__proxy-scraper/status", "evil.example"),
-            ("/__proxy-scraper/", f"evil.example:{port}"),
-            ("/__proxy-scraper/metrics", "rebind.attacker.test"),
-            ("/__proxy-scraper/status", f"127.0.0.1:{port}"),
-            ("/__proxy-scraper/status", f"localhost:{port}"),
-            ("/__proxy-scraper/status", f"[::1]:{port}"),
-            ("/__proxy-scraper/status", "192.168.1.20"),
-        ]]
+        return {host: await _get_host(port, "/__proxy-scraper/status", host) for host in [
+            "evil.example", f"proxy-scraper:{port}", f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}",
+            "192.168.1.20"]}
 
-    answers = [r.split(b"\r\n", 1)[0] for r in run(client)]
-    assert answers[:3] == [b"HTTP/1.1 403 Forbidden"] * 3
-    assert answers[3:] == [b"HTTP/1.1 200 OK"] * 4
+    answers = {host: json.loads(split(r)[1]) for host, r in run(client, recent=recent).items()}
+    for host, data in answers.items():
+        named = not (host[0].isdigit() or host.startswith(("localhost", "[")))
+        assert ("recent" in data) is not named, host
+        assert data["recent_hidden"] is named, host
+        assert data["pool"]["total"] == 3, host  # the rest is always there
+    assert "bank.example" not in json.dumps(answers["evil.example"])
 
 
-def test_with_a_password_any_host_name_works():
+def test_metrics_and_the_page_work_by_host_name():
+    async def client(port, _):
+        return (await _get_host(port, "/__proxy-scraper/metrics", "proxy-scraper:8899"),
+                await _get_host(port, "/__proxy-scraper/", "proxy-scraper:8899"))
+
+    metrics, page = run(client)
+    assert metrics.startswith(b"HTTP/1.1 200") and page.startswith(b"HTTP/1.1 200")
+
+
+def test_with_a_password_a_host_name_gets_the_latest_connections_too():
+    recent = [RequestLog("127.0.0.1:5000", "example.com:443", "", True, 90, 1)]
+
     async def client(port, _):
         return await _get_host(port, "/__proxy-scraper/status", "proxy.example.com", auth=b"any:s3cret")
 
-    assert run(client, password="s3cret").startswith(b"HTTP/1.1 200")
+    data = json.loads(split(run(client, password="s3cret", recent=recent))[1])
+    assert data["recent"][0]["target"] == "example.com:443" and data["recent_hidden"] is False
+
+
+def test_the_page_explains_hidden_connections():
+    page = status.DASHBOARD_HTML.decode()
+    assert "recent_hidden" in page
+
+
+def test_a_tab_switch_during_a_fetch_doesnt_start_a_second_polling_loop():
+    page = status.DASHBOARD_HTML.decode()
+    poll = page.split("async function poll()", 1)[1].split("\n  }\n", 1)[0]
+    assert "if (inflight) return;" in poll and "inflight = false" in poll
 
 
 def test_the_csp_hash_survives_windows_line_endings():

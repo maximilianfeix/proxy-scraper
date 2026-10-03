@@ -1,0 +1,3 @@
+49,370 free proxies worked at some point this week. Of the ones that dropped off, 87 % were gone by the next check. Only 120 have been up for about a day straight. Amazon let 28 % through.
+
+The week in numbers: maximilianfeix.github.io/proxy-scraper/report/

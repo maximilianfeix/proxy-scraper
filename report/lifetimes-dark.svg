@@ -1,0 +1,19 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="234" viewBox="0 0 880 234" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-label="How many hourly checks free proxies lasted">
+<rect width="880" height="234" rx="16" fill="#121113"/>
+<text x="28" y="38" fill="#9A97A0" font-size="14">Proxies that dropped off this week: on the list for … in a row</text>
+<text x="28" y="71" fill="#EDEBE6" font-size="14">1 check</text>
+<rect x="200" y="58" width="530.0" height="18" rx="4" fill="#D4F77A"/>
+<text x="740.0" y="71" fill="#9A97A0" font-size="13">40,842 (87 %)</text>
+<text x="28" y="105" fill="#EDEBE6" font-size="14">2–5 checks</text>
+<rect x="200" y="92" width="79.2" height="18" rx="4" fill="#D4F77A"/>
+<text x="289.2" y="105" fill="#9A97A0" font-size="13">6,101 (13 %)</text>
+<text x="28" y="139" fill="#EDEBE6" font-size="14">6–23 checks</text>
+<rect x="200" y="126" width="3.0" height="18" rx="4" fill="#D4F77A"/>
+<text x="213.0" y="139" fill="#9A97A0" font-size="13">234 (0 %)</text>
+<text x="28" y="173" fill="#EDEBE6" font-size="14">24–71 checks</text>
+<rect x="200" y="160" width="2.0" height="18" rx="4" fill="#D4F77A"/>
+<text x="210.3" y="173" fill="#9A97A0" font-size="13">20 (0 %)</text>
+<text x="28" y="207" fill="#EDEBE6" font-size="14">72 checks +</text>
+<rect x="200" y="194" width="2.0" height="18" rx="4" fill="#D4F77A"/>
+<text x="210.1" y="207" fill="#9A97A0" font-size="13">9 (0 %)</text>
+</svg>

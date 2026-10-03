@@ -1,0 +1,264 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free proxies in Germany – checked every hour | proxy-scraper</title>
+<meta name="description" content="161 free proxies in Germany, checked every hour: real handshake, honeypot and content check. Download as text or filter the full list.">
+<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/country/de/">
+<meta property="og:title" content="Free proxies in Germany">
+<meta property="og:description" content="161 free proxies in Germany, checked every hour: real handshake, honeypot and content check. Download as text or filter the full list.">
+<meta property="og:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<meta property="og:url" content="https://maximilianfeix.github.io/proxy-scraper/country/de/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../../logo.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+<style>
+:root { --bg: #121113; --panel: #1A191C; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0; --signal: #D4F77A;
+        --signal-ink: #D4F77A; --on-signal: #121113; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root { --bg: #EFEFEC; --panel: #FFFFFF; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
+          --signal-ink: #3F5A00; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.55 "Geist", ui-sans-serif, system-ui,
+       sans-serif; padding-inline: 16px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 36px; }
+a { color: var(--signal-ink); }
+:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 6px; }
+.mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 600;
+         letter-spacing: -.03em; font-size: 18px; }
+.brand img { width: 30px; height: 30px; border-radius: 9px; }
+h1 { margin: 0; font-size: clamp(36px, 6vw, 72px); line-height: 1; letter-spacing: -.05em; font-weight: 600;
+     text-wrap: balance; }
+.lede { margin: 16px 0 0; color: var(--muted); font-size: 18px; max-width: 62ch; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.btn { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 99px; text-decoration: none;
+       font-weight: 500; border: 1px solid var(--line); color: var(--text); }
+.btn.primary { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+.table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+caption { text-align: left; padding: 14px 16px 0; color: var(--muted); font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 12px 16px;
+     border-bottom: 1px solid var(--line); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+     white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.empty { padding: 28px 16px; color: var(--muted); }
+nav h2 { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 10px; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+nav a { display: inline-block; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px;
+        text-decoration: none; color: var(--text); font-size: 14px; }
+nav a[aria-current] { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+
+.wrap > * { min-width: 0; }  /* grid items default to their content's width: the wide table would push the page */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+         background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.facts div { background: var(--panel); padding: 16px 18px; }
+.facts dt { font-size: 26px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.facts dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+.use pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+           overflow-x: auto; font-size: 14px; margin: 0 0 10px; }
+.note { color: var(--muted); font-size: 14px; }
+.faq h3 { font-size: 18px; font-weight: 500; margin: 22px 0 6px; }
+.faq p { margin: 0; color: var(--muted); max-width: 70ch; }
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How many free proxies in Germany work right now?", "acceptedAnswer": {"@type": "Answer", "text": "161 passed every check in the last run (03 Oct 2026, 16:47 UTC): a real handshake, a honeypot check on two sites and a content check. 127 of them tunnel HTTPS with verified TLS, and 2 were on the list in 90 % or more of this week's hourly checks. The list is checked again every hour."}}, {"@type": "Question", "name": "Which free proxies in Germany get through to Google?", "acceptedAnswer": {"@type": "Answer", "text": "In the last check, 32 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram and TikTok – the full list on the website can be filtered by it."}}, {"@type": "Question", "name": "How do I get working proxies in Germany in code or the terminal?", "acceptedAnswer": {"@type": "Answer", "text": "Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country DE prints five from the hourly list. From Python, live_proxies() takes the same filters."}}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../../"><img src="../../logo.png" alt="">proxy-scraper</a>
+    <a href="../../">All proxies</a>
+  </header>
+  <main>
+    <h1>Free proxies in Germany</h1>
+    <p class="lede">161 proxies in Germany that worked in the last check (03 Oct 2026, 16:47 UTC). Each one passed a real handshake, a honeypot check on two sites and a content check, so none of them rewrite the pages you load.</p>
+    <div class="actions">
+      <a class="btn primary" href="proxies.txt" download>Download 161 as .txt</a>
+      <a class="btn" href="../../?country=DE#list">Filter the full list</a>
+      <a class="btn" href="https://github.com/maximilianfeix/proxy-scraper">Check them from your network</a>
+    </div>
+  </main>
+  <dl class="facts"><div><dt>161</dt><dd>working right now</dd></div><div><dt>127</dt><dd>tunnel HTTPS</dd></div><div><dt>2</dt><dd>on the list 90 %+ of the week</dd></div><div><dt>32</dt><dd>get through to Google</dd></div><div><dt>112 KB/s</dt><dd>median download speed</dd></div></dl>
+  <div class="table"><table><caption>The 161 fastest to load a page, as ip:port. The download has all 161 as type://ip:port.</caption><thead><tr><th scope="col">Proxy</th><th scope="col">Type</th><th scope="col">Country</th><th scope="col">Latency</th><th scope="col">Speed</th><th scope="col">Uptime</th><th scope="col">HTTPS</th><th scope="col">Gets through</th><th scope="col">Provider</th></tr></thead><tbody><tr><td class="mono"><a href="../../proxy/103.237.102.191-11111/">103.237.102.191:11111</a></td><td>HTTP</td><td>DE</td><td>325 ms</td><td>141 KB/s</td><td>99 %</td><td>yes</td><td>Reddit, TikTok</td><td>Zenlayer Inc</td></tr>
+<tr><td class="mono"><a href="../../proxy/161.35.70.249-80/">161.35.70.249:80</a></td><td>HTTP</td><td>DE</td><td>338 ms</td><td>112 KB/s</td><td>52 %</td><td>yes</td><td>Google</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/207.180.207.217-10808/">207.180.207.217:10808</a></td><td>SOCKS5</td><td>DE</td><td>839 ms</td><td>132 KB/s</td><td>34 %</td><td>yes</td><td>Instagram, TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/109.199.119.160-80/">109.199.119.160:80</a></td><td>HTTP</td><td>DE</td><td>277 ms</td><td>–</td><td>89 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/80.74.54.148-3128/">80.74.54.148:3128</a></td><td>HTTP</td><td>DE</td><td>333 ms</td><td>–</td><td>71 %</td><td>no</td><td>–</td><td>Deutsche Glasfaser Wholesale GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/195.201.250.16-80/">195.201.250.16:80</a></td><td>HTTP</td><td>DE</td><td>510 ms</td><td>–</td><td>45 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/141.98.153.86-80/">141.98.153.86:80</a></td><td>HTTP</td><td>DE</td><td>778 ms</td><td>–</td><td>90 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/5.42.127.131-80/">5.42.127.131:80</a></td><td>HTTP</td><td>DE</td><td>939 ms</td><td>–</td><td>70 %</td><td>no</td><td>–</td><td>Timeweb, LLP</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11577/">45.74.31.25:11577</a></td><td>SOCKS5</td><td>DE</td><td>788 ms</td><td>112 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.22-4525/">45.74.31.22:4525</a></td><td>SOCKS5</td><td>DE</td><td>934 ms</td><td>116 KB/s</td><td>4 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-8290/">45.74.31.42:8290</a></td><td>SOCKS5</td><td>DE</td><td>838 ms</td><td>135 KB/s</td><td>4 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-5849/">45.74.31.40:5849</a></td><td>SOCKS5</td><td>DE</td><td>903 ms</td><td>137 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-14827/">45.74.31.42:14827</a></td><td>SOCKS5</td><td>DE</td><td>826 ms</td><td>114 KB/s</td><td>4 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-4044/">45.74.31.50:4044</a></td><td>SOCKS5</td><td>DE</td><td>883 ms</td><td>71 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-8838/">45.74.31.30:8838</a></td><td>SOCKS5</td><td>DE</td><td>789 ms</td><td>66 KB/s</td><td>9 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-5559/">45.74.31.41:5559</a></td><td>SOCKS5</td><td>DE</td><td>797 ms</td><td>100 KB/s</td><td>5 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-6406/">45.74.31.30:6406</a></td><td>SOCKS5</td><td>DE</td><td>1,195 ms</td><td>118 KB/s</td><td>6 %</td><td>yes</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-5736/">45.74.31.47:5736</a></td><td>SOCKS5</td><td>DE</td><td>801 ms</td><td>76 KB/s</td><td>6 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-6986/">45.74.31.47:6986</a></td><td>SOCKS5</td><td>DE</td><td>870 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-34554/">45.74.31.30:34554</a></td><td>SOCKS5</td><td>DE</td><td>872 ms</td><td>71 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.22-5907/">45.74.31.22:5907</a></td><td>SOCKS5</td><td>DE</td><td>1,357 ms</td><td>103 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-10375/">45.74.31.42:10375</a></td><td>SOCKS5</td><td>DE</td><td>1,175 ms</td><td>84 KB/s</td><td>8 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-34347/">45.74.31.30:34347</a></td><td>SOCKS5</td><td>DE</td><td>1,512 ms</td><td>114 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11467/">45.74.31.25:11467</a></td><td>SOCKS5</td><td>DE</td><td>978 ms</td><td>68 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-12826/">45.74.31.50:12826</a></td><td>SOCKS5</td><td>DE</td><td>1,904 ms</td><td>133 KB/s</td><td>4 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11840/">45.74.31.25:11840</a></td><td>SOCKS5</td><td>DE</td><td>766 ms</td><td>142 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-7421/">45.74.31.25:7421</a></td><td>SOCKS5</td><td>DE</td><td>746 ms</td><td>138 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-4476/">45.74.31.42:4476</a></td><td>SOCKS5</td><td>DE</td><td>1,785 ms</td><td>103 KB/s</td><td>11 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-8056/">45.74.31.42:8056</a></td><td>SOCKS5</td><td>DE</td><td>743 ms</td><td>129 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-12132/">45.74.31.42:12132</a></td><td>SOCKS5</td><td>DE</td><td>844 ms</td><td>133 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-12285/">45.74.31.25:12285</a></td><td>SOCKS5</td><td>DE</td><td>1,614 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11940/">45.74.31.25:11940</a></td><td>SOCKS5</td><td>DE</td><td>730 ms</td><td>112 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/185.110.124.69-1080/">185.110.124.69:1080</a></td><td>SOCKS4</td><td>DE</td><td>1,764 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>Friedrich Kecht &amp; Gerhard Guggenbichler </td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-8289/">45.74.31.42:8289</a></td><td>SOCKS5</td><td>DE</td><td>935 ms</td><td>132 KB/s</td><td>3 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/213.199.47.140-1080/">213.199.47.140:1080</a></td><td>SOCKS5</td><td>DE</td><td>5,324 ms</td><td>56 KB/s</td><td>75 %</td><td>yes</td><td>Reddit, TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-9263/">45.74.31.42:9263</a></td><td>SOCKS5</td><td>DE</td><td>878 ms</td><td>105 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-6421/">45.74.31.47:6421</a></td><td>SOCKS5</td><td>DE</td><td>830 ms</td><td>99 KB/s</td><td>7 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-5080/">45.74.31.50:5080</a></td><td>SOCKS5</td><td>DE</td><td>902 ms</td><td>97 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/138.124.66.226-1080/">138.124.66.226:1080</a></td><td>SOCKS5</td><td>DE</td><td>1,356 ms</td><td>20 KB/s</td><td>55 %</td><td>yes</td><td>Google, Reddit, Instagram, TikTok</td><td>GLOBAL CONNECTIVITY SOLUTIONS LLP</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-5501/">45.74.31.50:5501</a></td><td>SOCKS5</td><td>DE</td><td>1,032 ms</td><td>110 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11585/">45.74.31.25:11585</a></td><td>SOCKS5</td><td>DE</td><td>772 ms</td><td>85 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-12232/">45.74.31.41:12232</a></td><td>SOCKS5</td><td>DE</td><td>4,165 ms</td><td>143 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-11441/">45.74.31.30:11441</a></td><td>SOCKS5</td><td>DE</td><td>1,232 ms</td><td>125 KB/s</td><td>2 %</td><td>yes</td><td>Google</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-34526/">45.74.31.30:34526</a></td><td>SOCKS5</td><td>DE</td><td>2,484 ms</td><td>–</td><td>10 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-10263/">45.74.31.30:10263</a></td><td>SOCKS5</td><td>DE</td><td>2,484 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11538/">45.74.31.25:11538</a></td><td>SOCKS5</td><td>DE</td><td>1,028 ms</td><td>93 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-6699/">45.74.31.25:6699</a></td><td>SOCKS5</td><td>DE</td><td>812 ms</td><td>76 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-4400/">45.74.31.25:4400</a></td><td>SOCKS5</td><td>DE</td><td>1,476 ms</td><td>133 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-14402/">45.74.31.46:14402</a></td><td>SOCKS5</td><td>DE</td><td>938 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-13904/">45.74.31.30:13904</a></td><td>SOCKS5</td><td>DE</td><td>852 ms</td><td>70 KB/s</td><td>2 %</td><td>yes</td><td>Google</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-4337/">45.74.31.41:4337</a></td><td>SOCKS5</td><td>DE</td><td>1,596 ms</td><td>132 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-5586/">45.74.31.50:5586</a></td><td>SOCKS5</td><td>DE</td><td>2,484 ms</td><td>52 KB/s</td><td>7 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-4298/">45.74.31.50:4298</a></td><td>SOCKS5</td><td>DE</td><td>1,555 ms</td><td>118 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-7301/">45.74.31.23:7301</a></td><td>SOCKS5</td><td>DE</td><td>1,690 ms</td><td>125 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-6817/">45.74.31.47:6817</a></td><td>SOCKS5</td><td>DE</td><td>724 ms</td><td>54 KB/s</td><td>4 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/8.211.49.86-5060/">8.211.49.86:5060</a></td><td>HTTP</td><td>DE</td><td>3,586 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Alibaba (US) Technology Co., Ltd.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11677/">45.74.31.25:11677</a></td><td>SOCKS5</td><td>DE</td><td>1,938 ms</td><td>129 KB/s</td><td>1 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-23326/">45.74.31.30:23326</a></td><td>SOCKS5</td><td>DE</td><td>1,885 ms</td><td>113 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-13513/">45.74.31.42:13513</a></td><td>SOCKS5</td><td>DE</td><td>1,962 ms</td><td>122 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-4092/">45.74.31.41:4092</a></td><td>SOCKS5</td><td>DE</td><td>1,480 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11412/">45.74.31.25:11412</a></td><td>SOCKS5</td><td>DE</td><td>1,916 ms</td><td>110 KB/s</td><td>3 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-12952/">45.74.31.50:12952</a></td><td>SOCKS5</td><td>DE</td><td>2,110 ms</td><td>137 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-9217/">45.74.31.42:9217</a></td><td>SOCKS5</td><td>DE</td><td>2,136 ms</td><td>114 KB/s</td><td>3 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11791/">45.74.31.25:11791</a></td><td>SOCKS5</td><td>DE</td><td>2,287 ms</td><td>132 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-15480/">45.74.31.42:15480</a></td><td>SOCKS5</td><td>DE</td><td>1,731 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-8742/">45.74.31.50:8742</a></td><td>SOCKS5</td><td>DE</td><td>4,308 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-4363/">45.74.31.42:4363</a></td><td>SOCKS5</td><td>DE</td><td>2,389 ms</td><td>139 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11292/">45.74.31.25:11292</a></td><td>SOCKS5</td><td>DE</td><td>4,771 ms</td><td>105 KB/s</td><td>3 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11582/">45.74.31.25:11582</a></td><td>SOCKS5</td><td>DE</td><td>2,285 ms</td><td>121 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-8085/">45.74.31.42:8085</a></td><td>SOCKS5</td><td>DE</td><td>4,930 ms</td><td>114 KB/s</td><td>4 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-13996/">45.74.31.30:13996</a></td><td>SOCKS5</td><td>DE</td><td>1,275 ms</td><td>52 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-4712/">45.74.31.30:4712</a></td><td>SOCKS5</td><td>DE</td><td>2,394 ms</td><td>122 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-10279/">45.74.31.25:10279</a></td><td>SOCKS5</td><td>DE</td><td>1,748 ms</td><td>68 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-5285/">45.74.31.40:5285</a></td><td>SOCKS5</td><td>DE</td><td>4,629 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-12499/">45.74.31.41:12499</a></td><td>SOCKS5</td><td>DE</td><td>943 ms</td><td>43 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-5019/">45.74.31.40:5019</a></td><td>SOCKS5</td><td>DE</td><td>2,562 ms</td><td>134 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-7681/">45.74.31.23:7681</a></td><td>SOCKS5</td><td>DE</td><td>2,476 ms</td><td>119 KB/s</td><td>6 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-8163/">45.74.31.42:8163</a></td><td>SOCKS5</td><td>DE</td><td>2,566 ms</td><td>130 KB/s</td><td>14 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-4294/">45.74.31.42:4294</a></td><td>SOCKS5</td><td>DE</td><td>2,017 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-4672/">45.74.31.25:4672</a></td><td>SOCKS5</td><td>DE</td><td>2,627 ms</td><td>127 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-6391/">45.74.31.47:6391</a></td><td>SOCKS5</td><td>DE</td><td>1,923 ms</td><td>67 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-9857/">45.74.31.50:9857</a></td><td>SOCKS5</td><td>DE</td><td>2,420 ms</td><td>98 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-4881/">45.74.31.47:4881</a></td><td>SOCKS5</td><td>DE</td><td>2,717 ms</td><td>124 KB/s</td><td>4 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-4194/">45.74.31.50:4194</a></td><td>SOCKS5</td><td>DE</td><td>2,244 ms</td><td>–</td><td>6 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-5803/">45.74.31.23:5803</a></td><td>SOCKS5</td><td>DE</td><td>2,837 ms</td><td>128 KB/s</td><td>3 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.22-12268/">45.74.31.22:12268</a></td><td>SOCKS5</td><td>DE</td><td>2,725 ms</td><td>105 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.22-11698/">45.74.31.22:11698</a></td><td>SOCKS5</td><td>DE</td><td>2,946 ms</td><td>121 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-8572/">45.74.31.42:8572</a></td><td>SOCKS5</td><td>DE</td><td>2,546 ms</td><td>–</td><td>8 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-7148/">45.74.31.23:7148</a></td><td>SOCKS5</td><td>DE</td><td>2,581 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-12041/">45.74.31.30:12041</a></td><td>SOCKS5</td><td>DE</td><td>5,364 ms</td><td>52 KB/s</td><td>2 %</td><td>yes</td><td>Google</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.22-12113/">45.74.31.22:12113</a></td><td>SOCKS5</td><td>DE</td><td>2,710 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.179.189.64-9191/">103.179.189.64:9191</a></td><td>SOCKS5</td><td>DE</td><td>2,752 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>netcup GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-5694/">45.74.31.42:5694</a></td><td>SOCKS5</td><td>DE</td><td>3,244 ms</td><td>118 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-12227/">45.74.31.30:12227</a></td><td>SOCKS5</td><td>DE</td><td>3,140 ms</td><td>103 KB/s</td><td>4 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-16263/">45.74.31.42:16263</a></td><td>SOCKS5</td><td>DE</td><td>2,001 ms</td><td>47 KB/s</td><td>5 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-14167/">45.74.31.23:14167</a></td><td>SOCKS5</td><td>DE</td><td>1,004 ms</td><td>32 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-4327/">45.74.31.25:4327</a></td><td>SOCKS5</td><td>DE</td><td>1,804 ms</td><td>43 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-12133/">45.74.31.46:12133</a></td><td>SOCKS5</td><td>DE</td><td>3,221 ms</td><td>100 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-4681/">45.74.31.50:4681</a></td><td>SOCKS5</td><td>DE</td><td>3,480 ms</td><td>133 KB/s</td><td>6 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-7312/">45.74.31.23:7312</a></td><td>SOCKS5</td><td>DE</td><td>2,572 ms</td><td>60 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-5690/">45.74.31.42:5690</a></td><td>SOCKS5</td><td>DE</td><td>3,411 ms</td><td>118 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-15484/">45.74.31.42:15484</a></td><td>SOCKS5</td><td>DE</td><td>2,859 ms</td><td>69 KB/s</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-5224/">45.74.31.41:5224</a></td><td>SOCKS5</td><td>DE</td><td>3,154 ms</td><td>84 KB/s</td><td>4 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-9216/">45.74.31.40:9216</a></td><td>SOCKS5</td><td>DE</td><td>3,290 ms</td><td>94 KB/s</td><td>1 %</td><td>yes</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-4455/">45.74.31.42:4455</a></td><td>SOCKS5</td><td>DE</td><td>3,031 ms</td><td>–</td><td>4 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/138.124.66.226-1080/">138.124.66.226:1080</a></td><td>SOCKS4</td><td>DE</td><td>1,637 ms</td><td>11 KB/s</td><td>60 %</td><td>yes</td><td>Google, Reddit, Instagram, TikTok</td><td>GLOBAL CONNECTIVITY SOLUTIONS LLP</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-34614/">45.74.31.30:34614</a></td><td>SOCKS5</td><td>DE</td><td>3,112 ms</td><td>–</td><td>12 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.179.189.64-9191/">103.179.189.64:9191</a></td><td>SOCKS4</td><td>DE</td><td>3,125 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>netcup GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-4023/">45.74.31.40:4023</a></td><td>SOCKS5</td><td>DE</td><td>3,132 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.22-14031/">45.74.31.22:14031</a></td><td>SOCKS5</td><td>DE</td><td>3,225 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-12405/">45.74.31.25:12405</a></td><td>SOCKS5</td><td>DE</td><td>3,465 ms</td><td>–</td><td>4 %</td><td>yes</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11692/">45.74.31.25:11692</a></td><td>SOCKS5</td><td>DE</td><td>3,284 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11684/">45.74.31.25:11684</a></td><td>SOCKS5</td><td>DE</td><td>3,656 ms</td><td>–</td><td>1 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-10562/">45.74.31.46:10562</a></td><td>SOCKS5</td><td>DE</td><td>3,512 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-13366/">45.74.31.46:13366</a></td><td>SOCKS5</td><td>DE</td><td>3,607 ms</td><td>79 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-6980/">45.74.31.50:6980</a></td><td>SOCKS5</td><td>DE</td><td>4,009 ms</td><td>114 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-4173/">45.74.31.25:4173</a></td><td>SOCKS5</td><td>DE</td><td>4,057 ms</td><td>–</td><td>5 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-13224/">45.74.31.42:13224</a></td><td>SOCKS5</td><td>DE</td><td>3,599 ms</td><td>–</td><td>6 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-4535/">45.74.31.23:4535</a></td><td>SOCKS5</td><td>DE</td><td>3,674 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-13233/">45.74.31.50:13233</a></td><td>SOCKS5</td><td>DE</td><td>4,149 ms</td><td>116 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-5427/">45.74.31.50:5427</a></td><td>SOCKS5</td><td>DE</td><td>4,384 ms</td><td>124 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-4435/">45.74.31.50:4435</a></td><td>SOCKS5</td><td>DE</td><td>3,707 ms</td><td>64 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.56.189.176-10809/">31.56.189.176:10809</a></td><td>HTTP</td><td>DE</td><td>299 ms</td><td>–</td><td>1 %</td><td>yes</td><td>Google, Amazon, TikTok</td><td>ExpressHost Ltd</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-5855/">45.74.31.50:5855</a></td><td>SOCKS5</td><td>DE</td><td>4,125 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.56.189.176-10809/">31.56.189.176:10809</a></td><td>SOCKS4</td><td>DE</td><td>471 ms</td><td>–</td><td>1 %</td><td>yes</td><td>Amazon, Instagram, TikTok</td><td>ExpressHost Ltd</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-11755/">45.74.31.41:11755</a></td><td>SOCKS5</td><td>DE</td><td>4,304 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-14155/">45.74.31.30:14155</a></td><td>SOCKS5</td><td>DE</td><td>751 ms</td><td>–</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-9697/">45.74.31.23:9697</a></td><td>SOCKS5</td><td>DE</td><td>5,053 ms</td><td>143 KB/s</td><td>4 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-4216/">45.74.31.40:4216</a></td><td>SOCKS5</td><td>DE</td><td>5,108 ms</td><td>126 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-17767/">45.74.31.42:17767</a></td><td>SOCKS5</td><td>DE</td><td>922 ms</td><td>–</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11624/">45.74.31.25:11624</a></td><td>SOCKS5</td><td>DE</td><td>931 ms</td><td>–</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-7037/">45.74.31.47:7037</a></td><td>SOCKS5</td><td>DE</td><td>1,045 ms</td><td>–</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-10410/">45.74.31.42:10410</a></td><td>SOCKS5</td><td>DE</td><td>5,419 ms</td><td>133 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.22-4999/">45.74.31.22:4999</a></td><td>SOCKS5</td><td>DE</td><td>1,190 ms</td><td>–</td><td>2 %</td><td>yes</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11448/">45.74.31.25:11448</a></td><td>SOCKS5</td><td>DE</td><td>1,250 ms</td><td>–</td><td>7 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-4721/">45.74.31.25:4721</a></td><td>SOCKS5</td><td>DE</td><td>1,252 ms</td><td>–</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-9898/">45.74.31.50:9898</a></td><td>SOCKS5</td><td>DE</td><td>4,969 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-4219/">45.74.31.40:4219</a></td><td>SOCKS5</td><td>DE</td><td>5,026 ms</td><td>–</td><td>7 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/92.124.141.241-2080/">92.124.141.241:2080</a></td><td>SOCKS5</td><td>DE</td><td>1,387 ms</td><td>–</td><td>1 %</td><td>yes</td><td>Google, Amazon, TikTok</td><td>CHSL ONE LTD</td></tr>
+<tr><td class="mono"><a href="../../proxy/82.9.133.51-9150/">82.9.133.51:9150</a></td><td>SOCKS4</td><td>DE</td><td>1,433 ms</td><td>–</td><td>4 %</td><td>yes</td><td>Amazon</td><td>Stiftung Erneuerbare Freiheit</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-4037/">45.74.31.30:4037</a></td><td>SOCKS5</td><td>DE</td><td>4,603 ms</td><td>54 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11465/">45.74.31.25:11465</a></td><td>SOCKS5</td><td>DE</td><td>1,489 ms</td><td>–</td><td>3 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.22-12033/">45.74.31.22:12033</a></td><td>SOCKS5</td><td>DE</td><td>1,548 ms</td><td>–</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.56.189.176-10809/">31.56.189.176:10809</a></td><td>SOCKS5</td><td>DE</td><td>1,620 ms</td><td>–</td><td>1 %</td><td>yes</td><td>Amazon, Instagram, TikTok</td><td>ExpressHost Ltd</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-15144/">45.74.31.46:15144</a></td><td>SOCKS5</td><td>DE</td><td>5,963 ms</td><td>134 KB/s</td><td>2 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-12082/">45.74.31.25:12082</a></td><td>SOCKS5</td><td>DE</td><td>1,889 ms</td><td>–</td><td>1 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-6896/">45.74.31.41:6896</a></td><td>SOCKS5</td><td>DE</td><td>2,023 ms</td><td>–</td><td>4 %</td><td>yes</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-4653/">45.74.31.30:4653</a></td><td>SOCKS5</td><td>DE</td><td>2,042 ms</td><td>–</td><td>4 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-9041/">45.74.31.30:9041</a></td><td>SOCKS5</td><td>DE</td><td>2,110 ms</td><td>–</td><td>1 %</td><td>yes</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-14525/">45.74.31.42:14525</a></td><td>SOCKS5</td><td>DE</td><td>2,258 ms</td><td>–</td><td>2 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-8254/">45.74.31.47:8254</a></td><td>SOCKS5</td><td>DE</td><td>2,571 ms</td><td>–</td><td>4 %</td><td>yes</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/193.58.122.42-8888/">193.58.122.42:8888</a></td><td>HTTP</td><td>DE</td><td>2,608 ms</td><td>–</td><td>1 %</td><td>yes</td><td>Amazon, TikTok</td><td>PLAY2GO INTERNATIONAL LIMITED</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-11562/">45.74.31.40:11562</a></td><td>SOCKS5</td><td>DE</td><td>2,712 ms</td><td>–</td><td>2 %</td><td>yes</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-12548/">45.74.31.23:12548</a></td><td>SOCKS5</td><td>DE</td><td>5,026 ms</td><td>37 KB/s</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-7696/">45.74.31.25:7696</a></td><td>SOCKS5</td><td>DE</td><td>2,807 ms</td><td>–</td><td>2 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-12068/">45.74.31.40:12068</a></td><td>SOCKS5</td><td>DE</td><td>3,304 ms</td><td>–</td><td>6 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-6854/">45.74.31.23:6854</a></td><td>SOCKS5</td><td>DE</td><td>3,669 ms</td><td>–</td><td>1 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-7213/">45.74.31.50:7213</a></td><td>SOCKS5</td><td>DE</td><td>3,814 ms</td><td>–</td><td>7 %</td><td>yes</td><td>Google, TikTok</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-13556/">45.74.31.46:13556</a></td><td>SOCKS5</td><td>DE</td><td>4,599 ms</td><td>–</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.166.184.104-9191/">103.166.184.104:9191</a></td><td>SOCKS4</td><td>DE</td><td>5,878 ms</td><td>–</td><td>4 %</td><td>yes</td><td>–</td><td>Stiftung Erneuerbare Freiheit</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7464/">45.74.31.42:7464</a></td><td>SOCKS5</td><td>DE</td><td>5,902 ms</td><td>–</td><td>6 %</td><td>yes</td><td>–</td><td>Hetzner Online GmbH</td></tr></tbody></table></div>
+  <section class="use"><h2>In the terminal or in code</h2><pre class="mono">pipx install proxy-scraper-cli
+proxy-scraper --pick 5 --country DE
+curl -x "$(proxy-scraper --pick --country DE --https-only)" https://api.ipify.org</pre><p class="note">--pick takes proxies from the same hourly list in about half a second. From Python: <code>live_proxies()</code>, see the <a href="https://github.com/maximilianfeix/proxy-scraper#from-python">README</a>.</p></section>
+  <section class="faq"><h2>Questions</h2><h3>How many free proxies in Germany work right now?</h3><p>161 passed every check in the last run (03 Oct 2026, 16:47 UTC): a real handshake, a honeypot check on two sites and a content check. 127 of them tunnel HTTPS with verified TLS, and 2 were on the list in 90 % or more of this week&#x27;s hourly checks. The list is checked again every hour.</p><h3>Which free proxies in Germany get through to Google?</h3><p>In the last check, 32 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram and TikTok – the full list on the website can be filtered by it.</p><h3>How do I get working proxies in Germany in code or the terminal?</h3><p>Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country DE prints five from the hourly list. From Python, live_proxies() takes the same filters.</p></section>
+  <nav aria-label="More lists"><h2>By protocol</h2><ul><li><a href="../../http/">HTTP (281)</a></li><li><a href="../../socks4/">SOCKS4 (176)</a></li><li><a href="../../socks5/">SOCKS5 (1,707)</a></li><li><a href="../../https/">HTTPS (1,399)</a></li><li><a href="../../elite/">elite (2,123)</a></li></ul></nav><nav aria-label="By country"><h2>By country</h2><ul><li><a href="../../country/us/">United States (922)</a></li><li><a href="../../country/de/" aria-current="page">Germany (161)</a></li><li><a href="../../country/il/">Israel (135)</a></li><li><a href="../../country/in/">India (109)</a></li><li><a href="../../country/au/">Australia (98)</a></li><li><a href="../../country/hk/">Hong Kong (94)</a></li><li><a href="../../country/br/">Brazil (75)</a></li><li><a href="../../country/cn/">China (70)</a></li><li><a href="../../country/fr/">France (62)</a></li><li><a href="../../country/nl/">Netherlands (53)</a></li><li><a href="../../country/fi/">Finland (39)</a></li><li><a href="../../country/sg/">Singapore (39)</a></li><li><a href="../../country/id/">Indonesia (32)</a></li><li><a href="../../country/ru/">Russia (25)</a></li><li><a href="../../country/vn/">Vietnam (23)</a></li><li><a href="../../country/bg/">Bulgaria (21)</a></li><li><a href="../../country/gb/">United Kingdom (21)</a></li><li><a href="../../country/jp/">Japan (16)</a></li><li><a href="../../country/tr/">Turkey (15)</a></li><li><a href="../../country/kr/">South Korea (14)</a></li><li><a href="../../country/bd/">Bangladesh (11)</a></li><li><a href="../../country/kh/">Cambodia (9)</a></li><li><a href="../../country/ca/">Canada (9)</a></li><li><a href="../../country/ua/">Ukraine (8)</a></li><li><a href="../../country/tw/">Taiwan (7)</a></li><li><a href="../../country/co/">Colombia (6)</a></li><li><a href="../../country/za/">South Africa (6)</a></li><li><a href="../../country/at/">Austria (5)</a></li><li><a href="../../country/ar/">Argentina (4)</a></li><li><a href="../../country/ir/">Iran (4)</a></li><li><a href="../../country/no/">Norway (4)</a></li><li><a href="../../country/ph/">Philippines (4)</a></li><li><a href="../../country/pl/">Poland (4)</a></li><li><a href="../../country/cz/">Czechia (3)</a></li><li><a href="../../country/lr/">Liberia (3)</a></li><li><a href="../../country/my/">Malaysia (3)</a></li><li><a href="../../country/ng/">Nigeria (3)</a></li><li><a href="../../country/pk/">Pakistan (3)</a></li><li><a href="../../country/sc/">Seychelles (3)</a></li><li><a href="../../country/th/">Thailand (3)</a></li><li><a href="../../country/gh/">Ghana (2)</a></li><li><a href="../../country/it/">Italy (2)</a></li><li><a href="../../country/lv/">Latvia (2)</a></li><li><a href="../../country/mo/">Macao (2)</a></li><li><a href="../../country/mx/">Mexico (2)</a></li><li><a href="../../country/np/">Nepal (2)</a></li><li><a href="../../country/es/">Spain (2)</a></li><li><a href="../../country/al/">Albania (1)</a></li><li><a href="../../country/az/">Azerbaijan (1)</a></li><li><a href="../../country/be/">Belgium (1)</a></li><li><a href="../../country/cl/">Chile (1)</a></li><li><a href="../../country/ec/">Ecuador (1)</a></li><li><a href="../../country/ee/">Estonia (1)</a></li><li><a href="../../country/iq/">Iraq (1)</a></li><li><a href="../../country/ie/">Ireland (1)</a></li><li><a href="../../country/mk/">North Macedonia (1)</a></li><li><a href="../../country/py/">Paraguay (1)</a></li><li><a href="../../country/pe/">Peru (1)</a></li><li><a href="../../country/ro/">Romania (1)</a></li><li><a href="../../country/sn/">Senegal (1)</a></li><li><a href="../../country/rs/">Serbia (1)</a></li><li><a href="../../country/si/">Slovenia (1)</a></li><li><a href="../../country/ch/">Switzerland (1)</a></li><li><a href="../../country/ae/">United Arab Emirates (1)</a></li></ul></nav>
+  <footer>
+    <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>
+    <span>Collected and checked by <a href="https://github.com/maximilianfeix/proxy-scraper">proxy-scraper</a>, open source, MIT licensed.</span>
+  </footer>
+</div>
+</body>
+</html>

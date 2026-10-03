@@ -1,0 +1,178 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free proxies in Brazil – checked every hour | proxy-scraper</title>
+<meta name="description" content="75 free proxies in Brazil, checked every hour: real handshake, honeypot and content check. Download as text or filter the full list.">
+<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/country/br/">
+<meta property="og:title" content="Free proxies in Brazil">
+<meta property="og:description" content="75 free proxies in Brazil, checked every hour: real handshake, honeypot and content check. Download as text or filter the full list.">
+<meta property="og:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<meta property="og:url" content="https://maximilianfeix.github.io/proxy-scraper/country/br/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../../logo.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+<style>
+:root { --bg: #121113; --panel: #1A191C; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0; --signal: #D4F77A;
+        --signal-ink: #D4F77A; --on-signal: #121113; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root { --bg: #EFEFEC; --panel: #FFFFFF; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
+          --signal-ink: #3F5A00; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.55 "Geist", ui-sans-serif, system-ui,
+       sans-serif; padding-inline: 16px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 36px; }
+a { color: var(--signal-ink); }
+:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 6px; }
+.mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 600;
+         letter-spacing: -.03em; font-size: 18px; }
+.brand img { width: 30px; height: 30px; border-radius: 9px; }
+h1 { margin: 0; font-size: clamp(36px, 6vw, 72px); line-height: 1; letter-spacing: -.05em; font-weight: 600;
+     text-wrap: balance; }
+.lede { margin: 16px 0 0; color: var(--muted); font-size: 18px; max-width: 62ch; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.btn { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 99px; text-decoration: none;
+       font-weight: 500; border: 1px solid var(--line); color: var(--text); }
+.btn.primary { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+.table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+caption { text-align: left; padding: 14px 16px 0; color: var(--muted); font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 12px 16px;
+     border-bottom: 1px solid var(--line); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+     white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.empty { padding: 28px 16px; color: var(--muted); }
+nav h2 { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 10px; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+nav a { display: inline-block; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px;
+        text-decoration: none; color: var(--text); font-size: 14px; }
+nav a[aria-current] { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+
+.wrap > * { min-width: 0; }  /* grid items default to their content's width: the wide table would push the page */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+         background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.facts div { background: var(--panel); padding: 16px 18px; }
+.facts dt { font-size: 26px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.facts dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+.use pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+           overflow-x: auto; font-size: 14px; margin: 0 0 10px; }
+.note { color: var(--muted); font-size: 14px; }
+.faq h3 { font-size: 18px; font-weight: 500; margin: 22px 0 6px; }
+.faq p { margin: 0; color: var(--muted); max-width: 70ch; }
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How many free proxies in Brazil work right now?", "acceptedAnswer": {"@type": "Answer", "text": "75 passed every check in the last run (03 Oct 2026, 16:47 UTC): a real handshake, a honeypot check on two sites and a content check. 51 of them tunnel HTTPS with verified TLS, and 5 were on the list in 90 % or more of this week's hourly checks. The list is checked again every hour."}}, {"@type": "Question", "name": "Which free proxies in Brazil get through to Google?", "acceptedAnswer": {"@type": "Answer", "text": "In the last check, 26 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram and TikTok – the full list on the website can be filtered by it."}}, {"@type": "Question", "name": "How do I get working proxies in Brazil in code or the terminal?", "acceptedAnswer": {"@type": "Answer", "text": "Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country BR prints five from the hourly list. From Python, live_proxies() takes the same filters."}}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../../"><img src="../../logo.png" alt="">proxy-scraper</a>
+    <a href="../../">All proxies</a>
+  </header>
+  <main>
+    <h1>Free proxies in Brazil</h1>
+    <p class="lede">75 proxies in Brazil that worked in the last check (03 Oct 2026, 16:47 UTC). Each one passed a real handshake, a honeypot check on two sites and a content check, so none of them rewrite the pages you load.</p>
+    <div class="actions">
+      <a class="btn primary" href="proxies.txt" download>Download 75 as .txt</a>
+      <a class="btn" href="../../?country=BR#list">Filter the full list</a>
+      <a class="btn" href="https://github.com/maximilianfeix/proxy-scraper">Check them from your network</a>
+    </div>
+  </main>
+  <dl class="facts"><div><dt>75</dt><dd>working right now</dd></div><div><dt>51</dt><dd>tunnel HTTPS</dd></div><div><dt>5</dt><dd>on the list 90 %+ of the week</dd></div><div><dt>26</dt><dd>get through to Google</dd></div><div><dt>60 KB/s</dt><dd>median download speed</dd></div></dl>
+  <div class="table"><table><caption>The 75 fastest to load a page, as ip:port. The download has all 75 as type://ip:port.</caption><thead><tr><th scope="col">Proxy</th><th scope="col">Type</th><th scope="col">Country</th><th scope="col">Latency</th><th scope="col">Speed</th><th scope="col">Uptime</th><th scope="col">HTTPS</th><th scope="col">Gets through</th><th scope="col">Provider</th></tr></thead><tbody><tr><td class="mono"><a href="../../proxy/186.208.50.105-3128/">186.208.50.105:3128</a></td><td>HTTP</td><td>BR</td><td>610 ms</td><td>111 KB/s</td><td>60 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, TikTok</td><td>VERO S.A</td></tr>
+<tr><td class="mono"><a href="../../proxy/186.225.132.13-4145/">186.225.132.13:4145</a></td><td>SOCKS4</td><td>BR</td><td>764 ms</td><td>105 KB/s</td><td>99 %</td><td>yes</td><td>Google, Reddit, Instagram, TikTok</td><td>Sinal Br Telecom Ltda</td></tr>
+<tr><td class="mono"><a href="../../proxy/186.208.50.106-3128/">186.208.50.106:3128</a></td><td>HTTP</td><td>BR</td><td>607 ms</td><td>114 KB/s</td><td>60 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, TikTok</td><td>VERO S.A</td></tr>
+<tr><td class="mono"><a href="../../proxy/186.208.50.102-3128/">186.208.50.102:3128</a></td><td>HTTP</td><td>BR</td><td>607 ms</td><td>114 KB/s</td><td>60 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, TikTok</td><td>VERO S.A</td></tr>
+<tr><td class="mono"><a href="../../proxy/186.208.50.100-3128/">186.208.50.100:3128</a></td><td>HTTP</td><td>BR</td><td>605 ms</td><td>113 KB/s</td><td>60 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, TikTok</td><td>VERO S.A</td></tr>
+<tr><td class="mono"><a href="../../proxy/186.208.50.101-3128/">186.208.50.101:3128</a></td><td>HTTP</td><td>BR</td><td>608 ms</td><td>113 KB/s</td><td>60 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, TikTok</td><td>VERO S.A</td></tr>
+<tr><td class="mono"><a href="../../proxy/170.244.27.58-8888/">170.244.27.58:8888</a></td><td>HTTP</td><td>BR</td><td>673 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>ZANCHET E PAIM TELECOM LTDA ME</td></tr>
+<tr><td class="mono"><a href="../../proxy/170.244.26.206-8888/">170.244.26.206:8888</a></td><td>HTTP</td><td>BR</td><td>681 ms</td><td>–</td><td>78 %</td><td>no</td><td>–</td><td>ZANCHET E PAIM TELECOM LTDA ME</td></tr>
+<tr><td class="mono"><a href="../../proxy/186.225.149.90-4145/">186.225.149.90:4145</a></td><td>SOCKS4</td><td>BR</td><td>773 ms</td><td>59 KB/s</td><td>99 %</td><td>yes</td><td>Google, Reddit, Instagram, TikTok</td><td>Sinal Br Telecom Ltda</td></tr>
+<tr><td class="mono"><a href="../../proxy/186.225.132.10-4145/">186.225.132.10:4145</a></td><td>SOCKS4</td><td>BR</td><td>783 ms</td><td>48 KB/s</td><td>99 %</td><td>yes</td><td>Google, Reddit, Instagram, TikTok</td><td>Sinal Br Telecom Ltda</td></tr>
+<tr><td class="mono"><a href="../../proxy/186.225.149.81-4145/">186.225.149.81:4145</a></td><td>SOCKS4</td><td>BR</td><td>774 ms</td><td>44 KB/s</td><td>99 %</td><td>yes</td><td>Google, Reddit, Instagram, TikTok</td><td>Sinal Br Telecom Ltda</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.239.175.60-8080/">45.239.175.60:8080</a></td><td>HTTP</td><td>BR</td><td>586 ms</td><td>–</td><td>80 %</td><td>no</td><td>–</td><td>ESTARNET LTDA-ME</td></tr>
+<tr><td class="mono"><a href="../../proxy/177.131.121.208-5432/">177.131.121.208:5432</a></td><td>SOCKS4</td><td>BR</td><td>907 ms</td><td>–</td><td>24 %</td><td>no</td><td>–</td><td>ACESSOLINE TELECOMUNICACOES LTDA</td></tr>
+<tr><td class="mono"><a href="../../proxy/177.128.81.10-81/">177.128.81.10:81</a></td><td>SOCKS4</td><td>BR</td><td>845 ms</td><td>–</td><td>7 %</td><td>no</td><td>–</td><td>IBI TELECOM EIRELI</td></tr>
+<tr><td class="mono"><a href="../../proxy/181.233.94.101-1080/">181.233.94.101:1080</a></td><td>SOCKS4</td><td>BR</td><td>1,879 ms</td><td>–</td><td>15 %</td><td>no</td><td>–</td><td>ALGAR TELECOM S/A</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40008/">103.88.234.239:40008</a></td><td>SOCKS5</td><td>BR</td><td>1,585 ms</td><td>251 KB/s</td><td>46 %</td><td>yes</td><td>TikTok</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-8166/">45.74.31.25:8166</a></td><td>SOCKS5</td><td>BR</td><td>2,303 ms</td><td>72 KB/s</td><td>7 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-4134/">45.74.31.46:4134</a></td><td>SOCKS5</td><td>BR</td><td>1,304 ms</td><td>90 KB/s</td><td>4 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11220/">45.74.31.25:11220</a></td><td>SOCKS5</td><td>BR</td><td>2,850 ms</td><td>60 KB/s</td><td>4 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40017/">103.88.234.239:40017</a></td><td>HTTP</td><td>BR</td><td>1,125 ms</td><td>–</td><td>42 %</td><td>no</td><td>–</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-9048/">45.74.31.42:9048</a></td><td>SOCKS5</td><td>BR</td><td>1,248 ms</td><td>–</td><td>11 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-6241/">45.74.31.42:6241</a></td><td>SOCKS5</td><td>BR</td><td>1,444 ms</td><td>81 KB/s</td><td>1 %</td><td>yes</td><td>Google, Reddit, Instagram, TikTok</td><td>Hostinger International Limited</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-5656/">45.74.31.46:5656</a></td><td>SOCKS5</td><td>BR</td><td>1,439 ms</td><td>74 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40008/">103.88.234.239:40008</a></td><td>SOCKS4</td><td>BR</td><td>2,226 ms</td><td>–</td><td>45 %</td><td>yes</td><td>Reddit, TikTok</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/190.89.104.48-5432/">190.89.104.48:5432</a></td><td>SOCKS4</td><td>BR</td><td>1,793 ms</td><td>–</td><td>10 %</td><td>no</td><td>–</td><td>ACESSOLINE TELECOMUNICACOES LTDA</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-8887/">45.74.31.25:8887</a></td><td>SOCKS5</td><td>BR</td><td>1,813 ms</td><td>–</td><td>7 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-5171/">45.74.31.46:5171</a></td><td>SOCKS5</td><td>BR</td><td>4,463 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-4079/">45.74.31.25:4079</a></td><td>SOCKS5</td><td>BR</td><td>2,050 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-4203/">45.74.31.40:4203</a></td><td>SOCKS5</td><td>BR</td><td>2,173 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>EVEO Serviços de Internet Ltda.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.23-4130/">45.74.31.23:4130</a></td><td>SOCKS5</td><td>BR</td><td>2,186 ms</td><td>–</td><td>7 %</td><td>no</td><td>–</td><td>EVEO Serviços de Internet Ltda.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-5004/">45.74.31.46:5004</a></td><td>SOCKS5</td><td>BR</td><td>2,527 ms</td><td>92 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-5438/">45.74.31.46:5438</a></td><td>SOCKS5</td><td>BR</td><td>2,011 ms</td><td>56 KB/s</td><td>5 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-9450/">45.74.31.25:9450</a></td><td>SOCKS5</td><td>BR</td><td>2,498 ms</td><td>–</td><td>7 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40002/">103.88.234.239:40002</a></td><td>SOCKS4</td><td>BR</td><td>2,522 ms</td><td>–</td><td>68 %</td><td>no</td><td>–</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-4064/">45.74.31.41:4064</a></td><td>SOCKS5</td><td>BR</td><td>3,370 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-13069/">45.74.31.30:13069</a></td><td>SOCKS5</td><td>BR</td><td>4,184 ms</td><td>22 KB/s</td><td>11 %</td><td>yes</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.22-16558/">45.74.31.22:16558</a></td><td>SOCKS5</td><td>BR</td><td>3,442 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-14996/">45.74.31.25:14996</a></td><td>SOCKS5</td><td>BR</td><td>2,975 ms</td><td>55 KB/s</td><td>5 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9269/">45.74.31.47:9269</a></td><td>SOCKS5</td><td>BR</td><td>2,603 ms</td><td>45 KB/s</td><td>7 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40008/">103.88.234.239:40008</a></td><td>HTTP</td><td>BR</td><td>3,750 ms</td><td>86 KB/s</td><td>44 %</td><td>yes</td><td>Reddit</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40003/">103.88.234.239:40003</a></td><td>HTTP</td><td>BR</td><td>329 ms</td><td>–</td><td>41 %</td><td>yes</td><td>Reddit, TikTok</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40005/">103.88.234.239:40005</a></td><td>HTTP</td><td>BR</td><td>432 ms</td><td>–</td><td>42 %</td><td>yes</td><td>–</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40003/">103.88.234.239:40003</a></td><td>SOCKS5</td><td>BR</td><td>449 ms</td><td>–</td><td>45 %</td><td>yes</td><td>Reddit, TikTok</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40005/">103.88.234.239:40005</a></td><td>SOCKS5</td><td>BR</td><td>533 ms</td><td>–</td><td>46 %</td><td>yes</td><td>–</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-4765/">45.74.31.46:4765</a></td><td>SOCKS5</td><td>BR</td><td>4,211 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-14983/">45.74.31.30:14983</a></td><td>SOCKS5</td><td>BR</td><td>1,408 ms</td><td>24 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-8825/">45.74.31.30:8825</a></td><td>SOCKS5</td><td>BR</td><td>3,275 ms</td><td>43 KB/s</td><td>7 %</td><td>yes</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-17577/">45.74.31.25:17577</a></td><td>SOCKS5</td><td>BR</td><td>4,512 ms</td><td>89 KB/s</td><td>4 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-6000/">45.74.31.30:6000</a></td><td>SOCKS5</td><td>BR</td><td>3,370 ms</td><td>43 KB/s</td><td>3 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/179.189.246.165-5432/">179.189.246.165:5432</a></td><td>SOCKS4</td><td>BR</td><td>865 ms</td><td>–</td><td>18 %</td><td>yes</td><td>TikTok</td><td>WorldNet Telecom Comercio e Serviços de </td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-5746/">45.74.31.46:5746</a></td><td>SOCKS5</td><td>BR</td><td>4,192 ms</td><td>55 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-15049/">45.74.31.30:15049</a></td><td>SOCKS5</td><td>BR</td><td>3,330 ms</td><td>37 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-11038/">45.74.31.25:11038</a></td><td>SOCKS5</td><td>BR</td><td>4,953 ms</td><td>76 KB/s</td><td>4 %</td><td>yes</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.147.179.118-3210/">45.147.179.118:3210</a></td><td>HTTP</td><td>BR</td><td>1,337 ms</td><td>–</td><td>2 %</td><td>yes</td><td>–</td><td>Maxihost LTDA</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-4012/">45.74.31.50:4012</a></td><td>SOCKS5</td><td>BR</td><td>5,038 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>EVEO Serviços de Internet Ltda.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-5555/">45.74.31.46:5555</a></td><td>SOCKS5</td><td>BR</td><td>4,331 ms</td><td>49 KB/s</td><td>4 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-4529/">45.74.31.46:4529</a></td><td>SOCKS5</td><td>BR</td><td>5,326 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-5468/">45.74.31.46:5468</a></td><td>SOCKS5</td><td>BR</td><td>4,409 ms</td><td>44 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-8713/">45.74.31.30:8713</a></td><td>SOCKS5</td><td>BR</td><td>5,453 ms</td><td>63 KB/s</td><td>3 %</td><td>yes</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-10082/">45.74.31.25:10082</a></td><td>SOCKS5</td><td>BR</td><td>5,753 ms</td><td>–</td><td>6 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-12542/">45.74.31.25:12542</a></td><td>SOCKS5</td><td>BR</td><td>5,812 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-4089/">45.74.31.25:4089</a></td><td>SOCKS5</td><td>BR</td><td>5,904 ms</td><td>–</td><td>8 %</td><td>no</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.25-4080/">45.74.31.25:4080</a></td><td>SOCKS5</td><td>BR</td><td>2,846 ms</td><td>–</td><td>3 %</td><td>yes</td><td>–</td><td>EVEO Serviços de Internet Ltda.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-15984/">45.74.31.42:15984</a></td><td>SOCKS5</td><td>BR</td><td>3,001 ms</td><td>–</td><td>6 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.50-17592/">45.74.31.50:17592</a></td><td>SOCKS5</td><td>BR</td><td>3,098 ms</td><td>–</td><td>5 %</td><td>yes</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-5917/">45.74.31.42:5917</a></td><td>SOCKS5</td><td>BR</td><td>3,147 ms</td><td>–</td><td>4 %</td><td>yes</td><td>–</td><td>Hostinger International Limited</td></tr>
+<tr><td class="mono"><a href="../../proxy/103.88.234.239-40002/">103.88.234.239:40002</a></td><td>SOCKS5</td><td>BR</td><td>3,201 ms</td><td>–</td><td>66 %</td><td>yes</td><td>Reddit, TikTok</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-11696/">45.74.31.41:11696</a></td><td>SOCKS5</td><td>BR</td><td>3,484 ms</td><td>–</td><td>2 %</td><td>yes</td><td>–</td><td>Hostinger International Limited</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-14563/">45.74.31.30:14563</a></td><td>SOCKS5</td><td>BR</td><td>3,740 ms</td><td>–</td><td>4 %</td><td>yes</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-13682/">45.74.31.30:13682</a></td><td>SOCKS5</td><td>BR</td><td>3,815 ms</td><td>–</td><td>1 %</td><td>yes</td><td>TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-37708/">45.74.31.42:37708</a></td><td>SOCKS5</td><td>BR</td><td>3,939 ms</td><td>–</td><td>4 %</td><td>yes</td><td>TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-9095/">45.74.31.30:9095</a></td><td>SOCKS5</td><td>BR</td><td>4,690 ms</td><td>23 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-10217/">45.74.31.47:10217</a></td><td>SOCKS5</td><td>BR</td><td>4,179 ms</td><td>–</td><td>5 %</td><td>yes</td><td>Google, TikTok</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-4208/">45.74.31.46:4208</a></td><td>SOCKS5</td><td>BR</td><td>5,268 ms</td><td>–</td><td>4 %</td><td>yes</td><td>–</td><td>Oso Grande IP Services, LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.30-13553/">45.74.31.30:13553</a></td><td>SOCKS5</td><td>BR</td><td>4,609 ms</td><td>16 KB/s</td><td>10 %</td><td>yes</td><td>TikTok</td><td>Oso Grande IP Services, LLC</td></tr></tbody></table></div>
+  <section class="use"><h2>In the terminal or in code</h2><pre class="mono">pipx install proxy-scraper-cli
+proxy-scraper --pick 5 --country BR
+curl -x "$(proxy-scraper --pick --country BR --https-only)" https://api.ipify.org</pre><p class="note">--pick takes proxies from the same hourly list in about half a second. From Python: <code>live_proxies()</code>, see the <a href="https://github.com/maximilianfeix/proxy-scraper#from-python">README</a>.</p></section>
+  <section class="faq"><h2>Questions</h2><h3>How many free proxies in Brazil work right now?</h3><p>75 passed every check in the last run (03 Oct 2026, 16:47 UTC): a real handshake, a honeypot check on two sites and a content check. 51 of them tunnel HTTPS with verified TLS, and 5 were on the list in 90 % or more of this week&#x27;s hourly checks. The list is checked again every hour.</p><h3>Which free proxies in Brazil get through to Google?</h3><p>In the last check, 26 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram and TikTok – the full list on the website can be filtered by it.</p><h3>How do I get working proxies in Brazil in code or the terminal?</h3><p>Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country BR prints five from the hourly list. From Python, live_proxies() takes the same filters.</p></section>
+  <nav aria-label="More lists"><h2>By protocol</h2><ul><li><a href="../../http/">HTTP (281)</a></li><li><a href="../../socks4/">SOCKS4 (176)</a></li><li><a href="../../socks5/">SOCKS5 (1,707)</a></li><li><a href="../../https/">HTTPS (1,399)</a></li><li><a href="../../elite/">elite (2,123)</a></li></ul></nav><nav aria-label="By country"><h2>By country</h2><ul><li><a href="../../country/us/">United States (922)</a></li><li><a href="../../country/de/">Germany (161)</a></li><li><a href="../../country/il/">Israel (135)</a></li><li><a href="../../country/in/">India (109)</a></li><li><a href="../../country/au/">Australia (98)</a></li><li><a href="../../country/hk/">Hong Kong (94)</a></li><li><a href="../../country/br/" aria-current="page">Brazil (75)</a></li><li><a href="../../country/cn/">China (70)</a></li><li><a href="../../country/fr/">France (62)</a></li><li><a href="../../country/nl/">Netherlands (53)</a></li><li><a href="../../country/fi/">Finland (39)</a></li><li><a href="../../country/sg/">Singapore (39)</a></li><li><a href="../../country/id/">Indonesia (32)</a></li><li><a href="../../country/ru/">Russia (25)</a></li><li><a href="../../country/vn/">Vietnam (23)</a></li><li><a href="../../country/bg/">Bulgaria (21)</a></li><li><a href="../../country/gb/">United Kingdom (21)</a></li><li><a href="../../country/jp/">Japan (16)</a></li><li><a href="../../country/tr/">Turkey (15)</a></li><li><a href="../../country/kr/">South Korea (14)</a></li><li><a href="../../country/bd/">Bangladesh (11)</a></li><li><a href="../../country/kh/">Cambodia (9)</a></li><li><a href="../../country/ca/">Canada (9)</a></li><li><a href="../../country/ua/">Ukraine (8)</a></li><li><a href="../../country/tw/">Taiwan (7)</a></li><li><a href="../../country/co/">Colombia (6)</a></li><li><a href="../../country/za/">South Africa (6)</a></li><li><a href="../../country/at/">Austria (5)</a></li><li><a href="../../country/ar/">Argentina (4)</a></li><li><a href="../../country/ir/">Iran (4)</a></li><li><a href="../../country/no/">Norway (4)</a></li><li><a href="../../country/ph/">Philippines (4)</a></li><li><a href="../../country/pl/">Poland (4)</a></li><li><a href="../../country/cz/">Czechia (3)</a></li><li><a href="../../country/lr/">Liberia (3)</a></li><li><a href="../../country/my/">Malaysia (3)</a></li><li><a href="../../country/ng/">Nigeria (3)</a></li><li><a href="../../country/pk/">Pakistan (3)</a></li><li><a href="../../country/sc/">Seychelles (3)</a></li><li><a href="../../country/th/">Thailand (3)</a></li><li><a href="../../country/gh/">Ghana (2)</a></li><li><a href="../../country/it/">Italy (2)</a></li><li><a href="../../country/lv/">Latvia (2)</a></li><li><a href="../../country/mo/">Macao (2)</a></li><li><a href="../../country/mx/">Mexico (2)</a></li><li><a href="../../country/np/">Nepal (2)</a></li><li><a href="../../country/es/">Spain (2)</a></li><li><a href="../../country/al/">Albania (1)</a></li><li><a href="../../country/az/">Azerbaijan (1)</a></li><li><a href="../../country/be/">Belgium (1)</a></li><li><a href="../../country/cl/">Chile (1)</a></li><li><a href="../../country/ec/">Ecuador (1)</a></li><li><a href="../../country/ee/">Estonia (1)</a></li><li><a href="../../country/iq/">Iraq (1)</a></li><li><a href="../../country/ie/">Ireland (1)</a></li><li><a href="../../country/mk/">North Macedonia (1)</a></li><li><a href="../../country/py/">Paraguay (1)</a></li><li><a href="../../country/pe/">Peru (1)</a></li><li><a href="../../country/ro/">Romania (1)</a></li><li><a href="../../country/sn/">Senegal (1)</a></li><li><a href="../../country/rs/">Serbia (1)</a></li><li><a href="../../country/si/">Slovenia (1)</a></li><li><a href="../../country/ch/">Switzerland (1)</a></li><li><a href="../../country/ae/">United Arab Emirates (1)</a></li></ul></nav>
+  <footer>
+    <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>
+    <span>Collected and checked by <a href="https://github.com/maximilianfeix/proxy-scraper">proxy-scraper</a>, open source, MIT licensed.</span>
+  </footer>
+</div>
+</body>
+</html>

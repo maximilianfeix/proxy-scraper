@@ -1,0 +1,34 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="880" height="318" viewBox="0 0 880 318" font-family="-apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif" role="img" aria-label="Countries with the most working proxies">
+<rect width="880" height="318" rx="16" fill="#FFFFFF"/>
+<text x="28" y="38" fill="#5F5C66" font-size="14">Where they are</text>
+<text x="28" y="75" fill="#121113" font-size="13">United States</text>
+<rect x="250" y="64" width="540.0" height="14" rx="3" fill="#3F5A00"/>
+<text x="800.0" y="75" fill="#5F5C66" font-size="12">922</text>
+<text x="28" y="99" fill="#121113" font-size="13">Germany</text>
+<rect x="250" y="88" width="94.3" height="14" rx="3" fill="#3F5A00"/>
+<text x="354.3" y="99" fill="#5F5C66" font-size="12">161</text>
+<text x="28" y="123" fill="#121113" font-size="13">Israel</text>
+<rect x="250" y="112" width="79.1" height="14" rx="3" fill="#3F5A00"/>
+<text x="339.1" y="123" fill="#5F5C66" font-size="12">135</text>
+<text x="28" y="147" fill="#121113" font-size="13">India</text>
+<rect x="250" y="136" width="63.8" height="14" rx="3" fill="#3F5A00"/>
+<text x="323.8" y="147" fill="#5F5C66" font-size="12">109</text>
+<text x="28" y="171" fill="#121113" font-size="13">Australia</text>
+<rect x="250" y="160" width="57.4" height="14" rx="3" fill="#3F5A00"/>
+<text x="317.4" y="171" fill="#5F5C66" font-size="12">98</text>
+<text x="28" y="195" fill="#121113" font-size="13">Hong Kong</text>
+<rect x="250" y="184" width="55.1" height="14" rx="3" fill="#3F5A00"/>
+<text x="315.1" y="195" fill="#5F5C66" font-size="12">94</text>
+<text x="28" y="219" fill="#121113" font-size="13">Brazil</text>
+<rect x="250" y="208" width="43.9" height="14" rx="3" fill="#3F5A00"/>
+<text x="303.9" y="219" fill="#5F5C66" font-size="12">75</text>
+<text x="28" y="243" fill="#121113" font-size="13">China</text>
+<rect x="250" y="232" width="41.0" height="14" rx="3" fill="#3F5A00"/>
+<text x="301.0" y="243" fill="#5F5C66" font-size="12">70</text>
+<text x="28" y="267" fill="#121113" font-size="13">France</text>
+<rect x="250" y="256" width="36.3" height="14" rx="3" fill="#3F5A00"/>
+<text x="296.3" y="267" fill="#5F5C66" font-size="12">62</text>
+<text x="28" y="291" fill="#121113" font-size="13">Netherlands</text>
+<rect x="250" y="280" width="31.0" height="14" rx="3" fill="#3F5A00"/>
+<text x="291.0" y="291" fill="#5F5C66" font-size="12">53</text>
+</svg>

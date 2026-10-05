@@ -3,6 +3,8 @@
 import asyncio
 import io
 
+import pytest
+
 from proxyscraper import app
 from proxyscraper.history import ProxyHistory
 from proxyscraper.options import RunOptions
@@ -140,3 +142,21 @@ def test_the_paste_order_is_kept_with_both_types_side_by_side(monkeypatch, tmp_p
     jobs = app.load_recheck_jobs("-", ("http", "socks4", "socks5"), ProxyHistory(tmp_path / "h.json"))
     assert jobs == ["http 9.9.9.9:3128", "socks5 9.9.9.9:3128", "http 1.0.0.1:1080", "socks5 1.0.0.1:1080",
                     "socks4 8.8.8.8:4145"]
+
+
+@pytest.mark.parametrize("text", [
+    "<tr><td>9.9.9.9</td><td>3128</td></tr><tr><td>1.0.0.1</td><td>1080</td></tr>",   # a pasted table
+    "9.9.9.9 3128\n1.0.0.1 1080\n",                                                     # space-separated
+    '[{"ip": "9.9.9.9", "port": 3128}, {"ip": "1.0.0.1", "port": 1080}]',               # JSON
+])
+def test_the_order_holds_for_tables_and_json_too(monkeypatch, tmp_path, text):
+    monkeypatch.setattr("sys.stdin", FakeStdin(text))
+    jobs = app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))
+    assert jobs == ["http 9.9.9.9:3128", "socks5 9.9.9.9:3128", "http 1.0.0.1:1080", "socks5 1.0.0.1:1080"]
+
+
+def test_a_typed_proxy_of_an_unwanted_type_isnt_retried_as_another(monkeypatch, tmp_path):
+    """socks4 with an '@' in the password: the regex can't read it and would see a bare 1.2.3.4:1080."""
+    monkeypatch.setattr("sys.stdin", FakeStdin("socks4://u:p@ss@9.9.9.10:1080\n8.8.4.4:8080\n"))
+    jobs = app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))
+    assert jobs == ["http 8.8.4.4:8080", "socks5 8.8.4.4:8080"]

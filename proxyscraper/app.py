@@ -127,7 +127,8 @@ def read_stdin() -> bytes:
     return buffer.read() if buffer is not None else sys.stdin.read().encode("utf-8", "replace")
 
 
-_ADDRESS = re.compile(rb"(?<![\d.])(\d{1,3}(?:\.\d{1,3}){3})\s*:\s*(\d{1,5})(?!\d)")
+# where each IP first appears – any layout (ip:port, "ip port", a table, JSON) has the address in it
+_IPV4 = re.compile(rb"(?<![\d.])(\d{1,3}(?:\.\d{1,3}){3})(?![\d.])")
 
 
 def stdin_keys(data: bytes, types) -> List[str]:
@@ -139,20 +140,24 @@ def stdin_keys(data: bytes, types) -> List[str]:
     '@' or '/' keeps its login."""
     wanted = tuple(types)
     found = {k for ptype in ("http", "socks5") for k in parse_blob(data, ptype, wanted).split("\n") if k}
-    whole_lines = {k for k in parse_keys(data.decode("utf-8", "replace").splitlines(), None)
-                   if split_key(k)[0] in wanted}
+    whole_lines = parse_keys(data.decode("utf-8", "replace").splitlines(), None)
 
     def address(key: str) -> str:
         return split_key(key)[1].rpartition("@")[2]
 
+    # claimed before the type filter: a typed line of an unwanted type must not come back as a bare address
     claimed = {address(k) for k in whole_lines}
-    keys = whole_lines | {k for k in found if address(k) not in claimed}
+    keys = {k for k in whole_lines if split_key(k)[0] in wanted} | {k for k in found if address(k) not in claimed}
     first_seen: Dict[str, int] = {}
-    for m in _ADDRESS.finditer(data):
-        ip = ".".join(str(int(part)) for part in m.group(1).split(b"."))
-        first_seen.setdefault(f"{ip}:{int(m.group(2))}", m.start())
+    for m in _IPV4.finditer(data):
+        first_seen.setdefault(".".join(str(int(part)) for part in m.group(1).split(b".")), m.start())
     rank = {t: i for i, t in enumerate(PROXY_TYPES)}  # http before socks4 before socks5 for the same address
-    return sorted(keys, key=lambda k: (first_seen.get(address(k), len(data)), rank.get(split_key(k)[0], 9), k))
+
+    def order(key: str):
+        ip, _, port = address(key).rpartition(":")
+        return first_seen.get(ip, len(data)), int(port), rank.get(split_key(key)[0], 9), key
+
+    return sorted(keys, key=order)
 
 
 def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:

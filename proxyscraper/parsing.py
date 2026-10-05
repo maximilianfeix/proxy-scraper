@@ -48,7 +48,7 @@ _COLON_LOGIN_LINE = re.compile(
 
 def is_colon_login(word: str) -> bool:
     """Whether the word is a login in the ip:port:user:pass form."""
-    return _COLON_LOGIN_LINE.fullmatch(word) is not None
+    return _COLON_LOGIN_LINE.fullmatch(word.rstrip("/")) is not None
 
 
 RawCandidate = Tuple[str, bytes, bytes, bytes]  # type, ip, port, credentials (b"" without)
@@ -199,7 +199,7 @@ def parse_proxy_line(line: str, default_type: Optional[str] = None) -> Optional[
     if not parts:  # "http://" with nothing after it
         return None
     line = parts[0]
-    colon_login = _COLON_LOGIN_LINE.fullmatch(line)
+    colon_login = _COLON_LOGIN_LINE.fullmatch(line.rstrip("/"))
     if colon_login:  # ip:port:user:pass (#254)
         line, auth = colon_login.group(1), f"{colon_login.group(2)}:{colon_login.group(3)}"
     else:
@@ -221,7 +221,14 @@ def parse_keys(lines: Iterable[str], default_type: Optional[str] = None) -> List
     seen, out = set(), []
     for line in lines:
         key = parse_proxy_line(line, default_type)
-        if key and key not in seen:
-            seen.add(key)
-            out.append(key)
+        keys = [key] if key else []
+        words = line.split()
+        if key and words and is_colon_login(words[0].partition("://")[2] or words[0]):
+            # the bare address after the login: "ip:port:US:elite" lists look the same (#254)
+            ptype, rest = split_key(key)
+            keys.append(make_key(ptype, rest.rpartition("@")[2]))
+        for k in keys:
+            if k not in seen:
+                seen.add(k)
+                out.append(k)
     return out

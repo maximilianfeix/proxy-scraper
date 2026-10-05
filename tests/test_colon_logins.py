@@ -14,6 +14,7 @@ from .test_recheck_stdin import FakeStdin
     ("socks5://8.8.4.4:1080:alice:s3cret", None, "socks5 alice:s3cret@8.8.4.4:1080"),
     ("8.8.4.4:8080:alice:p@ss", "http", "http alice:p%40ss@8.8.4.4:8080"),
     ("8.8.4.4:8080:alice:s3cret  # office", "http", "http alice:s3cret@8.8.4.4:8080"),
+    ("http://8.8.4.4:8080:alice:s3cret/", None, "http alice:s3cret@8.8.4.4:8080"),  # like ip:port/
 ])
 def test_a_line_reads_the_login_after_the_port(line, default, key):
     assert p.parse_proxy_line(line, default) == key
@@ -39,7 +40,9 @@ def test_a_file_of_colon_logins(tmp_path):
     f = tmp_path / "http-paid.txt"  # the type comes from the file name, as for ip:port lines
     f.write_text("8.8.4.4:8080:alice:s3cret\n9.9.9.10:3128:bob:hunter2\n", encoding="utf-8")
     jobs = app.load_recheck_jobs(str(f), ("http",), ProxyHistory(tmp_path / "h.json"))
-    assert jobs == ["http alice:s3cret@8.8.4.4:8080", "http bob:hunter2@9.9.9.10:3128"]
+    # the bare address after each login: "ip:port:US:elite" lists look the same
+    assert jobs == ["http alice:s3cret@8.8.4.4:8080", "http 8.8.4.4:8080",
+                    "http bob:hunter2@9.9.9.10:3128", "http 9.9.9.10:3128"]
 
 
 def test_stdin_keeps_the_login_and_the_bare_address(monkeypatch, tmp_path):

@@ -160,3 +160,33 @@ def test_a_typed_proxy_of_an_unwanted_type_isnt_retried_as_another(monkeypatch, 
     monkeypatch.setattr("sys.stdin", FakeStdin("socks4://u:p@ss@9.9.9.10:1080\n8.8.4.4:8080\n"))
     jobs = app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))
     assert jobs == ["http 8.8.4.4:8080", "socks5 8.8.4.4:8080"]
+
+
+@pytest.mark.parametrize("text", [
+    "proxy: socks5://u:p@ss@9.9.9.10:1080\n",                          # text before it
+    "socks5://8.8.8.8:1080 socks5://u:p@ss@9.9.9.10:1080\n",          # second on its line
+    '[{"url": "socks5://u:p@ss@9.9.9.10:1080"}]',                      # inside JSON
+])
+def test_a_login_with_at_survives_wherever_the_proxy_stands(monkeypatch, tmp_path, text):
+    monkeypatch.setattr("sys.stdin", FakeStdin(text))
+    jobs = app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))
+    with_login = [k for k in jobs if k.endswith("@9.9.9.10:1080")]
+    assert with_login and all(k.startswith("socks5 u:") for k in with_login)
+    assert not any(k.endswith(" 9.9.9.10:1080") for k in jobs)
+
+
+def test_an_unwanted_type_mid_line_stays_out(monkeypatch, tmp_path):
+    monkeypatch.setattr("sys.stdin", FakeStdin("proxy: socks4://u:p@ss@9.9.9.10:1080\n"))
+    assert app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json")) == []
+
+
+def test_two_proxies_on_one_ip_keep_the_paste_order(monkeypatch, tmp_path):
+    monkeypatch.setattr("sys.stdin", FakeStdin("8.8.4.4:8080\n8.8.4.4:3128\n"))
+    assert app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json")) == [
+        "http 8.8.4.4:8080", "socks5 8.8.4.4:8080", "http 8.8.4.4:3128", "socks5 8.8.4.4:3128"]
+
+
+def test_compact_json_without_spaces(monkeypatch, tmp_path):
+    monkeypatch.setattr("sys.stdin", FakeStdin('[{"url":"socks5://u:p@ss@9.9.9.10:1080"},{"url":"http://8.8.4.4:8080"}]'))
+    assert app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json")) == [
+        "socks5 u:p%40ss@9.9.9.10:1080", "http 8.8.4.4:8080"]  # logins are kept URL-encoded, as everywhere

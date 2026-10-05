@@ -36,8 +36,10 @@ Most free proxy lists are 95 % dead, and a good part of the rest are honeypots o
 **Try it – no install, about five seconds:**
 
 ```bash
-uvx proxy-scraper-cli --pick 5 --types socks5     # five checked SOCKS5 proxies from the hourly list
-curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head    # or just the plain list
+uvx proxy-scraper-cli --pick 5 --types socks5     # 5 checked proxies
+
+# or just the plain list
+curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
 ```
 
 `uvx` comes with [uv](https://docs.astral.sh/uv/); `pipx run proxy-scraper-cli --pick 5` does the same.

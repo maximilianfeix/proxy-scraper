@@ -28,8 +28,10 @@
 **无需安装，大约五秒即可试用：**
 
 ```bash
-uvx proxy-scraper-cli --pick 5 --types socks5     # 从每小时更新的列表中取 5 个已验证的 SOCKS5 代理
-curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head    # 或者直接下载列表
+uvx proxy-scraper-cli --pick 5 --types socks5     # 5 个已验证的代理
+
+# 或者直接下载列表
+curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
 ```
 
 <div align="center">

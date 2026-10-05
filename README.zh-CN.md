@@ -35,7 +35,7 @@ curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
 ```
 
 <div align="center">
-<img src="docs/demo.svg" alt="演示：设置向导、收集、实时面板和最终报告" width="880">
+<img src="docs/demo.svg" alt="演示：检查中的实时面板、最终报告、设置向导和收集" width="880">
 </div>
 
 ## 每个代理都要通过的检测

@@ -4,6 +4,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.25.0] – 2026-10-05
+
+### Added
+- The Docker image is an MCP server too: `docker run -i --rm ghcr.io/maximilianfeix/proxy-scraper --mcp` speaks MCP over stdio with `get_proxies`, `check_proxies` and `fetch_url` – no Python needed. The docker workflow talks MCP to every built image and fails unless the three tools are there. The README shows it as a client config, and `glama.json` names the maintainer for MCP directories that build servers from the Dockerfile ([#256](https://github.com/maximilianfeix/proxy-scraper/issues/256))
+- README: the PyPI downloads next to the version ([#257](https://github.com/maximilianfeix/proxy-scraper/issues/257))
+
 ## [1.24.0] – 2026-10-05
 
 ### Added
@@ -272,7 +278,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.24.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.25.0...HEAD
+[1.25.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.24.0...v1.25.0
 [1.24.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.23.0...v1.24.0
 [1.23.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.22.0...v1.23.0
 [1.22.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.21.0...v1.22.0

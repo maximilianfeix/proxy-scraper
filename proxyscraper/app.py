@@ -42,7 +42,7 @@ from .netio import INSECURE_HOSTS, http_get
 from .options import STDOUT, RunOptions
 from .output import ResultWriter, latest_results
 from .pages import REPO_URL
-from .parsing import PROXY_TYPES, parse_blob, parse_keys, parse_proxy_line, split_key
+from .parsing import PROXY_TYPES, parse_blob, parse_keys, split_key
 from .paths import is_checkout
 from .pipeline import (
     CheckRun,
@@ -117,34 +117,31 @@ async def confirm_target() -> Optional[str]:
 STDIN = "-"  # --recheck -: the candidates come from a pipe
 
 
-def read_stdin() -> List[str]:
-    """Lines piped in. A terminal on stdin means nothing was piped – reading it would just wait."""
+def read_stdin() -> bytes:
+    """What was piped in, as bytes – a stray non-UTF-8 byte in a pasted table mustn't sink the whole list.
+    A terminal on stdin means nothing was piped: reading it would just wait."""
     if sys.stdin is None or sys.stdin.isatty():
         raise OSError(0, "nothing was piped in (try: cat proxies.txt | proxy-scraper --recheck -)")
-    return sys.stdin.read().splitlines()
+    buffer = getattr(sys.stdin, "buffer", None)
+    return buffer.read() if buffer is not None else sys.stdin.read().encode("utf-8", "replace")
+
+
+def stdin_keys(data: bytes, types) -> List[str]:
+    """Every proxy in the piped text. type://ip:port keeps its type wherever it stands (several on a line too);
+    bare ip:port – also inside JSON or a pasted table – is tried as HTTP and as SOCKS5. Not the "auto" mode of
+    sources: its "plain lines only count as the majority" rule is for scraped lists, and whoever pipes a list
+    in means all of it. Lines that start with a typed proxy keep their order and come first."""
+    wanted = tuple(types)
+    found = {k for ptype in ("http", "socks5") for k in parse_blob(data, ptype, wanted).split("\n") if k}
+    first = [k for k in parse_keys(data.decode("utf-8", "replace").splitlines(), None) if k in found]
+    seen = set(first)
+    return first + sorted(found - seen)
 
 
 def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
     """--recheck: a file, '-' for stdin, otherwise the last run plus history."""
     if target == STDIN:
-        # lines that name their type keep it and come first, in the order they came in. The rest – bare ip:port,
-        # JSON, a pasted table – is searched like a source's text and tried as HTTP and SOCKS5. Every one of them
-        # counts: whoever pipes a list in means all of it.
-        lines = read_stdin()
-        keys, seen, untyped = [], set(), []
-        for line in lines:  # "typed" means the line reads as a proxy with a type, not just "contains ://"
-            key = parse_proxy_line(line, None)
-            if key is None:
-                untyped.append(line)
-            elif key not in seen:
-                seen.add(key)
-                keys.append(key)
-        # not "auto": its "plain lines only count as the majority" rule is for scraped lists, and here a
-        # rejected typed line (a private IP, a scheme mid-line) would outvote the bare ones. As HTTP and as
-        # SOCKS5 instead – a scheme found mid-line still keeps its own type.
-        blob = "\n".join(untyped).encode("utf-8", "replace")
-        found = {k for ptype in ("http", "socks5") for k in parse_blob(blob, ptype, tuple(types)).split("\n") if k}
-        keys += [k for k in sorted(found) if k not in seen]
+        return stdin_keys(read_stdin(), types)
     elif target:
         lines = Path(target).expanduser().read_text(encoding="utf-8").splitlines()
         # lines without type:// in files like http.txt take the type from the file name

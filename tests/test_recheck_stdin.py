@@ -99,3 +99,28 @@ def test_bare_lines_count_whatever_else_is_in_the_paste(monkeypatch, tmp_path):
     ]:
         monkeypatch.setattr("sys.stdin", FakeStdin(text))
         assert set(app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))) == expected
+
+
+def test_several_proxies_on_one_line(monkeypatch, tmp_path):
+    """`echo $(cat list.txt) | …` joins the lines with spaces – every proxy on the line counts."""
+    monkeypatch.setattr("sys.stdin", FakeStdin("socks5://8.8.8.8:1080 socks5://9.9.9.9:1080 8.8.4.4:8080\n"))
+    assert set(app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))) == {
+        "socks5 8.8.8.8:1080", "socks5 9.9.9.9:1080", "http 8.8.4.4:8080", "socks5 8.8.4.4:8080"}
+
+
+class BytesStdin:
+    """Like the real sys.stdin: text on top of a byte buffer."""
+
+    def __init__(self, data):
+        self.buffer = io.BytesIO(data)
+
+    def isatty(self):
+        return False
+
+    def read(self):
+        return self.buffer.read().decode("utf-8")  # strict, like the real one – must not be what's used
+
+
+def test_bytes_that_arent_utf8_dont_sink_the_list(monkeypatch, tmp_path):
+    monkeypatch.setattr("sys.stdin", BytesStdin("Proxy-Tabelle für heute\n8.8.4.4:8080\n".encode("latin-1")))
+    assert set(app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json"))) == {"http 8.8.4.4:8080"}

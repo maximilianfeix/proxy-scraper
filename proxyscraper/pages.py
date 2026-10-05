@@ -134,7 +134,7 @@ def _list_query(path: str) -> str:
             "elite": "?elite=1"}.get(kind, "")
 
 
-SITE_NAMES = {"tiktok": "TikTok"}
+SITE_NAMES = {"tiktok": "TikTok", "discord": "Discord"}
 
 
 def _pick_flags(path: str) -> str:
@@ -180,7 +180,7 @@ def _faq(path: str, facts: Dict[str, object], when: str) -> List[Tuple[str, str]
          f"{facts['stable']:,} were on the list in 90 % or more of this week's hourly checks. The list is checked "
          "again every hour."),
         (f"Which free {short} get through to Google?",
-         f"{got} The site check also tries Reddit, Amazon, Instagram and TikTok – the full list "
+         f"{got} The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list "
          "on the website can be filtered by it."),
         (f"How do I get working {short} in code or the terminal?",
          f"Without installing anything, download proxies.txt from this page. With the tool: pipx install "

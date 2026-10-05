@@ -64,6 +64,9 @@ SITES = (
     Site("instagram", "www.instagram.com", "/instagram/", ok=(200,), blocked=(429,), blocked_redirect="accounts/login",
          min_body=30_000, title="Instagram"),
     Site("tiktok", "www.tiktok.com", "/@tiktok", ok=(200,), blocked=(403, 429), min_body=30_000, title="TikTok"),
+    # measured on 80 proxies (2026-10-05): 32 through, 15 turned away by Cloudflare (403, or 429 for a rate-limited
+    # IP). YouTube, X, Netflix, GitHub and Bing let all of them through, so they aren't in here (#247)
+    Site("discord", "discord.com", "/api/v10/gateway", ok=(200,), blocked=(403, 429), title="Discord"),
 )
 SITE = {s.name: s for s in SITES}
 

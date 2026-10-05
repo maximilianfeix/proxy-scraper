@@ -81,11 +81,11 @@ def test_only_https_proxies_are_probed_and_only_clear_answers_are_kept(tmp_path)
     stats = asyncio.run(sites.fill_run(d, probe=probe, resolve=lambda host: "10.0.0.1"))
     rows = {r["proxy"]: r for r in json.loads((d / "proxies.json").read_text())}
     assert rows["1.1.1.1:1080"]["sites"] == {"google": True, "reddit": False, "amazon": True, "instagram": True,
-                                             "tiktok": True}
+                                             "tiktok": True, "discord": True}
     assert rows["1.1.1.2:1080"]["sites"] == {}
     assert "sites" not in rows["1.1.1.3:1080"] or rows["1.1.1.3:1080"]["sites"] == {}
     assert {p for p, _ in asked} == {"1.1.1.1:1080", "1.1.1.2:1080"}
-    assert stats == {"google": 1, "reddit": 0, "amazon": 1, "instagram": 1, "tiktok": 1}
+    assert stats == {"google": 1, "reddit": 0, "amazon": 1, "instagram": 1, "tiktok": 1, "discord": 1}
 
 
 def test_a_site_that_cant_be_resolved_is_skipped(tmp_path):
@@ -100,7 +100,8 @@ def test_a_site_that_cant_be_resolved_is_skipped(tmp_path):
     d = run_dir(tmp_path, [row(1)])
     asyncio.run(sites.fill_run(d, probe=probe, resolve=resolve))
     assert json.loads((d / "proxies.json").read_text())[0]["sites"] == {"google": True, "amazon": True,
-                                                                         "instagram": True, "tiktok": True}
+                                                                         "instagram": True, "tiktok": True,
+                                                                         "discord": True}
 
 
 # --------------------------------------------------------------------------- using the verdicts
@@ -119,8 +120,9 @@ def test_publish_writes_a_list_per_site_and_counts(tmp_path):
     assert (out / "works-with" / "reddit.txt").read_text() == ""
     assert (out / "works-with" / "amazon.txt").read_text() == ""
     stats = json.loads((out / "stats.json").read_text())
-    # amazon, instagram and tiktok weren't checked at all in this run: that's "not measured", not zero
-    assert stats["sites"] == {"google": 1, "reddit": 0, "amazon": None, "instagram": None, "tiktok": None}
+    # amazon, instagram, tiktok and discord weren't checked at all in this run: "not measured", not zero
+    assert stats["sites"] == {"google": 1, "reddit": 0, "amazon": None, "instagram": None, "tiktok": None,
+                              "discord": None}
     assert (out / "works-with" / "tiktok.txt").read_text() == ""
     import csv
     with (out / "proxies.csv").open(newline="", encoding="utf-8") as fh:
@@ -187,3 +189,18 @@ def test_header_variants_are_understood():
     assert sites.page_complete(listed, 9_000, b"<div>") is False
     both = b"HTTP/1.1 200 OK\r\nContent-Length: 100\r\nTransfer-Encoding: chunked\r\n\r\n"  # chunked wins
     assert sites.page_complete(both, 5_000, b"<div>") is False
+
+
+@pytest.mark.parametrize("status,expected", [
+    (200, True),    # the gateway JSON: through
+    (403, False),   # Cloudflare turned the exit IP away
+    (429, False),   # rate limited (Cloudflare 1015)
+    (502, None),    # says nothing about blocking
+    (301, None),
+])
+def test_discord(status, expected):
+    """Measured on 80 HTTPS proxies from the live list (2026-10-05): 32 through, 15 blocked – it tells
+    proxies apart, unlike YouTube, X, Netflix, GitHub or Bing, which let all of them through (#247)."""
+    discord = sites.SITE["discord"]
+    assert (discord.host, discord.path, discord.title) == ("discord.com", "/api/v10/gateway", "Discord")
+    assert discord.verdict(status, "") is expected

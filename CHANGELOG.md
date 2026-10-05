@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- The site check tries Discord too: `works-with/discord.txt` on the live list, the website filter, `--pick --works-on discord`, `live_proxies(works_on="discord")`, the MCP tools and the action. Measured on 80 live proxies: 32 through, 15 turned away by Cloudflare. YouTube, X, Netflix, GitHub and Bing let all of them through, so they'd say nothing and aren't added ([#247](https://github.com/maximilianfeix/proxy-scraper/issues/247))
+
 ## [1.23.0] – 2026-10-02
 
 ### Added

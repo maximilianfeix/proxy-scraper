@@ -215,7 +215,7 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
     Same filters as find_proxies, plus
     min_uptime  only proxies listed in at least this share (percent) of the week's runs, e.g. 90
     works_on    only proxies that got through to these sites in the last run: google, reddit, amazon, instagram,
-                tiktok
+                tiktok, discord
     min_speed   only proxies that downloaded at least this many KiB/s in the last run
     limit       at most this many (0 = all)
     """

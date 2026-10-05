@@ -54,7 +54,7 @@ def _needs_full_regex(data: bytes) -> bool:
     return b"<" in sample or _SPACE_SEPARATED_RE.search(sample) is not None
 
 
-def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
+def extract_candidates(data: bytes, default_type: str, full: bool = False) -> Set[RawCandidate]:
     """Finds proxies in text, HTML tables and JSON.
 
     Lines with a type:// prefix keep their own type; everything else gets the type of the source.
@@ -72,7 +72,7 @@ def extract_candidates(data: bytes, default_type: str) -> Set[RawCandidate]:
                 out.add((ptype, ip, port, auth))
                 with_scheme.add((ip, port))
     auto = default_type == "auto"
-    regex = PROXY_RE if _needs_full_regex(data) else PLAIN_RE
+    regex = PROXY_RE if full or _needs_full_regex(data) else PLAIN_RE  # full: search all of it, not a sample
     pairs = set(regex.findall(data))
     if b'"ip"' in data:
         pairs.update(JSON_IP_PORT_RE.findall(data))
@@ -156,13 +156,14 @@ def validate_candidates(candidates: Iterable[RawCandidate]) -> Set[str]:
     return out
 
 
-def parse_blob(data: bytes, default_type: str, wanted: Tuple[str, ...]) -> str:
+def parse_blob(data: bytes, default_type: str, wanted: Tuple[str, ...], full: bool = False) -> str:
     """Complete parse step of a source for the process pool.
 
     Returns the keys as a single string separated by \\n – one object can be passed
     between processes much faster than hundreds of thousands of small ones.
     """
-    keys = [k for k in validate_candidates(extract_candidates(data, default_type)) if k.split(" ", 1)[0] in wanted]
+    candidates = extract_candidates(data, default_type, full)
+    keys = [k for k in validate_candidates(candidates) if k.split(" ", 1)[0] in wanted]
     return "\n".join(keys)
 
 

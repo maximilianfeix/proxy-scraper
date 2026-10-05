@@ -207,6 +207,8 @@ proxy-scraper --export clash                           # 导出 Clash 配置（�
 }
 ```
 
+不想装 Python？用 Docker 镜像（已包含所有依赖）：`"command": "docker"`，`"args": ["run", "-i", "--rm", "ghcr.io/maximilianfeix/proxy-scraper", "--mcp"]`。
+
 <a id="faq"></a>
 
 ## 常见问题

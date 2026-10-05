@@ -949,6 +949,8 @@ Only for things that don't matter. Public proxies are run by strangers who can r
 
 What's next is in the [open issues](../../issues) – ideas and wishes are welcome as an [issue](../../issues/new/choose). During Hacktoberfest there are [beginner-friendly issues](../../issues?q=is%3Aopen+label%3Ahacktoberfest) with pointers on where to start.
 
+Shipped in v1.24: `--recheck -` for lists you pipe in, which proxies get through to Discord, and a README you can try in five seconds.
+
 Shipped in v1.22 and v1.23: a live dashboard for the rotating server, `--export pac` and an hourly `proxy.pac`, "best first" that counts how likely a proxy is still up, the lists in a repository of their own ([free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)), daily snapshots on Hugging Face, `brew install`, a Chinese README, Python 3.14, and a recipe for Burp Suite, ZAP and mitmproxy.
 
 Shipped in v1.10 to v1.21: download speed per proxy and "best first" everywhere, daily snapshots, a rotating proxy URL for requests, httpx and Playwright, `--pick` for working proxies without a scan, a proxy pool API compatible with jhao104/proxy_pool, your own lists with `--source`, a GitHub Action, a Telegram bot and an Atom feed for the weekly report.

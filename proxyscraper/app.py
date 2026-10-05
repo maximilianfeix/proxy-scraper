@@ -43,7 +43,17 @@ from .netio import INSECURE_HOSTS, http_get
 from .options import STDOUT, RunOptions
 from .output import ResultWriter, latest_results
 from .pages import REPO_URL
-from .parsing import PROXY_TYPES, TYPE_ALIASES, parse_blob, parse_keys, parse_proxy_line, split_key
+from .parsing import (
+    JSON_IP_PORT_RE,
+    JSON_PORT_IP_RE,
+    PROXY_RE,
+    PROXY_TYPES,
+    TYPE_ALIASES,
+    parse_blob,
+    parse_keys,
+    parse_proxy_line,
+    split_key,
+)
 from .paths import is_checkout
 from .pipeline import (
     CheckRun,
@@ -127,18 +137,23 @@ def read_stdin() -> bytes:
     return buffer.read() if buffer is not None else sys.stdin.read().encode("utf-8", "replace")
 
 
-# where each address first appears: "ip:port" where the text has it, else the IP alone (a table, "ip port")
-_IP_PORT = re.compile(rb"(?<![\d.])(\d{1,3}(?:\.\d{1,3}){3})\s*:\s*(\d{1,5})(?!\d)")
-_IPV4 = re.compile(rb"(?<![\d.])(\d{1,3}(?:\.\d{1,3}){3})(?![\d.])")
 # a typed proxy anywhere in a word – at its start, or after "url":" in compact JSON; it ends at a quote, comma or
 # bracket, which a password could in theory contain but practically never does
 _TYPED_PROXY = re.compile(
     rb"(?<![A-Za-z0-9])(?:" + b"|".join(s.encode() for s in TYPE_ALIASES if TYPE_ALIASES[s] != "auto")
     + rb")://[^\s\"'`,;()\[\]{}<>]+", re.IGNORECASE)
+_WORD_EDGES = b"\"'`,;()[]{}<>"
 
 
-def _ip(raw: bytes) -> str:
-    return ".".join(str(int(part)) for part in raw.split(b"."))
+def _address_positions(data: bytes) -> Dict[str, int]:
+    """Where each ip:port first appears, in any layout the extraction reads: ip:port, "ip port", a table cell
+    pair, JSON in either order – so a list keeps its order whatever it looks like."""
+    hits = [(m.start(), m.group(1), m.group(2)) for regex in (PROXY_RE, JSON_IP_PORT_RE) for m in regex.finditer(data)]
+    hits += [(m.start(), m.group(2), m.group(1)) for m in JSON_PORT_IP_RE.finditer(data)]
+    first: Dict[str, int] = {}
+    for at, ip, port in sorted(hits):
+        first.setdefault(f"{'.'.join(str(int(p)) for p in ip.split(b'.'))}:{int(port)}", at)
+    return first
 
 
 def stdin_keys(data: bytes, types) -> List[str]:
@@ -146,37 +161,31 @@ def stdin_keys(data: bytes, types) -> List[str]:
     the first jobs).
 
     Every type://… in the text is read as a proxy on its own – at the start of a line, after other text,
-    several on a line, inside JSON – which also keeps a login whose password has '@' or '/'. Bare ip:port, also
-    inside JSON or a table, is tried as HTTP and right after as SOCKS5. Not the "auto" mode of sources: its
-    "plain lines only count as the majority" rule is for scraped lists, and whoever pipes a list in means all
-    of it."""
+    several on a line, inside JSON – which also keeps a login whose password has '@' or '/'. Untyped proxies –
+    a bare word like user:pass@ip:port (read whole, so the login stays), or ip/port inside JSON or a table –
+    are tried as HTTP and right after as SOCKS5, or as the types asked for when neither of those is (a list of
+    SOCKS4 proxies piped in with --types socks4). Not the "auto" mode of sources: its "plain lines only count
+    as the majority" rule is for scraped lists, and whoever pipes a list in means all of it."""
     wanted = tuple(types)
-    typed = {k for k in (parse_proxy_line(m.group(0).decode("utf-8", "replace"), None)
-                         for m in _TYPED_PROXY.finditer(data)) if k}
+    bare_types = tuple(t for t in ("http", "socks5") if t in wanted) or wanted
 
     def address(key: str) -> str:
         return split_key(key)[1].rpartition("@")[2]
 
-    # a typed proxy owns its address – before the type filter, so an unwanted type doesn't come back as a
-    # bare address the regex found inside it
-    claimed = {address(k) for k in typed}
-    found = {k for ptype in ("http", "socks5") for k in parse_blob(data, ptype, wanted).split("\n") if k}
-    keys = {k for k in typed if split_key(k)[0] in wanted} | {k for k in found if address(k) not in claimed}
+    typed = {k for k in (parse_proxy_line(m.group(0).decode("utf-8", "replace"), None)
+                         for m in _TYPED_PROXY.finditer(data)) if k}
+    words = [w.strip(_WORD_EDGES).decode("utf-8", "replace") for w in data.split() if b"://" not in w]
+    whole_words = {k for w in words for t in bare_types for k in [parse_proxy_line(w, t)] if k}
+    found = {k for t in bare_types for k in parse_blob(data, t, wanted).split("\n") if k}
+    # an address read with its login (or with a type of its own) owns it: the regex's login-less copy, or a
+    # bare copy of a typed proxy of an unwanted type, mustn't come back. Claimed before the type filter.
+    claimed = {address(k) for k in typed} | {address(k) for k in whole_words if "@" in split_key(k)[1]}
+    keys = ({k for k in typed | whole_words if split_key(k)[0] in wanted}
+            | {k for k in found if address(k) not in claimed})
 
-    at_ip_port: Dict[str, int] = {}
-    for m in _IP_PORT.finditer(data):
-        at_ip_port.setdefault(f"{_ip(m.group(1))}:{int(m.group(2))}", m.start())
-    at_ip: Dict[str, int] = {}
-    for m in _IPV4.finditer(data):
-        at_ip.setdefault(_ip(m.group(1)), m.start())
+    first = _address_positions(data)
     rank = {t: i for i, t in enumerate(PROXY_TYPES)}  # http before socks4 before socks5 for the same address
-
-    def order(key: str):
-        where = address(key)
-        ip, _, port = where.rpartition(":")
-        return at_ip_port.get(where, at_ip.get(ip, len(data))), int(port), rank.get(split_key(key)[0], 9), key
-
-    return sorted(keys, key=order)
+    return sorted(keys, key=lambda k: (first.get(address(k), len(data)), rank.get(split_key(k)[0], 9), k))
 
 
 def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:

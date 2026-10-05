@@ -190,3 +190,21 @@ def test_compact_json_without_spaces(monkeypatch, tmp_path):
     monkeypatch.setattr("sys.stdin", FakeStdin('[{"url":"socks5://u:p@ss@9.9.9.10:1080"},{"url":"http://8.8.4.4:8080"}]'))
     assert app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json")) == [
         "socks5 u:p%40ss@9.9.9.10:1080", "http 8.8.4.4:8080"]  # logins are kept URL-encoded, as everywhere
+
+
+def test_a_login_without_a_type_is_kept(monkeypatch, tmp_path):
+    monkeypatch.setattr("sys.stdin", FakeStdin("user:pass@8.8.4.4:8080\n"))
+    assert app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json")) == [
+        "http user:pass@8.8.4.4:8080", "socks5 user:pass@8.8.4.4:8080"]
+
+
+def test_bare_lines_follow_an_explicit_type(monkeypatch, tmp_path):
+    """cat socks4.txt | proxy-scraper --recheck - --types socks4: the user said what they are."""
+    monkeypatch.setattr("sys.stdin", FakeStdin("8.8.4.4:4145\n"))
+    assert app.load_recheck_jobs("-", ("socks4",), ProxyHistory(tmp_path / "h.json")) == ["socks4 8.8.4.4:4145"]
+
+
+def test_one_ip_on_several_ports_in_a_table_keeps_the_order(monkeypatch, tmp_path):
+    monkeypatch.setattr("sys.stdin", FakeStdin("9.9.9.9 3128\n9.9.9.9:80\n9.9.9.9 1080\n"))
+    jobs = app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json"))
+    assert jobs == ["http 9.9.9.9:3128", "http 9.9.9.9:80", "http 9.9.9.9:1080"]

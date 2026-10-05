@@ -33,15 +33,22 @@ Most free proxy lists are 95 % dead, and a good part of the rest are honeypots o
 
 **In numbers:** in one day it checked 3.6 million free proxies – 1.1 % worked, and more than half of the ones that answered failed a second request. [What's actually out there →](docs/free-proxies-in-numbers.md)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/checks-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/checks-light.svg">
-  <img src="docs/checks-dark.svg" alt="The five checks: 700+ lists, a real handshake, two sites with one IP, nothing injected, the details" width="100%">
-</picture>
+**Try it – no install, about five seconds:**
+
+```bash
+uvx proxy-scraper-cli --pick 5 --types socks5     # 5 checked proxies
+
+# or just the plain list
+curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
+```
+
+`uvx` comes with [uv](https://docs.astral.sh/uv/); `pipx run proxy-scraper-cli --pick 5` does the same.
 
 <div align="center">
-<img src="docs/demo.svg" alt="Animated demo: setup wizard, collecting, live dashboard and final report" width="880">
+<img src="docs/demo.svg" alt="Animated demo: the live dashboard during a check, the report, the setup wizard and collecting" width="880">
 </div>
+
+> **Who runs free proxies – and is it safe to use them?** Mostly nobody on purpose: misconfigured servers with an open port, a few deliberately open ones, infected machines, and traps that log or rewrite your traffic. That's why every proxy here has to pass [five checks](#how-it-works), and why they're for public data and testing – never for logins, payments or anything personal. [More on where they come from →](#who-runs-free-proxies)
 
 <details>
 <summary><b>Table of contents</b></summary>
@@ -541,6 +548,13 @@ The live list can also come to you: [`bot/`](bot/) is a Discord bot that posts e
 
 ## How it works
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/checks-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/checks-light.svg">
+  <img src="docs/checks-dark.svg" alt="The five checks: 700+ lists, a real handshake, two sites with one IP, nothing injected, the details" width="100%">
+</picture>
+
+
 ```mermaid
 flowchart LR
     A[sources.json<br/>meta lists<br/>GitHub discovery] --> B[Fetch & parse<br/>in parallel on all cores]
@@ -853,6 +867,25 @@ The repo does part of the work itself:
 <a id="faq"></a>
 
 ## FAQ
+
+<a id="who-runs-free-proxies"></a>
+
+<details open>
+<summary><b>Who runs free proxies – and should you use them?</b></summary>
+<br>
+
+Almost nobody runs a free proxy for you. What ends up on public lists is usually one of these:
+
+- **Misconfigured servers** – a Squid, a router or an app with a proxy port that was meant to stay internal.
+- **Deliberately open proxies** – a few volunteers and research projects, and services that give some away to sell the rest.
+- **Infected machines** – computers and IoT devices whose owners don't know they relay traffic. Many residential exits are like this.
+- **Traps** – honeypots that log what goes through them, and proxies that rewrite pages to inject ads or scripts.
+
+proxy-scraper can't tell an infected home router from an open office proxy, but it filters what it can measure: a proxy has to answer two independent requests with the same exit IP (honeypots that only answer scanners drop out), deliver a known page byte for byte (injectors drop out), and HTTPS counts only with a certificate that verifies end to end. Each hit says whether its exit is in a datacenter.
+
+Good uses: public data, checking how a site looks from another country, testing your own blocking and rate limits, research. Never send passwords, cookies, payment or personal data through a free proxy, and keep HTTPS certificate checks on. Use them only where you're allowed to.
+
+</details>
 
 <details>
 <summary><b>Almost nothing gets through.</b></summary>

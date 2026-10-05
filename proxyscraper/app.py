@@ -42,7 +42,7 @@ from .netio import INSECURE_HOSTS, http_get
 from .options import STDOUT, RunOptions
 from .output import ResultWriter, latest_results
 from .pages import REPO_URL
-from .parsing import PROXY_TYPES, parse_blob, parse_keys, split_key
+from .parsing import PROXY_TYPES, parse_blob, parse_keys, parse_proxy_line, split_key
 from .paths import is_checkout
 from .pipeline import (
     CheckRun,
@@ -131,9 +131,16 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
         # JSON, a pasted table – is searched like an untyped source and tried as HTTP and SOCKS5. Unlike a
         # source, every one of them counts: whoever pipes a list in means all of it.
         lines = read_stdin()
-        keys = parse_keys(lines, None)
-        untyped = "\n".join(line for line in lines if "://" not in line).encode("utf-8", "replace")
-        keys += [k for k in parse_blob(untyped, "auto", tuple(types)).split("\n") if k and k not in keys]
+        keys, seen, untyped = [], set(), []
+        for line in lines:  # "typed" means the line reads as a proxy with a type, not just "contains ://"
+            key = parse_proxy_line(line, None)
+            if key is None:
+                untyped.append(line)
+            elif key not in seen:
+                seen.add(key)
+                keys.append(key)
+        found = parse_blob("\n".join(untyped).encode("utf-8", "replace"), "auto", tuple(types)).split("\n")
+        keys += [k for k in found if k and k not in seen]
     elif target:
         lines = Path(target).expanduser().read_text(encoding="utf-8").splitlines()
         # lines without type:// in files like http.txt take the type from the file name

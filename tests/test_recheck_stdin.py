@@ -68,3 +68,22 @@ def test_finds_proxies_in_any_text(monkeypatch, tmp_path):
 def test_private_and_documentation_addresses_are_left_out(monkeypatch, tmp_path):
     monkeypatch.setattr("sys.stdin", FakeStdin("192.168.1.10:8080\nsocks5://203.0.113.10:1080\n"))
     assert app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json")) == []
+
+
+def test_a_url_elsewhere_on_the_line_doesnt_hide_the_proxy(monkeypatch, tmp_path):
+    """One-line API JSON with a URL field, or a note with a link – the proxy on that line still counts."""
+    text = ('[{"ip": "8.8.4.4", "port": "3128", "source": "https://example.com/list"}]\n'
+            "1.0.0.4:8080  # via https://example.com\n")
+    monkeypatch.setattr("sys.stdin", FakeStdin(text))
+    jobs = set(app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json")))
+    assert jobs == {"http 8.8.4.4:3128", "http 1.0.0.4:8080"}
+
+
+def test_a_big_mixed_paste_stays_fast(monkeypatch, tmp_path):
+    import time
+    typed = "".join(f"socks5://9.9.{i // 250}.{i % 250 + 1}:1080\n" for i in range(20_000))
+    bare = "".join(f"8.8.{i // 250}.{i % 250 + 1}:8080\n" for i in range(20_000))
+    monkeypatch.setattr("sys.stdin", FakeStdin(typed + bare))
+    started = time.perf_counter()
+    jobs = app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))
+    assert len(jobs) == 60_000 and time.perf_counter() - started < 5

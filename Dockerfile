@@ -1,12 +1,13 @@
 # syntax=docker/dockerfile:1
 
 # build: collect ready-made wheels. uvloop exists as a binary for amd64 and arm64 – --only-binary makes
-# a missing wheel show up right away instead of quietly needing a compiler
+# a missing wheel show up right away instead of quietly needing a compiler. The mcp extra makes
+# "docker run -i --rm IMAGE --mcp" an MCP server for AI agents
 FROM python:3.12-slim AS build
 WORKDIR /src
 COPY pyproject.toml README.md LICENSE ./
 COPY proxyscraper ./proxyscraper
-RUN pip wheel --no-cache-dir --only-binary uvloop --wheel-dir /wheels ".[fast]"
+RUN pip wheel --no-cache-dir --only-binary uvloop --wheel-dir /wheels ".[fast,mcp]"
 
 FROM python:3.12-slim
 LABEL org.opencontainers.image.title="proxy-scraper" \

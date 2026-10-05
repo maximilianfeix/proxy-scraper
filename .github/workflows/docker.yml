@@ -6,7 +6,8 @@ on:
     tags: ["v*"]
     paths-ignore: ["**.md", "docs/**"]
   pull_request:
-    paths: ["Dockerfile", ".dockerignore", "pyproject.toml", "proxyscraper/**", ".github/workflows/docker.yml"]
+    paths: ["Dockerfile", ".dockerignore", "pyproject.toml", "proxyscraper/**", ".github/workflows/docker.yml",
+            ".github/scripts/mcp_smoke.py"]
 
 permissions:
   contents: read
@@ -32,6 +33,9 @@ jobs:
         run: |
           docker run --rm proxy-scraper:test --version
           docker run --rm proxy-scraper:test --list-sources 3
+      - name: MCP server over stdio (what Docker's MCP catalog and Glama start)
+        timeout-minutes: 3
+        run: python .github/scripts/mcp_smoke.py docker run -i --rm proxy-scraper:test --mcp
       - name: Real run inside the container (same command as in the README)
         run: |
           mkdir -p proxy-data results

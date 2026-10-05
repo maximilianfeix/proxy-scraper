@@ -621,7 +621,7 @@
       <button class="chip" type="button" id="f-bl" aria-pressed="false" title="Exit IP not on the SpamCop blocklist – fewer captchas">Not blocklisted</button>
       <select class="field" id="f-country" aria-label="Country"><option value="">All countries</option></select>
       <select class="field" id="f-site" aria-label="Gets through to" title="Checked every hour: most free proxies get a captcha or a 403 on these sites">
-        <option value="">Any site</option><option value="google">Gets through to Google</option><option value="reddit">Gets through to Reddit</option><option value="amazon">Gets through to Amazon</option><option value="instagram">Gets through to Instagram</option><option value="tiktok">Gets through to TikTok</option></select>
+        <option value="">Any site</option><option value="google">Gets through to Google</option><option value="reddit">Gets through to Reddit</option><option value="amazon">Gets through to Amazon</option><option value="instagram">Gets through to Instagram</option><option value="tiktok">Gets through to TikTok</option><option value="discord">Gets through to Discord</option></select>
       <label class="range">Up to <input type="range" id="f-lat" min="200" max="8000" step="100" value="8000" aria-label="Maximum latency"><output id="f-lat-v" for="f-lat">any</output></label>
       <input class="field" type="search" id="f-q" placeholder="Search IP, country or provider    /" aria-label="Search" aria-keyshortcuts="/">
     </div>
@@ -724,7 +724,7 @@
         <div class="ledger-row" role="row"><span class="q" role="rowheader">Does it change the pages you load?</span><span class="them" role="cell">Not checked</span><span class="us" role="cell">A known page has to arrive byte for byte. Proxies that inject scripts or ads are dropped</span></div>
         <div class="ledger-row" role="row"><span class="q" role="rowheader">Does HTTPS work through it?</span><span class="them" role="cell">Sometimes a flag in the list</span><span class="us" role="cell">A verified TLS handshake through the tunnel: <b data-live="https">–</b> of them</span></div>
         <div class="ledger-row" role="row"><span class="q" role="rowheader">Will it still be there tomorrow?</span><span class="them" role="cell">Unknown</span><span class="us" role="cell">Every proxy's week of hourly checks. <b data-live="stable">–</b> were on the list for 90&nbsp;%+ of the week</span></div>
-        <div class="ledger-row" role="row"><span class="q" role="rowheader">Does Google let it through?</span><span class="them" role="cell">Unknown</span><span class="us" role="cell">Tried on Google, Reddit, Amazon, Instagram and TikTok: <b data-live="google">–</b> got through to Google</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Does Google let it through?</span><span class="them" role="cell">Unknown</span><span class="us" role="cell">Tried on Google, Reddit, Amazon, Instagram, TikTok and Discord: <b data-live="google">–</b> got through to Google</span></div>
         <div class="ledger-row" role="row"><span class="q" role="rowheader">Is it fast enough for real pages?</span><span class="them" role="cell">A latency number, if any</span><span class="us" role="cell">100&nbsp;KB downloaded through every HTTPS-capable one: half of them manage <b data-live="speed">–</b> or more</span></div>
         <div class="ledger-row" role="row"><span class="q" role="rowheader">How fresh is it?</span><span class="them" role="cell">Scraped once, rarely checked again</span><span class="us" role="cell">Checked again every hour, the last run <b data-live="ago">–</b></span></div>
     </div>
@@ -880,7 +880,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   };
   const share = (r) => r.uptime_7d == null ? uptime(r.streak)  // lists from before the uptime existed
     : `<span class="uptime${(r.streak || 0) >= STABLE ? " stable-badge" : ""}" title="On the list in ${r.uptime_7d} % of this week's runs and ${r.uptime_24h} % of today's – up without a gap for ${upFor(r.streak)}"><span class="meter" style="--v:${r.uptime_7d}%"></span>${r.uptime_7d} %</span>`;
-  const SITE_NAMES = { google: "Google", reddit: "Reddit", amazon: "Amazon", instagram: "Instagram", tiktok: "TikTok" };
+  const SITE_NAMES = { google: "Google", reddit: "Reddit", amazon: "Amazon", instagram: "Instagram", tiktok: "TikTok", discord: "Discord" };
   const through = (r) => {
     const ok = Object.keys(SITE_NAMES).filter(k => (r.sites || {})[k] === true);
     if (!ok.length) return '<span class="quiet">–</span>';

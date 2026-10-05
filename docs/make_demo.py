@@ -2,7 +2,7 @@
 
     python3 docs/make_demo.py
 
-- docs/demo.svg       animated: setup wizard → collecting → live dashboard → report
+- docs/demo.svg       animated: live dashboard → report → setup wizard → collecting
 - docs/wizard.svg     setup wizard
 - docs/dashboard.svg  live dashboard
 - docs/summary.svg    final report
@@ -207,14 +207,16 @@ def main() -> None:
     def print_summary():
         report.render_summary(s, rows, kept[:12], best, files, True, "HTTPS only · min. anonymous", NEXT_STEPS)
 
+    # opens on the busiest view: it is what a visitor sees first (and what a still image of the SVG shows),
+    # and it fills the frame – the short wizard first meant a mostly empty box
     views = [
+        {"renderable": late},
+        {"printer": lambda: report.render_summary(s, rows, kept[:5], best[:2], {}, True, "HTTPS only", NEXT_STEPS[:2])},
         {"renderable": start},
         {"renderable": wizard_summary},
         {"printer": setup_view},
         {"renderable": Group(widgets.banner(), collect_view())},
         {"renderable": early},
-        {"renderable": late},
-        {"printer": lambda: report.render_summary(s, rows, kept[:5], best[:2], {}, True, "HTTPS only", NEXT_STEPS[:2])},
     ]
     # bring every frame to the height of the tallest view so the image doesn't jump between frames
     lines = max(count_lines(**view) for view in views)

@@ -6,6 +6,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ### Added
 - `--recheck -` checks a list piped in on stdin: `ip:port`, `type://ip:port` anywhere in the text (several on a line, inside JSON), logins, JSON, CSV exports and HTML or Markdown tables – in the order they came in, so `--limit` takes the first ones. Untyped proxies are tried as HTTP and SOCKS5 (as SOCKS4 with `--types socks4` alone), and every one of them counts. Read as bytes, so a stray non-UTF-8 byte or a BOM doesn't spoil it; a terminal on stdin gives a clear message instead of waiting ([#248](https://github.com/maximilianfeix/proxy-scraper/issues/248))
+- The site check tries Discord too: `works-with/discord.txt` on the live list, the website filter, `--pick --works-on discord`, `live_proxies(works_on="discord")`, the MCP tools and the action. Measured on 80 live proxies: 32 through, 15 turned away by Cloudflare. YouTube, X, Netflix, GitHub and Bing let all of them through, so they'd say nothing and aren't added ([#247](https://github.com/maximilianfeix/proxy-scraper/issues/247))
 
 ## [1.23.0] – 2026-10-02
 

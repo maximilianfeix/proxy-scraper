@@ -33,15 +33,22 @@ Most free proxy lists are 95 % dead, and a good part of the rest are honeypots o
 
 **In numbers:** in one day it checked 3.6 million free proxies – 1.1 % worked, and more than half of the ones that answered failed a second request. [What's actually out there →](docs/free-proxies-in-numbers.md)
 
-<picture>
-  <source media="(prefers-color-scheme: dark)" srcset="docs/checks-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="docs/checks-light.svg">
-  <img src="docs/checks-dark.svg" alt="The five checks: 700+ lists, a real handshake, two sites with one IP, nothing injected, the details" width="100%">
-</picture>
+**Try it – no install, about five seconds:**
+
+```bash
+uvx proxy-scraper-cli --pick 5 --types socks5     # 5 checked proxies
+
+# or just the plain list
+curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
+```
+
+`uvx` comes with [uv](https://docs.astral.sh/uv/); `pipx run proxy-scraper-cli --pick 5` does the same.
 
 <div align="center">
-<img src="docs/demo.svg" alt="Animated demo: setup wizard, collecting, live dashboard and final report" width="880">
+<img src="docs/demo.svg" alt="Animated demo: the live dashboard during a check, the report, the setup wizard and collecting" width="880">
 </div>
+
+> **Who runs free proxies – and is it safe to use them?** Mostly nobody on purpose: misconfigured servers with an open port, a few deliberately open ones, infected machines, and traps that log or rewrite your traffic. That's why every proxy here has to pass [five checks](#how-it-works), and why they're for public data and testing – never for logins, payments or anything personal. [More on where they come from →](#who-runs-free-proxies)
 
 <details>
 <summary><b>Table of contents</b></summary>
@@ -180,7 +187,7 @@ Every protocol and country also has its own page with a plain download, e.g. [SO
 | HTTP · SOCKS4 · SOCKS5 | `1.2.3.4:8080` | [http.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/http.txt) · [socks4.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks4.txt) · [socks5.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt) |
 | HTTPS-capable only | `type://ip:port` | [https.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/https.txt) |
 | Elite only | `type://ip:port` | [elite.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/elite.txt) |
-| Gets through to Google · Reddit · Amazon · Instagram · TikTok (no captcha, no block in the last run) | `type://ip:port` | [google.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/google.txt) · [reddit.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/reddit.txt) · [amazon.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/amazon.txt) · [instagram.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/instagram.txt) · [tiktok.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/tiktok.txt) |
+| Gets through to Google · Reddit · Amazon · Instagram · TikTok · Discord (no captcha, no block in the last run) | `type://ip:port` | [google.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/google.txt) · [reddit.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/reddit.txt) · [amazon.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/amazon.txt) · [instagram.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/instagram.txt) · [tiktok.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/tiktok.txt) · [discord.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/discord.txt) |
 | Stable, on the list in 90 %+ of this week's runs | `type://ip:port` | [stable.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/stable.txt) |
 | With all details | latency, country, HTTPS, anonymity, exit IP, uptime, sites | [proxies.json](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.json) · [proxies.csv](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.csv) |
 
@@ -418,7 +425,7 @@ pool = itertools.cycle(p.url for p in proxies)
 r = requests.get("https://api.ipify.org", proxies={"https": next(pool)}, timeout=15)  # pip install "requests[socks]"
 ```
 
-Same filters as `find_proxies`, plus `min_uptime`, `works_on` (`["google"]`, `"reddit"`, `"amazon"`, `"instagram"`, `"tiktok"`) and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours` and `sites`.
+Same filters as `find_proxies`, plus `min_uptime`, `works_on` (`["google"]`, `"reddit"`, `"amazon"`, `"instagram"`, `"tiktok"`, `"discord"`) and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours` and `sites`.
 
 Or let the library do the retrying: `ProxyRotator` loads a URL through the list and moves on to the next proxy when one fails – HTTPS only through proxies with verified TLS.
 
@@ -540,6 +547,13 @@ The live list can also come to you: [`bot/`](bot/) is a Discord bot that posts e
 <a id="how-it-works"></a>
 
 ## How it works
+
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="docs/checks-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="docs/checks-light.svg">
+  <img src="docs/checks-dark.svg" alt="The five checks: 700+ lists, a real handshake, two sites with one IP, nothing injected, the details" width="100%">
+</picture>
+
 
 ```mermaid
 flowchart LR
@@ -862,6 +876,25 @@ The repo does part of the work itself:
 
 ## FAQ
 
+<a id="who-runs-free-proxies"></a>
+
+<details open>
+<summary><b>Who runs free proxies – and should you use them?</b></summary>
+<br>
+
+Almost nobody runs a free proxy for you. What ends up on public lists is usually one of these:
+
+- **Misconfigured servers** – a Squid, a router or an app with a proxy port that was meant to stay internal.
+- **Deliberately open proxies** – a few volunteers and research projects, and services that give some away to sell the rest.
+- **Infected machines** – computers and IoT devices whose owners don't know they relay traffic. Many residential exits are like this.
+- **Traps** – honeypots that log what goes through them, and proxies that rewrite pages to inject ads or scripts.
+
+proxy-scraper can't tell an infected home router from an open office proxy, but it filters what it can measure: a proxy has to answer two independent requests with the same exit IP (honeypots that only answer scanners drop out), deliver a known page byte for byte (injectors drop out), and HTTPS counts only with a certificate that verifies end to end. Each hit says whether its exit is in a datacenter.
+
+Good uses: public data, checking how a site looks from another country, testing your own blocking and rate limits, research. Never send passwords, cookies, payment or personal data through a free proxy, and keep HTTPS certificate checks on. Use them only where you're allowed to.
+
+</details>
+
 <details>
 <summary><b>Almost nothing gets through.</b></summary>
 <br>
@@ -985,6 +1018,14 @@ proxyscraper/
 ## Community
 
 Questions, ideas and things you built with it go to [Discussions](https://github.com/maximilianfeix/proxy-scraper/discussions) – bugs to the [issues](../../issues). If proxy-scraper saves you time, a ⭐ helps others find it.
+
+Thanks to everyone who helped build it – new sources, countries, Python 3.14, examples and more:
+
+<a href="https://github.com/maximilianfeix/proxy-scraper/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=maximilianfeix/proxy-scraper" alt="Contributors to proxy-scraper">
+</a>
+
+Want to join? [Beginner-friendly issues](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) say where to start.
 
 <a href="https://star-history.com/#maximilianfeix/proxy-scraper&Date">
   <picture>

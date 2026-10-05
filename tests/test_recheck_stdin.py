@@ -208,3 +208,16 @@ def test_one_ip_on_several_ports_in_a_table_keeps_the_order(monkeypatch, tmp_pat
     monkeypatch.setattr("sys.stdin", FakeStdin("9.9.9.9 3128\n9.9.9.9:80\n9.9.9.9 1080\n"))
     jobs = app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json"))
     assert jobs == ["http 9.9.9.9:3128", "http 9.9.9.9:80", "http 9.9.9.9:1080"]
+
+
+@pytest.mark.parametrize("text", [
+    '[{"proxy":"user:pass@8.8.8.8:8080"}]',          # compact JSON
+    "9.9.9.9:80,user:pass@8.8.8.8:8080\n",           # comma-joined
+    "user:pass@8.8.8.8:8080,US\n",                    # a CSV row with more columns
+])
+def test_a_login_stuck_to_other_text_is_read_right(monkeypatch, tmp_path, text):
+    monkeypatch.setattr("sys.stdin", FakeStdin(text))
+    jobs = app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))
+    assert "http user:pass@8.8.8.8:8080" in jobs and "socks5 user:pass@8.8.8.8:8080" in jobs
+    assert not any(k.endswith("@8.8.8.8:8080") and "user:pass@" not in k for k in jobs)  # no made-up login
+    assert not any(k.endswith(" 8.8.8.8:8080") for k in jobs)                          # no copy without it

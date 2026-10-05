@@ -142,7 +142,9 @@ def read_stdin() -> bytes:
 _TYPED_PROXY = re.compile(
     rb"(?<![A-Za-z0-9])(?:" + b"|".join(s.encode() for s in TYPE_ALIASES if TYPE_ALIASES[s] != "auto")
     + rb")://[^\s\"'`,;()\[\]{}<>]+", re.IGNORECASE)
-_WORD_EDGES = b"\"'`,;()[]{}<>"
+# what separates an untyped proxy from the text around it: spaces, but also the quotes, commas and brackets of
+# compact JSON or a CSV row – otherwise '"proxy":"user:pass@ip:port' would read as a login of '"proxy":"user'
+_WORD_SPLIT = re.compile(rb"[\s\"'`,;()\[\]{}<>]+")
 
 
 def _address_positions(data: bytes) -> Dict[str, int]:
@@ -174,7 +176,7 @@ def stdin_keys(data: bytes, types) -> List[str]:
 
     typed = {k for k in (parse_proxy_line(m.group(0).decode("utf-8", "replace"), None)
                          for m in _TYPED_PROXY.finditer(data)) if k}
-    words = [w.strip(_WORD_EDGES).decode("utf-8", "replace") for w in data.split() if b"://" not in w]
+    words = [w.decode("utf-8", "replace") for w in _WORD_SPLIT.split(data) if w and b"://" not in w]
     whole_words = {k for w in words for t in bare_types for k in [parse_proxy_line(w, t)] if k}
     found = {k for t in bare_types for k in parse_blob(data, t, wanted).split("\n") if k}
     # an address read with its login (or with a type of its own) owns it: the regex's login-less copy, or a

@@ -128,8 +128,8 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
     """--recheck: a file, '-' for stdin, otherwise the last run plus history."""
     if target == STDIN:
         # lines that name their type keep it and come first, in the order they came in. The rest – bare ip:port,
-        # JSON, a pasted table – is searched like an untyped source and tried as HTTP and SOCKS5. Unlike a
-        # source, every one of them counts: whoever pipes a list in means all of it.
+        # JSON, a pasted table – is searched like a source's text and tried as HTTP and SOCKS5. Every one of them
+        # counts: whoever pipes a list in means all of it.
         lines = read_stdin()
         keys, seen, untyped = [], set(), []
         for line in lines:  # "typed" means the line reads as a proxy with a type, not just "contains ://"
@@ -139,8 +139,12 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
             elif key not in seen:
                 seen.add(key)
                 keys.append(key)
-        found = parse_blob("\n".join(untyped).encode("utf-8", "replace"), "auto", tuple(types)).split("\n")
-        keys += [k for k in found if k and k not in seen]
+        # not "auto": its "plain lines only count as the majority" rule is for scraped lists, and here a
+        # rejected typed line (a private IP, a scheme mid-line) would outvote the bare ones. As HTTP and as
+        # SOCKS5 instead – a scheme found mid-line still keeps its own type.
+        blob = "\n".join(untyped).encode("utf-8", "replace")
+        found = {k for ptype in ("http", "socks5") for k in parse_blob(blob, ptype, tuple(types)).split("\n") if k}
+        keys += [k for k in sorted(found) if k not in seen]
     elif target:
         lines = Path(target).expanduser().read_text(encoding="utf-8").splitlines()
         # lines without type:// in files like http.txt take the type from the file name

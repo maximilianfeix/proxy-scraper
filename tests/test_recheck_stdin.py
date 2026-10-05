@@ -87,3 +87,15 @@ def test_a_big_mixed_paste_stays_fast(monkeypatch, tmp_path):
     started = time.perf_counter()
     jobs = app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))
     assert len(jobs) == 60_000 and time.perf_counter() - started < 5
+
+
+def test_bare_lines_count_whatever_else_is_in_the_paste(monkeypatch, tmp_path):
+    """Found in review: a rejected typed line (private IP) or one with the scheme mid-line made the bare
+    lines lose the source "majority" vote and vanish."""
+    for text, expected in [
+        ("socks5://10.0.0.1:1080\n8.8.4.4:8080\n", {"http 8.8.4.4:8080", "socks5 8.8.4.4:8080"}),
+        ("proxy: socks5://9.9.9.10:1080\n8.8.4.4:8080\n",
+         {"socks5 9.9.9.10:1080", "http 8.8.4.4:8080", "socks5 8.8.4.4:8080"}),
+    ]:
+        monkeypatch.setattr("sys.stdin", FakeStdin(text))
+        assert set(app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))) == expected

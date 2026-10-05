@@ -1011,6 +1011,14 @@ proxyscraper/
 
 Questions, ideas and things you built with it go to [Discussions](https://github.com/maximilianfeix/proxy-scraper/discussions) – bugs to the [issues](../../issues). If proxy-scraper saves you time, a ⭐ helps others find it.
 
+Thanks to everyone who helped build it – new sources, countries, Python 3.14, examples and more:
+
+<a href="https://github.com/maximilianfeix/proxy-scraper/graphs/contributors">
+  <img src="https://contrib.rocks/image?repo=maximilianfeix/proxy-scraper" alt="Contributors to proxy-scraper">
+</a>
+
+Want to join? [Beginner-friendly issues](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) say where to start.
+
 <a href="https://star-history.com/#maximilianfeix/proxy-scraper&Date">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=maximilianfeix/proxy-scraper&type=Date&theme=dark">

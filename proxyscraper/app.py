@@ -134,7 +134,8 @@ def read_stdin() -> bytes:
     if sys.stdin is None or sys.stdin.isatty():
         raise OSError(0, "nothing was piped in (try: cat proxies.txt | proxy-scraper --recheck -)")
     buffer = getattr(sys.stdin, "buffer", None)
-    return buffer.read() if buffer is not None else sys.stdin.read().encode("utf-8", "replace")
+    data = buffer.read() if buffer is not None else sys.stdin.read().encode("utf-8", "replace")
+    return data[3:] if data.startswith(b"\xef\xbb\xbf") else data  # the BOM Notepad and PowerShell write
 
 
 # a typed proxy anywhere in a word – at its start, or after "url":" in compact JSON; it ends at a quote, comma or
@@ -145,6 +146,9 @@ _TYPED_PROXY = re.compile(
 # what separates an untyped proxy from the text around it: spaces, but also the quotes, commas and brackets of
 # compact JSON or a CSV row – otherwise '"proxy":"user:pass@ip:port' would read as a login of '"proxy":"user'
 _WORD_SPLIT = re.compile(rb"[\s\"'`,;()\[\]{}<>]+")
+# what a proxy user name is made of; anything else in front of "@" ("proxy=user", "US|user") is text glued on,
+# and the address is then checked without a login rather than with a made-up one
+_LOGIN_USER = re.compile(r"[A-Za-z0-9._~+%-]+")
 
 
 def _address_positions(data: bytes) -> Dict[str, int]:
@@ -177,6 +181,7 @@ def stdin_keys(data: bytes, types) -> List[str]:
     typed = {k for k in (parse_proxy_line(m.group(0).decode("utf-8", "replace"), None)
                          for m in _TYPED_PROXY.finditer(data)) if k}
     words = [w.decode("utf-8", "replace") for w in _WORD_SPLIT.split(data) if w and b"://" not in w]
+    words = [w for w in words if "@" not in w or _LOGIN_USER.fullmatch(w.rpartition("@")[0].partition(":")[0])]
     whole_words = {k for w in words for t in bare_types for k in [parse_proxy_line(w, t)] if k}
     found = {k for t in bare_types for k in parse_blob(data, t, wanted).split("\n") if k}
     # an address read with its login (or with a type of its own) owns it: the regex's login-less copy, or a

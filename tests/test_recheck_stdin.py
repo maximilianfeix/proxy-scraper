@@ -221,3 +221,16 @@ def test_a_login_stuck_to_other_text_is_read_right(monkeypatch, tmp_path, text):
     assert "http user:pass@8.8.8.8:8080" in jobs and "socks5 user:pass@8.8.8.8:8080" in jobs
     assert not any(k.endswith("@8.8.8.8:8080") and "user:pass@" not in k for k in jobs)  # no made-up login
     assert not any(k.endswith(" 8.8.8.8:8080") for k in jobs)                          # no copy without it
+
+
+@pytest.mark.parametrize("text", ["proxy=user:pass@8.8.4.4:8080\n", "US|user:pass@8.8.4.4:8080\n"])
+def test_text_glued_before_a_login_doesnt_become_the_user_name(monkeypatch, tmp_path, text):
+    monkeypatch.setattr("sys.stdin", FakeStdin(text))
+    jobs = app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json"))
+    assert jobs == ["http 8.8.4.4:8080"]  # no made-up user name; checked without the login rather than wrongly
+
+
+def test_a_byte_order_mark_doesnt_spoil_the_first_login(monkeypatch, tmp_path):
+    """Notepad and PowerShell 5.1's Out-File start files with a UTF-8 BOM."""
+    monkeypatch.setattr("sys.stdin", BytesStdin(b"\xef\xbb\xbfuser:pass@8.8.4.4:8080\n"))
+    assert app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json")) == ["http user:pass@8.8.4.4:8080"]

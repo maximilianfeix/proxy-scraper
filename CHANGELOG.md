@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- Logins in the `ip:port:user:pass` form that paid proxy lists often use – in files, `--recheck -` and `--source` lists, with or without `type://`. From stdin and sources the bare `ip:port` is tried too, since `ip:port:US:elite` looks the same; the login comes first ([#254](https://github.com/maximilianfeix/proxy-scraper/issues/254))
+
 ## [1.25.0] – 2026-10-05
 
 ### Added

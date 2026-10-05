@@ -195,13 +195,17 @@ def stdin_keys(data: bytes, types) -> List[str]:
     found |= {k for pair in columns for t in bare_types for k in [parse_proxy_line(pair, t)] if k}
     # an address read with its login (or with a type of its own) owns it: the regex's login-less copy, or a
     # bare copy of a typed proxy of an unwanted type, mustn't come back. Claimed before the type filter.
-    claimed = {address(k) for k in typed} | {address(k) for k in whole_words if "@" in split_key(k)[1]}
+    # (not one read from ip:port:user:pass – "ip:port:US:elite" looks the same, so the bare address stays)
+    claimed = {address(k) for k in typed} | {address(k) for w in words if "@" in w
+                                             for t in bare_types for k in [parse_proxy_line(w, t)] if k}
     keys = ({k for k in typed | whole_words if split_key(k)[0] in wanted}
             | {k for k in found if address(k) not in claimed})
 
     first = _address_positions(data)
     rank = {t: i for i, t in enumerate(PROXY_TYPES)}  # http before socks4 before socks5 for the same address
-    return sorted(keys, key=lambda k: (first.get(address(k), len(data)), rank.get(split_key(k)[0], 9), k))
+    # and with a login before without: ip:port:user:pass most likely means the login
+    return sorted(keys, key=lambda k: (first.get(address(k), len(data)), rank.get(split_key(k)[0], 9),
+                                       "@" not in k, k))
 
 
 def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:

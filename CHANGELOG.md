@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- `--recheck -` checks a list piped in on stdin: plain `ip:port` lines (each tried as HTTP and SOCKS5), `type://ip:port`, logins, JSON or a pasted table – the same extraction as for sources, but every untyped line counts. A terminal on stdin gives a clear message instead of waiting ([#248](https://github.com/maximilianfeix/proxy-scraper/issues/248))
+
 ## [1.23.0] – 2026-10-02
 
 ### Added

@@ -183,7 +183,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     g.add_argument("--no-dnsbl", action="store_true",
                    help="don't look up whether exit IPs are on the SpamCop blocklist")
     g.add_argument("--recheck", nargs="?", const="", metavar="FILE",
-                   help="only check proxies from FILE – without FILE: last run + history; "
+                   help="only check proxies from FILE ('-' reads them from stdin) – without FILE: last run + history; "
                         "'live': the live list from GitHub (seconds instead of minutes, e.g. with --serve)")
 
     f = p.add_argument_group("Filters (for the result files)")

@@ -735,6 +735,12 @@ Username wishes – `country-us` sends everything out through US proxies, `sessi
 proxy-scraper --recheck live --want 20 -y -o - | grep '^socks5://' > socks.txt
 ```
 
+**Check a list you already have** – `--recheck -` reads it from stdin: plain `ip:port` lines (tried as HTTP and SOCKS5), `type://ip:port`, logins, even JSON or a table pasted from a website. Only what works from your network comes out:
+
+```bash
+curl -s https://example.com/proxies.txt | proxy-scraper --recheck - -o - > working.txt
+```
+
 **Any tool, through the rotating server**
 
 ```bash
@@ -807,7 +813,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--no-blocklisted` | skip proxies whose exit IP is on the SpamCop blocklist – those often get captchas |
 | `--no-dnsbl` | skip the blocklist lookup |
 | `--target URL` | only proxies that reach this site (repeatable) |
-| `--recheck [FILE\|live]` | only check proxies from a file, the last run, or the public live list |
+| `--recheck [FILE\|-\|live]` | only check proxies from a file, stdin (`-`), the last run, or the public live list |
 | `--fast` | skip the HTTPS test (confirmation and anonymity still run) |
 | `--no-geo` | skip the country lookup |
 | `-c`, `--concurrency N` | simultaneous checks (default: 2000) |

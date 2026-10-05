@@ -42,7 +42,7 @@ from .netio import INSECURE_HOSTS, http_get
 from .options import STDOUT, RunOptions
 from .output import ResultWriter, latest_results
 from .pages import REPO_URL
-from .parsing import PROXY_TYPES, parse_keys, split_key
+from .parsing import PROXY_TYPES, parse_blob, parse_keys, split_key
 from .paths import is_checkout
 from .pipeline import (
     CheckRun,
@@ -114,9 +114,27 @@ async def confirm_target() -> Optional[str]:
     return ip if await probe_confirm_target(ip, timeout=8) else None
 
 
+STDIN = "-"  # --recheck -: the candidates come from a pipe
+
+
+def read_stdin() -> List[str]:
+    """Lines piped in. A terminal on stdin means nothing was piped – reading it would just wait."""
+    if sys.stdin is None or sys.stdin.isatty():
+        raise OSError(0, "nothing was piped in (try: cat proxies.txt | proxy-scraper --recheck -)")
+    return sys.stdin.read().splitlines()
+
+
 def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
-    """--recheck: a file, otherwise the last run plus history."""
-    if target:
+    """--recheck: a file, '-' for stdin, otherwise the last run plus history."""
+    if target == STDIN:
+        # lines that name their type keep it and come first, in the order they came in. The rest – bare ip:port,
+        # JSON, a pasted table – is searched like an untyped source and tried as HTTP and SOCKS5. Unlike a
+        # source, every one of them counts: whoever pipes a list in means all of it.
+        lines = read_stdin()
+        keys = parse_keys(lines, None)
+        untyped = "\n".join(line for line in lines if "://" not in line).encode("utf-8", "replace")
+        keys += [k for k in parse_blob(untyped, "auto", tuple(types)).split("\n") if k and k not in keys]
+    elif target:
         lines = Path(target).expanduser().read_text(encoding="utf-8").splitlines()
         # lines without type:// in files like http.txt take the type from the file name
         default = next((t for t in PROXY_TYPES if t in Path(target).name.lower()), None)
@@ -311,9 +329,10 @@ class Run:
                 jobs = load_recheck_jobs(opts.recheck, opts.types, self.history)
             except (OSError, UnicodeDecodeError) as e:
                 reason = e.strerror if isinstance(e, OSError) and e.strerror else "not a text file"
-                note(f"Can't read {opts.recheck}: {reason}.", BAD, "✘")
+                note(f"Can't read {'stdin' if opts.recheck == STDIN else opts.recheck}: {reason}.", BAD, "✘")
                 return []
-            info("Recheck", f"{fmt(len(jobs))} proxies from {opts.recheck or 'the last run + history'}")
+            where = "stdin" if opts.recheck == STDIN else opts.recheck or "the last run + history"
+            info("Recheck", f"{fmt(len(jobs))} proxies from {where}")
         else:
             jobs = await self._scrape_jobs()
 

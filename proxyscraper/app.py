@@ -5,6 +5,7 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import ipaddress
+import re
 import socket
 import sys
 import tempfile
@@ -12,7 +13,7 @@ import time
 from collections import Counter
 from dataclasses import replace
 from pathlib import Path
-from typing import List, Optional, Tuple
+from typing import Dict, List, Optional, Tuple
 
 from rich.live import Live
 from rich.text import Text
@@ -126,16 +127,32 @@ def read_stdin() -> bytes:
     return buffer.read() if buffer is not None else sys.stdin.read().encode("utf-8", "replace")
 
 
+_ADDRESS = re.compile(rb"(?<![\d.])(\d{1,3}(?:\.\d{1,3}){3})\s*:\s*(\d{1,5})(?!\d)")
+
+
 def stdin_keys(data: bytes, types) -> List[str]:
-    """Every proxy in the piped text. type://ip:port keeps its type wherever it stands (several on a line too);
-    bare ip:port – also inside JSON or a pasted table – is tried as HTTP and as SOCKS5. Not the "auto" mode of
-    sources: its "plain lines only count as the majority" rule is for scraped lists, and whoever pipes a list
-    in means all of it. Lines that start with a typed proxy keep their order and come first."""
+    """Every proxy in the piped text, in the order it came in (lists often come best first, and --limit takes
+    the first jobs). type://ip:port keeps its type wherever it stands, several on a line too; bare ip:port –
+    also inside JSON or a table – is tried as HTTP and right after as SOCKS5. Not the "auto" mode of sources:
+    its "plain lines only count as the majority" rule is for scraped lists, and whoever pipes a list in means
+    all of it. A typed line read as a whole wins over the regex for the same address, so a password with
+    '@' or '/' keeps its login."""
     wanted = tuple(types)
     found = {k for ptype in ("http", "socks5") for k in parse_blob(data, ptype, wanted).split("\n") if k}
-    first = [k for k in parse_keys(data.decode("utf-8", "replace").splitlines(), None) if k in found]
-    seen = set(first)
-    return first + sorted(found - seen)
+    whole_lines = {k for k in parse_keys(data.decode("utf-8", "replace").splitlines(), None)
+                   if split_key(k)[0] in wanted}
+
+    def address(key: str) -> str:
+        return split_key(key)[1].rpartition("@")[2]
+
+    claimed = {address(k) for k in whole_lines}
+    keys = whole_lines | {k for k in found if address(k) not in claimed}
+    first_seen: Dict[str, int] = {}
+    for m in _ADDRESS.finditer(data):
+        ip = ".".join(str(int(part)) for part in m.group(1).split(b"."))
+        first_seen.setdefault(f"{ip}:{int(m.group(2))}", m.start())
+    rank = {t: i for i, t in enumerate(PROXY_TYPES)}  # http before socks4 before socks5 for the same address
+    return sorted(keys, key=lambda k: (first_seen.get(address(k), len(data)), rank.get(split_key(k)[0], 9), k))
 
 
 def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:

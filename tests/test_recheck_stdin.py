@@ -124,3 +124,19 @@ class BytesStdin:
 def test_bytes_that_arent_utf8_dont_sink_the_list(monkeypatch, tmp_path):
     monkeypatch.setattr("sys.stdin", BytesStdin("Proxy-Tabelle für heute\n8.8.4.4:8080\n".encode("latin-1")))
     assert set(app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json"))) == {"http 8.8.4.4:8080"}
+
+
+def test_a_password_with_at_or_slash_keeps_its_login(monkeypatch, tmp_path):
+    monkeypatch.setattr("sys.stdin", FakeStdin("socks5://user:p@ss/w@9.9.9.10:1080\n8.8.4.4:8080\n"))
+    jobs = app.load_recheck_jobs("-", ("http", "socks5"), ProxyHistory(tmp_path / "h.json"))
+    assert jobs[0].startswith("socks5 user:") and jobs[0].endswith("@9.9.9.10:1080")
+    assert not any(k.endswith(" 9.9.9.10:1080") for k in jobs)  # no copy without the login
+
+
+def test_the_paste_order_is_kept_with_both_types_side_by_side(monkeypatch, tmp_path):
+    """Lists often come best first, and --limit takes the first jobs – so no alphabetical order, and a bare
+    address is tried as SOCKS5 right after HTTP, not after every other HTTP job."""
+    monkeypatch.setattr("sys.stdin", FakeStdin("9.9.9.9:3128\n1.0.0.1:1080\nsocks4://8.8.8.8:4145\n"))
+    jobs = app.load_recheck_jobs("-", ("http", "socks4", "socks5"), ProxyHistory(tmp_path / "h.json"))
+    assert jobs == ["http 9.9.9.9:3128", "socks5 9.9.9.9:3128", "http 1.0.0.1:1080", "socks5 1.0.0.1:1080",
+                    "socks4 8.8.8.8:4145"]

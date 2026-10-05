@@ -605,7 +605,7 @@ proxy-scraper --source https://example.com/my-list.txt --source socks5=./socks.t
 proxy-scraper --only-sources --source bought.txt --want 50                            # only yours
 ```
 
-Any text with `ip:port` works; lines like `socks5://user:pass@host:port` keep their type, bare ones are tried as HTTP and SOCKS5 unless you write `http=…`. Logins written the way many paid lists export them, `ip:port:user:pass`, are read too – the bare `ip:port` is tried as well, since a list like `ip:port:US:elite` has the same shape.
+Any text with `ip:port` works; lines like `socks5://user:pass@host:port` keep their type, bare ones are tried as HTTP and SOCKS5 unless you write `http=…`. For logins written the way many paid lists export them, `ip:port:user:pass`, use `--recheck bought.txt` or pipe the list into `--recheck -` – sources leave that form alone, since lists like `ip:port:US:elite` look the same.
 
 <a id="output"></a>
 

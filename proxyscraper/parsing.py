@@ -37,10 +37,19 @@ SCHEME_RE = re.compile(
 )
 SCHEME_TYPES = {k.encode(): v for k, v in TYPE_ALIASES.items() if v != "auto"}
 
-# ip:port:user:pass – how paid proxy lists often write logins (#254). Exactly four parts; the user has no '@',
-# the password may (it can't have a ':', there'd be no telling where it starts)
-COLON_LOGIN_RE = re.compile(rb"(?<![\w.:])" + _IP + rb":(\d{2,5}):([^\s:@]{1,100}):([^\s:]{1,100})(?![\w:])")
-_COLON_LOGIN_LINE = re.compile(r"((?:\d{1,3}\.){3}\d{1,3}:\d{1,5}):([^\s:@]+):([^\s:]+)")
+# ip:port:user:pass – how paid proxy lists often write logins (#254). Read only where the user hands over a list
+# (files, stdin), not in scraped sources: "ip:port:US:elite" lists have the same shape. Exactly four parts, the
+# user without '@'; the password may have one, and ends where a paste's punctuation starts
+_NOT_IN_LOGIN = r"\s:\"'`,;|()\[\]{}<>"
+_COLON_LOGIN_LINE = re.compile(
+    r"((?:\d{1,3}\.){3}\d{1,3}:\d{1,5}):([^@" + _NOT_IN_LOGIN + r"]+):([^" + _NOT_IN_LOGIN + r"]+)"
+)
+
+
+def is_colon_login(word: str) -> bool:
+    """Whether the word is a login in the ip:port:user:pass form."""
+    return _COLON_LOGIN_LINE.fullmatch(word) is not None
+
 
 RawCandidate = Tuple[str, bytes, bytes, bytes]  # type, ip, port, credentials (b"" without)
 
@@ -49,9 +58,8 @@ _SPACE_SEPARATED_RE = re.compile(rb"\d\.\d{1,3}[ \t]+\d{2,5}(?![\d.])")
 
 
 # Bump whenever parsing finds different proxies in the same bytes: the fetch cache stores parsed keys and
-# reloads every list once when this changes (2: plain lists of "auto" sources are read, 3: as http and socks5,
-# 4: ip:port:user:pass logins)
-PARSER_VERSION = 4
+# reloads every list once when this changes (2: plain lists of "auto" sources are read, 3: as http and socks5)
+PARSER_VERSION = 3
 
 
 def _needs_full_regex(data: bytes) -> bool:
@@ -84,14 +92,10 @@ def extract_candidates(data: bytes, default_type: str, full: bool = False) -> Se
         pairs.update(JSON_IP_PORT_RE.findall(data))
         pairs.update((ip, port) for port, ip in JSON_PORT_IP_RE.findall(data))
     plain = pairs - with_scheme
-    # ip:port:user:pass – the bare ip:port stays too: "ip:port:US:elite" has the same shape
-    logins = {(ip, port, user + b":" + password) for ip, port, user, password in COLON_LOGIN_RE.findall(data)
-              if (ip, port) not in with_scheme}
     if auto and len(plain) <= len(out):
         return out
     for ptype in ("http", "socks5") if auto else (default_type,):
         out.update((ptype, ip, port, b"") for ip, port in plain)
-        out.update((ptype, ip, port, auth) for ip, port, auth in logins)
     return out
 
 

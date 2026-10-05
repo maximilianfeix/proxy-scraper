@@ -49,6 +49,7 @@ from .parsing import (
     PROXY_RE,
     PROXY_TYPES,
     TYPE_ALIASES,
+    is_colon_login,
     parse_blob,
     parse_keys,
     parse_proxy_line,
@@ -184,8 +185,8 @@ def stdin_keys(data: bytes, types) -> List[str]:
     def address(key: str) -> str:
         return split_key(key)[1].rpartition("@")[2]
 
-    typed = {k for k in (parse_proxy_line(m.group(0).decode("utf-8", "replace"), None)
-                         for m in _TYPED_PROXY.finditer(data)) if k}
+    typed_text = [m.group(0).decode("utf-8", "replace") for m in _TYPED_PROXY.finditer(data)]
+    typed = {k for k in map(parse_proxy_line, typed_text) if k}
     words = [w.decode("utf-8", "replace") for w in _WORD_SPLIT.split(data) if w and b"://" not in w]
     words = [w for w in words if "@" not in w or _LOGIN_USER.fullmatch(w.rpartition("@")[0].partition(":")[0])]
     whole_words = {k for w in words for t in bare_types for k in [parse_proxy_line(w, t)] if k}
@@ -196,8 +197,10 @@ def stdin_keys(data: bytes, types) -> List[str]:
     # an address read with its login (or with a type of its own) owns it: the regex's login-less copy, or a
     # bare copy of a typed proxy of an unwanted type, mustn't come back. Claimed before the type filter.
     # (not one read from ip:port:user:pass – "ip:port:US:elite" looks the same, so the bare address stays)
-    claimed = {address(k) for k in typed} | {address(k) for w in words if "@" in w
-                                             for t in bare_types for k in [parse_proxy_line(w, t)] if k}
+    claimed = {address(k) for text in typed_text if not is_colon_login(text.partition("://")[2])
+               for k in [parse_proxy_line(text)] if k} | {
+        address(k) for w in words if "@" in w and not is_colon_login(w)
+        for t in bare_types for k in [parse_proxy_line(w, t)] if k}
     keys = ({k for k in typed | whole_words if split_key(k)[0] in wanted}
             | {k for k in found if address(k) not in claimed})
 

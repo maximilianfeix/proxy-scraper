@@ -187,7 +187,7 @@ Every protocol and country also has its own page with a plain download, e.g. [SO
 | HTTP · SOCKS4 · SOCKS5 | `1.2.3.4:8080` | [http.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/http.txt) · [socks4.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks4.txt) · [socks5.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt) |
 | HTTPS-capable only | `type://ip:port` | [https.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/https.txt) |
 | Elite only | `type://ip:port` | [elite.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/elite.txt) |
-| Gets through to Google · Reddit · Amazon · Instagram · TikTok (no captcha, no block in the last run) | `type://ip:port` | [google.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/google.txt) · [reddit.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/reddit.txt) · [amazon.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/amazon.txt) · [instagram.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/instagram.txt) · [tiktok.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/tiktok.txt) |
+| Gets through to Google · Reddit · Amazon · Instagram · TikTok · Discord (no captcha, no block in the last run) | `type://ip:port` | [google.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/google.txt) · [reddit.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/reddit.txt) · [amazon.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/amazon.txt) · [instagram.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/instagram.txt) · [tiktok.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/tiktok.txt) · [discord.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/works-with/discord.txt) |
 | Stable, on the list in 90 %+ of this week's runs | `type://ip:port` | [stable.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/stable.txt) |
 | With all details | latency, country, HTTPS, anonymity, exit IP, uptime, sites | [proxies.json](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.json) · [proxies.csv](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.csv) |
 
@@ -425,7 +425,7 @@ pool = itertools.cycle(p.url for p in proxies)
 r = requests.get("https://api.ipify.org", proxies={"https": next(pool)}, timeout=15)  # pip install "requests[socks]"
 ```
 
-Same filters as `find_proxies`, plus `min_uptime`, `works_on` (`["google"]`, `"reddit"`, `"amazon"`, `"instagram"`, `"tiktok"`) and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours` and `sites`.
+Same filters as `find_proxies`, plus `min_uptime`, `works_on` (`["google"]`, `"reddit"`, `"amazon"`, `"instagram"`, `"tiktok"`, `"discord"`) and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours` and `sites`.
 
 Or let the library do the retrying: `ProxyRotator` loads a URL through the list and moves on to the next proxy when one fails – HTTPS only through proxies with verified TLS.
 

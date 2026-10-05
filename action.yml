@@ -22,7 +22,7 @@ inputs:
     description: "Only proxies that downloaded at least this many KB/s in the last check (HTTPS-capable ones are measured)"
     default: "0"
   works-on:
-    description: "Only proxies that got through to these sites in the last check: google, reddit, amazon, instagram, tiktok"
+    description: "Only proxies that got through to these sites in the last check: google, reddit, amazon, instagram, tiktok, discord"
     default: ""
   limit:
     description: "How many at most, fastest first (0 = all)"

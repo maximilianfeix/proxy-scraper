@@ -223,14 +223,30 @@ def test_a_login_stuck_to_other_text_is_read_right(monkeypatch, tmp_path, text):
     assert not any(k.endswith(" 8.8.8.8:8080") for k in jobs)                          # no copy without it
 
 
-@pytest.mark.parametrize("text", ["proxy=user:pass@8.8.4.4:8080\n", "US|user:pass@8.8.4.4:8080\n"])
-def test_text_glued_before_a_login_doesnt_become_the_user_name(monkeypatch, tmp_path, text):
+@pytest.mark.parametrize("text,expected", [
+    ("proxy=user:pass@8.8.4.4:8080\n", "http 8.8.4.4:8080"),     # no made-up user name: rather no login
+    ("US|user:pass@8.8.4.4:8080\n", "http user:pass@8.8.4.4:8080"),  # "|" separates cells, the login is whole
+])
+def test_text_glued_before_a_login_doesnt_become_the_user_name(monkeypatch, tmp_path, text, expected):
     monkeypatch.setattr("sys.stdin", FakeStdin(text))
-    jobs = app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json"))
-    assert jobs == ["http 8.8.4.4:8080"]  # no made-up user name; checked without the login rather than wrongly
+    assert app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json")) == [expected]
 
 
 def test_a_byte_order_mark_doesnt_spoil_the_first_login(monkeypatch, tmp_path):
     """Notepad and PowerShell 5.1's Out-File start files with a UTF-8 BOM."""
     monkeypatch.setattr("sys.stdin", BytesStdin(b"\xef\xbb\xbfuser:pass@8.8.4.4:8080\n"))
     assert app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json")) == ["http user:pass@8.8.4.4:8080"]
+
+
+def test_tables_and_ip_port_pairs_after_the_first_8_kb_are_found(monkeypatch, tmp_path):
+    """Sources pick their regex from the first 8 KB; a piped paste may be a.txt followed by b.html."""
+    text = "8.8.4.4:8080\n" * 1000 + "<tr><td>1.0.0.4</td><td>3128</td></tr>\n1.0.0.5 3128\n"
+    monkeypatch.setattr("sys.stdin", FakeStdin(text))
+    jobs = set(app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json")))
+    assert jobs == {"http 8.8.4.4:8080", "http 1.0.0.4:3128", "http 1.0.0.5:3128"}
+
+
+def test_a_pipe_separated_row_keeps_its_login(monkeypatch, tmp_path):
+    monkeypatch.setattr("sys.stdin", FakeStdin("| US | user:pass@8.8.4.4:8080 |\n|user:pass@1.0.0.4:3128|\n"))
+    jobs = app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json"))
+    assert jobs == ["http user:pass@8.8.4.4:8080", "http user:pass@1.0.0.4:3128"]

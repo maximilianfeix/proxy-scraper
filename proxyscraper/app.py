@@ -143,9 +143,10 @@ def read_stdin() -> bytes:
 _TYPED_PROXY = re.compile(
     rb"(?<![A-Za-z0-9])(?:" + b"|".join(s.encode() for s in TYPE_ALIASES if TYPE_ALIASES[s] != "auto")
     + rb")://[^\s\"'`,;()\[\]{}<>]+", re.IGNORECASE)
-# what separates an untyped proxy from the text around it: spaces, but also the quotes, commas and brackets of
-# compact JSON or a CSV row – otherwise '"proxy":"user:pass@ip:port' would read as a login of '"proxy":"user'
-_WORD_SPLIT = re.compile(rb"[\s\"'`,;()\[\]{}<>]+")
+# what separates an untyped proxy from the text around it: spaces, but also the quotes, commas, pipes and
+# brackets of compact JSON, a CSV row or a Markdown table – otherwise '"proxy":"user:pass@ip:port' would read
+# as a login of '"proxy":"user'
+_WORD_SPLIT = re.compile(rb"[\s\"'`,;|()\[\]{}<>]+")
 # what a proxy user name is made of; anything else in front of "@" ("proxy=user", "US|user") is text glued on,
 # and the address is then checked without a login rather than with a made-up one
 _LOGIN_USER = re.compile(r"[A-Za-z0-9._~+%-]+")
@@ -183,7 +184,8 @@ def stdin_keys(data: bytes, types) -> List[str]:
     words = [w.decode("utf-8", "replace") for w in _WORD_SPLIT.split(data) if w and b"://" not in w]
     words = [w for w in words if "@" not in w or _LOGIN_USER.fullmatch(w.rpartition("@")[0].partition(":")[0])]
     whole_words = {k for w in words for t in bare_types for k in [parse_proxy_line(w, t)] if k}
-    found = {k for t in bare_types for k in parse_blob(data, t, wanted).split("\n") if k}
+    # full: sources pick the "ip port"/table regex from their first 8 KB, a paste may be a.txt then b.html
+    found = {k for t in bare_types for k in parse_blob(data, t, wanted, full=True).split("\n") if k}
     # an address read with its login (or with a type of its own) owns it: the regex's login-less copy, or a
     # bare copy of a typed proxy of an unwanted type, mustn't come back. Claimed before the type filter.
     claimed = {address(k) for k in typed} | {address(k) for k in whole_words if "@" in split_key(k)[1]}

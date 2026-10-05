@@ -5,7 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
-- `--recheck -` checks a list piped in on stdin: plain `ip:port` lines (each tried as HTTP and SOCKS5), `type://ip:port`, logins, JSON or a pasted table – the same extraction as for sources, but every untyped line counts. A terminal on stdin gives a clear message instead of waiting ([#248](https://github.com/maximilianfeix/proxy-scraper/issues/248))
+- `--recheck -` checks a list piped in on stdin: `ip:port`, `type://ip:port` anywhere in the text (several on a line, inside JSON), logins, JSON, CSV exports and HTML or Markdown tables – in the order they came in, so `--limit` takes the first ones. Untyped proxies are tried as HTTP and SOCKS5 (as SOCKS4 with `--types socks4` alone), and every one of them counts. Read as bytes, so a stray non-UTF-8 byte or a BOM doesn't spoil it; a terminal on stdin gives a clear message instead of waiting ([#248](https://github.com/maximilianfeix/proxy-scraper/issues/248))
 
 ## [1.23.0] – 2026-10-02
 

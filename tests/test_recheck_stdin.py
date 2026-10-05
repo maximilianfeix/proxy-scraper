@@ -250,3 +250,14 @@ def test_a_pipe_separated_row_keeps_its_login(monkeypatch, tmp_path):
     monkeypatch.setattr("sys.stdin", FakeStdin("| US | user:pass@8.8.4.4:8080 |\n|user:pass@1.0.0.4:3128|\n"))
     jobs = app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json"))
     assert jobs == ["http user:pass@8.8.4.4:8080", "http user:pass@1.0.0.4:3128"]
+
+
+@pytest.mark.parametrize("text", [
+    "8.8.4.4,8080,US\n1.0.0.4,3128,DE\n",                      # CSV export
+    "| 8.8.4.4 | 8080 | US |\n| 1.0.0.4 | 3128 | DE |\n",       # Markdown table
+    "8.8.4.4;8080\n1.0.0.4;3128\n",                             # semicolon CSV
+])
+def test_ip_and_port_in_separate_columns(monkeypatch, tmp_path, text):
+    monkeypatch.setattr("sys.stdin", FakeStdin(text))
+    assert app.load_recheck_jobs("-", ("http",), ProxyHistory(tmp_path / "h.json")) == [
+        "http 8.8.4.4:8080", "http 1.0.0.4:3128"]

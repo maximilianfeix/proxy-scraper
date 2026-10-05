@@ -735,11 +735,13 @@ Username wishes – `country-us` sends everything out through US proxies, `sessi
 proxy-scraper --recheck live --want 20 -y -o - | grep '^socks5://' > socks.txt
 ```
 
-**Check a list you already have** – `--recheck -` reads it from stdin: plain `ip:port` lines (tried as HTTP and SOCKS5), `type://ip:port`, logins, even JSON or a table pasted from a website. Only what works from your network comes out:
+**Check a list you already have** – `--recheck -` reads it from stdin: plain `ip:port` lines, `type://ip:port`, logins, JSON, a CSV export or a table pasted from a website (HTML or Markdown), in the order it came in. Only what works from your network comes out:
 
 ```bash
 curl -s https://example.com/proxies.txt | proxy-scraper --recheck - -o - > working.txt
 ```
+
+Proxies without a type are tried as HTTP and as SOCKS5 – or as SOCKS4 with `--types socks4` alone. A password with a comma, quote, `|` or bracket can't be told apart from the text around it in a paste; put such proxies in a file, one per line, and use `--recheck file.txt`.
 
 **Any tool, through the rotating server**
 

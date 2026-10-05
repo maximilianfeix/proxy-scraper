@@ -152,10 +152,15 @@ _WORD_SPLIT = re.compile(rb"[\s\"'`,;|()\[\]{}<>]+")
 _LOGIN_USER = re.compile(r"[A-Za-z0-9._~+%-]+")
 
 
+# IP and port in neighbouring columns of a CSV export or a Markdown table: "8.8.4.4,8080" / "| 8.8.4.4 | 8080 |"
+_COLUMN_PAIR = re.compile(rb"(?<![\d.])(\d{1,3}(?:\.\d{1,3}){3})\s*[,;|]\s*(\d{2,5})(?![\d.])")
+
+
 def _address_positions(data: bytes) -> Dict[str, int]:
     """Where each ip:port first appears, in any layout the extraction reads: ip:port, "ip port", a table cell
     pair, JSON in either order – so a list keeps its order whatever it looks like."""
-    hits = [(m.start(), m.group(1), m.group(2)) for regex in (PROXY_RE, JSON_IP_PORT_RE) for m in regex.finditer(data)]
+    hits = [(m.start(), m.group(1), m.group(2))
+            for regex in (PROXY_RE, JSON_IP_PORT_RE, _COLUMN_PAIR) for m in regex.finditer(data)]
     hits += [(m.start(), m.group(2), m.group(1)) for m in JSON_PORT_IP_RE.finditer(data)]
     first: Dict[str, int] = {}
     for at, ip, port in sorted(hits):
@@ -186,6 +191,8 @@ def stdin_keys(data: bytes, types) -> List[str]:
     whole_words = {k for w in words for t in bare_types for k in [parse_proxy_line(w, t)] if k}
     # full: sources pick the "ip port"/table regex from their first 8 KB, a paste may be a.txt then b.html
     found = {k for t in bare_types for k in parse_blob(data, t, wanted, full=True).split("\n") if k}
+    columns = [f"{m.group(1).decode()}:{m.group(2).decode()}" for m in _COLUMN_PAIR.finditer(data)]
+    found |= {k for pair in columns for t in bare_types for k in [parse_proxy_line(pair, t)] if k}
     # an address read with its login (or with a type of its own) owns it: the regex's login-less copy, or a
     # bare copy of a typed proxy of an unwanted type, mustn't come back. Claimed before the type filter.
     claimed = {address(k) for k in typed} | {address(k) for k in whole_words if "@" in split_key(k)[1]}

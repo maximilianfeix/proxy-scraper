@@ -4,6 +4,18 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.27.0] – 2026-10-06
+
+### Added
+- README: the MCP server's Glama rating (A) ([#288](https://github.com/maximilianfeix/proxy-scraper/issues/288))
+
+### Security
+- Releases are signed with Sigstore: the wheel and sdist on the GitHub release come with `.sigstore.json` bundles, made keylessly by the release workflow and verified in the same run. Check a download with `sigstore verify identity --cert-identity https://github.com/maximilianfeix/proxy-scraper/.github/workflows/release.yml@refs/tags/v1.27.0 --cert-oidc-issuer https://token.actions.githubusercontent.com <file>` ([#290](https://github.com/maximilianfeix/proxy-scraper/issues/290))
+- The workflows install Python packages only from hash-locked files (`.github/requirements/`), one universal lock per use; a test keeps each lock in line with its source ([#292](https://github.com/maximilianfeix/proxy-scraper/issues/292))
+
+### Fixed
+- A test that failed now and then on a busy machine: it read only the first part of the dashboard page ([#286](https://github.com/maximilianfeix/proxy-scraper/issues/286))
+
 ## [1.26.0] – 2026-10-06
 
 ### Added
@@ -294,7 +306,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.26.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...HEAD
+[1.27.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.24.0...v1.25.0
 [1.24.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.23.0...v1.24.0

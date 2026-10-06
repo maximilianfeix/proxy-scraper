@@ -4,6 +4,8 @@ import importlib.util
 import re
 from pathlib import Path
 
+import pytest
+
 ROOT = Path(__file__).resolve().parents[1]
 spec = importlib.util.spec_from_file_location("pypi_readme", ROOT / ".github" / "scripts" / "pypi_readme.py")
 pypi_readme = importlib.util.module_from_spec(spec)
@@ -87,3 +89,41 @@ def test_other_schemes_root_relative_and_query_only():
 
 def test_directories_link_to_the_tree():
     assert fix('<a href="bot/">bot</a>') == f'<a href="https://github.com/{REPO}/tree/v1.26.0/bot/">bot</a>'
+
+
+@pytest.mark.parametrize("text,expected", [
+    # a stray backtick doesn't hide links in later paragraphs
+    ("Press the ` key.\n\nSee [docs](docs/a.md).\n", f"Press the ` key.\n\nSee [docs]({BLOB}docs/a.md).\n"),
+    # ``` js ``` on one line is inline code, not a fence
+    ("``` js ```\n[a](docs/a.md)\n", f"``` js ```\n[a]({BLOB}docs/a.md)\n"),
+    # four spaces: an indented code block, not a fence
+    ("    ```\n\n[a](docs/a.md)\n", f"    ```\n\n[a]({BLOB}docs/a.md)\n"),
+    # a 4-space line of backticks inside a fence doesn't close it
+    ("```\n    ```\n[x](docs/a.md)\n```\n[y](docs/b.md)\n",
+     f"```\n    ```\n[x](docs/a.md)\n```\n[y]({BLOB}docs/b.md)\n"),
+    # a reference definition only at the start of a line, footnotes never
+    ("Use `foo` [bar]: baz\n", "Use `foo` [bar]: baz\n"),
+    ("[^1]: See the docs here.\n", "[^1]: See the docs here.\n"),
+    # CRLF
+    ("```\r\n[x](y)\r\n```\r\n[a](docs/a.md)\r\n", f"```\n[x](y)\n```\n[a]({BLOB}docs/a.md)\n"),
+    # data-src is not src
+    ('<img data-src="x.png">', '<img data-src="x.png">'),
+    # a trailing comma in srcset
+    ('<img srcset="a.png 1x, b.png 2x,">', f'<img srcset="{RAW}a.png 1x, {RAW}b.png 2x">'),
+    # ../ from the repo root
+    ("[up](docs/../LICENSE)", f"[up]({BLOB}LICENSE)"),
+])
+def test_review_edge_cases(text, expected):
+    assert fix(text) == expected
+
+
+def test_the_check_finds_what_the_rewrite_missed():
+    markdown_it = pytest.importorskip("markdown_it")
+    assert markdown_it
+    assert pypi_readme.relative_targets(f'[ok]({BLOB}LICENSE) ![img]({RAW}a.png)') == []
+    assert pypi_readme.relative_targets("[bad](docs/a.md) <img src=\"b.png\">") == ["docs/a.md", "b.png"]
+
+
+def test_the_real_readme_passes_the_check():
+    pytest.importorskip("markdown_it")
+    assert pypi_readme.relative_targets(fix((ROOT / "README.md").read_text(encoding="utf-8"))) == []

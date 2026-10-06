@@ -21,9 +21,9 @@ jobs:
         run: |
           version=$(python -c "import proxyscraper; print(proxyscraper.__version__)")
           test "v$version" = "${GITHUB_REF_NAME}" || { echo "Tag ${GITHUB_REF_NAME} != v$version"; exit 1; }
-      - run: pip install -r requirements.txt build pytest pyyaml
+      - run: pip install -r requirements.txt build pytest pyyaml markdown-it-py
       - run: python -m pytest -q
-      - name: Absolute image and link URLs in the README for PyPI (only in this build, not committed)
+      - name: Absolute image and link URLs in the README for PyPI (only in this build, not committed; fails if any stay relative)
         run: python .github/scripts/pypi_readme.py README.md "$GITHUB_REPOSITORY" "$GITHUB_REF_NAME"
       - run: python -m build
       - name: Smoke-test the wheel

@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write            # to push to the proxy-list branch
+  contents: read
 
 concurrency:
   group: proxy-list
@@ -16,6 +16,8 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write        # to push to the proxy-list branch and upload snapshots to the release
     env:
       COLUMNS: "110"
     steps:

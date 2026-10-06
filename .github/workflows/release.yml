@@ -5,11 +5,13 @@ on:
     tags: ["v[0-9]+.[0-9]+.[0-9]+"]  # full versions only – the moving v1 tag below mustn't start a release
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   release:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write        # creates the GitHub release and moves the v1 tag
     steps:
       - uses: actions/checkout@v7
       - uses: actions/setup-python@v7
@@ -19,7 +21,7 @@ jobs:
         run: |
           version=$(python -c "import proxyscraper; print(proxyscraper.__version__)")
           test "v$version" = "${GITHUB_REF_NAME}" || { echo "Tag ${GITHUB_REF_NAME} != v$version"; exit 1; }
-      - run: pip install -r requirements.txt build pytest
+      - run: pip install -r requirements.txt build pytest pyyaml
       - run: python -m pytest -q
       - run: python -m build
       - name: Smoke-test the wheel

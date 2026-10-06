@@ -4,8 +4,21 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.26.0] – 2026-10-06
+
 ### Added
 - Logins in the `ip:port:user:pass` form that paid proxy lists often use, with or without `type://`, in the lists you hand over: `--recheck file.txt` and `--recheck -`. The bare `ip:port` is tried too (after the login), since `ip:port:US:elite` looks the same, and the password ends at a paste's punctuation (`,;|"'` and brackets). Scraped sources and `--source` leave the form alone, so public lists don't sprout made-up logins ([#254](https://github.com/maximilianfeix/proxy-scraper/issues/254))
+- README: who already uses the hourly list – it's a built-in source of monosans/proxy-scraper-checker and gfpcom/free-proxy-list ([#263](https://github.com/maximilianfeix/proxy-scraper/issues/263))
+- `CITATION.cff`, so GitHub shows "Cite this repository" ([#275](https://github.com/maximilianfeix/proxy-scraper/issues/275))
+- OpenSSF Scorecard runs weekly; results in the Security tab and on scorecard.dev ([#273](https://github.com/maximilianfeix/proxy-scraper/issues/273))
+
+### Fixed
+- The PyPI page: none of the README's images loaded there and 33 links led nowhere, because they were relative. The release build now makes them absolute for the tag and fails if a Markdown parser still finds a relative one ([#280](https://github.com/maximilianfeix/proxy-scraper/issues/280))
+- `load_dataset` on the Hugging Face snapshots failed ("column names don't match"): every day now has the same columns, the site results are `works_on` / `blocked_on` lists, unknown values are null, and all earlier days were rewritten. The dataset card explains every field ([#271](https://github.com/maximilianfeix/proxy-scraper/issues/271))
+
+### Security
+- Workflows start read-only; write access only on the jobs that need it ([#277](https://github.com/maximilianfeix/proxy-scraper/issues/277))
+- Every GitHub Action is pinned to a commit SHA, kept current by dependabot ([#282](https://github.com/maximilianfeix/proxy-scraper/issues/282))
 
 ## [1.25.0] – 2026-10-05
 
@@ -281,7 +294,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.25.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.26.0...HEAD
+[1.26.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.24.0...v1.25.0
 [1.24.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.23.0...v1.24.0
 [1.23.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.22.0...v1.23.0

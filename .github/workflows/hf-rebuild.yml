@@ -1,0 +1,51 @@
+name: hf-rebuild
+
+# Rewrites every daily snapshot on the Hugging Face dataset from the release archive, with the fixed schema of
+# .github/scripts/hf_parquet.py, in one commit – for when that schema changes (#271). Run it by hand.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Rebuild and upload all snapshots
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HF_DATASET_REPO: ${{ vars.HF_DATASET_REPO }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_DATASET_REPO" ] || [ -z "$HF_TOKEN" ]; then
+            echo "::error::Set HF_DATASET_REPO and HF_TOKEN first"
+            exit 1
+          fi
+          python -m pip install --quiet "huggingface_hub>=0.34,<3" "pyarrow>=18,<24"
+
+          mkdir -p "$RUNNER_TEMP/json" "$RUNNER_TEMP/data"
+          for release in $(gh release list --limit 100 --json tagName --jq '.[].tagName | select(startswith("snapshots-"))'); do
+            gh release download "$release" --pattern "proxies-*.json.gz" --dir "$RUNNER_TEMP/json" --clobber
+          done
+
+          count=0
+          for snapshot in "$RUNNER_TEMP"/json/proxies-*.json.gz; do
+            day="$(basename "$snapshot" .json.gz)"; day="${day#proxies-}"
+            mkdir -p "$RUNNER_TEMP/data/${day%%-*}"
+            python .github/scripts/hf_parquet.py "$snapshot" "$RUNNER_TEMP/data/${day%%-*}/proxies-$day.parquet" "$day"
+            count=$((count + 1))
+          done
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No snapshots found in the snapshots-* releases"
+            exit 1
+          fi
+
+          hf upload "$HF_DATASET_REPO" docs/huggingface/README.md README.md --repo-type dataset \
+              --commit-message "Update dataset card"
+          hf upload "$HF_DATASET_REPO" "$RUNNER_TEMP/data" data --repo-type dataset \
+              --commit-message "Rewrite $count daily snapshots with one schema"

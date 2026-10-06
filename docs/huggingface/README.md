@@ -1,8 +1,6 @@
 ---
 license: mit
 pretty_name: Verified free proxies – daily snapshots
-size_categories:
-- 10K<n<100K
 tags:
 - proxies
 - networking
@@ -28,7 +26,9 @@ from datasets import load_dataset
 
 ds = load_dataset("Taventix/proxy-scraper-snapshots", split="train")
 df = ds.to_pandas()
-df[df.hosting == False].groupby("country").size().sort_values(ascending=False).head()
+# residential exits that got through to Reddit, by country
+residential = df[(df.hosting == False) & df.works_on.apply(lambda sites: "reddit" in sites)]
+residential.groupby("country").size().sort_values(ascending=False).head()
 ```
 
 ## How a proxy gets in
@@ -40,7 +40,7 @@ Each hour about 150,000 candidates are checked, and a proxy is kept only if it
 3. returns a known page byte for byte – proxies that inject scripts or ads fail here,
 4. for `https = true`, tunnels TLS with a certificate that verifies.
 
-Of 3.6 million checks in one day, 1.1 % passed. Roughly 1,500–2,000 proxies make it into a day's snapshot.
+Of 3.6 million checks in one day, 1.1 % passed. A day's snapshot holds between 1,000 and 2,200 proxies.
 
 ## Fields
 
@@ -51,21 +51,25 @@ Of 3.6 million checks in one day, 1.1 % passed. Roughly 1,500–2,000 proxies ma
 | `proxy` | string | `ip:port` |
 | `exit_ip` | string | IP address the target site saw (can differ from the proxy's own IP) |
 | `country` | string | Two-letter country code of the exit IP |
-| `asn` | int | Autonomous system number of the exit IP |
+| `asn` | int64 | Autonomous system number of the exit IP |
 | `org` | string | Network / provider that owns the exit IP |
 | `hosting` | bool | Exit IP is in a datacenter or hosting network |
 | `blocklisted` | bool | Exit IP is on the SpamCop blocklist |
 | `anonymity` | string | `elite` (target sees no proxy), `anonymous` or `transparent` |
 | `https` | bool | Tunnels HTTPS with a verified TLS handshake |
-| `latency` | int | Response time in the check, milliseconds |
-| `speed_kbps` | int | Download speed in KiB/s (HTTPS-capable proxies only) |
-| `sites` | struct | Big sites it got through to in that run: google, reddit, amazon, instagram, tiktok, discord (`true` / `false`) |
-| `targets` | struct | Results for extra target sites of that run (usually empty) |
-| `streak` | int | Consecutive hourly runs it has been on the list |
-| `uptime_24h` | int | Share of the last 24 hourly runs it passed, percent |
-| `uptime_7d` | int | Share of the last 7 days' hourly runs it passed, percent |
+| `latency` | int64 | Response time in the check, milliseconds |
+| `speed_kbps` | int64 | Download speed in KiB/s (HTTPS-capable proxies only, measured since 2026-09-28) |
+| `works_on` | list of strings | Big sites it got through to in that run: google, reddit, amazon, instagram, tiktok, discord |
+| `blocked_on` | list of strings | Big sites that turned it away in that run |
+| `streak` | int64 | Consecutive hourly runs it has been on the list |
+| `uptime_24h` | int64 | Share of the last 24 hourly runs it passed, percent |
+| `uptime_7d` | int64 | Share of the last 7 days' hourly runs it passed, percent |
 | `first_seen` | string | When it first passed, ISO 8601 UTC |
 | `snapshot_date` | string | The UTC day of the snapshot, `YYYY-MM-DD` |
+
+Fields that weren't measured yet on early days are null. A site in neither list wasn't checked that day:
+google, reddit and amazon from the start, instagram and tiktok since 2026-09-28, discord since 2026-10-06.
+Every file has the same columns, so all days load as one table.
 
 ## What it's good for
 

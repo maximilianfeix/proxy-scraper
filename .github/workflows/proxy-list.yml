@@ -199,28 +199,8 @@ jobs:
 
           gh release download "$release" --pattern "$snapshot" --output "$RUNNER_TEMP/$snapshot"
           python -m pip install --quiet "pyarrow>=18,<24"
-          python - "$RUNNER_TEMP/$snapshot" "$RUNNER_TEMP/$parquet" "$day" <<'PY'
-          import gzip
-          import json
-          import sys
-
-          import pyarrow as pa
-          import pyarrow.parquet as pq
-
-          def parquet_value(value):
-              if isinstance(value, dict):
-                  return {key: parquet_value(item) for key, item in value.items()} or None
-              if isinstance(value, list):
-                  return [parquet_value(item) for item in value]
-              return value
-
-          source, destination, snapshot_date = sys.argv[1:]
-          with gzip.open(source, "rt", encoding="utf-8") as handle:
-              rows = json.load(handle)
-          rows = [parquet_value({**row, "snapshot_date": snapshot_date}) for row in rows]
-          pq.write_table(pa.Table.from_pylist(rows), destination, compression="zstd")
-          print(f"wrote {destination} with {len(rows):,} rows")
-          PY
+          # one fixed schema for every day, so the Hub can read all of them as one table
+          python .github/scripts/hf_parquet.py "$RUNNER_TEMP/$snapshot" "$RUNNER_TEMP/$parquet" "$day"
 
           for attempt in 1 2 3; do
             if hf upload "$HF_DATASET_REPO" "$RUNNER_TEMP/$parquet" "$target" --repo-type dataset \

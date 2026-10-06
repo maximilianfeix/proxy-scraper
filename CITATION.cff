@@ -1,0 +1,23 @@
+cff-version: 1.2.0
+message: "If you use proxy-scraper or its proxy snapshots in your work, please cite it like this."
+title: "proxy-scraper: free proxies that actually work"
+type: software
+authors:
+  - family-names: Feix
+    given-names: Maximilian
+license: MIT
+repository-code: "https://github.com/maximilianfeix/proxy-scraper"
+url: "https://maximilianfeix.github.io/proxy-scraper/"
+abstract: >-
+  proxy-scraper collects public HTTP, SOCKS4 and SOCKS5 proxies from 700+ sources and keeps only the ones that pass
+  every check: a protocol handshake, the same exit IP on two unrelated sites (drops honeypots), a byte-for-byte
+  content check (drops proxies that inject scripts) and, for HTTPS, a verified TLS handshake. It publishes a checked
+  list every hour and a daily snapshot with exit IP, country, ASN, datacenter flag, anonymity, latency, speed,
+  uptime and site reachability.
+keywords:
+  - proxies
+  - open proxies
+  - proxy checker
+  - networking
+  - web scraping
+  - honeypot detection

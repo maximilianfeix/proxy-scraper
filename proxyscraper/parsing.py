@@ -37,6 +37,20 @@ SCHEME_RE = re.compile(
 )
 SCHEME_TYPES = {k.encode(): v for k, v in TYPE_ALIASES.items() if v != "auto"}
 
+# ip:port:user:pass – how paid proxy lists often write logins (#254). Read only where the user hands over a list
+# (files, stdin), not in scraped sources: "ip:port:US:elite" lists have the same shape. Exactly four parts, the
+# user without '@'; the password may have one, and ends where a paste's punctuation starts
+_NOT_IN_LOGIN = r"\s:\"'`,;|()\[\]{}<>"
+_COLON_LOGIN_LINE = re.compile(
+    r"((?:\d{1,3}\.){3}\d{1,3}:\d{1,5}):([^@" + _NOT_IN_LOGIN + r"]+):([^" + _NOT_IN_LOGIN + r"]+)"
+)
+
+
+def is_colon_login(word: str) -> bool:
+    """Whether the word is a login in the ip:port:user:pass form."""
+    return _COLON_LOGIN_LINE.fullmatch(word.rstrip("/")) is not None
+
+
 RawCandidate = Tuple[str, bytes, bytes, bytes]  # type, ip, port, credentials (b"" without)
 
 
@@ -185,7 +199,11 @@ def parse_proxy_line(line: str, default_type: Optional[str] = None) -> Optional[
     if not parts:  # "http://" with nothing after it
         return None
     line = parts[0]
-    auth, _, line = line.rpartition("@")
+    colon_login = _COLON_LOGIN_LINE.fullmatch(line.rstrip("/"))
+    if colon_login:  # ip:port:user:pass (#254)
+        line, auth = colon_login.group(1), f"{colon_login.group(2)}:{colon_login.group(3)}"
+    else:
+        auth, _, line = line.rpartition("@")
     ip, _, port = line.partition(":")
     port = port.rstrip("/")
     # ASCII digits only: "²" and other Unicode digits pass str.isdigit(), but int() can't read them
@@ -203,7 +221,14 @@ def parse_keys(lines: Iterable[str], default_type: Optional[str] = None) -> List
     seen, out = set(), []
     for line in lines:
         key = parse_proxy_line(line, default_type)
-        if key and key not in seen:
-            seen.add(key)
-            out.append(key)
+        keys = [key] if key else []
+        words = line.split()
+        if key and words and is_colon_login(words[0].partition("://")[2] or words[0]):
+            # the bare address after the login: "ip:port:US:elite" lists look the same (#254)
+            ptype, rest = split_key(key)
+            keys.append(make_key(ptype, rest.rpartition("@")[2]))
+        for k in keys:
+            if k not in seen:
+                seen.add(k)
+                out.append(k)
     return out

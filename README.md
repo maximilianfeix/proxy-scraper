@@ -605,7 +605,7 @@ proxy-scraper --source https://example.com/my-list.txt --source socks5=./socks.t
 proxy-scraper --only-sources --source bought.txt --want 50                            # only yours
 ```
 
-Any text with `ip:port` works; lines like `socks5://user:pass@host:port` keep their type, bare ones are tried as HTTP and SOCKS5 unless you write `http=…`.
+Any text with `ip:port` works; lines like `socks5://user:pass@host:port` keep their type, bare ones are tried as HTTP and SOCKS5 unless you write `http=…`. For logins written the way many paid lists export them, `ip:port:user:pass`, use `--recheck bought.txt` or pipe the list into `--recheck -` – sources leave that form alone, since lists like `ip:port:US:elite` look the same.
 
 <a id="output"></a>
 
@@ -763,7 +763,7 @@ Username wishes – `country-us` sends everything out through US proxies, `sessi
 proxy-scraper --recheck live --want 20 -y -o - | grep '^socks5://' > socks.txt
 ```
 
-**Check a list you already have** – `--recheck -` reads it from stdin: plain `ip:port` lines, `type://ip:port`, logins, JSON, a CSV export or a table pasted from a website (HTML or Markdown), in the order it came in. Only what works from your network comes out:
+**Check a list you already have** – `--recheck -` reads it from stdin: plain `ip:port` lines, `type://ip:port`, logins (`user:pass@ip:port` or `ip:port:user:pass`), JSON, a CSV export or a table pasted from a website (HTML or Markdown), in the order it came in. Only what works from your network comes out:
 
 ```bash
 curl -s https://example.com/proxies.txt | proxy-scraper --recheck - -o - > working.txt

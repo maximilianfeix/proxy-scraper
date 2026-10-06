@@ -21,15 +21,15 @@ jobs:
     env:
       COLUMNS: "110"
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
           cache: pip
       - run: pip install -r requirements.txt
 
       # learned source statistics and history from the last run – the tool keeps learning here too
-      - uses: actions/cache/restore@v6
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: data
           key: proxy-data-${{ github.run_id }}
@@ -53,7 +53,7 @@ jobs:
         timeout-minutes: 5
         run: python -m proxyscraper.speed "results/$(cat results/latest.txt)"
 
-      - uses: actions/cache/save@v6
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         if: always()
         with:
           path: data

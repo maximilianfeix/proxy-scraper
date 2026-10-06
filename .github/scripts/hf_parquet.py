@@ -56,6 +56,7 @@ def normalize(row: dict, snapshot_date: str) -> dict:
         "blocked_on": sorted(name for name, ok in sites.items() if ok is False),
         "snapshot_date": snapshot_date,
     }
+    row = {**row, "asn": row.get("asn") or None, "org": row.get("org") or None}  # 0 / "" mean unknown
     return {name: derived[name] if name in derived else _cast(row.get(name), kind) for name, kind in COLUMNS}
 
 

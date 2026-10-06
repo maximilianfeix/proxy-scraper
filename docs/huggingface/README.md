@@ -26,7 +26,7 @@ from datasets import load_dataset
 
 ds = load_dataset("Taventix/proxy-scraper-snapshots", split="train")
 df = ds.to_pandas()
-# residential exits that got through to Reddit, by country
+# residential HTTPS exits that got through to Reddit, by country
 residential = df[(df.hosting == False) & df.works_on.apply(lambda sites: "reddit" in sites)]
 residential.groupby("country").size().sort_values(ascending=False).head()
 ```
@@ -67,9 +67,11 @@ Of 3.6 million checks in one day, 1.1 % passed. A day's snapshot holds between 1
 | `first_seen` | string | When it first passed, ISO 8601 UTC |
 | `snapshot_date` | string | The UTC day of the snapshot, `YYYY-MM-DD` |
 
-Fields that weren't measured yet on early days are null. A site in neither list wasn't checked that day:
-google, reddit and amazon from the start, instagram and tiktok since 2026-09-28, discord since 2026-10-06.
-Every file has the same columns, so all days load as one table.
+Sites are only checked for proxies with `https = true`, so both lists are empty for the others. For an
+HTTPS proxy, a site in neither list gave no clear answer or wasn't checked yet that day: google, reddit and
+amazon from the start, instagram and tiktok since 2026-09-28, discord since 2026-10-06. Fields that weren't
+measured yet on early days are null, and so are `asn` and `org` when the network is unknown. Every file has
+the same columns, so all days load as one table.
 
 ## What it's good for
 

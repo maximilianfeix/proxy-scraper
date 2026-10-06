@@ -74,3 +74,15 @@ def test_days_with_different_fields_write_the_same_schema(tmp_path):
         schemas.append(pq.read_schema(dst))
     assert schemas[0].equals(schemas[1])
     assert schemas[0].names == NAMES
+
+
+def test_unknown_network_is_null_not_a_fake_as0():
+    row = hf_parquet.normalize({**TODAY, "asn": 0, "org": ""}, "2026-10-06")
+    assert row["asn"] is None and row["org"] is None
+
+
+def test_the_rebuild_replaces_every_old_file_in_one_commit():
+    rebuild = (ROOT / ".github" / "workflows" / "hf-rebuild.yml").read_text()
+    assert '--delete "*.parquet"' in rebuild  # stale files in the old schema would break load_dataset again
+    assert rebuild.count("hf upload") == 1
+    assert "shopt -s nullglob" in rebuild

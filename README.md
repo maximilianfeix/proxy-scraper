@@ -34,6 +34,8 @@ Most free proxy lists are 95 % dead, and a good part of the rest are honeypots o
 
 **In numbers:** in one day it checked 3.6 million free proxies – 1.1 % worked, and more than half of the ones that answered failed a second request. [What's actually out there →](docs/free-proxies-in-numbers.md)
 
+**Used by:** the hourly list is a built-in source of [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).
+
 **Try it – no install, about five seconds:**
 
 ```bash
@@ -158,7 +160,7 @@ Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</
 
 Don't want to scan yourself? Every hour **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry worked in the last run, best first: fast ones that are likely to still be up come on top.
 
-> **Just want the lists?** They also live in a repository of their own, **[maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)** – one list per protocol, per country and per site, updated every hour, with the numbers of the last run on the front page. Watch or star it to keep it at hand.
+> **Just want the lists?** They also live in a repository of their own, **[maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)** – one list per protocol, per country and per site, updated every hour, with the numbers of the last run on the front page. Watch or star it to keep it at hand. Other tools pull it too: [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list) use it as a built-in source.
 
 <a href="https://maximilianfeix.github.io/proxy-scraper/"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="https://maximilianfeix.github.io/proxy-scraper/chart-dark.svg">

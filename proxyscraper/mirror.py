@@ -302,6 +302,8 @@ certificate that verifies.
 latency, download speed, uptime over 24 hours and 7 days, first seen, and which big sites it gets through to.
 - **Honest about uptime.** `stable.txt` holds only proxies that were on the list in {STABLE_UPTIME} %+ of this \
 week's hourly runs.
+- **Used by other tools.** [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) \
+and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list) pull these lists as a built-in source.
 
 Want more than a list? **[proxy-scraper]({REPO_URL})** is the open-source tool behind it: scan from your own \
 network, filter by country, protocol and site, a rotating proxy server, a Python API and an MCP server for AI \

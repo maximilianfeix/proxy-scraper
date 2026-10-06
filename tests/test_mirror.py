@@ -73,3 +73,11 @@ def test_country_table_pads_the_last_row():
     assert len(rows) == 3
     assert rows[2].startswith("| 🇺🇸 United States | 7 |")  # most first
     assert rows[2].count("|") == rows[0].count("|")
+
+
+def test_the_list_readme_names_projects_that_use_it(tmp_path):
+    out = tmp_path / "list"
+    mirror.mirror(published(tmp_path), out, REPO)
+    readme = (out / "README.md").read_text(encoding="utf-8")
+    assert "[monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker)" in readme
+    assert "[gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list)" in readme

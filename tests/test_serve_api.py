@@ -118,7 +118,8 @@ async def _get(port, path, auth=None):
     extra = f"Authorization: Basic {base64.b64encode(auth).decode()}\r\n" if auth else ""
     writer.write(f"GET {path} HTTP/1.1\r\nHost: 127.0.0.1\r\n{extra}\r\n".encode())
     await writer.drain()
-    data = await asyncio.wait_for(reader.read(1 << 20), 5)
+    # the server closes after the response: read to the end, a big page can arrive in several chunks (#286)
+    data = await asyncio.wait_for(reader.read(), 5)
     writer.close()
     return data
 
@@ -151,3 +152,25 @@ def test_api_wants_the_server_password():
 
     denied, allowed = run_server(client, password="s3cret")
     assert denied.startswith(b"HTTP/1.1 401") and allowed.startswith(b"HTTP/1.1 200")
+
+
+def test_the_helper_reads_a_response_that_arrives_in_parts():
+    """A big page can reach the client in several chunks; one read() only gets the first (#286)."""
+    async def go():
+        async def serve(reader, writer):
+            await reader.readuntil(b"\r\n\r\n")
+            writer.write(b"HTTP/1.1 200 OK\r\nConnection: close\r\n\r\nfirst half, ")
+            await writer.drain()
+            await asyncio.sleep(0.05)
+            writer.write(b"second half")
+            await writer.drain()
+            writer.close()
+
+        server = await asyncio.start_server(serve, "127.0.0.1", 0)
+        try:
+            return await _get(server.sockets[0].getsockname()[1], "/")
+        finally:
+            server.close()
+            await server.wait_closed()
+
+    assert asyncio.run(go()).endswith(b"first half, second half")

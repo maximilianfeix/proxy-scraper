@@ -154,7 +154,8 @@ async def _get_host(port, path, host, auth=None):
     extra = f"Authorization: Basic {base64.b64encode(auth).decode()}\r\n" if auth else ""
     writer.write(f"GET {path} HTTP/1.1\r\nHost: {host}\r\n{extra}\r\n".encode())
     await writer.drain()
-    data = await asyncio.wait_for(reader.read(1 << 20), 5)
+    # the server closes after the response: read to the end, a big page can arrive in several chunks (#286)
+    data = await asyncio.wait_for(reader.read(), 5)
     writer.close()
     return data
 

@@ -1,0 +1,3 @@
+# the Hugging Face snapshot mirror (proxy-list.yml, hf-rebuild.yml)
+huggingface_hub>=0.34,<3
+pyarrow>=18,<24

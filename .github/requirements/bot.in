@@ -1,0 +1,3 @@
+# the Discord bot tests (bot.yml)
+-r ../../bot/requirements.txt
+pytest

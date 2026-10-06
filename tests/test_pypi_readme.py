@@ -28,7 +28,6 @@ def test_images_point_at_the_raw_file_of_the_tag():
 def test_links_point_at_github():
     assert fix("[MIT](LICENSE)") == f"[MIT]({BLOB}LICENSE)"
     assert fix("[zh](README.zh-CN.md)") == f"[zh]({BLOB}README.zh-CN.md)"
-    assert fix('<a href="bot/">bot</a>') == f'<a href="{BLOB}bot/">bot</a>'
     assert fix("[list](../../tree/proxy-list)") == f"[list](https://github.com/{REPO}/tree/proxy-list)"
     assert fix("[ci](../../actions/workflows/tests.yml)") == f"[ci](https://github.com/{REPO}/actions/workflows/tests.yml)"
 
@@ -55,3 +54,36 @@ def test_the_release_builds_with_the_fixed_readme():
     release = (ROOT / ".github" / "workflows" / "release.yml").read_text()
     fix_at = release.index(".github/scripts/pypi_readme.py")
     assert fix_at < release.index("python -m build")
+
+
+def test_every_srcset_candidate_gets_its_own_url():
+    assert fix('<img srcset="docs/a.png 1x, docs/b.png 2x">') == \
+        f'<img srcset="{RAW}docs/a.png 1x, {RAW}docs/b.png 2x">'
+
+
+def test_titled_angle_and_reference_links():
+    assert fix('[a](docs/a.md "Title")') == f'[a]({BLOB}docs/a.md "Title")'
+    assert fix("[a](<docs/a b.md>)") == f"[a](<{BLOB}docs/a b.md>)"
+    assert fix("[logo]: docs/logo.png\n[lic]: LICENSE \"MIT\"\n") == \
+        f'[logo]: {RAW}docs/logo.png\n[lic]: {BLOB}LICENSE "MIT"\n'
+
+
+def test_tilde_indented_and_nested_fences_are_left_alone():
+    for text in ("~~~\n[x](y)\n~~~\n", "- item\n\n  ```\n  [x](y)\n  ```\n",
+                 "````md\n```\n[x](y)\n```\n````\n"):
+        assert fix(text) == text, text
+
+
+def test_inline_code_and_html_comments_are_left_alone():
+    text = "Write `[x](y)` like this <!-- see [x](y) --> done"
+    assert fix(text) == text
+
+
+def test_other_schemes_root_relative_and_query_only():
+    assert fix("[d](data:image/png;base64,AAAA) [t](tel:123) [q](?tab=x)") == \
+        "[d](data:image/png;base64,AAAA) [t](tel:123) [q](?tab=x)"
+    assert fix("[a](/docs/a.md)") == f"[a]({BLOB}docs/a.md)"
+
+
+def test_directories_link_to_the_tree():
+    assert fix('<a href="bot/">bot</a>') == f'<a href="https://github.com/{REPO}/tree/v1.26.0/bot/">bot</a>'

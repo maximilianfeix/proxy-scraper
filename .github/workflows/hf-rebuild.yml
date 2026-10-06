@@ -9,6 +9,11 @@ on:
 permissions:
   contents: read
 
+# never next to the hourly run: its new snapshot would be missing here and --delete would remove it on the Hub
+concurrency:
+  group: proxy-list
+  cancel-in-progress: false
+
 jobs:
   rebuild:
     runs-on: ubuntu-latest

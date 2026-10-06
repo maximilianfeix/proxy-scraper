@@ -86,3 +86,13 @@ def test_the_rebuild_replaces_every_old_file_in_one_commit():
     assert '--delete "*.parquet"' in rebuild  # stale files in the old schema would break load_dataset again
     assert rebuild.count("hf upload") == 1
     assert "shopt -s nullglob" in rebuild
+
+
+def test_unknown_country_anonymity_and_exit_ip_are_null():
+    row = hf_parquet.normalize({**TODAY, "country": "", "anonymity": "", "exit_ip": ""}, "2026-10-06")
+    assert row["country"] is None and row["anonymity"] is None and row["exit_ip"] is None
+
+
+def test_the_rebuild_never_runs_next_to_the_hourly_job():
+    rebuild = (ROOT / ".github" / "workflows" / "hf-rebuild.yml").read_text()
+    assert "group: proxy-list" in rebuild

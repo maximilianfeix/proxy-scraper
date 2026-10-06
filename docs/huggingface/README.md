@@ -70,7 +70,7 @@ Of 3.6 million checks in one day, 1.1 % passed. A day's snapshot holds between 1
 Sites are only checked for proxies with `https = true`, so both lists are empty for the others. For an
 HTTPS proxy, a site in neither list gave no clear answer or wasn't checked yet that day: google, reddit and
 amazon from the start, instagram and tiktok since 2026-09-28, discord since 2026-10-06. Fields that weren't
-measured yet on early days are null, and so are `asn` and `org` when the network is unknown. Every file has
+measured yet on early days are null, and so are `asn`, `org`, `country`, `anonymity` and `exit_ip` when they're unknown. Every file has
 the same columns, so all days load as one table.
 
 ## What it's good for

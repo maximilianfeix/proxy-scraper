@@ -1,0 +1,57 @@
+name: hf-rebuild
+
+# Rewrites every daily snapshot on the Hugging Face dataset from the release archive, with the fixed schema of
+# .github/scripts/hf_parquet.py, in one commit with the card – for when that schema changes (#271). Run it by hand.
+# Parquet files on the Hub without a release asset behind them are deleted, so no old schema stays behind.
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# never next to the hourly run: its new snapshot would be missing here and --delete would remove it on the Hub
+concurrency:
+  group: proxy-list
+  cancel-in-progress: false
+
+jobs:
+  rebuild:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v7
+        with:
+          python-version: "3.13"
+      - name: Rebuild and upload all snapshots
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          HF_DATASET_REPO: ${{ vars.HF_DATASET_REPO }}
+          HF_TOKEN: ${{ secrets.HF_TOKEN }}
+        run: |
+          if [ -z "$HF_DATASET_REPO" ] || [ -z "$HF_TOKEN" ]; then
+            echo "::error::Set HF_DATASET_REPO and HF_TOKEN first"
+            exit 1
+          fi
+          python -m pip install --quiet "huggingface_hub>=0.34,<3" "pyarrow>=18,<24"
+
+          shopt -s nullglob
+          mkdir -p "$RUNNER_TEMP/json" "$RUNNER_TEMP/hub/data"
+          for release in $(gh release list --limit 1000 --json tagName --jq '.[].tagName | select(startswith("snapshots-"))'); do
+            gh release download "$release" --pattern "proxies-*.json.gz" --dir "$RUNNER_TEMP/json" --clobber
+          done
+
+          count=0
+          for snapshot in "$RUNNER_TEMP"/json/proxies-*.json.gz; do
+            day="$(basename "$snapshot" .json.gz)"; day="${day#proxies-}"
+            mkdir -p "$RUNNER_TEMP/hub/data/${day%%-*}"
+            python .github/scripts/hf_parquet.py "$snapshot" "$RUNNER_TEMP/hub/data/${day%%-*}/proxies-$day.parquet" "$day"
+            count=$((count + 1))
+          done
+          if [ "$count" -eq 0 ]; then
+            echo "::error::No snapshots found in the snapshots-* releases"
+            exit 1
+          fi
+
+          cp docs/huggingface/README.md "$RUNNER_TEMP/hub/README.md"
+          hf upload "$HF_DATASET_REPO" "$RUNNER_TEMP/hub" . --repo-type dataset --delete "*.parquet" \
+              --commit-message "Rewrite $count daily snapshots with one schema"

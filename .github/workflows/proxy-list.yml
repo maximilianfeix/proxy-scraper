@@ -176,6 +176,9 @@ jobs:
           target="data/$year/$parquet"
 
           python -m pip install --quiet "huggingface_hub>=0.34,<3"
+          # the dataset card is kept in the repo; an unchanged card makes no commit
+          hf upload "$HF_DATASET_REPO" docs/huggingface/README.md README.md --repo-type dataset \
+              --commit-message "Update dataset card" || echo "::warning::Could not update the dataset card"
           if python - "$target" <<'PY'
           import os
           import sys

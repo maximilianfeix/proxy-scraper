@@ -1,0 +1,30 @@
+name: sigstore-dryrun
+
+# temporary (#290): proves the release's signing step works before the next tag; removed before merge
+on:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  sign:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+      - run: pip install build && python -m build
+      - uses: sigstore/gh-action-sigstore-python@790bc6befb9d733738f18d8f895854b453640ec9 # v3.5.0
+        with:
+          inputs: ./dist/*.whl ./dist/*.tar.gz
+          release-signing-artifacts: false
+          verify: true
+          verify-cert-identity: https://github.com/${{ github.repository }}/.github/workflows/sigstore-dryrun.yml@${{ github.ref }}
+          verify-oidc-issuer: https://token.actions.githubusercontent.com
+      - name: The bundles sit next to the files, as the release step expects
+        run: ls -la dist/ && ls dist/*.whl.sigstore.json dist/*.tar.gz.sigstore.json

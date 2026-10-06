@@ -32,7 +32,7 @@ jobs:
             echo "::error::Set HF_DATASET_REPO and HF_TOKEN first"
             exit 1
           fi
-          python -m pip install --quiet "huggingface_hub>=0.34,<3" "pyarrow>=18,<24"
+          python -m pip install --quiet -r .github/requirements/hf.txt
 
           shopt -s nullglob
           mkdir -p "$RUNNER_TEMP/json" "$RUNNER_TEMP/hub/data"

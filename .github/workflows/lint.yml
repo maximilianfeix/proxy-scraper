@@ -17,5 +17,5 @@ jobs:
         with:
           python-version: "3.13"
       # version pinned so the same rules apply locally and in CI
-      - run: pip install ruff==0.16.8
+      - run: pip install -r .github/requirements/lint.txt
       - run: ruff check --output-format=github .

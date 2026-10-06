@@ -26,6 +26,8 @@
 
 **数据说话：** 一天内检测了 360 万个免费代理，只有 1.1% 真正可用；首次请求有响应的代理中，54% 在第二次请求时失败，约每 40 个可用代理就有 1 个会篡改网页内容。[详细数据（英文）→](docs/free-proxies-in-numbers.md)
 
+**谁在用：** 每小时更新的列表是 [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) 和 [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list) 的内置数据源。
+
 **无需安装，大约五秒即可试用：**
 
 ```bash

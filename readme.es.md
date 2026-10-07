@@ -30,6 +30,8 @@
 
 ---
 
+Traducción del README en inglés; si algo no coincide, la versión inglesa es la de referencia.
+
 La mayoría de las listas de proxies gratuitos están muertas en un 95 %, y buena parte del resto son honeypots o proxies que inyectan scripts en tus páginas. **proxy-scraper** recopila proxies públicos HTTP, SOCKS4 y SOCKS5 de más de 700 fuentes y se queda solo con los que superan todas las comprobaciones. Aprende en cada ejecución qué fuentes merecen la pena y puede convertir el resultado en un único proxy rotativo.
 
 **En cifras:** en un solo día comprobó 3,6 millones de proxies gratuitos: el 1,1 % funcionaba, y más de la mitad de los que respondieron fallaron en una segunda petición. [Qué hay realmente por ahí →](docs/free-proxies-in-numbers.md)
@@ -901,7 +903,7 @@ Casi nadie gestiona un proxy gratuito para ti. Lo que acaba en las listas públi
 
 - **Servidores mal configurados**: un Squid, un router o una aplicación con un puerto de proxy que debía permanecer interno.
 - **Proxies abiertos deliberadamente**: unos pocos voluntarios y proyectos de investigación, y servicios que regalan algunos para vender el resto.
-- **Máquinas infectadas**: ordenadores y dispositivos IoT cuyos dueños no saben que retransmiten tráfico. Muchas salidas residenciales son así.
+- **Máquinas infectadas**: equipos y dispositivos IoT cuyos dueños no saben que retransmiten tráfico. Muchas salidas residenciales son así.
 - **Trampas**: honeypots que registran lo que pasa por ellos, y proxies que reescriben las páginas para inyectar anuncios o scripts.
 
 proxy-scraper no puede distinguir un router doméstico infectado de un proxy abierto de oficina, pero filtra lo que puede medir: un proxy tiene que responder a dos peticiones independientes con la misma IP de salida (los honeypots que solo responden a los escáneres quedan fuera), entregar una página conocida byte por byte (los inyectores quedan fuera), y HTTPS solo cuenta con un certificado que se verifica de extremo a extremo. Cada acierto indica si su salida está en un datacenter.
@@ -914,7 +916,7 @@ Buenos usos: datos públicos, comprobar cómo se ve un sitio desde otro país, p
 <summary><b>Casi nada pasa las comprobaciones.</b></summary>
 <br>
 
-Muchas redes de empresas, colegios y universidades bloquean las conexiones de proxy. La herramienta detecta una tasa de aciertos por debajo del 0,2 % y te avisa: ayuda cambiar a otra red, como el punto de acceso de un móvil. Las estadísticas aprendidas no se rebajan en una ejecución así.
+Muchas redes de empresas, colegios y universidades bloquean las conexiones de proxy. La herramienta detecta una tasa de aciertos por debajo del 0,2 % y te avisa: ayuda cambiar a otra red, como el punto de acceso de un teléfono. Las estadísticas aprendidas no se rebajan en una ejecución así.
 
 </details>
 
@@ -943,7 +945,7 @@ Las líneas como `socks5://user:pass@1.2.3.4:1080` conservan sus credenciales: l
 </details>
 
 <details>
-<summary><b>¿Qué tan actualizada está la lista en vivo?</b></summary>
+<summary><b>¿Con qué frecuencia se actualiza la lista en vivo?</b></summary>
 <br>
 
 Se reconstruye cada hora; la insignia “actualizado” muestra la última ejecución. Los proxies gratuitos van y vienen rápidamente, así que para cualquier cosa importante ejecuta `proxy-scraper --recheck` justo antes de usarlos.
@@ -974,7 +976,7 @@ Publicado en v1.8 y v1.9: uptime por proxy y `stable.txt`, qué proxies llegan a
 
 Publicado en [v1.7](../../milestone/7): un servidor MCP para que los agentes de IA obtengan proxies que funcionan y puedan cargar páginas a través de ellos, 28 fuentes nuevas y una búsqueda en GitHub que se ejecuta a diario y conserva lo que encontró, y un sitio web más limpio.
 
-Publicado en [v1.6](../../milestone/6): comprobación de listas negras de spam para cada IP de salida, una lista en vivo actualizada cada hora, páginas por protocolo y país, una contraseña opcional para el servidor proxy y un pool que se rellena solo mientras funciona, `compose.yaml`, `-o -` para tuberías, un bot de Discord, y un sitio web y un README nuevos: todo en inglés a partir de entonces.
+Publicado en [v1.6](../../milestone/6): comprobación de listas negras de spam para cada IP de salida, una lista en vivo actualizada cada hora, páginas por protocolo y país, una contraseña opcional para el servidor proxy y un pool que se rellena solo mientras funciona, `compose.yaml`, `-o -` para tuberías, un bot de Discord, y un sitio web y un README nuevos: todo en inglés a partir de entonces (el README original).
 
 Publicado en [v1.5](../../milestone/5): comprobación de manipulación de contenido, sitio web de la lista en vivo con tendencia y proxies estables, información de proveedor/datacenter, un servidor proxy mucho más completo (estrategias de rotación, sesiones sticky, entrada SOCKS5, estado y métricas de Prometheus), `--recheck live`, API de Python, autocompletado de shell. Medido y descartado antes: la detección de protocolo con una conexión adicional ([#3](../../issues/3)) e IPv6 ([#1](../../issues/1)).
 

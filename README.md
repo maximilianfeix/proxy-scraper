@@ -785,6 +785,8 @@ pip download requests   # git, pip, npm & co. now go through the pool
 
 **In a GitHub workflow** – the action picks working proxies for the next steps
 
+[Marketplace](https://github.com/marketplace/actions/proxy-scraper-free-working-proxies) · [Complete workflow, inputs and outputs](docs/github-action.md)
+
 ```yaml
 - id: proxies
   uses: maximilianfeix/proxy-scraper@v1

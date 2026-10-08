@@ -4,8 +4,15 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.27.1] – 2026-10-08
+
 ### Added
 - A Spanish README (`README.es.md`) ([#270](https://github.com/maximilianfeix/proxy-scraper/issues/270))
+- GitHub Marketplace-ready Action metadata and a complete workflow example with all inputs and outputs.
+
+### Fixed
+- Malformed URLs in third-party source files no longer abort discovery or the hourly publishing pipeline. Valid IPv6 source URLs retain their brackets, with regression and generated-input tests ([#297](https://github.com/maximilianfeix/proxy-scraper/pull/297)).
+- The Action description now fits GitHub Marketplace's length limit.
 
 ## [1.27.0] – 2026-10-06
 
@@ -309,7 +316,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.1...HEAD
+[1.27.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...v1.27.1
 [1.27.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.24.0...v1.25.0

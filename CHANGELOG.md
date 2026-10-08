@@ -7,6 +7,10 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ### Added
 - A Spanish README (`README.es.md`) ([#270](https://github.com/maximilianfeix/proxy-scraper/issues/270))
 
+### Fixed
+- Requests to a list or API on a non-default port sent the `Host` header without the port (and IPv6 literals without brackets), so virtual hosts could answer for the wrong site ([#300](https://github.com/maximilianfeix/proxy-scraper/issues/300))
+- The rotating server blamed healthy SOCKS5 proxies for a malformed target name (`example..com`, a label over 63 characters): a few such requests could disable them. Unusable host names now get a 502 without counting against any proxy, and names with spaces or line breaks never reach an upstream `CONNECT` line ([#300](https://github.com/maximilianfeix/proxy-scraper/issues/300))
+
 ## [1.27.0] – 2026-10-06
 
 ### Added

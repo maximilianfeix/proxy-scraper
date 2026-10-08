@@ -72,6 +72,8 @@ async def _connect_through(ptype: str, proxy: str, reader, writer, host: str, po
                            public_only: bool = False) -> None:
     ep = parse_endpoint(proxy)
     literal = _ip_literal(host)
+    if not literal and not _valid_hostname(host):  # the client's mistake, not the proxy's – and no header injection
+        raise Unsupported(f"invalid host name {host[:60]!r}")
     if ptype == "http":
         authority = f"[{host}]:{port}" if literal and literal.version == 6 else f"{host}:{port}"
         connect = f"CONNECT {authority} HTTP/1.1\r\nHost: {authority}\r\n\r\n".encode()
@@ -99,6 +101,17 @@ async def _connect_through(ptype: str, proxy: str, reader, writer, host: str, po
             address = socks5_domain(host)  # host name instead of IP: resolved at the proxy (no DNS leak)
         if not await socks5_connect(*stream_io(reader, writer), ep, address, port):
             raise UpstreamError("SOCKS5 greeting or login failed")
+
+
+def _valid_hostname(host: str) -> bool:
+    """Whether a name can be sent to a proxy at all: no control characters or spaces, and (as the IDNA name that
+    SOCKS5 carries) labels of 1-63 characters and at most 255 bytes in total."""
+    if not host or any(ch <= " " or ch == "\x7f" for ch in host):
+        return False
+    try:
+        return len(host.encode("idna")) <= 255
+    except UnicodeError:
+        return False
 
 
 def _ip_literal(host: str):

@@ -7,6 +7,10 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ### Added
 - A Spanish README (`README.es.md`) ([#270](https://github.com/maximilianfeix/proxy-scraper/issues/270))
 
+### Fixed
+- Requests to a list or API on a non-default port sent the `Host` header without the port; the rotating server now brackets IPv6 literals in the `Host` header and the forwarded request line too ([#300](https://github.com/maximilianfeix/proxy-scraper/issues/300))
+- A malformed target name (`example..com`, a label over 63 characters, spaces or line breaks) made the rotating server blame healthy proxies: a few such requests could disable them. It is now refused up front with a 502, before any proxy is picked ([#300](https://github.com/maximilianfeix/proxy-scraper/issues/300))
+
 ## [1.27.0] – 2026-10-06
 
 ### Added

@@ -71,7 +71,8 @@ async def http_request(
         reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout)
         try:
             writer.write(
-                f"{method} {path} HTTP/1.1\r\nHost: {u.hostname}\r\nUser-Agent: {USER_AGENT}\r\n"
+                f"{method} {path} HTTP/1.1\r\nHost: {host_header(u.hostname, port, https)}\r\n"
+                f"User-Agent: {USER_AGENT}\r\n"
                 f"Accept: */*\r\nAccept-Encoding: identity\r\n{extra}Connection: close\r\n\r\n".encode()
                 + (body or b"")
             )
@@ -85,6 +86,12 @@ async def http_request(
             continue
         return status, resp_headers, resp_body
     raise ConnectionError("too many redirects")
+
+
+def host_header(hostname: str, port: Optional[int], https: bool) -> str:
+    """Value of the Host header: the port only when it isn't the scheme's default, IPv6 literals in brackets."""
+    host = f"[{hostname}]" if ":" in hostname else hostname
+    return host if port is None or port == (443 if https else 80) else f"{host}:{port}"
 
 
 async def http_get(

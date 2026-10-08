@@ -1,5 +1,5 @@
-name: Free proxies that actually work
-description: Working HTTP, SOCKS4 and SOCKS5 proxies from a list checked every hour – filter by country, uptime and which sites they get through to.
+name: Proxy Scraper - Free Working Proxies
+description: Get checked HTTP, SOCKS4 and SOCKS5 proxies. Filter by country, HTTPS, uptime, speed and site reachability.
 author: maximilianfeix
 branding:
   icon: shuffle

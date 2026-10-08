@@ -189,6 +189,17 @@ def test_the_command_and_the_extra_are_declared():
     assert "mcp = [\"mcp>=2.2,<3; python_version >= '3.10'\"]" in pyproject
 
 
+def test_a_plain_uv_sync_installs_the_sdk():
+    """MCP directories build the server with `uv sync` and start `uv run proxy-scraper-mcp`; they don't
+    know about the extra. A default dependency group gives them the SDK (#303)."""
+    pyproject = (Path(__file__).parent.parent / "pyproject.toml").read_text(encoding="utf-8")
+    extras = pyproject.split("[project.optional-dependencies]")[1].split("\n[")[0]
+    groups = pyproject.split("[dependency-groups]")[1].split("\n[")[0]
+    requirement = [line for line in extras.splitlines() if line.startswith("mcp = ")]
+    assert requirement and requirement == [line for line in groups.splitlines() if line.startswith("mcp = ")]
+    assert 'default-groups = ["mcp"]' in pyproject.split("[tool.uv]")[1].split("\n[")[0]
+
+
 def test_running_the_module_directly_goes_through_the_entry_point():
     source = (Path(__file__).parent.parent / "proxyscraper" / "mcp_server.py").read_text(encoding="utf-8")
     assert "from .mcp_entry import main" in source.split('if __name__ == "__main__":')[1]

@@ -14,6 +14,8 @@ permissions:
 
 env:
   IMAGE: ghcr.io/${{ github.repository }}
+  # uv with Python 3.12, pinned by digest
+  UV_IMAGE: ghcr.io/astral-sh/uv:python3.12-bookworm-slim@sha256:e5b65587bce7de595f299855d7385fe7fca39b8a74baa261ba1b7147afa78e58
 
 jobs:
   test:
@@ -36,6 +38,11 @@ jobs:
       - name: MCP server over stdio (what Docker's MCP catalog and Glama start)
         timeout-minutes: 3
         run: python .github/scripts/mcp_smoke.py docker run -i --rm proxy-scraper:test --mcp
+      - name: MCP server from a plain uv sync (how Glama builds it, #303)
+        timeout-minutes: 5
+        run: |
+          python .github/scripts/mcp_smoke.py docker run -i --rm -v "$PWD:/src:ro" "$UV_IMAGE" \
+            sh -c 'cp -r /src /app && cd /app && uv sync --quiet && exec uv run --quiet proxy-scraper-mcp'
       - name: Real run inside the container (same command as in the README)
         run: |
           mkdir -p proxy-data results

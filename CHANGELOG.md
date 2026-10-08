@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed
+- The MCP server now starts after a plain `uv sync`: the MCP SDK is also a default uv dependency group, not only the `mcp` extra. Glama builds the server that way, and without the SDK its build found no tools, so its page stayed on 1.25.0. CI now builds the server the same way ([#303](https://github.com/maximilianfeix/proxy-scraper/issues/303))
+
 ## [1.27.1] – 2026-10-08
 
 ### Added

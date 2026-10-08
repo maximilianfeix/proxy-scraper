@@ -39,6 +39,16 @@ fast = ["uvloop; sys_platform != 'win32'"]
 mcp = ["mcp>=2.2,<3; python_version >= '3.10'"]
 dev = ["pytest", "hypothesis", "pyyaml", "markdown-it-py", "ruff==0.16.9"]
 
+# `uv sync` installs this group by default. MCP directories that build the server themselves
+# (Glama runs `uv sync`, then `uv run proxy-scraper-mcp`) don't know about the extra above, and
+# without the SDK the server exits before it lists a tool. pip and the published package ignore
+# dependency groups; keep the requirement the same as the mcp extra
+[dependency-groups]
+mcp = ["mcp>=2.2,<3; python_version >= '3.10'"]
+
+[tool.uv]
+default-groups = ["mcp"]
+
 [project.scripts]
 proxy-scraper = "proxyscraper.cli:run"
 proxy-scraper-cli = "proxyscraper.cli:run"  # same as proxy-scraper: what `uvx proxy-scraper-cli` runs

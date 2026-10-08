@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- A Spanish README (`README.es.md`) ([#270](https://github.com/maximilianfeix/proxy-scraper/issues/270))
+
 ## [1.27.0] – 2026-10-06
 
 ### Added

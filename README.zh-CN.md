@@ -199,6 +199,8 @@ proxy-scraper --export clash                           # 导出 Clash 配置（�
 
 `proxy-scraper-mcp` 是一个 [MCP](https://modelcontextprotocol.io) 服务器：Claude Code、Claude Desktop、Cursor、VS Code 等客户端可以获取可用代理，并通过它们加载网页。
 
+[![proxy-scraper MCP server on Glama](https://glama.ai/mcp/servers/maximilianfeix/proxy-scraper/badges/score.svg)](https://glama.ai/mcp/servers/maximilianfeix/proxy-scraper)
+
 ```json
 {
   "mcpServers": {

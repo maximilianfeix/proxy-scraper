@@ -6,7 +6,7 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write            # to push to the proxy-list branch
+  contents: read
 
 concurrency:
   group: proxy-list
@@ -16,18 +16,20 @@ jobs:
   update:
     runs-on: ubuntu-latest
     timeout-minutes: 45
+    permissions:
+      contents: write        # to push to the proxy-list branch and upload snapshots to the release
     env:
       COLUMNS: "110"
     steps:
-      - uses: actions/checkout@v7
-      - uses: actions/setup-python@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install -r requirements.txt
+      - run: pip install -r .github/requirements/run.txt
 
       # learned source statistics and history from the last run – the tool keeps learning here too
-      - uses: actions/cache/restore@v6
+      - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         with:
           path: data
           key: proxy-data-${{ github.run_id }}
@@ -51,7 +53,7 @@ jobs:
         timeout-minutes: 5
         run: python -m proxyscraper.speed "results/$(cat results/latest.txt)"
 
-      - uses: actions/cache/save@v6
+      - uses: actions/cache/save@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
         if: always()
         with:
           path: data
@@ -175,7 +177,10 @@ jobs:
           parquet="proxies-$day.parquet"
           target="data/$year/$parquet"
 
-          python -m pip install --quiet "huggingface_hub>=0.34,<3"
+          python -m pip install --quiet -r .github/requirements/hf.txt
+          # the dataset card is kept in the repo; an unchanged card makes no commit
+          hf upload "$HF_DATASET_REPO" docs/huggingface/README.md README.md --repo-type dataset \
+              --commit-message "Update dataset card" || echo "::warning::Could not update the dataset card"
           if python - "$target" <<'PY'
           import os
           import sys
@@ -195,29 +200,8 @@ jobs:
           fi
 
           gh release download "$release" --pattern "$snapshot" --output "$RUNNER_TEMP/$snapshot"
-          python -m pip install --quiet "pyarrow>=18,<24"
-          python - "$RUNNER_TEMP/$snapshot" "$RUNNER_TEMP/$parquet" "$day" <<'PY'
-          import gzip
-          import json
-          import sys
-
-          import pyarrow as pa
-          import pyarrow.parquet as pq
-
-          def parquet_value(value):
-              if isinstance(value, dict):
-                  return {key: parquet_value(item) for key, item in value.items()} or None
-              if isinstance(value, list):
-                  return [parquet_value(item) for item in value]
-              return value
-
-          source, destination, snapshot_date = sys.argv[1:]
-          with gzip.open(source, "rt", encoding="utf-8") as handle:
-              rows = json.load(handle)
-          rows = [parquet_value({**row, "snapshot_date": snapshot_date}) for row in rows]
-          pq.write_table(pa.Table.from_pylist(rows), destination, compression="zstd")
-          print(f"wrote {destination} with {len(rows):,} rows")
-          PY
+          # one fixed schema for every day, so the Hub can read all of them as one table
+          python .github/scripts/hf_parquet.py "$RUNNER_TEMP/$snapshot" "$RUNNER_TEMP/$parquet" "$day"
 
           for attempt in 1 2 3; do
             if hf upload "$HF_DATASET_REPO" "$RUNNER_TEMP/$parquet" "$target" --repo-type dataset \

@@ -1,0 +1,8 @@
+# the test suite on every OS and Python 3.9–3.14, the release build, the package smoke test
+-r ../../requirements.txt
+pytest
+hypothesis
+pyyaml
+markdown-it-py
+build
+mcp>=2.2,<3; python_version >= "3.10"

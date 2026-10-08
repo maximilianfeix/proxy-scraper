@@ -4,8 +4,33 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.27.0] – 2026-10-06
+
+### Added
+- README: the MCP server's Glama rating (A) ([#288](https://github.com/maximilianfeix/proxy-scraper/issues/288))
+
+### Security
+- Releases are signed with Sigstore: the wheel and sdist on the GitHub release come with `.sigstore.json` bundles, made keylessly by the release workflow and verified in the same run. Check a download with `sigstore verify identity --cert-identity https://github.com/maximilianfeix/proxy-scraper/.github/workflows/release.yml@refs/tags/v1.27.0 --cert-oidc-issuer https://token.actions.githubusercontent.com <file>` ([#290](https://github.com/maximilianfeix/proxy-scraper/issues/290))
+- The workflows install Python packages only from hash-locked files (`.github/requirements/`), one universal lock per use; a test keeps each lock in line with its source ([#292](https://github.com/maximilianfeix/proxy-scraper/issues/292))
+
+### Fixed
+- A test that failed now and then on a busy machine: it read only the first part of the dashboard page ([#286](https://github.com/maximilianfeix/proxy-scraper/issues/286))
+
+## [1.26.0] – 2026-10-06
+
 ### Added
 - Logins in the `ip:port:user:pass` form that paid proxy lists often use, with or without `type://`, in the lists you hand over: `--recheck file.txt` and `--recheck -`. The bare `ip:port` is tried too (after the login), since `ip:port:US:elite` looks the same, and the password ends at a paste's punctuation (`,;|"'` and brackets). Scraped sources and `--source` leave the form alone, so public lists don't sprout made-up logins ([#254](https://github.com/maximilianfeix/proxy-scraper/issues/254))
+- README: who already uses the hourly list – it's a built-in source of monosans/proxy-scraper-checker and gfpcom/free-proxy-list ([#263](https://github.com/maximilianfeix/proxy-scraper/issues/263))
+- `CITATION.cff`, so GitHub shows "Cite this repository" ([#275](https://github.com/maximilianfeix/proxy-scraper/issues/275))
+- OpenSSF Scorecard runs weekly; results in the Security tab and on scorecard.dev ([#273](https://github.com/maximilianfeix/proxy-scraper/issues/273))
+
+### Fixed
+- The PyPI page: none of the README's images loaded there and 33 links led nowhere, because they were relative. The release build now makes them absolute for the tag and fails if a Markdown parser still finds a relative one ([#280](https://github.com/maximilianfeix/proxy-scraper/issues/280))
+- `load_dataset` on the Hugging Face snapshots failed ("column names don't match"): every day now has the same columns, the site results are `works_on` / `blocked_on` lists, unknown values are null, and all earlier days were rewritten. The dataset card explains every field ([#271](https://github.com/maximilianfeix/proxy-scraper/issues/271))
+
+### Security
+- Workflows start read-only; write access only on the jobs that need it ([#277](https://github.com/maximilianfeix/proxy-scraper/issues/277))
+- Every GitHub Action is pinned to a commit SHA, kept current by dependabot ([#282](https://github.com/maximilianfeix/proxy-scraper/issues/282))
 
 ## [1.25.0] – 2026-10-05
 
@@ -281,7 +306,9 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.25.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...HEAD
+[1.27.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.26.0...v1.27.0
+[1.26.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.24.0...v1.25.0
 [1.24.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.23.0...v1.24.0
 [1.23.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.22.0...v1.23.0

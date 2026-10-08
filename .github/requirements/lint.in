@@ -1,2 +1,2 @@
 # lint.yml
-ruff==0.16.9
+ruff==0.16.10

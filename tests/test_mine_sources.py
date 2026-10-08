@@ -3,6 +3,8 @@
 import asyncio
 import json
 
+import pytest
+
 from proxyscraper import sources as srcs
 
 LIST = "\n".join(f"8.8.{i // 250}.{i % 250 + 1}:8080" for i in range(30)).encode()
@@ -79,6 +81,34 @@ def test_urls_to_local_or_private_hosts_are_never_fetched():
                          "http://printer.local/proxy.txt", "https://example.org:8443/proxy.txt",
                          "https://example.org/proxy.txt"]).encode()
     assert srcs.mined_urls(config) == ["https://example.org/proxy.txt"]
+
+
+@pytest.mark.parametrize("invalid", [
+    "https://[broken/proxy.txt",
+    "https://[2001:4860:4860::8888]/proxy.txt",  # extraction stops at the closing bracket
+    "https://example.org\uff0fproxy.txt",  # invalid NFKC authority
+    "https://example.org:bad/proxy.txt",
+    "https://example.org:99999/proxy.txt",
+])
+def test_malformed_mined_urls_do_not_discard_valid_neighbors(invalid):
+    valid = ["https://first.example/http.txt", "https://last.example/socks5.txt"]
+    config = "\n".join([valid[0], invalid, valid[1]]).encode()
+    assert srcs.mined_urls(config) == valid
+
+
+def test_discovery_survives_malformed_urls_in_remote_configs():
+    fetched = []
+    base = fake_get(fetched)
+
+    async def get(url, timeout=0, headers=None):
+        if url.endswith("config/sources.json"):
+            return b"https://[broken/proxy.txt\nhttps://good.example/socks5.txt"
+        return await base(url, timeout, headers)
+
+    found = asyncio.run(srcs.discover_github(get, token=None, max_repos=10))
+    assert found == {"https://good.example/socks5.txt": "socks5"}
+    assert "https://good.example/socks5.txt" in fetched
+    assert not any("[broken" in url for url in fetched)
 
 
 def test_repo_meta_files_dont_take_the_config_slots():

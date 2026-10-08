@@ -341,7 +341,12 @@ def mined_urls(data: bytes) -> List[str]:
         url = raw.decode("utf-8", "replace").rstrip(".;:")
         if "{" in url or "}" in url or "$" in url or _REPO_REJECT_RE.search(url):
             continue
-        parts = urlsplit(url)
+        try:
+            parts = urlsplit(url)
+        except ValueError:
+            # Third-party configs can contain broken brackets or invalid Unicode
+            # authorities. One malformed URL must not abort the whole discovery.
+            continue
         if not _public_host(parts):  # someone else's file must not point us at localhost or the local network
             continue
         path = parts.path.lower()

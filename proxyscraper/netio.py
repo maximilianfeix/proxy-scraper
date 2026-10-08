@@ -71,7 +71,7 @@ async def http_request(
         reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout)
         try:
             writer.write(
-                f"{method} {path} HTTP/1.1\r\nHost: {host_header(u.hostname, u.port, https)}\r\n"
+                f"{method} {path} HTTP/1.1\r\nHost: {host_header(u.hostname, port, https)}\r\n"
                 f"User-Agent: {USER_AGENT}\r\n"
                 f"Accept: */*\r\nAccept-Encoding: identity\r\n{extra}Connection: close\r\n\r\n".encode()
                 + (body or b"")

@@ -26,6 +26,7 @@ from .http import (
     parse_request_head,
     plausible_answer,
     request_body_length,
+    valid_hostname,
 )
 from .pool import ANY, ProxyPool, Selection
 from .socks import SOCKS5_VERSION, Socks5Refused, socks5_accept, socks5_reply
@@ -189,6 +190,10 @@ class RotatingServer:
         After that a proxy only counts as successful once it answers. The client's first packet (for HTTPS
         the start of the TLS handshake) is buffered and goes to the next proxy unnoticed if needed.
         """
+        if not valid_hostname(host):  # the client's mistake: no proxy is tried, none is blamed
+            self._log(client, host, port, None, False, started, 0)
+            await (refuse or self._bad_gateway)(writer)
+            return False
         tried: Set[str] = set()
         # CONNECT is almost always TLS (also on ports like 8443) – the first ClientHello should only go through
         # proxies that passed the HTTPS test; without any, pick() falls back to all of them
@@ -223,6 +228,10 @@ class RotatingServer:
                           selection: Selection = ANY) -> bool:
         """Plain HTTP request. HTTP upstreams get it as a classic proxy request (without CONNECT),
         SOCKS upstreams in the form for the target server. Small bodies are buffered for a switch."""
+        if not valid_hostname(host):
+            self._log(client, host, port, None, False, started, 0)
+            await self._bad_gateway(writer)
+            return False
         body, replayable = await self._read_body(reader, headers)
         tried: Set[str] = set()
         while True:

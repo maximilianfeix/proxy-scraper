@@ -5,6 +5,8 @@ from __future__ import annotations
 import re
 from typing import List, Tuple
 
+from ..netio import host_header
+
 TLS_HANDSHAKE, TLS_ALERT = b"\x16", b"\x15"  # first byte of a TLS record
 HOP_BY_HOP = {b"proxy-connection", b"connection", b"keep-alive", b"proxy-authorization", b"te", b"upgrade"}
 PROXY_AUTH_REQUIRED = re.compile(rb"HTTP/1\.[01] 407\b")
@@ -38,6 +40,20 @@ def parse_request_head(head: bytes) -> Tuple[str, str, int, bytes, List[Tuple[by
     return method.decode("ascii"), host, _valid_port(port or "80"), b"/" + path if slash else b"/", headers
 
 
+_NOT_IN_HOSTNAME = re.compile(r"[\x00-\x20\x7f]")
+
+
+def valid_hostname(host: str) -> bool:
+    """Whether a target name can be sent to a proxy at all: no spaces or control characters (they would end up in
+    the CONNECT line), and as the IDNA name SOCKS5 carries labels of 1-63 characters, 255 bytes at most."""
+    if not host or len(host) > 255 or _NOT_IN_HOSTNAME.search(host):
+        return False
+    try:
+        return len(host.encode("idna")) <= 255
+    except UnicodeError:
+        return False
+
+
 def _valid_port(text: str) -> int:
     port = int(text)
     if not 0 < port < 65536:
@@ -49,7 +65,7 @@ def origin_request(method: str, path: bytes, host: str, port: int, headers: List
     """Request for the target server: path instead of an absolute URL, no proxy headers, one request per connection."""
     lines = [f"{method} ".encode() + path + b" HTTP/1.1"]
     if not any(name.lower() == b"host" for name, _ in headers):
-        lines.append(b"Host: " + (host if port == 80 else f"{host}:{port}").encode())
+        lines.append(b"Host: " + host_header(host, port, False).encode())
     lines += [name + b": " + value for name, value in headers if name.lower() not in HOP_BY_HOP]
     lines.append(b"Connection: close")
     return b"\r\n".join(lines) + b"\r\n\r\n"
@@ -57,7 +73,7 @@ def origin_request(method: str, path: bytes, host: str, port: int, headers: List
 
 def forward_request(method: str, path: bytes, host: str, port: int, headers: List[Tuple[bytes, bytes]]) -> bytes:
     """Request to an HTTP upstream proxy: absolute URL as sent by the client, just without proxy headers."""
-    authority = host if port == 80 else f"{host}:{port}"
+    authority = host_header(host, port, False)
     request = origin_request(method, path, host, port, headers)
     rest = request.split(b"\r\n", 1)[1]  # the first line is replaced by the absolute URL
     return f"{method} http://{authority}".encode() + path + b" HTTP/1.1\r\n" + rest

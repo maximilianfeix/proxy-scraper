@@ -7,7 +7,7 @@ import pytest
 from proxyscraper.checker import CheckResult
 from proxyscraper.netio import host_header, http_request
 from proxyscraper.server import ProxyPool, RotatingServer
-from proxyscraper.server.upstream import Unsupported, _connect_through
+from proxyscraper.server.http import forward_request, origin_request, valid_hostname
 
 from .fakes import serve, socks5_forward_proxy
 
@@ -43,17 +43,24 @@ def test_http_request_sends_the_port_in_the_host_header():
 
 
 BAD_HOSTS = ["a" * 70 + ".com", "example..com", "a" * 300, "evil.com\r\nX-Injected: 1", "a b.com", ""]
+GOOD_HOSTS = ["example.com", "example.com.", "my_host.local", "1.2.3.4", "2606:4700::1", "bücher.de"]
 
 
 @pytest.mark.parametrize("host", BAD_HOSTS)
-def test_unusable_host_names_are_unsupported_not_a_proxy_failure(host):
-    class Sink:
-        def write(self, data):
-            raise AssertionError("nothing may be sent to the proxy")
+def test_unusable_host_names_are_rejected(host):
+    assert not valid_hostname(host)
 
-    for ptype in ("http", "socks4", "socks5"):
-        with pytest.raises(Unsupported):
-            asyncio.run(_connect_through(ptype, "1.2.3.4:1080", None, Sink(), host, 443))
+
+@pytest.mark.parametrize("host", GOOD_HOSTS)
+def test_usable_host_names_pass(host):
+    assert valid_hostname(host)
+
+
+def test_server_requests_bracket_ipv6_hosts():
+    headers = [(b"User-Agent", b"x")]
+    assert b"Host: [2606:4700::1]:8080\r\n" in origin_request("GET", b"/", "2606:4700::1", 8080, headers)
+    assert forward_request("GET", b"/", "2606:4700::1", 8080, headers).startswith(
+        b"GET http://[2606:4700::1]:8080/ HTTP/1.1")
 
 
 def test_a_bad_host_does_not_disable_proxies():

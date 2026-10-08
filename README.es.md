@@ -966,7 +966,7 @@ Solo para cosas que no importan. Los proxies públicos los gestionan desconocido
 
 Lo que viene está en las [issues abiertas](../../issues); las ideas y deseos son bienvenidos como [issue](../../issues/new/choose). Durante Hacktoberfest hay [issues aptas para principiantes](../../issues?q=is%3Aopen+label%3Ahacktoberfest) con indicaciones de por dónde empezar.
 
-Publicado en v1.24 y v1.25: `--recheck -` para listas que pasas por tubería, qué proxies llegan a Discord, un README que puedes probar en cinco segundos y el servidor MCP en la imagen de Docker.
+Publicado de la v1.24 a la v1.26: `--recheck -` para listas que pasas por tubería, qué proxies llegan a Discord, un README que puedes probar en cinco segundos, el servidor MCP en la imagen de Docker, credenciales escritas como `ip:port:user:pass` y un dataset de Hugging Face que se carga en una línea.
 
 Publicado en v1.22 y v1.23: un panel en vivo para el servidor rotativo, `--export pac` y un `proxy.pac` horario, un «mejor primero» que cuenta la probabilidad de que un proxy siga activo, las listas en un repositorio propio ([free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)), snapshots diarios en Hugging Face, `brew install`, un README en chino, Python 3.14 y una receta para Burp Suite, ZAP y mitmproxy.
 

@@ -298,7 +298,9 @@ MAX_FILES_PER_REPO = 12
 _CONFIG_PATH_RE = re.compile(
     r"^(?!(?:.*/)?\.)(?:.*/)?(sources?|urls?|providers?|proxy[_-]?sources?|sites|config|settings)[^/]*"
     r"\.(txt|json|ya?ml|toml|py|js|ts)$", re.I)
-_URL_RE = re.compile(rb"https?://[^\s\"'<>)\]}`,]+")
+# Keep a bracketed IPv6 authority intact, but still stop at a closing list/Markdown
+# bracket after the URL. The parser below validates the extracted authority.
+_URL_RE = re.compile(rb"https?://(?:\[[^\s\"'<>)\[\]}`,]+\])?[^\s\"'<>)\]}`,]+")
 _LISTISH_RE = re.compile(r"proxy|proxies|socks|\.txt$", re.I)
 MAX_CONFIGS_PER_REPO = 3
 MAX_MINED_CHECKS = 600      # URLs from those files fetched once per discovery to see whether they hold proxies
@@ -341,7 +343,12 @@ def mined_urls(data: bytes) -> List[str]:
         url = raw.decode("utf-8", "replace").rstrip(".;:")
         if "{" in url or "}" in url or "$" in url or _REPO_REJECT_RE.search(url):
             continue
-        parts = urlsplit(url)
+        try:
+            parts = urlsplit(url)
+        except ValueError:
+            # Third-party configs can contain broken brackets or invalid Unicode
+            # authorities. One malformed URL must not abort the whole discovery.
+            continue
         if not _public_host(parts):  # someone else's file must not point us at localhost or the local network
             continue
         path = parts.path.lower()

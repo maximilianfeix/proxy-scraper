@@ -14,7 +14,7 @@
 [![Stars](https://img.shields.io/github/stars/maximilianfeix/proxy-scraper?style=flat-square&color=D4F77A&labelColor=121113)](https://github.com/maximilianfeix/proxy-scraper/stargazers)
 [![License](https://img.shields.io/badge/license-MIT-D4F77A?style=flat-square&labelColor=121113)](LICENSE)
 
-[English](README.md) · **简体中文**
+[English](README.md) · **简体中文** · [Español](README.es.md)
 
 [安装](#install) · [每小时更新的代理列表](#live-list) · [代理池 API（兼容 proxy_pool）](#pool-api) · [轮换代理服务器](#proxy-server) · [Python](#python) · [AI 智能体（MCP）](#mcp) · [常见问题](#faq)
 

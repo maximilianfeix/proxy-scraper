@@ -87,3 +87,58 @@ def test_a_bad_host_does_not_disable_proxies():
     pool = asyncio.run(go())
     assert len(pool.usable) == 3
     assert all(e.fail == 0 for e in pool.entries)
+
+
+def test_ipv6_literals_are_bracketed_wherever_a_request_names_the_host():
+    from proxyscraper.judges import Judge
+    from proxyscraper.netio import authority
+    from proxyscraper.runsteps import browser_get
+    from proxyscraper.targets import parse_target
+
+    assert authority("2606:4700::1", 443) == "[2606:4700::1]:443"
+    assert authority("example.com", 443) == "example.com:443"
+
+    target = parse_target("https://[2606:4700::1]:8443/x")
+    assert (target.host, target.url) == ("2606:4700::1", "https://[2606:4700::1]:8443/x")
+    assert (target.host_header, target.label) == ("[2606:4700::1]:8443", "[2606:4700::1]:8443")
+    assert parse_target("http://[2606:4700::1]/").host_header == "[2606:4700::1]"
+
+    assert Judge("2606:4700::1").authority == "[2606:4700::1]"
+    assert Judge("2606:4700::1", "/ip", 8080).authority == "[2606:4700::1]:8080"
+    assert b"\r\nHost: [2606:4700::1]\r\n" in browser_get("2606:4700::1", "/")
+    assert b"\r\nHost: example.com\r\n" in browser_get("example.com", "/")
+
+
+def test_connect_line_brackets_an_ipv6_target():
+    """An HTTP proxy gets CONNECT [2606:4700::1]:443 – without the brackets it answers 400 and looks dead."""
+    import socket
+
+    from proxyscraper import checker as ck
+    from proxyscraper.handshake import parse_endpoint
+
+    seen = []
+
+    async def proxy(reader, writer):
+        seen.append(await reader.readuntil(b"\r\n\r\n"))
+        writer.write(b"HTTP/1.1 200 Connection established\r\n\r\n")
+        await writer.drain()
+        writer.close()
+
+    async def go():
+        server = await asyncio.start_server(proxy, "127.0.0.1", 0)
+        port = server.sockets[0].getsockname()[1]
+        loop = asyncio.get_running_loop()
+        sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+        sock.setblocking(False)
+        try:
+            await loop.sock_connect(sock, ("127.0.0.1", port))
+            c = ck.Checker("3.3.3.3", set(), timeout=3, connect_timeout=2)
+            ep = parse_endpoint(f"127.0.0.1:{port}")
+            return await c._open_tunnel(loop, sock, "http", ep, "2606:4700::1", b"\x00" * 4, 443)
+        finally:
+            sock.close()
+            server.close()
+            await server.wait_closed()
+
+    assert asyncio.run(go()) is True
+    assert seen[0] == b"CONNECT [2606:4700::1]:443 HTTP/1.1\r\nHost: [2606:4700::1]:443\r\n\r\n"

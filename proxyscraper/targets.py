@@ -5,6 +5,8 @@ from __future__ import annotations
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
+from .netio import host_header
+
 
 @dataclass(frozen=True)
 class Target:
@@ -17,14 +19,13 @@ class Target:
     @property
     def host_header(self) -> str:
         """Host header: with the port if it differs from the default – otherwise you may end up in the wrong vhost."""
-        return self.host if self.port == (443 if self.tls else 80) else f"{self.host}:{self.port}"
+        return host_header(self.host, self.port, self.tls)
 
     @property
     def label(self) -> str:
         """Short name for display: https://www.google.com/ -> google.com"""
         host = self.host[4:] if self.host.startswith("www.") else self.host
-        default = 443 if self.tls else 80
-        return host if self.port == default else f"{host}:{self.port}"
+        return host_header(host, self.port, self.tls)
 
 
 def parse_target(text: str) -> Target:
@@ -47,8 +48,7 @@ def parse_target(text: str) -> Target:
     elif port <= 0:  # don't silently replace ":0" with the default port
         raise ValueError(f"invalid port in {text!r}")
     path = (u.path or "/") + (f"?{u.query}" if u.query else "")
-    default = 443 if tls else 80
-    netloc = u.hostname if port == default else f"{u.hostname}:{port}"
+    netloc = host_header(u.hostname, port, tls)
     return Target(url=f"{u.scheme}://{netloc}{path}", host=u.hostname, port=port, path=path, tls=tls)
 
 

@@ -47,7 +47,7 @@ flowchart LR
 | `history.py` | which proxies worked before – they are checked first next time |
 | `output.py` · `exporters.py` · `publish.py` · `mirror.py` | result files, proxychains/Clash/sing-box/curl configs, the live list and its website, and the lists alone in the free-proxy-list repo |
 | `sites.py` · `speed.py` · `runsteps.py` | extra steps on a finished run in the hourly workflow: which big sites let each proxy through, how fast it downloads. `runsteps.py` is what they share – loading and atomically saving the run's rows, the HTTPS-capable ones, a limit on parallel probes, verified TLS tunnels |
-| `pages.py` · `proxypages.py` · `charts.py` · `report.py` | what the live list publishes besides the data: a page per protocol and country, a page per proxy with its week of checks, the SVG charts in the README, the weekly report with its feed |
+| `pages.py` · `proxypages.py` · `sourcepages.py` · `charts.py` · `report.py` | what the live list publishes besides the data: a page per protocol and country, a page per proxy with its week of checks, the ranking of the sources, the SVG charts in the README, the weekly report with its feed |
 | `action.py` | the GitHub Action (`action.yml` in the root): picks proxies from the live list for a workflow |
 | `site/` | the live list website (one static `index.html` plus images), published next to the JSON files |
 | `server/` | the rotating proxy server (`--serve`) |

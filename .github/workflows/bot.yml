@@ -32,7 +32,10 @@ jobs:
     concurrency: deploy-bot   # never two deploys at the same time
     env:
       HOST: ${{ secrets.DEPLOY_HOST }}
-      USER_AT_HOST: root@${{ secrets.DEPLOY_HOST }}   # install.sh sets up a user, a venv and a systemd unit
+      # install.sh sets up a user, a venv and a systemd unit, so it needs root: either log in as root, or set the
+      # repository variable DEPLOY_USER to a user that may run sudo without a password (for servers with root login off)
+      USER_AT_HOST: ${{ vars.DEPLOY_USER || 'root' }}@${{ secrets.DEPLOY_HOST }}
+      SUDO: ${{ (vars.DEPLOY_USER && vars.DEPLOY_USER != 'root') && 'sudo -n' || '' }}
     steps:
       - name: Check the secrets
         id: secrets
@@ -72,9 +75,10 @@ jobs:
         if: steps.secrets.outputs.ready == 'true'
         run: |
           tar -C bot --exclude tests --exclude '__pycache__' -czf - . | ssh -o BatchMode=yes "$USER_AT_HOST" \
-            'set -e; rm -rf /opt/proxybot/app.new; mkdir -p /opt/proxybot/app.new; tar -xzf - -C /opt/proxybot/app.new;
+            "$SUDO sh -c 'set -e; rm -rf /opt/proxybot/app.new; mkdir -p /opt/proxybot/app.new;
+             tar -xzf - --no-same-owner -C /opt/proxybot/app.new;
              rm -rf /opt/proxybot/app.old; [ -d /opt/proxybot/app ] && mv /opt/proxybot/app /opt/proxybot/app.old;
-             mv /opt/proxybot/app.new /opt/proxybot/app'
+             mv /opt/proxybot/app.new /opt/proxybot/app'"
 
       - name: Write the tokens
         if: steps.secrets.outputs.ready == 'true'
@@ -83,8 +87,8 @@ jobs:
           TELEGRAM: ${{ secrets.TELEGRAM_TOKEN }}
         run: |
           printf 'DISCORD_TOKEN=%s\nTELEGRAM_TOKEN=%s\n' "$TOKEN" "$TELEGRAM" \
-            | ssh -o BatchMode=yes "$USER_AT_HOST" 'umask 077; cat > /etc/proxybot.env'
+            | ssh -o BatchMode=yes "$USER_AT_HOST" "$SUDO sh -c 'umask 077; cat > /etc/proxybot.env'"
 
       - name: Install and restart
         if: steps.secrets.outputs.ready == 'true'
-        run: ssh -o BatchMode=yes "$USER_AT_HOST" 'bash /opt/proxybot/app/deploy/install.sh'
+        run: ssh -o BatchMode=yes "$USER_AT_HOST" "$SUDO bash /opt/proxybot/app/deploy/install.sh"

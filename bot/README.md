@@ -35,8 +35,11 @@ Answers to commands are only visible to whoever asked, so `#commands` doesn't fi
    |---|---|
    | `DISCORD_TOKEN` | the bot token |
    | `DEPLOY_HOST` | IP or host name of the server |
-   | `DEPLOY_SSH_KEY` | private key that may log in as `root` |
+   | `DEPLOY_SSH_KEY` | private key that may log in as `root`, or as the user named below |
    | `DEPLOY_KNOWN_HOSTS` | output of `ssh-keyscan -t ed25519 <host>`, so the workflow never talks to a server it doesn't know |
+
+   If the server does not allow `root` to log in, set the repository **variable** `DEPLOY_USER` to a user that may
+   run `sudo` without a password. The workflow then logs in as that user and runs the same steps through `sudo`.
 
 4. **Deploy**: every push to `main` that changes `bot/` runs [`.github/workflows/bot.yml`](../.github/workflows/bot.yml): tests, then the code goes to `/opt/proxybot/app`, the token to `/etc/proxybot.env` (mode 600) and [`deploy/install.sh`](deploy/install.sh) sets up a system user, a venv and a hardened systemd service. *Run workflow* on the Actions page redeploys by hand.
 

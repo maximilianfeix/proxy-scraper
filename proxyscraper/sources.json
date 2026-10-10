@@ -390,7 +390,8 @@
    "https://raw.githubusercontent.com/trio666/proxy-checker/main/all.txt",
    "https://raw.githubusercontent.com/vmheaven/VMHeaven.io-Free-Proxy-List/main/allproxy.txt",
    "https://raw.githubusercontent.com/watchttvv/free-proxy-list/main/proxy.txt",
-   "https://raw.githubusercontent.com/yuanjv/proxy-urls/main/dupless_proxy_urls.txt"
+   "https://raw.githubusercontent.com/yuanjv/proxy-urls/main/dupless_proxy_urls.txt",
+   "https://rcloak.com/api/proxies/raw?protocol=all"
   ]
  }
 }

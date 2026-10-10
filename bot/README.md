@@ -24,10 +24,13 @@ Answers to commands are only visible to whoever asked, so `#commands` doesn't fi
 2. **Invite it** with this link (replace `APPLICATION_ID` with the ID from *General Information*):
 
    ```
-   https://discord.com/oauth2/authorize?client_id=APPLICATION_ID&scope=bot+applications.commands&permissions=268561456
+   https://discord.com/oauth2/authorize?client_id=APPLICATION_ID&scope=bot+applications.commands&permissions=2251800082246704
    ```
 
-   The permissions are: view channels, send messages, embed links, attach files, read message history, manage messages (to replace its old lists and pin `#about`), manage channels and roles (to create its channels read-only) and manage server (to set the server icon once, if there is none).
+   The permissions are: view channels, send messages, embed links, attach files, read message history, manage messages (to replace its old lists), pin messages (for `#about`), manage channels and roles (to create its channels read-only) and manage server (to set the server icon once, if there is none).
+
+   Invited the bot before pinning became a permission of its own? It still works; only `#about` stays unpinned
+   until you give its role *Pin Messages* in the server settings or invite it again with the link above.
 
 3. **Add the secrets** to the repository (*Settings → Secrets and variables → Actions*):
 

@@ -175,6 +175,43 @@ def test_a_broken_protocol_channel_does_not_repeat_the_summary(tmp_path, snap):
     assert len(http.sent) == 1 and len(socks5.sent) == 1  # the other channels still got their list
 
 
+def test_setup_goes_on_when_the_bot_may_not_pin():
+    import asyncio
+
+    forbidden = discord.Forbidden(type("Response", (), {"status": 403, "reason": "Forbidden"})(), "no pin")
+
+    class Message:
+        pinned, guild, pins = False, "test", 0
+
+        async def pin(self):
+            Message.pins += 1
+            raise forbidden
+
+    class Channel(FakeChannel):
+        async def send(self, **kwargs):
+            self.sent.append(kwargs)
+            return Message()
+
+        def history(self, **kwargs):  # an empty channel: nothing of the bot's is there yet
+            return super().history()
+
+    channel = Channel("about")
+    asyncio.run(layout._pin_about(channel, object()))  # must not raise
+    assert len(channel.sent) == 1 and Message.pins == 1
+
+
+def test_the_invite_link_asks_for_what_the_bot_uses():
+    from pathlib import Path
+
+    readme = (Path(__file__).resolve().parents[1] / "README.md").read_text(encoding="utf-8")
+    number = int(readme.split("permissions=")[1].split()[0].strip("`"))
+    granted = discord.Permissions(number)
+    for name in ("view_channel", "send_messages", "embed_links", "attach_files", "read_message_history",
+                 "manage_messages", "pin_messages", "manage_channels", "manage_roles", "manage_guild"):
+        assert getattr(granted, name), name
+    assert not granted.administrator and not granted.mention_everyone
+
+
 def test_blocklist_filter_and_unknown_values(snap):
     assert snap.proxies[0].blocklisted is True and snap.proxies[1].blocklisted is None
     assert "2.2.2.2:1080" not in [p.address for p in select(snap.proxies, not_blocklisted=True)]

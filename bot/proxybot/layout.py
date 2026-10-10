@@ -79,10 +79,19 @@ async def _pin_about(channel: discord.TextChannel, me: discord.Member) -> None:
                     [f.value for f in message.embeds[0].fields] != [f.value for f in embed.fields]:
                 await message.edit(embed=embed)
             if not message.pinned:
-                await message.pin()
+                await _pin(message)
             return
     message = await channel.send(embed=embed)
-    await message.pin()
+    await _pin(message)
+
+
+async def _pin(message: discord.Message) -> None:
+    """Pinning needs its own permission since Discord split it from "manage messages". Without it the about
+    message stays unpinned – that must not stop the rest of the setup (channels, slash commands, the first post)."""
+    try:
+        await message.pin()
+    except discord.Forbidden:
+        log.warning("%s: cannot pin #about – the bot lacks the 'pin messages' permission", message.guild)
 
 
 async def clear_own_messages(channel: discord.TextChannel, me: discord.Member) -> None:

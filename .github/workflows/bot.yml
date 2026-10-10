@@ -33,9 +33,10 @@ jobs:
     env:
       HOST: ${{ secrets.DEPLOY_HOST }}
       # install.sh sets up a user, a venv and a systemd unit, so it needs root: either log in as root, or set the
-      # repository variable DEPLOY_USER to a user that may run sudo without a password (for servers with root login off)
-      USER_AT_HOST: ${{ vars.DEPLOY_USER || 'root' }}@${{ secrets.DEPLOY_HOST }}
-      SUDO: ${{ (vars.DEPLOY_USER && vars.DEPLOY_USER != 'root') && 'sudo -n' || '' }}
+      # secret DEPLOY_USER to a user that may run sudo without a password (for servers with root login off).
+      # A secret, not a variable: this repository is public and the login name should not show up in the logs.
+      USER_AT_HOST: ${{ secrets.DEPLOY_USER || 'root' }}@${{ secrets.DEPLOY_HOST }}
+      SUDO: ${{ (secrets.DEPLOY_USER && secrets.DEPLOY_USER != 'root') && 'sudo -n' || '' }}
     steps:
       - name: Check the secrets
         id: secrets

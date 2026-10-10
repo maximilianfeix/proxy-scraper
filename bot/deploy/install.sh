@@ -26,8 +26,10 @@ systemctl restart proxybot
 
 # give it a moment to log in; a bad token or a crash shows up here instead of silently later
 sleep 8
+# This output ends up in the log of a public repository: on failure show the bot's own lines without the
+# server's host name (-o cat); on success say only that it runs. The journal on the server has the rest.
 if ! systemctl is-active -q proxybot; then
-  journalctl -u proxybot -n 40 --no-pager >&2
+  journalctl -u proxybot -n 40 --no-pager -o cat >&2
   exit 1
 fi
-journalctl -u proxybot -n 5 --no-pager
+echo "proxybot is running"

@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- Which free proxy lists actually work: the website has a [ranking of the sources](https://maximilianfeix.github.io/proxy-scraper/sources/), rewritten every hour from what the runs learned. Every source with the proxies it lists, how many were checked, how many passed every check and the share, plus whether the list is still maintained. The files of one repository count as one source, and the numbers are those of an average recent run. All of it is in `sources.json` too
+
 ### Fixed
 - The MCP server now starts after a plain `uv sync`: the MCP SDK is also a default uv dependency group, not only the `mcp` extra. Glama builds the server that way, and without the SDK its build found no tools, so its page stayed on 1.25.0. CI now builds the server the same way ([#303](https://github.com/maximilianfeix/proxy-scraper/issues/303))
 

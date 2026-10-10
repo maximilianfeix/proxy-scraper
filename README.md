@@ -204,6 +204,8 @@ Every protocol and country also has its own page with a plain download, e.g. [SO
 curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt | head
 ```
 
+**Where they come from:** [which free proxy lists actually work](https://maximilianfeix.github.io/proxy-scraper/sources/) ranks all 700+ sources every hour – how many proxies each one lists, how many passed every check and the share. The same as data: [sources.json](https://maximilianfeix.github.io/proxy-scraper/sources.json).
+
 **Over time:** every day the first run's `proxies.json` is kept for good as a gzipped asset of the release of that year, like [snapshots-2026](../../releases/tag/snapshots-2026) – `proxies-2026-09-28.json.gz` and so on, for anyone who wants to look at free proxies over weeks and months.
 
 Every file is also on GitHub Pages, which sits behind a CDN, isn't rate limited like raw.githubusercontent and sends CORS headers, so it works straight from the browser: `https://maximilianfeix.github.io/proxy-scraper/socks5.txt`. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) works too, but can lag behind by a few hours.
@@ -1026,6 +1028,7 @@ proxyscraper/
 ├── agent.py            MCP tools without the SDK: live list, filters, fetch through proxies
 ├── mcp_server.py       MCP server (proxy-scraper-mcp) for AI agents
 ├── publish.py          live list for GitHub Actions
+├── sourcepages.py      the ranking of the sources on the website
 ├── mirror.py           the same lists in their own repo (free-proxy-list)
 ├── paths.py            where state and results are stored
 ├── compat.py           differences between Unix and Windows

@@ -30,6 +30,8 @@ from .proxypages import write_proxy_pages
 from .ranking import best_first
 from .report import weekly_facts, write_report
 from .sites import SITES
+from .sourcepages import write_source_pages
+from .sources import SourceStats
 
 SKIP_EXIT_CODE = 78
 SITE = Path(__file__).resolve().parent / "site"  # index.html plus the images it links (logo, preview, touch icon)
@@ -256,7 +258,7 @@ def load_streaks(path: Optional[Path]) -> Dict[str, int]:
 
 def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None,
             history: Optional[Path] = None, streaks: Optional[Path] = None, seen: Optional[Path] = None,
-            feed: Optional[Path] = None) -> int:
+            feed: Optional[Path] = None, sources: Optional[Path] = None) -> int:
     rows = load_rows(run_dir)
     if len(rows) < minimum:
         print(f"Only {len(rows)} hits (< {minimum}) – the old list stays online.")
@@ -322,7 +324,9 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     gone = {url: (e["bits"], uptime(e["bits"], runs, now, 7 * 24), e["first_seen"])
             for url, e in listed.items() if url not in current} if run_times else {}
     proxy_pages = write_proxy_pages(rows, out, now, timelines, run_times, gone=gone)
-    write_pages(rows, out, now, extra=proxy_pages)
+    # which lists the proxies came from: the learned source statistics as a ranking (sourcepages.py)
+    quality = SourceStats(sources) if sources is not None and sources.exists() else None
+    write_pages(rows, out, now, extra=[*write_source_pages(quality, out, now), *proxy_pages])
     write_json(out / "history.json", runs)
     # the weekly report: lifetimes, sites, countries – a page, markdown and a short post (report.py)
     write_report(weekly_facts(rows, runs, {url: e["bits"] for url, e in listed.items()}, now), out, previous_feed=feed)
@@ -352,9 +356,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--seen", type=Path,
                    help="seen.json from last time (which runs each proxy was listed in, for the uptime)")
     p.add_argument("--feed", type=Path, help="report/feed.xml from last time (the weekly entries it keeps)")
+    p.add_argument("--sources", type=Path,
+                   help="data/source_stats.json of this run (for the ranking of the sources on the website)")
     args = p.parse_args(argv)
     return publish(args.run_dir, args.out_dir, args.min, history=args.history, streaks=args.streaks, seen=args.seen,
-                   feed=args.feed)
+                   feed=args.feed, sources=args.sources)
 
 
 if __name__ == "__main__":

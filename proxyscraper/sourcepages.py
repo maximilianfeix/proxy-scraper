@@ -8,6 +8,7 @@ of its proxies that worked. The files of one repository count as one source.
 from __future__ import annotations
 
 import json
+import statistics
 from collections import Counter
 from datetime import datetime, timezone
 from html import escape
@@ -109,20 +110,20 @@ def _table(caption: str, sources: List[dict]) -> str:
 def page(ranking: List[dict], updated: datetime) -> str:
     root = "../"
     when = updated.strftime("%d %b %Y, %H:%M UTC")
-    checked = sum(s["checked"] for s in ranking)
-    working = sum(s["working"] for s in ranking)
-    overall = 100 * working / checked if checked else 0.0
+    # the share of a typical source. Not the sum over all of them: a working proxy is carried by many lists
+    # and a dead one by few, so adding the sources up would count the good proxies many times over
+    typical = statistics.median(s["share"] for s in ranking)
     alive = sum(s["status"] == "active" for s in ranking)
     empty = sum(not s["working"] for s in ranking)
     best = sorted((s for s in ranking if s["checked"] >= MIN_CHECKED and s["working"]),
                   key=lambda s: (-s["share"], -s["working"], s["name"]))[:BEST_ROWS]
     title = "Which free proxy lists actually work?"
-    description = (f"{len(ranking):,} sources of free proxies, checked every hour: {overall:.1f} % of their proxies "
-                   "pass a real handshake, a honeypot check and a content check. Ranked by working proxies "
-                   "and by share.")
+    description = (f"{len(ranking):,} sources of free proxies, checked every hour. In a typical one "
+                   f"{typical:.1f} % of the proxies pass a real handshake, a honeypot check and a content check. "
+                   "Ranked by working proxies and by share.")
     lede = (f"{len(ranking):,} public sources of free proxies are collected and checked every hour. In the latest "
-            f"runs {overall:.1f} % of the proxies checked from them passed every check. This is how each source "
-            f"did ({when}).")
+            f"runs a typical source had {typical:.1f} % of its checked proxies pass every check. This is how each "
+            f"one did ({when}).")
     best_html = "" if not best else (
         "<section><h2>Highest share of working proxies</h2>"
         + _table(f"Highest share among the sources with at least {MIN_CHECKED:,} proxies checked per run.", best)
@@ -167,7 +168,7 @@ def page(ranking: List[dict], updated: datetime) -> str:
     <div><dt>{len(ranking):,}</dt><dd>sources checked</dd></div>
     <div><dt>{alive:,}</dt><dd>still maintained</dd></div>
     <div><dt>{empty:,}</dt><dd>without a single working proxy</dd></div>
-    <div><dt>{overall:.1f} %</dt><dd>of the checked proxies work</dd></div>
+    <div><dt>{typical:.1f} %</dt><dd>work in a typical source (median)</dd></div>
   </dl>
   <section><h2>Most working proxies</h2>
   {_table(f"The {min(len(ranking), ROWS):,} sources that delivered the most working proxies per run.", ranking[:ROWS])}

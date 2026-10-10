@@ -92,6 +92,9 @@ def test_page_and_json(tmp_path):
     assert 'href="https://github.com/a/lists"' in page and "2.0 %" in page
     assert "<script>/" not in page and "b/&lt;script&gt;" in page
     assert '<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/sources/">' in page
+    # the headline is the typical source (median of 2.0, 10.0 and 90.0), not the sum over all of them:
+    # a working proxy is in many lists, so the sum would count it many times
+    assert "<dt>10.0 %</dt><dd>work in a typical source (median)</dd>" in page
     # ten checks say too little for the table of the best shares, however good they look
     best = page.split("Highest share", 1)[1].split("</table>", 1)[0]
     assert "b/&lt;script&gt;" in best and "tiny/x" not in best

@@ -26,7 +26,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
 from .handshake import Endpoint, parse_endpoint, socks4, socks5, socks5_ipv4, stream_io, with_proxy_auth
 from .judges import DEFAULT_JUDGE, Judge
-from .netio import USER_AGENT, dechunk, http_request, read_response, ssl_context
+from .netio import USER_AGENT, authority, dechunk, http_request, read_response, ssl_context
 from .parsing import normalize_public_ip, split_key
 from .targets import Target
 
@@ -370,7 +370,8 @@ class Checker:
             return buf
 
         if ptype == "http":
-            connect = f"CONNECT {host}:{port} HTTP/1.1\r\nHost: {host}:{port}\r\n\r\n".encode()
+            target = authority(host, port)
+            connect = f"CONNECT {target} HTTP/1.1\r\nHost: {target}\r\n\r\n".encode()
             await loop.sock_sendall(sock, with_proxy_auth(connect, ep))
             head = b""
             while b"\r\n\r\n" not in head and len(head) < 8192:

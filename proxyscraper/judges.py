@@ -19,7 +19,7 @@ import time
 from dataclasses import dataclass
 from typing import Awaitable, Callable, List, Optional
 
-from .netio import read_response
+from .netio import host_header, read_response
 
 
 @dataclass(frozen=True)
@@ -31,7 +31,7 @@ class Judge:
     @property
     def authority(self) -> str:
         """host[:port] for Host headers and URLs."""
-        return self.host if self.port == 80 else f"{self.host}:{self.port}"
+        return host_header(self.host, self.port, False)
 
 
 # order = suitability. Measured with the same 300 most recently working proxies (September 2026):

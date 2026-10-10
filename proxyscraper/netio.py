@@ -94,6 +94,11 @@ def host_header(hostname: str, port: Optional[int], https: bool) -> str:
     return host if port is None or port == (443 if https else 80) else f"{host}:{port}"
 
 
+def authority(hostname: str, port: int) -> str:
+    """host:port for a CONNECT line – always with the port, IPv6 literals in brackets."""
+    return f"[{hostname}]:{port}" if ":" in hostname else f"{hostname}:{port}"
+
+
 async def http_get(
     url: str, timeout: float = 15.0, max_redirects: int = 3, headers: Optional[Dict[str, str]] = None
 ) -> bytes:

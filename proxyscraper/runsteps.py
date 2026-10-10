@@ -65,9 +65,9 @@ class Tunnels:
 
 def browser_get(host: str, path: str, *extra: str) -> bytes:
     """A plain GET the way a browser would send it (so sites answer as they would to a person)."""
-    from .netio import USER_AGENT
+    from .netio import USER_AGENT, host_header
 
-    lines = [f"GET {path} HTTP/1.1", f"Host: {host}", f"User-Agent: {USER_AGENT}",
+    lines = [f"GET {path} HTTP/1.1", f"Host: {host_header(host, None, True)}", f"User-Agent: {USER_AGENT}",
              "Accept: text/html,application/xhtml+xml,*/*;q=0.8", "Accept-Language: en-US,en;q=0.8", *extra,
              "Connection: close"]
     return ("\r\n".join(lines) + "\r\n\r\n").encode()

@@ -1052,6 +1052,8 @@ Thanks to everyone who helped build it – new sources, countries, Python 3.14, 
 
 Want to join? [Beginner-friendly issues](../../issues?q=is%3Aopen+label%3A%22good+first+issue%22) say where to start.
 
+From the same author: [dejabuilt](https://github.com/maximilianfeix/dejabuilt), an agent skill that checks GitHub before you build – it tells you whether a project idea already exists, with the numbers.
+
 <a href="https://star-history.com/#maximilianfeix/proxy-scraper&Date">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=maximilianfeix/proxy-scraper&type=Date&theme=dark">

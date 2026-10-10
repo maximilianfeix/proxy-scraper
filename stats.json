@@ -1,0 +1,42 @@
+{
+ "updated": "2026-10-10T19:32:11+00:00",
+ "total": 1347,
+ "by_type": {
+  "http": 257,
+  "socks4": 284,
+  "socks5": 806
+ },
+ "https": 707,
+ "elite": 1310,
+ "datacenter": 692,
+ "blocklisted": 685,
+ "stable": 136,
+ "sites": {
+  "google": 304,
+  "reddit": 160,
+  "amazon": 59,
+  "instagram": 126,
+  "tiktok": 389,
+  "discord": 355
+ },
+ "run_hours": 1,
+ "countries": {
+  "US": 391,
+  "DE": 99,
+  "ID": 82,
+  "FR": 80,
+  "BR": 62,
+  "IN": 54,
+  "CN": 51,
+  "NL": 47,
+  "SG": 39,
+  "RU": 39,
+  "IL": 31,
+  "KR": 29,
+  "JP": 25,
+  "BD": 21,
+  "HK": 21
+ },
+ "median_latency": 2041,
+ "median_speed_kbps": 30
+}

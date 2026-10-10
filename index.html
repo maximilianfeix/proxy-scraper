@@ -1,0 +1,1472 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>proxy-scraper – free proxies that actually work</title>
+<meta name="google-site-verification" content="dpSxu8MDNzVv2DGLn2hf8ShwV6xV29y8Pk-GP6HLRlo">
+<meta name="description" content="Free HTTP, SOCKS4 and SOCKS5 proxies that actually work. Re-checked every hour, honeypots and proxies that tamper with content removed.">
+<meta name="theme-color" content="#121113">
+<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://maximilianfeix.github.io/proxy-scraper/">
+<meta property="og:site_name" content="proxy-scraper">
+<meta property="og:title" content="proxy-scraper – free proxies that actually work">
+<meta property="og:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<meta property="og:image:width" content="1280">
+<meta property="og:image:height" content="640">
+<meta property="og:image:alt" content="proxy-scraper logo and the line: free proxies that actually work">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta property="og:description" content="Every proxy on this list passed a real handshake, a honeypot check and a content check. Re-checked every hour.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23D4F77A'/%3E%3Cpath d='M13 31.5 26.5 44.5 51 18' fill='none' stroke='%23121113' stroke-width='5.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='13' cy='31.5' r='4.6' fill='%23121113'/%3E%3Ccircle cx='51' cy='18' r='4.6' fill='%23121113'/%3E%3Ccircle cx='26.5' cy='44.5' r='7.6' fill='%23D4F77A' stroke='%23121113' stroke-width='5'/%3E%3C/svg%3E">
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "Are free proxies safe to use?", "acceptedAnswer": {"@type": "Answer", "text": "They're run by strangers, so treat them as untrusted. Anything that isn't encrypted can be read by whoever runs the proxy – never send passwords or personal data through one. Every proxy on this list has passed a content check (it didn't change a known page), and the HTTPS ones tunnel TLS that's verified end to end, so an https:// site can't be read or altered. That makes them fine for scraping public pages or seeing a site from another country, not for your bank."}}, {"@type": "Question", "name": "Why do most free proxies not work?", "acceptedAnswer": {"@type": "Answer", "text": "They don't live long. Of the proxies that drop off this list again, most are gone by the next hourly check, and only a few last a whole day – the weekly report tracks it. Many lists never re-check, so a large share of what they hold is long dead, and some of what still answers are honeypots or proxies that inject ads."}}, {"@type": "Question", "name": "How often is the list updated?", "acceptedAnswer": {"@type": "Answer", "text": "Every hour. GitHub Actions collects proxies from 700+ public lists, checks them and publishes whatever passed. This page loads the new list by itself when a run lands."}}, {"@type": "Question", "name": "Can I use it in my own projects?", "acceptedAnswer": {"@type": "Answer", "text": "Yes. The code is open source under the MIT license, and the lists are free to use, including in commercial projects. The proxies themselves belong to other people, so stick to the terms of the sites you visit through them."}}, {"@type": "Question", "name": "How do I use it from Python or an AI agent?", "acceptedAnswer": {"@type": "Answer", "text": "From Python: pip install proxy-scraper-cli, then live_proxies() returns the checked list with filters for country, protocol, uptime and the sites a proxy gets through to. AI agents like Claude Code or Cursor can use the MCP server, which gives them working proxies and can load pages through them."}}, {"@type": "Question", "name": "A proxy from the list doesn't work for me – why?", "acceptedAnswer": {"@type": "Answer", "text": "It worked from GitHub's servers in the last run, but free proxies come and go, and some block certain networks. proxy-scraper --recheck live checks the list again from your own connection in about 30 seconds and keeps what works from there."}}]}
+</script>
+<script type="application/ld+json">
+{"@context": "https://schema.org", "@type": "Dataset",
+ "name": "Free proxy list, checked every hour",
+ "description": "HTTP, SOCKS4 and SOCKS5 proxies from 700+ public lists that passed a real handshake, a honeypot check on two sites and a content check. With country, provider, latency, anonymity and HTTPS support.",
+ "url": "https://maximilianfeix.github.io/proxy-scraper/",
+ "license": "https://opensource.org/licenses/MIT",
+ "isAccessibleForFree": true,
+ "creator": {"@type": "Person", "name": "maximilianfeix", "url": "https://github.com/maximilianfeix"},
+ "keywords": ["free proxy list", "socks5 proxies", "http proxies", "socks4 proxies", "proxy checker"],
+ "distribution": [
+  {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://maximilianfeix.github.io/proxy-scraper/proxies.json"},
+  {"@type": "DataDownload", "encodingFormat": "text/csv", "contentUrl": "https://maximilianfeix.github.io/proxy-scraper/proxies.csv"},
+  {"@type": "DataDownload", "encodingFormat": "text/plain", "contentUrl": "https://maximilianfeix.github.io/proxy-scraper/all.txt"}]}
+</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
+<script>
+  // before the first paint: set the theme and decide whether the intro plays (once per session)
+  (function () {
+    var html = document.documentElement, intro = false;
+    html.classList.add("js");
+    // saved choice first, otherwise like the system (dark if it doesn't say)
+    var t = null;
+    try { t = localStorage.getItem("theme"); } catch (e) {}
+    html.dataset.theme = t || (matchMedia("(prefers-color-scheme: light)").matches ? "light" : "dark");
+    try {
+      intro = !sessionStorage.getItem("seen") && !matchMedia("(prefers-reduced-motion: reduce)").matches;
+      sessionStorage.setItem("seen", "1");
+    } catch (e) {}
+    if (intro) html.classList.add("intro");
+    // independent of the rest of the script: the page becomes visible in any case
+    var ready = function () { html.classList.add("ready"); };
+    if (intro) setTimeout(ready, 1500);
+    else document.addEventListener("DOMContentLoaded", function () { requestAnimationFrame(function () { requestAnimationFrame(ready); }); });
+  })();
+</script>
+<style>
+  :root {
+    --bg: #121113; --panel: #1A191C; --raised: #232226; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0;
+    --signal: #D4F77A; --signal-ink: #D4F77A; --on-signal: #121113; --control: #6B6872; --reject: #F0876A;
+    --http: #8DB8FF; --socks4: #C7A6FF; --socks5: #D4F77A; --warn: #F5C46B; --bad: #FF8C7A;
+    --ease: cubic-bezier(.16, 1, .3, 1); --ease-io: cubic-bezier(.76, 0, .24, 1);
+    --wrap: 1320px; --gutter: clamp(16px, 4vw, 48px); --nav-h: 68px;
+    color-scheme: dark;
+  }
+  :root[data-theme="light"] {
+    --bg: #EFEFEC; --panel: #FFFFFF; --raised: #F6F6F3; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
+    --signal: #D4F77A; --signal-ink: #3F5A00; --on-signal: #121113; --control: #817F79; --reject: #B4461F;
+    --http: #1F5FD1; --socks4: #7442D6; --socks5: #3F5A00; --warn: #9A5B00; --bad: #C23A26;
+    color-scheme: light;
+  }
+  * { box-sizing: border-box; }
+  html { -webkit-text-size-adjust: 100%; }
+  html:not(.lenis) { scroll-behavior: smooth; }
+  html.lenis, html.lenis body { height: auto; }
+  .lenis.lenis-stopped { overflow: hidden; }
+  body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.55 "Geist", ui-sans-serif, system-ui, sans-serif;
+         -webkit-font-smoothing: antialiased; transition: background-color .5s var(--ease), color .5s var(--ease); overflow-x: hidden; }
+  .mono, code, pre { font-family: "Geist Mono", ui-monospace, SFMono-Regular, Menlo, monospace; }
+  a { color: inherit; }
+  button, input, select { font: inherit; color: inherit; }
+  :focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 6px; }
+  ::selection { background: var(--signal); color: var(--on-signal); }
+  .wrap { max-width: var(--wrap); margin: 0 auto; padding-inline: var(--gutter); }
+  .skip { position: fixed; left: 16px; top: 12px; z-index: 200; padding: 10px 16px; border-radius: 99px; background: var(--signal);
+          color: var(--on-signal); font-weight: 500; text-decoration: none; transform: translateY(-160%); transition: transform .3s var(--ease); }
+  .skip:focus { transform: none; }
+  .sr-only { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+  [id] { scroll-margin-top: calc(var(--nav-h) + 12px); }
+  section[tabindex="-1"]:focus { outline: none; }
+
+  /* Logo */
+  .mark { width: 36px; height: 36px; flex: none; display: block; }
+
+  /* Intro */
+  .loader { display: none; }
+  html.intro .loader { display: grid; place-items: center; position: fixed; inset: 0; z-index: 100; background: #121113; color: #EDEBE6;
+                       transition: transform 1s var(--ease-io) .15s; }
+  html.intro.ready .loader { transform: translateY(-100%); pointer-events: none; }
+  .loader-inner { display: flex; align-items: center; gap: clamp(14px, 2vw, 26px); }
+  .loader svg { width: clamp(64px, 9vw, 112px); height: auto; }
+  .loader .route { stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw .9s var(--ease) .1s forwards; }
+  .loader .node { transform-box: fill-box; transform-origin: center; transform: scale(0); animation: pop .5s var(--ease) forwards; }
+  .loader .node.a { animation-delay: .05s; } .loader .node.b { animation-delay: .45s; } .loader .node.c { animation-delay: .85s; }
+  .loader-word { font-size: clamp(34px, 6vw, 84px); font-weight: 600; letter-spacing: -.05em; overflow: hidden; }
+  .loader-word span { display: inline-block; transform: translateY(105%); animation: rise .9s var(--ease) .35s forwards; }
+  @keyframes draw { to { stroke-dashoffset: 0; } }
+  @keyframes pop { to { transform: scale(1); } }
+  @keyframes rise { to { transform: none; } }
+
+  /* Navigation */
+  .nav { position: fixed; inset: 0 0 auto; z-index: 50; height: var(--nav-h);
+         background: color-mix(in srgb, var(--bg) 78%, transparent); backdrop-filter: blur(16px) saturate(1.4); -webkit-backdrop-filter: blur(16px) saturate(1.4);
+         border-bottom: 1px solid color-mix(in srgb, var(--line) 70%, transparent); transition: transform .6s var(--ease), background-color .5s; }
+  body.nav-hidden .nav { transform: translateY(-100%); }
+  body.nav-hidden .nav:focus-within { transform: none; }
+  .nav .wrap { height: 100%; display: flex; align-items: center; gap: 28px; }
+  .brand { display: flex; align-items: center; gap: 10px; text-decoration: none; font-weight: 600; letter-spacing: -.03em; font-size: 18px; }
+  .brand .mark { width: 30px; height: 30px; }
+  .nav-links { display: flex; gap: 26px; margin-left: auto; }
+  .nav-links a { text-decoration: none; color: var(--muted); font-size: 15px; transition: color .25s; }
+  .nav-links a:hover { color: var(--text); }
+  .nav-actions { display: flex; align-items: center; gap: 12px; }
+  .toggle { position: relative; width: 58px; height: 30px; border-radius: 99px; border: 1px solid var(--control); background: var(--panel); cursor: pointer; padding: 0; }
+  .toggle svg { position: absolute; top: 7px; width: 14px; height: 14px; color: var(--muted); }
+  .toggle .sun { left: 8px; } .toggle .moon { right: 8px; }
+  .toggle::after { content: ""; position: absolute; top: 3px; left: 3px; width: 22px; height: 22px; border-radius: 50%; background: var(--text);
+                   transition: transform .5s var(--ease); transform: translateX(28px); }
+  :root[data-theme="light"] .toggle::after { transform: none; }
+  .gh { display: inline-flex; align-items: center; gap: 8px; height: 36px; padding: 0 14px; border-radius: 99px; background: var(--text); color: var(--bg);
+        text-decoration: none; font-size: 14px; font-weight: 500; transition: transform .3s var(--ease); }
+  .gh:hover { transform: translateY(-1px); }
+  .gh svg { width: 16px; height: 16px; }
+
+  /* Buttons */
+  .btn { display: inline-flex; align-items: center; justify-content: center; gap: 10px; height: 52px; padding: 0 26px; border-radius: 99px; cursor: pointer;
+         border: 1px solid var(--control); background: transparent; text-decoration: none; font-size: 16px; font-weight: 500; white-space: nowrap;
+         transition: background-color .35s var(--ease), border-color .35s, color .35s, transform .35s var(--ease); }
+  .btn:hover { border-color: var(--text); }
+  .btn:active { transform: scale(.98); }
+  .btn.primary { background: var(--signal); border-color: var(--signal); color: var(--on-signal); }
+  .btn.primary:hover { background: color-mix(in srgb, var(--signal) 86%, white); }
+  .btn.small { height: 40px; padding: 0 18px; font-size: 14px; }
+
+  /* Hero */
+  .hero { min-height: 100svh; display: flex; flex-direction: column; justify-content: flex-end; padding-top: calc(var(--nav-h) + 48px); }
+  .headline { margin: 0; font-weight: 600; font-size: clamp(58px, 12.4vw, 204px); line-height: .9; letter-spacing: -.058em; }
+  .headline .line { display: block; overflow: hidden; padding-bottom: .06em; margin-bottom: -.06em; }
+  .headline .line > span { display: inline-block; }
+  html.js .headline .line > span { transform: translateY(108%); }
+  html.ready .headline .line > span { transform: none; transition: transform 1.2s var(--ease) calc(var(--i) * 90ms + var(--d, .05s)); }
+  html.intro .headline { --d: .75s; }
+  .hero-foot { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 32px 48px; align-items: end; margin: clamp(32px, 5vw, 56px) 0 clamp(32px, 5vw, 56px); }
+  .lede { margin: 0; max-width: 34ch; font-size: clamp(18px, 1.6vw, 22px); line-height: 1.45; color: var(--muted); }
+  .lede strong { color: var(--text); font-weight: 500; }
+  .hero-side { display: flex; flex-direction: column; align-items: flex-end; gap: 18px; }
+  .status { display: flex; align-items: center; gap: 10px; color: var(--muted); font-size: 15px; }
+  .pulse { width: 9px; height: 9px; border-radius: 50%; background: var(--signal-ink); position: relative; flex: none; }
+  .pulse::after { content: ""; position: absolute; inset: -5px; border-radius: 50%; border: 1px solid var(--signal-ink); animation: ping 2.2s var(--ease) infinite; }
+  @keyframes ping { from { transform: scale(.4); opacity: 1; } to { transform: scale(1.8); opacity: 0; } }
+  .ctas { display: flex; gap: 12px; flex-wrap: wrap; justify-content: flex-end; }
+  html.js .hero-foot, html.js .sieve { opacity: 0; transform: translateY(16px); }
+  html.ready .hero-foot, html.ready .sieve { opacity: 1; transform: none; transition: opacity 1s var(--ease) calc(var(--d, .05s) + .35s), transform 1s var(--ease) calc(var(--d, .05s) + .35s); }
+  html.intro .hero-foot, html.intro .sieve { --d: .75s; }
+
+  /* The sieve: a sped-up replay of a run – candidates go through the checks, most drop out, a few pass */
+  .sieve { border-block: 1px solid var(--line); margin-inline: calc(var(--gutter) * -1); padding: 20px var(--gutter) 22px;
+           display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px 32px; align-items: start; }
+  .sieve-head { grid-column: 1 / -1; display: flex; align-items: center; gap: 12px 28px; flex-wrap: wrap; font-size: 14px; color: var(--muted); }
+  .sieve-head strong { color: var(--text); font-weight: 500; font-variant-numeric: tabular-nums; }
+  .sieve-head .kept strong { color: var(--signal-ink); }
+  .sieve-stages { display: flex; gap: 22px; margin-left: auto; }
+  .sieve-stages span { display: inline-flex; align-items: center; gap: 7px; }
+  .sieve-stages span::before { content: ""; width: 6px; height: 6px; border-radius: 50%; background: var(--control); }
+  .sieve-toggle { width: 32px; height: 32px; border-radius: 50%; border: 1px solid var(--control); background: var(--bg); color: var(--text);
+                  cursor: pointer; display: grid; place-items: center; flex: none; }
+  .sieve-toggle svg { width: 11px; height: 11px; }
+  .sieve-toggle .play, .sieve.paused .sieve-toggle .pause { display: none; }
+  .sieve.paused .sieve-toggle .play { display: block; }
+  .sieve-rows { grid-column: 1 / -1; list-style: none; margin: 0; padding: 0; display: grid; gap: 2px; min-height: calc(6 * 38px); }
+  .cand { display: grid; grid-template-columns: minmax(150px, 210px) 116px minmax(0, 1fr); align-items: center; gap: 20px; height: 36px;
+          padding: 0 12px; border-radius: 10px; font-size: 14px; color: var(--muted);
+          animation: cand-in .45s var(--ease) both; transition: opacity .8s var(--ease), background-color .6s var(--ease); }
+  .cand .addr { font-family: "Geist Mono", ui-monospace, monospace; color: var(--text); }
+  .cand .pips { display: flex; gap: 8px; }
+  .cand .pip { width: 22px; height: 4px; border-radius: 2px; background: var(--line); transition: background-color .18s linear; }
+  .cand .pip.ok { background: var(--signal-ink); }
+  .cand .pip.no { background: var(--reject); }
+  .cand .verdict { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .cand.out { opacity: .38; }
+  .cand.out .addr { text-decoration: line-through; text-decoration-color: var(--reject); color: var(--muted); }
+  .cand.in { background: var(--panel); }
+  .cand.in .verdict { color: var(--text); }
+  .cand.in button { all: unset; cursor: pointer; font: inherit; }
+  .cand.in button:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 4px; }
+  @keyframes cand-in { from { opacity: 0; transform: translateY(-8px); } }
+  .sieve-note { grid-column: 1 / -1; margin: 0; font-size: 13px; color: var(--muted); }
+  @media (max-width: 720px) {
+    .sieve-stages { display: none; }
+    .sieve-toggle { margin-left: auto; }
+    .cand { grid-template-columns: minmax(0, auto) minmax(0, 1fr); gap: 14px; padding: 0 8px; font-size: 13px; }
+    .cand .pips { display: none; }
+    .cand .verdict { text-align: right; }
+  }
+  .tick { display: inline-flex; align-items: center; gap: 12px; padding: 18px 28px; border: 0; background: none; cursor: pointer; white-space: nowrap;
+          border-right: 1px solid var(--line); font-size: 15px; transition: background-color .3s; }
+  .tick:hover { background: var(--panel); }
+  .tick .addr { font-family: "Geist Mono", ui-monospace, monospace; }
+  .tick .meta { color: var(--muted); }
+  .dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--muted); display: inline-block; }
+  .dot.http { background: var(--http); } .dot.socks4 { background: var(--socks4); } .dot.socks5 { background: var(--socks5); }
+
+  /* Sections */
+  section.block { padding-block: clamp(56px, 6.5vw, 104px); }
+  .h2 { margin: 0; font-weight: 600; font-size: clamp(40px, 6.6vw, 104px); line-height: .95; letter-spacing: -.05em; max-width: 14ch; }
+  .intro-text { margin: 22px 0 0; max-width: 46ch; color: var(--muted); font-size: clamp(17px, 1.4vw, 20px); }
+  .head-row { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); align-items: end; gap: 24px 48px; margin-bottom: clamp(40px, 5vw, 72px); }
+  .head-row .intro-text { margin: 0; justify-self: end; }
+
+  /* Big numbers */
+  .figures { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: clamp(48px, 7vw, 96px) clamp(32px, 5vw, 80px); }
+  .fig { border-top: 1px solid var(--line); padding-top: 26px; }
+  .fig .big { font-weight: 600; font-size: clamp(64px, 9.5vw, 156px); line-height: .9; letter-spacing: -.06em; font-variant-numeric: tabular-nums; display: flex; align-items: baseline; }
+  .fig .unit { font-size: .42em; letter-spacing: -.03em; margin-left: .12em; color: var(--muted); }
+  .fig p { margin: 20px 0 0; max-width: 36ch; color: var(--muted); font-size: 17px; }
+  .fig p strong { color: var(--text); font-weight: 500; }
+
+  /* List */
+  .filters { position: sticky; top: var(--nav-h); z-index: 20; display: flex; flex-wrap: wrap; gap: 10px; align-items: center; padding: 14px 0;
+             background: var(--bg); transition: top .6s var(--ease), background-color .5s; }
+  body.nav-hidden .filters { top: 0; }
+  .chip { height: 38px; padding: 0 16px; border-radius: 99px; border: 1px solid var(--control); background: transparent; cursor: pointer; font-size: 14px;
+          color: var(--muted); display: inline-flex; align-items: center; gap: 8px; transition: background-color .3s var(--ease), color .3s, border-color .3s; }
+  .chip:hover { border-color: var(--muted); color: var(--text); }
+  .chip[aria-pressed="true"] { background: var(--text); border-color: var(--text); color: var(--bg); }
+  .chip[aria-pressed="false"] .dot { opacity: .45; }
+  .sep { width: 1px; height: 24px; background: var(--line); margin: 0 4px; }
+  .field { height: 38px; border-radius: 99px; border: 1px solid var(--control); background: transparent; padding: 0 16px; font-size: 14px; }
+  select.field { padding-right: 34px; appearance: none; cursor: pointer;
+                 background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 12 12'%3E%3Cpath d='M3 4.5 6 7.5 9 4.5' fill='none' stroke='%239A97A0' stroke-width='1.5'/%3E%3C/svg%3E") right 12px center / 12px no-repeat; }
+  select.field option { background: var(--panel); color: var(--text); }
+  input.field[type=search] { flex: 1; min-width: 200px; }
+  input.field::placeholder { color: var(--muted); }
+  .range { display: inline-flex; align-items: center; gap: 10px; font-size: 14px; color: var(--muted); }
+  .range input { accent-color: var(--signal-ink); width: 120px; }
+  .range output { color: var(--text); min-width: 56px; font-variant-numeric: tabular-nums; }
+  .table-panel { position: relative; background: var(--panel); border: 1px solid var(--line); border-radius: 22px; overflow: hidden; margin-top: 8px; }
+  .table-scroll { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: 15px; }
+  th { text-align: left; font-weight: 500; font-size: 13px; color: var(--muted); padding: 0; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  .sort { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; padding: 16px 18px; width: 100%; text-align: left; }
+  .sort:hover, th[aria-sort] .sort { color: var(--text); }
+  th[aria-sort] .sort::after { content: ""; display: inline-block; width: 0; height: 0; margin-left: 7px; vertical-align: 2px;
+                         border: 4px solid transparent; border-top-color: currentColor; border-bottom-width: 0; }
+  th[aria-sort="descending"] .sort::after { transform: rotate(180deg); }
+  td { padding: 13px 18px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  tbody tr:last-child td { border-bottom: 0; }
+  tbody tr { transition: background-color .2s; }
+  tbody tr:hover { background: var(--raised); }
+  .t-type { display: inline-flex; align-items: center; gap: 9px; }
+  .addr-btn { font: 14.5px/1.4 "Geist Mono", ui-monospace, monospace; color: inherit; background: none; border: 0; padding: 4px 6px; margin: -4px -6px;
+          border-radius: 8px; cursor: copy; display: inline-flex; align-items: center; gap: 10px; }
+  .addr-btn svg { width: 14px; height: 14px; color: var(--muted); opacity: 0; transition: opacity .2s; }
+  .addr-btn:hover, .addr-btn:focus-visible { background: var(--line); }
+  .addr-btn:hover svg, .addr-btn:focus-visible svg { opacity: 1; }
+  .detail { display: inline-grid; place-items: center; width: 26px; height: 26px; margin-left: 6px; border-radius: 8px; color: var(--muted); vertical-align: middle; }
+  .detail svg { width: 14px; height: 14px; }
+  .detail:hover, .detail:focus-visible { background: var(--line); color: var(--text); }
+  .fast { color: var(--signal-ink); } .mid { color: var(--warn); } .slow { color: var(--bad); }
+  .quiet { color: var(--muted); }
+  /* Filters and sorting: the new rows settle in one after another instead of snapping */
+  #rows.settle tr { animation: row-in .45s var(--ease) both; }
+  #rows.settle tr:nth-child(-n+12) { animation-delay: calc(var(--r) * 22ms); }
+  @keyframes row-in { from { opacity: 0; transform: translateY(6px); } }
+  /* The theme switch grows the new theme out of the button (a view transition, see the script) */
+  html.vt-theme::view-transition-old(root), html.vt-theme::view-transition-new(root) { animation: none; mix-blend-mode: normal; }
+  html.vt-theme, html.vt-theme * { transition: none !important; }
+  .tag { display: inline-block; font-size: 11px; font-weight: 600; line-height: 1; padding: 4px 6px; border-radius: 6px; margin-right: 8px;
+         color: var(--warn); background: color-mix(in srgb, var(--warn) 14%, transparent); vertical-align: 1px; }
+  .tag.bl { color: var(--bad); background: color-mix(in srgb, var(--bad) 14%, transparent); }
+  .stable-badge { color: var(--signal-ink); font-weight: 500; }
+  .sites { display: inline-flex; gap: 4px; }
+  .site { font-size: 12px; padding: 2px 7px; border-radius: 99px; border: 1px solid var(--line); color: var(--text); white-space: nowrap; }
+  .site.more { color: var(--muted); }
+  .th-plain { display: block; padding: 16px 18px; }
+  .uptime { display: inline-flex; align-items: center; gap: 8px; font-variant-numeric: tabular-nums; }
+  .meter { width: 32px; height: 4px; border-radius: 2px; background: var(--line); overflow: hidden; }
+  .meter::after { content: ""; display: block; height: 100%; width: var(--v); background: var(--signal-ink); border-radius: inherit; }
+  .provider { max-width: 160px; overflow: hidden; text-overflow: ellipsis; color: var(--muted); }
+  .icon-btn { width: 34px; height: 34px; border-radius: 10px; border: 0; background: transparent; color: var(--muted); cursor: pointer; display: inline-grid; place-items: center;
+              transition: background-color .25s, color .25s; }
+  .icon-btn:hover { background: var(--line); color: var(--text); }
+  .icon-btn svg { width: 16px; height: 16px; }
+  .empty { padding: 64px 24px; text-align: center; color: var(--muted); }
+  /* The table fits the page from phone to desktop instead of hiding columns behind a sideways scroll */
+  @media (max-width: 1300px) { td { padding: 13px 12px; } .sort, .th-plain { padding: 16px 12px; } }
+  @media (max-width: 1100px) { th:nth-child(9), td:nth-child(9) { display: none; } .addr-btn svg { display: none; } }
+  @media (max-width: 960px) { th:nth-child(6), td:nth-child(6), th:nth-child(8), td:nth-child(8) { display: none; } }
+  @media (max-width: 800px) { th:nth-child(5), td:nth-child(5) { display: none; } }
+  .list-foot { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; margin-top: 20px; }
+  .list-foot .count { color: var(--muted); font-size: 15px; }
+  .list-foot .actions { display: flex; gap: 10px; flex-wrap: wrap; }
+  .list-foot .fmt { height: 40px; }
+
+  /* Route: how a proxy gets on the list */
+  .route { height: 460vh; position: relative; }
+  .route-sticky { position: sticky; top: 0; height: 100svh; display: flex; flex-direction: column; justify-content: center; gap: clamp(24px, 4vh, 48px); padding-top: var(--nav-h); }
+  .route-title { margin: 0; font-size: clamp(20px, 1.8vw, 26px); font-weight: 500; letter-spacing: -.02em; color: var(--muted); }
+  .route-cam { overflow: hidden; margin-inline: calc(var(--gutter) * -1); padding-inline: var(--gutter); }
+  .route-svg { width: 100%; height: auto; overflow: visible; display: block; will-change: transform; }
+  .route-svg .track { fill: none; stroke: var(--line); stroke-width: 2; }
+  .route-svg .done { fill: none; stroke: var(--signal-ink); stroke-width: 3; stroke-linecap: round; }
+  .route-svg .gate { fill: var(--bg); stroke: var(--line); stroke-width: 2; transition: fill .5s var(--ease), stroke .5s; }
+  .route-svg .gate.on { fill: var(--signal); stroke: var(--signal-ink); }
+  .route-svg .gate-label { fill: var(--muted); font-size: 15px; font-family: "Geist", sans-serif; text-anchor: middle; transition: fill .4s; }
+  .route-svg .gate-label.on { fill: var(--text); }
+  .route-svg .packet { fill: var(--text); }
+  .route-svg .halo { fill: var(--signal); opacity: .25; }
+  .steps { position: relative; min-height: 14em; }
+  .step { position: absolute; inset: 0 auto auto 0; max-width: 820px; opacity: 0; transform: translateY(24px); transition: opacity .6s var(--ease), transform .8s var(--ease); pointer-events: none; }
+  .step.on { opacity: 1; transform: none; pointer-events: auto; }
+  .step .which { color: var(--muted); font-size: 15px; margin: 0 0 14px; }
+  .step h3 { margin: 0; font-weight: 600; font-size: clamp(34px, 5.2vw, 76px); line-height: .98; letter-spacing: -.05em; }
+  .step p { margin: 18px 0 0; max-width: 52ch; color: var(--muted); font-size: clamp(17px, 1.4vw, 20px); }
+  .step.final h3 { font-size: clamp(48px, 8vw, 128px); }
+
+  /* Trend, countries, latency */
+  .insights { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 20px; }
+  /* The map: countries tinted by how many proxies exit there, a click filters the list */
+  .map-panel { grid-column: 1 / -1; position: relative; }
+  .map-head { display: flex; justify-content: space-between; align-items: baseline; gap: 8px 24px; flex-wrap: wrap; }
+  .map { margin-top: 18px; min-height: 200px; }
+  .map:has(svg) { min-height: 0; }
+  .map svg { width: 100%; height: 100%; display: block; overflow: visible; }
+  .map .land { fill: var(--raised); stroke: var(--bg); stroke-width: .6; transition: fill .25s var(--ease), opacity .8s var(--ease) calc(var(--d, 0) * 1ms); }
+  .map .land.has { fill: color-mix(in srgb, var(--signal-ink) calc(var(--t) * 88% + 12%), var(--raised)); cursor: pointer; }
+  .map .land.has:hover, .map .land.has:focus-visible { fill: var(--text); outline: none; }
+  .map .land.on { fill: var(--text); }
+  html.js .map.pending .land { opacity: 0; }
+  .map-tip { position: absolute; pointer-events: none; background: var(--text); color: var(--bg); font-size: 14px; padding: 6px 12px;
+             border-radius: 99px; white-space: nowrap; transform: translate(-50%, calc(-100% - 12px)); z-index: 2; }
+  .map-legend { display: flex; align-items: center; gap: 10px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+  .map-legend i { width: 140px; height: 6px; border-radius: 3px; background: linear-gradient(90deg, color-mix(in srgb, var(--signal-ink) 12%, var(--raised)), var(--signal-ink)); }
+  .map-wait { display: grid; place-items: center; height: 100%; margin: 0; }
+  .status .next { color: var(--muted); }
+  .status .next:not(:empty)::before { content: " · "; }
+  .bookmarklet .btn { cursor: grab; margin: 6px 0 4px; }
+  .link-btn { font: inherit; color: var(--text); background: none; border: 0; padding: 0; text-decoration: underline; cursor: pointer; }
+  /* Why this list: one question per row, what a typical list says against what was measured here */
+  .ledger { border-top: 1px solid var(--line); }
+  .ledger-row { display: grid; grid-template-columns: minmax(0, 1.1fr) minmax(0, .9fr) minmax(0, 1.6fr); gap: 8px 32px; padding: 20px 0;
+                border-bottom: 1px solid var(--line); align-items: baseline; }
+  .ledger-head { padding: 14px 0; color: var(--muted); font-size: 14px; }
+  .ledger-row .q { font-size: 18px; font-weight: 500; letter-spacing: -.01em; }
+  .ledger-row .them { color: var(--muted); }
+  .ledger-row .us b { color: var(--signal-ink); font-weight: 600; font-variant-numeric: tabular-nums; }
+  /* FAQ: opens on click, nothing moves on its own */
+  .faq-list { border-top: 1px solid var(--line); }
+  .faq-item { border-bottom: 1px solid var(--line); }
+  .faq-item summary { list-style: none; cursor: pointer; display: flex; justify-content: space-between; align-items: center; gap: 24px; padding: 22px 0; }
+  .faq-item summary::-webkit-details-marker { display: none; }
+  .faq-item summary h3 { margin: 0; font-size: clamp(18px, 2vw, 21px); font-weight: 500; letter-spacing: -.01em; }
+  .faq-item summary::after { content: ""; flex: none; width: 12px; height: 12px; border-right: 1.5px solid var(--muted); border-bottom: 1.5px solid var(--muted);
+                             transform: translateY(-3px) rotate(45deg); transition: transform .3s var(--ease); }
+  .faq-item[open] summary::after { transform: translateY(3px) rotate(225deg); }
+  .faq-item summary:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 4px; border-radius: 6px; }
+  .faq-item p { margin: 0 0 24px; max-width: 70ch; color: var(--muted); font-size: 17px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 22px; padding: clamp(22px, 3vw, 34px); }
+
+  /* For AI agents: a real Claude Code exchange, revealed line by line once it scrolls in */
+  .agent { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 20px; align-items: start; }
+  .transcript { margin: 0; padding: clamp(22px, 3vw, 32px); border-radius: 22px; background: var(--panel); border: 1px solid var(--line);
+                display: grid; gap: 18px; font-size: 16px; }
+  .transcript p { margin: 0; display: grid; grid-template-columns: 64px minmax(0, 1fr); gap: 16px; }
+  .transcript .who { color: var(--muted); font-size: 14px; padding-top: 2px; }
+  .transcript code { font-family: "Geist Mono", ui-monospace, monospace; font-size: 14px; overflow-wrap: anywhere; }
+  .transcript .t-tool code { color: var(--signal-ink); }
+  .transcript .t-result code { color: var(--muted); }
+  .transcript .t-page code { display: block; padding: 12px 14px; border-radius: 12px; background: var(--raised); color: var(--text); }
+  html.js .transcript.pending p { opacity: 0; transform: translateY(6px); }
+  .transcript p { transition: opacity .6s var(--ease) calc(var(--n) * .55s), transform .6s var(--ease) calc(var(--n) * .55s); }
+  .agent-side { display: grid; gap: 18px; }
+  .tools { list-style: none; margin: 0; padding: 0; display: grid; gap: 12px; }
+  .tools li { display: grid; grid-template-columns: 124px minmax(0, 1fr); gap: 14px; color: var(--muted); font-size: 15px; }
+  .tools code { font-family: "Geist Mono", ui-monospace, monospace; color: var(--text); font-size: 14px; }
+  .agent-side .note { margin: 0; color: var(--muted); font-size: 15px; }
+  .agent-side .note a { color: var(--text); }
+
+  /* Closing: why a star helps */
+  .closing { display: grid; grid-template-columns: minmax(0, 1.25fr) minmax(0, 1fr); gap: 24px 48px; align-items: end; }
+  .closing .ctas { justify-content: flex-start; align-items: center; }
+  .btn .star, .gh .star { width: 15px; height: 15px; }
+  .star-count { font-variant-numeric: tabular-nums; }
+  .star-count:empty { display: none; }
+  .panel h3 { margin: 0 0 6px; font-size: 20px; font-weight: 600; letter-spacing: -.02em; }
+  .panel .note { margin: 0 0 22px; color: var(--muted); font-size: 15px; }
+  .trend-panel { grid-row: span 2; display: flex; flex-direction: column; }
+  .trend { flex: 1; min-height: 240px; position: relative; }
+  .trend svg { width: 100%; height: 100%; display: block; }
+  .trend-axis { display: flex; justify-content: space-between; color: var(--muted); font-size: 13px; margin-top: 10px; }
+  .legend { display: flex; gap: 20px; flex-wrap: wrap; font-size: 14px; color: var(--muted); margin-top: 16px; }
+  .legend span { display: inline-flex; align-items: center; gap: 8px; }
+  .swatch { width: 16px; height: 3px; border-radius: 2px; background: var(--signal-ink); }
+  .swatch.dashed { background: repeating-linear-gradient(90deg, var(--muted) 0 4px, transparent 4px 7px); }
+  .bars { display: grid; gap: 12px; }
+  .bar-row { display: grid; grid-template-columns: minmax(76px, max-content) minmax(40px, 1fr) 44px; align-items: center; gap: 12px; font-size: 14px; }
+  .bars { display: grid; grid-template-columns: minmax(76px, max-content) minmax(40px, 1fr) 44px; gap: 10px 12px; }
+  .bars .bar-row { display: contents; }  /* one grid for all rows: the labels share a column as wide as the longest */
+  .bar-row .k { color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; max-width: 150px; }
+  .bar-row .v { text-align: right; font-variant-numeric: tabular-nums; }
+  .bar { height: 10px; border-radius: 99px; background: var(--raised); overflow: hidden; }
+  .bar i { display: block; height: 100%; width: 0; border-radius: 99px; background: var(--text); transition: width 1.2s var(--ease); }
+
+  /* Use it */
+  .use { display: grid; grid-template-columns: minmax(0, 1.4fr) minmax(0, 1fr); gap: 20px; }
+  .use-cmds { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+  .use .panel { min-width: 0; }
+  .use .panel p { margin: 0 0 22px; color: var(--muted); font-size: 15px; max-width: 52ch; }
+  .cmd { display: flex; align-items: flex-start; gap: 8px; background: var(--raised); border: 1px solid var(--line); border-radius: 14px; padding: 12px 8px 12px 16px; }
+  .cmd pre { margin: 0; flex: 1; min-width: 0; font-size: 13.5px; line-height: 1.6; white-space: pre; overflow-x: auto; padding-top: 5px; }
+  .cmd pre.cmd-wrap { white-space: pre-wrap; overflow-wrap: anywhere; }  /* long one-liners: readable before copying */
+  .raw { display: grid; gap: 6px; }
+  .raw a { display: flex; justify-content: space-between; align-items: center; gap: 12px; text-decoration: none; padding: 10px 14px; border-radius: 12px;
+           background: var(--raised); border: 1px solid var(--line); font-size: 14px; transition: border-color .25s; }
+  .raw a:hover { border-color: var(--muted); }
+  .raw a span:last-child { color: var(--muted); }
+  .dev-panel { margin-top: 20px; display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.1fr); gap: 28px; align-items: start; }
+  .endpoints { display: grid; gap: 8px; }
+  .endpoints a { display: grid; grid-template-columns: 130px minmax(0, 1fr); gap: 12px; text-decoration: none; font-size: 14px;
+                 padding: 10px 14px; border-radius: 12px; background: var(--raised); border: 1px solid var(--line); }
+  .endpoints a:hover { border-color: var(--muted); }
+  .endpoints a span:last-child { color: var(--muted); }
+  @media (max-width: 1020px) { .dev-panel { grid-template-columns: minmax(0, 1fr); } }
+
+  /* Footer */
+  footer { padding: clamp(56px, 7vw, 104px) 0 36px; border-top: 1px solid var(--line); }
+  .wordmark { display: flex; align-items: center; gap: .18em; font-weight: 600; font-size: clamp(38px, 11.2vw, 170px); letter-spacing: -.065em; line-height: .9; white-space: nowrap; }
+  .wordmark .mark { width: .8em; height: .8em; }
+  .browse { display: grid; gap: 8px; margin-top: clamp(28px, 4vw, 48px); color: var(--muted); font-size: 14px; }  /* below the wordmark's descenders */
+  .browse p { margin: 0; display: flex; flex-wrap: wrap; gap: 6px 14px; }
+  .browse a { color: var(--text); text-decoration: none; }
+  .browse a:hover { color: var(--signal-ink); text-decoration: underline; }
+  .foot-row { display: flex; justify-content: space-between; gap: 24px 48px; flex-wrap: wrap; margin-top: clamp(40px, 6vw, 72px); color: var(--muted); font-size: 15px; }
+  .foot-row p { margin: 0; max-width: 52ch; }
+  .foot-links { display: flex; gap: 22px; flex-wrap: wrap; }
+  .foot-links a { text-decoration: none; } .foot-links a:hover { color: var(--text); }
+
+  .toast { position: fixed; left: 50%; bottom: 28px; z-index: 60; transform: translate(-50%, 20px); opacity: 0; pointer-events: none;
+           background: var(--text); color: var(--bg); padding: 12px 20px; border-radius: 99px; font-size: 15px; transition: opacity .35s var(--ease), transform .5s var(--ease); }
+  .toast.show { opacity: 1; transform: translate(-50%, 0); }
+
+  @media (max-width: 1020px) {
+    .nav-links { display: none; }
+    .nav-actions { margin-left: auto; }
+    .insights, .use { grid-template-columns: minmax(0, 1fr); }
+    .trend-panel { grid-row: auto; }
+  }
+  @media (max-width: 720px) {
+    :root { --nav-h: 60px; }
+    .hero-foot { grid-template-columns: minmax(0, 1fr); }
+    .hero-side { align-items: flex-start; }
+    .ctas { justify-content: flex-start; }
+    .figures { grid-template-columns: minmax(0, 1fr); }
+    .head-row, .agent, .closing { grid-template-columns: minmax(0, 1fr); }
+    .ledger-row { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .ledger-head { display: none; }
+    .ledger-row .them::before { content: "Typical list: "; }
+    .tools li { grid-template-columns: minmax(0, 1fr); gap: 2px; }
+    .transcript p { grid-template-columns: minmax(0, 1fr); gap: 4px; }
+    .head-row .intro-text { justify-self: start; }
+    .hero { min-height: 88svh; }
+    .route { height: 380vh; }
+    .route-svg { width: 250%; }
+    .route-svg .gate-label { font-size: 19px; }
+    .filters { position: static; }
+    .t-type .name, th .name { display: none; }
+    table { font-size: 13.5px; }
+    .addr-btn { font-size: 12.5px; gap: 0; }
+    .addr-btn svg { display: none; }
+    .detail { margin-left: 0; width: 22px; }
+    .sort { padding: 14px 6px; }
+    th:first-child .sort { padding-left: 14px; }
+    td { padding-inline: 6px; }
+    td:first-child { padding-left: 14px; }
+    .steps { min-height: 17em; }
+    .gh .label, .gh .star-count { display: none; }
+    .gh { padding: 0; width: 36px; justify-content: center; }
+    .sep { display: none; }
+    .range { flex: 1; } .range input { flex: 1; width: auto; }
+    input.field[type=search] { flex-basis: 100%; }
+    .filters { gap: 8px; }
+    .hide-sm { display: none; }
+    .btn { height: 48px; padding: 0 20px; }
+  }
+  @media (max-width: 380px) { .addr-btn { font-size: 11.5px; } td { padding-inline: 4px; } }
+  @media (prefers-reduced-motion: reduce) {
+    html.js .transcript.pending p { opacity: 1; transform: none; }
+    *, *::before, *::after { animation: none !important; transition: none !important; }
+    html.js .headline .line > span, html.js .hero-foot, html.js .sieve { transform: none; opacity: 1; }
+    .route { height: auto; }
+    .route-sticky { position: static; height: auto; padding-block: 0; }
+    .route-cam { overflow-x: auto; }
+    .steps { min-height: 0; display: grid; gap: 48px; }
+    .step { position: static; opacity: 1; transform: none; }
+  }
+</style>
+</head>
+<body>
+<svg width="0" height="0" style="position:absolute" aria-hidden="true">
+  <symbol id="mark" viewBox="0 0 64 64">
+    <rect width="64" height="64" rx="18" fill="#D4F77A"/>
+    <path d="M13 31.5 26.5 44.5 51 18" fill="none" stroke="#121113" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+    <circle cx="13" cy="31.5" r="4.6" fill="#121113"/><circle cx="51" cy="18" r="4.6" fill="#121113"/>
+    <circle cx="26.5" cy="44.5" r="7.6" fill="#D4F77A" stroke="#121113" stroke-width="5"/>
+  </symbol>
+  <symbol id="i-open" viewBox="0 0 16 16"><path d="M6 3.5H3.5v9h9V10M9 3.5h3.5V7M12.5 3.5 7 9" fill="none" stroke="currentColor" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="i-copy" viewBox="0 0 16 16"><rect x="5.5" y="5.5" width="8" height="8" rx="2" fill="none" stroke="currentColor" stroke-width="1.4"/><path d="M10.5 3.5v-.5a1.5 1.5 0 0 0-1.5-1.5H4A1.5 1.5 0 0 0 2.5 3v5A1.5 1.5 0 0 0 4 9.5h.5" fill="none" stroke="currentColor" stroke-width="1.4"/></symbol>
+</svg>
+
+<a class="skip" href="#list">Skip to the list</a>
+<div class="loader" aria-hidden="true">
+  <div class="loader-inner">
+    <svg viewBox="0 0 64 64">
+      <rect width="64" height="64" rx="18" fill="#D4F77A"/>
+      <path class="route" pathLength="100" d="M13 31.5 26.5 44.5 51 18" fill="none" stroke="#121113" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/>
+      <circle class="node a" cx="13" cy="31.5" r="4.6" fill="#121113"/>
+      <circle class="node b" cx="26.5" cy="44.5" r="7.6" fill="#D4F77A" stroke="#121113" stroke-width="5"/>
+      <circle class="node c" cx="51" cy="18" r="4.6" fill="#121113"/>
+    </svg>
+    <div class="loader-word"><span>proxy-scraper</span></div>
+  </div>
+</div>
+
+<header class="nav">
+  <div class="wrap">
+    <a class="brand" href="#top" aria-label="proxy-scraper, back to top"><svg class="mark" aria-hidden="true"><use href="#mark"/></svg>proxy-scraper</a>
+    <nav class="nav-links" aria-label="Sections">
+      <a href="#list">The list</a><a href="#agents">AI agents</a><a href="#checks">How it's checked</a><a href="#why">Why this one</a><a href="#runs">Last runs</a><a href="#use">Use it</a>
+    </nav>
+    <div class="nav-actions">
+      <button class="toggle" id="theme" type="button" aria-label="Switch to light theme">
+        <svg class="sun" viewBox="0 0 16 16" aria-hidden="true"><circle cx="8" cy="8" r="3" fill="currentColor"/><path d="M8 1v2M8 13v2M1 8h2M13 8h2M3 3l1.4 1.4M11.6 11.6 13 13M3 13l1.4-1.4M11.6 4.4 13 3" stroke="currentColor" stroke-width="1.4" stroke-linecap="round"/></svg>
+        <svg class="moon" viewBox="0 0 16 16" aria-hidden="true"><path d="M13.5 10.2A6 6 0 0 1 5.8 2.5a6 6 0 1 0 7.7 7.7z" fill="currentColor"/></svg>
+      </button>
+      <a class="gh" href="https://github.com/maximilianfeix/proxy-scraper"><svg viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 0C3.58 0 0 3.58 0 8c0 3.54 2.29 6.53 5.47 7.59.4.07.55-.17.55-.38 0-.19-.01-.82-.01-1.49-2.01.37-2.53-.49-2.69-.94-.09-.23-.48-.94-.82-1.13-.28-.15-.68-.52-.01-.53.63-.01 1.08.58 1.23.82.72 1.21 1.87.87 2.33.66.07-.52.28-.87.51-1.07-1.78-.2-3.64-.89-3.64-3.95 0-.87.31-1.59.82-2.15-.08-.2-.36-1.02.08-2.12 0 0 .67-.21 2.2.82.64-.18 1.32-.27 2-.27.68 0 1.36.09 2 .27 1.53-1.04 2.2-.82 2.2-.82.44 1.1.16 1.92.08 2.12.51.56.82 1.27.82 2.15 0 3.07-1.87 3.75-3.65 3.95.29.25.54.73.54 1.48 0 1.07-.01 1.93-.01 2.2 0 .21.15.46.55.38A8.013 8.013 0 0 0 16 8c0-4.42-3.58-8-8-8z"/></svg><span class="label">Star on GitHub</span><span class="star-count" data-stars></span></a>
+    </div>
+  </div>
+</header>
+
+<main>
+  <section class="hero wrap" id="top">
+    <h1 class="headline" aria-label="Free proxies that actually work.">
+      <span class="line" aria-hidden="true"><span style="--i:0">Free proxies</span></span>
+      <span class="line" aria-hidden="true"><span style="--i:1">that actually</span></span>
+      <span class="line" aria-hidden="true"><span style="--i:2">work.</span></span>
+    </h1>
+    <div class="hero-foot">
+      <p class="lede">Every proxy on this list passed a <strong>real handshake</strong>, a <strong>honeypot check</strong> and a <strong>content check</strong> in the last run. The whole list is checked again every hour.</p>
+      <div class="hero-side">
+        <div class="status" aria-live="polite"><span class="pulse" aria-hidden="true"></span><span id="updated">Loading the latest run</span><span class="next" id="next-run"></span></div>
+        <div class="ctas">
+          <a class="btn primary" href="#list">Browse the list</a>
+          <button class="btn" id="dl-all" type="button">Download all</button>
+        </div>
+      </div>
+    </div>
+    <div class="sieve" id="sieve" role="group" aria-labelledby="sieve-label">
+      <div class="sieve-head">
+        <span id="sieve-label">A run, sped up</span>
+        <span>checked <strong id="sieve-checked">0</strong></span>
+        <span class="kept">kept <strong id="sieve-kept">0</strong></span>
+        <span class="sieve-stages" aria-hidden="true"><span>Handshake</span><span>Two sites</span><span>Content</span><span>Details</span></span>
+        <button class="sieve-toggle" id="sieve-toggle" type="button" aria-pressed="false" aria-label="Pause the replay">
+          <svg class="pause" viewBox="0 0 12 12" aria-hidden="true"><rect x="2" y="1" width="3" height="10" rx="1" fill="currentColor"/><rect x="7" y="1" width="3" height="10" rx="1" fill="currentColor"/></svg>
+          <svg class="play" viewBox="0 0 12 12" aria-hidden="true"><path d="M3 1.5v9l7.5-4.5z" fill="currentColor"/></svg>
+        </button>
+      </div>
+      <ul class="sieve-rows" id="sieve-rows" aria-label="Candidates going through the checks"></ul>
+      <p class="sieve-note">Each line is one candidate. The ones that pass are real proxies from this list, click one to copy it.</p>
+    </div>
+  </section>
+
+  <section class="block wrap" aria-labelledby="numbers-title">
+    <div class="head-row">
+      <h2 class="h2" id="numbers-title">The last run in numbers</h2>
+      <p class="intro-text">Measured from GitHub's servers. From your own network some proxies will be faster, some won't answer at all.</p>
+    </div>
+    <div class="figures">
+      <div class="fig"><div class="big"><span class="count" id="n-total">0</span></div>
+        <p><strong>working proxies right now.</strong> Out of about a million candidates, only these answered properly and passed every check.</p></div>
+      <div class="fig"><div class="big"><span class="count" id="n-https">0</span><span class="unit">%</span></div>
+        <p><strong>tunnel HTTPS.</strong> They carry encrypted traffic through CONNECT, tested with a verified TLS handshake.</p></div>
+      <div class="fig"><div class="big"><span class="count" id="n-elite">0</span><span class="unit">%</span></div>
+        <p><strong>are elite.</strong> The target site can't tell that a proxy is in between: no forwarded IP, no Via header.</p></div>
+      <div class="fig"><div class="big"><span class="count" id="n-lat">0</span><span class="unit">s</span></div>
+        <p><strong>median response time.</strong> Half of the list answers faster than that. Sort by latency to get the quickest ones first.</p></div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="list" aria-labelledby="list-title">
+    <div class="head-row">
+      <h2 class="h2" id="list-title">Pick your proxies</h2>
+      <p class="intro-text">Best first: the ones that answer quickly, download fast and are likely to still be up. Filter, sort, then copy or download exactly the ones you need. Click any address to copy it.</p>
+    </div>
+    <div class="filters" role="group" aria-label="Filters">
+      <button class="chip" type="button" data-type="http" aria-pressed="true"><span class="dot http"></span>HTTP</button>
+      <button class="chip" type="button" data-type="socks4" aria-pressed="true"><span class="dot socks4"></span>SOCKS4</button>
+      <button class="chip" type="button" data-type="socks5" aria-pressed="true"><span class="dot socks5"></span>SOCKS5</button>
+      <span class="sep" aria-hidden="true"></span>
+      <button class="chip" type="button" id="f-https" aria-pressed="false">HTTPS</button>
+      <button class="chip" type="button" id="f-elite" aria-pressed="false">Elite</button>
+      <button class="chip" type="button" id="f-dc" aria-pressed="false" title="Exits in datacenters get blocked sooner">No datacenter</button>
+      <button class="chip" type="button" id="f-stable" aria-pressed="false" title="Worked in every run for at least 24 hours">Stable 24 h+</button>
+      <button class="chip" type="button" id="f-bl" aria-pressed="false" title="Exit IP not on the SpamCop blocklist – fewer captchas">Not blocklisted</button>
+      <select class="field" id="f-country" aria-label="Country"><option value="">All countries</option></select>
+      <select class="field" id="f-site" aria-label="Gets through to" title="Checked every hour: most free proxies get a captcha or a 403 on these sites">
+        <option value="">Any site</option><option value="google">Gets through to Google</option><option value="reddit">Gets through to Reddit</option><option value="amazon">Gets through to Amazon</option><option value="instagram">Gets through to Instagram</option><option value="tiktok">Gets through to TikTok</option><option value="discord">Gets through to Discord</option></select>
+      <label class="range">Up to <input type="range" id="f-lat" min="200" max="8000" step="100" value="8000" aria-label="Maximum latency"><output id="f-lat-v" for="f-lat">any</output></label>
+      <input class="field" type="search" id="f-q" placeholder="Search IP, country or provider    /" aria-label="Search" aria-keyshortcuts="/">
+    </div>
+    <div class="table-panel">
+      <div class="table-scroll" data-lenis-prevent-horizontal>
+        <table>
+          <caption class="sr-only">Working proxies from the last run. Activate an address to copy it.</caption>
+          <thead><tr>
+            <th scope="col" data-key="ptype"><button class="sort" type="button" aria-label="Type"><span class="name">Type</span></button></th>
+            <th scope="col" data-key="proxy"><button class="sort" type="button">Proxy</button></th>
+            <th scope="col" data-key="country"><button class="sort" type="button">Country</button></th>
+            <th scope="col" data-key="latency"><button class="sort" type="button">Latency</button></th>
+            <th scope="col" data-key="speed_kbps" class="hide-sm"><button class="sort" type="button" title="Download speed in the last run – 100 KB through the proxy">Speed</button></th>
+            <th scope="col" data-key="https" class="hide-sm"><button class="sort" type="button">HTTPS</button></th>
+            <th scope="col" data-key="uptime_7d" class="hide-sm"><button class="sort" type="button" title="Share of this week's runs it was on the list">Uptime</button></th>
+            <th scope="col" class="hide-sm"><span class="th-plain" title="Big sites it got through to in the last hourly check">Gets through</span></th>
+            <th scope="col" data-key="org" class="hide-sm"><button class="sort" type="button">Provider</button></th>
+          </tr></thead>
+          <tbody id="rows"><tr><td colspan="9" class="empty">Loading the list</td></tr></tbody>
+        </table>
+      </div>
+    </div>
+    <div class="list-foot">
+      <span class="count" id="count" aria-live="polite"></span>
+      <div class="actions">
+        <button class="btn small" id="best" type="button" hidden title="The ones that answer quickly, download fast and are likely to still be up">Best first</button>
+        <button class="btn small" id="more" type="button" hidden>Show more</button>
+        <button class="btn small" id="share" type="button" title="The filters are in the address, so the link opens this exact view">Share view</button>
+        <select class="field fmt" id="fmt" aria-label="Format for copy and download" title="Format for copy and download">
+          <option value="url">type://ip:port</option>
+          <option value="plain">ip:port</option>
+          <option value="json">JSON</option>
+          <option value="csv">CSV</option>
+        </select>
+        <button class="btn small" id="copy-all" type="button">Copy filtered</button>
+        <button class="btn small primary" id="download" type="button">Download filtered</button>
+      </div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="agents" aria-labelledby="agents-title">
+    <div class="head-row">
+      <h2 class="h2" id="agents-title">Hand it to your AI agent</h2>
+      <p class="intro-text">An MCP server for Claude Code, Cursor, Codex and co. Your agent gets working proxies and can load pages through them, as seen from another country.</p>
+    </div>
+    <div class="agent">
+      <figure class="transcript pending" id="transcript" aria-label="Example: Claude Code loading a page through a UK proxy">
+        <p class="t-user" style="--n:0"><span class="who">you</span><span>Load bbc.co.uk/news the way a visitor from the UK sees it.</span></p>
+        <p class="t-tool" style="--n:1"><span class="who">tool</span><code>fetch_url(url="https://www.bbc.co.uk/news", country="GB")</code></p>
+        <p class="t-result" style="--n:2"><span class="who"></span><code>200 · via socks5://109.205.182.143:1088 (GB) · 0.7 s</code></p>
+        <p class="t-page" style="--n:3"><span class="who"></span><code>Home - BBC News<br>BBC Homepage<br>Skip to content …</code></p>
+        <p class="t-agent" style="--n:4"><span class="who">claude</span><span>Loaded through a UK proxy: that's the BBC News front page as it shows up in Britain.</span></p>
+      </figure>
+      <div class="agent-side">
+        <ul class="tools">
+          <li><code>get_proxies</code><span>working proxies right now, with the same filters as the list above</span></li>
+          <li><code>check_proxies</code><span>checked again from your own network, so they work from where your code runs</span></li>
+          <li><code>fetch_url</code><span>a page through a verified proxy, as readable text – switches proxies by itself</span></li>
+        </ul>
+        <div class="cmd"><pre class="cmd-wrap">claude mcp add proxy-scraper -- uvx --python "&gt;=3.10" --from "proxy-scraper-cli[mcp]" proxy-scraper-mcp</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the Claude Code command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+        <p class="note">Cursor, VS Code, Codex and others: <a href="https://github.com/maximilianfeix/proxy-scraper#mcp">setup for every client</a>. Also in the official MCP registry as io.github.maximilianfeix/proxy-scraper.</p>
+      </div>
+    </div>
+  </section>
+
+  <section class="route" id="checks" aria-labelledby="checks-title">
+    <div class="route-sticky wrap">
+      <h2 class="route-title" id="checks-title">How a proxy gets on this list</h2>
+      <div class="route-cam"><svg class="route-svg" id="route-svg" viewBox="0 0 1200 230" aria-hidden="true">
+        <path class="track" id="route-path" d="M40 150 C 170 150 190 60 320 60 S 480 180 610 140 S 790 40 900 70 S 1090 170 1160 120"/>
+        <path class="done" id="route-done" d="M40 150 C 170 150 190 60 320 60 S 480 180 610 140 S 790 40 900 70 S 1090 170 1160 120"/>
+        <g id="gates"></g>
+        <circle class="halo" id="halo" r="16"/><circle class="packet" id="packet" r="7"/>
+      </svg></div>
+      <div class="steps" id="steps">
+        <article class="step on"><p class="which">Step 1 of 5</p><h3>It starts with 700+ public lists.</h3>
+          <p>Every hour a GitHub Action reads more than 700 public proxy lists. Most of what's in them is dead, duplicated or years old.</p></article>
+        <article class="step"><p class="which">Step 2 of 5</p><h3>A real handshake, not just an open port.</h3>
+          <p>Each candidate has to complete a proper HTTP, SOCKS4 or SOCKS5 handshake and fetch a page. An open port alone proves nothing.</p></article>
+        <article class="step"><p class="which">Step 3 of 5</p><h3>Two sites, one foreign IP.</h3>
+          <p>The proxy has to reach two unrelated sites and show an exit IP that isn't ours on both. Honeypots that fake a response drop out here.</p></article>
+        <article class="step"><p class="which">Step 4 of 5</p><h3>Nothing may be changed on the way.</h3>
+          <p>A static page has to arrive byte for byte. When we measured it, 54 of 270 working proxies slipped a script into the page. None of those make the list.</p></article>
+        <article class="step"><p class="which">Step 5 of 5</p><h3>Then the details.</h3>
+          <p id="step5">HTTPS with verified TLS, anonymity, country, provider and whether the exit IP is on a spam blocklist are checked for everything that's left.</p></article>
+        <article class="step final"><h3><span id="final-n">–</span> made it.</h3>
+          <p>That's the list above. In an hour it starts over, and anything that stopped working is gone.</p></article>
+      </div>
+    </div>
+  </section>
+  <section class="block wrap" id="why" aria-labelledby="why-title">
+    <div class="head-row">
+      <h2 class="h2" id="why-title">Why this list, not another one</h2>
+      <p class="intro-text">Most free proxy lists are a dump of addresses that answered at some point. This is what you'd want to know before you use one – and what this list measured in the last run.</p>
+    </div>
+    <div class="ledger" role="table" aria-label="What a typical free proxy list tells you, and what this one measures">
+      <div class="ledger-row ledger-head" role="row"><span role="columnheader">What you'd want to know</span><span role="columnheader">A typical free list</span><span role="columnheader">Here, in the last run</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Is it a proxy at all?</span><span class="them" role="cell">That the port answered once</span><span class="us" role="cell">A real HTTP/SOCKS handshake and a page fetched through it: <b data-live="total">–</b> passed in the last run</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Is it a honeypot?</span><span class="them" role="cell">Often not checked</span><span class="us" role="cell">The exit IP is checked on two different sites and has to match both times</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Does it change the pages you load?</span><span class="them" role="cell">Not checked</span><span class="us" role="cell">A known page has to arrive byte for byte. Proxies that inject scripts or ads are dropped</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Does HTTPS work through it?</span><span class="them" role="cell">Sometimes a flag in the list</span><span class="us" role="cell">A verified TLS handshake through the tunnel: <b data-live="https">–</b> of them</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Will it still be there tomorrow?</span><span class="them" role="cell">Unknown</span><span class="us" role="cell">Every proxy's week of hourly checks. <b data-live="stable">–</b> were on the list for 90&nbsp;%+ of the week</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Does Google let it through?</span><span class="them" role="cell">Unknown</span><span class="us" role="cell">Tried on Google, Reddit, Amazon, Instagram, TikTok and Discord: <b data-live="google">–</b> got through to Google</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">Is it fast enough for real pages?</span><span class="them" role="cell">A latency number, if any</span><span class="us" role="cell">100&nbsp;KB downloaded through every HTTPS-capable one: half of them manage <b data-live="speed">–</b> or more</span></div>
+        <div class="ledger-row" role="row"><span class="q" role="rowheader">How fresh is it?</span><span class="them" role="cell">Scraped once, rarely checked again</span><span class="us" role="cell">Checked again every hour, the last run <b data-live="ago">–</b></span></div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="runs" aria-labelledby="runs-title">
+    <div class="head-row">
+      <h2 class="h2" id="runs-title">Run after run</h2>
+      <p class="intro-text">Free proxies come and go quickly. This is how the list changed over the last runs and where the proxies are right now. The whole week in numbers is in the <a href="report/">weekly report</a>, and <a href="sources/">which lists the working proxies came from</a> is ranked every hour.</p>
+    </div>
+    <div class="insights">
+      <div class="panel map-panel" id="map-panel">
+        <div class="map-head"><h3>Where they are</h3><p class="note">The stronger the color, the more working proxies exit there. Pick a country to see them.</p></div>
+        <div class="map" id="map" role="group" aria-label="World map of working proxies by country"><p class="note map-wait">Loading the map</p></div>
+        <div class="map-tip" id="map-tip" role="status" aria-live="polite" hidden></div>
+        <div class="map-legend" aria-hidden="true"><span>1</span><i></i><span id="map-max"></span></div>
+      </div>
+      <div class="panel trend-panel">
+        <h3>Working proxies per run</h3>
+        <p class="note" id="trend-note">One point every hour.</p>
+        <div class="trend" id="trend"></div>
+        <div class="trend-axis"><span id="axis-from"></span><span id="axis-to"></span></div>
+        <div class="legend"><span><i class="swatch"></i>Working</span><span><i class="swatch dashed"></i>Of those, HTTPS-capable</span></div>
+      </div>
+      <div class="panel"><h3>Countries</h3><p class="note">Where the exits are.</p><div class="bars" id="countries"></div></div>
+      <div class="panel"><h3>Latency</h3><p class="note">How fast they answered.</p><div class="bars" id="latency"></div></div>
+    </div>
+  </section>
+
+  <section class="block wrap" id="use" aria-labelledby="use-title">
+    <div class="head-row">
+      <h2 class="h2" id="use-title">Use it your way</h2>
+      <p class="intro-text">Run the same checks on your own machine, start from this list, or just fetch the plain text files.</p>
+    </div>
+    <div class="use">
+      <div class="use-cmds">
+      <div class="panel"><h3>Scan it yourself</h3><p>700+ sources, all the checks, filters and a live dashboard in your terminal.</p>
+        <div class="cmd"><pre>pipx install proxy-scraper-cli
+proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the install commands"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
+      <div class="panel"><h3>Recheck from your network</h3><p>Starts from this list and checks it again from where you are. Takes about 30 seconds, then serves a rotating proxy on port 8899.</p>
+        <div class="cmd"><pre>proxy-scraper --recheck live --serve</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the recheck command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
+      <div class="panel bookmarklet"><h3>One click, on any site</h3><p>Drag this button to your bookmarks bar. Clicking it copies a proxy that worked in 90&nbsp;%+ of this week's checks – on whatever page you're on, nothing to install.</p>
+        <a class="btn primary" id="bookmarklet" href="javascript:(async()=>{const%20b=&quot;https://maximilianfeix.github.io/proxy-scraper/&quot;,g=async%20f=>{const%20r=await%20fetch(b+f,{cache:&quot;no-cache&quot;});if(!r.ok)throw%200;return(await%20r.text()).split(&quot;%5Cn&quot;).filter(l=>/%5E[a-z0-9]+:%5C/%5C/%5CS+%24/.test(l))};try{let%20l=await%20g(&quot;stable.txt&quot;);if(!l.length)l=(await%20g(&quot;https.txt&quot;)).slice(0,30);if(!l.length)throw%200;const%20p=l[Math.floor(Math.random()*l.length)];try{await%20navigator.clipboard.writeText(p);alert(&quot;Copied%20a%20working%20proxy:%5Cn&quot;+p)}catch(e){prompt(&quot;A%20working%20proxy%20%E2%80%93%20copy%20it:&quot;,p)}}catch(e){alert(&quot;proxy-scraper:%20the%20list%20could%20not%20be%20loaded&quot;)}})()" title="Drag me to your bookmarks bar">Get a proxy</a>
+        <p class="note">Or right here: <button class="link-btn" type="button" id="pick-one">copy a reliable one now</button>.</p></div>
+      </div>
+      <div class="panel"><h3>Plain lists</h3><p>One proxy per line, fastest first, updated with every run.</p><div class="raw" id="raw"></div></div>
+    </div>
+    <div class="panel dev-panel">
+      <div>
+        <h3>Build on the data</h3>
+        <p>The same files this page uses, next to it on GitHub Pages. Updated with every run, served with CORS, no key needed.</p>
+        <div class="endpoints">
+          <a href="proxies.json"><span class="mono">proxies.json</span><span>every proxy with all details, fastest first</span></a>
+          <a href="stats.json"><span class="mono">stats.json</span><span>totals, per type, countries, median latency</span></a>
+          <a href="history.json"><span class="mono">history.json</span><span>the runs of the last 30 days, for charts</span></a>
+          <a href="streaks.json"><span class="mono">streaks.json</span><span>how many runs in a row each proxy worked</span></a>
+          <a href="seen.json"><span class="mono">seen.json</span><span>which of the last 168 runs each proxy was listed in</span></a>
+          <a href="https://github.com/maximilianfeix/proxy-scraper/releases?q=snapshots&amp;expanded=true"><span class="mono">snapshots</span><span>one proxies.json a day, kept for good</span></a>
+        </div>
+      </div>
+      <div class="cmd"><pre>curl -s https://maximilianfeix.github.io/proxy-scraper/proxies.json | jq '.[0]'
+{
+  "url": "socks5://203.0.113.10:1080",
+  "proxy": "203.0.113.10:1080",
+  "ptype": "socks5",
+  "latency": 92,
+  "country": "DE",
+  "https": true,
+  "anonymity": "elite",
+  "exit_ip": "203.0.113.10",
+  "asn": 14061,
+  "org": "DigitalOcean, LLC",
+  "hosting": true,
+  "blocklisted": false,
+  "streak": 5,
+  "first_seen": "2026-09-26T21:17:04+00:00",
+  "uptime_24h": 100,
+  "uptime_7d": 94,
+  "sites": { "google": true, "reddit": false, "amazon": false }
+}</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the example"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+    </div>
+  </section>
+  <section class="block wrap faq" id="faq" aria-labelledby="faq-title">
+    <div class="head-row">
+      <h2 class="h2" id="faq-title">Questions people ask</h2>
+      <p class="intro-text">Short answers. The <a href="https://github.com/maximilianfeix/proxy-scraper#faq">README</a> has more.</p>
+    </div>
+    <div class="faq-list">
+      <details class="faq-item"><summary><h3>Are free proxies safe to use?</h3></summary><p>They're run by strangers, so treat them as untrusted. Anything that isn't encrypted can be read by whoever runs the proxy – never send passwords or personal data through one. Every proxy on this list has passed a content check (it didn't change a known page), and the HTTPS ones tunnel TLS that's verified end to end, so an https:// site can't be read or altered. That makes them fine for scraping public pages or seeing a site from another country, not for your bank.</p></details>
+      <details class="faq-item"><summary><h3>Why do most free proxies not work?</h3></summary><p>They don't live long. Of the proxies that drop off this list again, most are gone by the next hourly check, and only a few last a whole day – the weekly report tracks it. Many lists never re-check, so a large share of what they hold is long dead, and some of what still answers are honeypots or proxies that inject ads.</p></details>
+      <details class="faq-item"><summary><h3>How often is the list updated?</h3></summary><p>Every hour. GitHub Actions collects proxies from 700+ public lists, checks them and publishes whatever passed. This page loads the new list by itself when a run lands.</p></details>
+      <details class="faq-item"><summary><h3>Can I use it in my own projects?</h3></summary><p>Yes. The code is open source under the MIT license, and the lists are free to use, including in commercial projects. The proxies themselves belong to other people, so stick to the terms of the sites you visit through them.</p></details>
+      <details class="faq-item"><summary><h3>How do I use it from Python or an AI agent?</h3></summary><p>From Python: pip install proxy-scraper-cli, then live_proxies() returns the checked list with filters for country, protocol, uptime and the sites a proxy gets through to. AI agents like Claude Code or Cursor can use the MCP server, which gives them working proxies and can load pages through them.</p></details>
+      <details class="faq-item"><summary><h3>A proxy from the list doesn't work for me – why?</h3></summary><p>It worked from GitHub's servers in the last run, but free proxies come and go, and some block certain networks. proxy-scraper --recheck live checks the list again from your own connection in about 30 seconds and keeps what works from there.</p></details>
+    </div>
+  </section>
+  <section class="block wrap closing" aria-labelledby="star-title">
+    <div>
+      <h2 class="h2" id="star-title">Saved you an afternoon?</h2>
+      <p class="intro-text">A star on GitHub is how other people find this list. It stays free and open source, and it's checked again every hour.</p>
+    </div>
+    <div class="ctas">
+      <a class="btn primary" href="https://github.com/maximilianfeix/proxy-scraper"><svg class="star" viewBox="0 0 16 16" aria-hidden="true"><path fill="currentColor" d="M8 .8l2.2 4.6 5 .7-3.6 3.5.9 5L8 12.2l-4.5 2.4.9-5L.8 6.1l5-.7z"/></svg>Star on GitHub<span class="star-count" data-stars></span></a>
+      <div class="cmd"><pre>pipx install proxy-scraper-cli</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the install command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div>
+    </div>
+  </section>
+</main>
+
+<footer>
+  <div class="wrap">
+    <div class="wordmark" aria-hidden="true"><svg class="mark"><use href="#mark"/></svg>proxy-scraper</div>
+    <nav class="browse" aria-label="Lists by protocol and country">
+      <p>By protocol: <a href="http/">HTTP</a> <a href="socks4/">SOCKS4</a> <a href="socks5/">SOCKS5</a> <a href="https/">HTTPS</a> <a href="elite/">Elite</a></p>
+      <p>By country: <a href="country/us/">United States</a> <a href="country/de/">Germany</a> <a href="country/nl/">Netherlands</a> <a href="country/gb/">United Kingdom</a> <a href="country/fr/">France</a> <a href="country/sg/">Singapore</a> <a href="country/jp/">Japan</a> <a href="country/in/">India</a> <a href="country/br/">Brazil</a> <a href="country/id/">Indonesia</a> <a href="country/ru/">Russia</a> <a href="country/cn/">China</a></p>
+    </nav>
+    <div class="foot-row">
+      <p>Free proxies are run by strangers. Never send passwords or personal data through them.</p>
+      <div class="foot-links">
+        <a href="https://github.com/maximilianfeix/proxy-scraper">Source on GitHub</a>
+        <a href="https://github.com/maximilianfeix/proxy-scraper/releases/latest">Releases</a>
+        <a href="https://db-ip.com">Countries by DB-IP</a>
+        <span>MIT License</span>
+      </div>
+    </div>
+  </div>
+</footer>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(() => {
+  const RAW = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list";
+  const PAGE = 50;
+  let RUN_HOURS = 1, STABLE = 24;  // hours between runs and runs in a row for "stable" (24 h) – set from stats.json
+  const $ = (s) => document.querySelector(s);
+  const $$ = (s) => [...document.querySelectorAll(s)];
+  const html = document.documentElement;
+  const calm = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const fmt = (n) => Number(n).toLocaleString("en-US");
+  const esc = (s) => String(s ?? "").replace(/[&<>"']/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;"}[c]));
+  const flag = (cc) => /^[A-Z]{2}$/.test(cc || "") ? String.fromCodePoint(...[...cc].map(c => 0x1F1E6 + c.charCodeAt(0) - 65)) : "";
+  // "DE" -> "Germany" (the browser knows the names; without Intl.DisplayNames the code stays)
+  const countryName = (() => {
+    try { const names = new Intl.DisplayNames(["en"], { type: "region" }); return (cc) => { try { return names.of(cc) || cc; } catch (e) { return cc; } }; }
+    catch (e) { return (cc) => cc; }
+  })();
+  const pct = (n, of) => Math.round(100 * n / Math.max(of, 1));
+  const short = (org) => { const s = String(org || "").replace(/,? (Inc|LLC|Ltd|GmbH|Co|Corporation|Limited|S\.?A|B\.?V)\.?$/i, ""); return s.length > 28 ? s.slice(0, 27) + "…" : s; };
+  const upFor = (n) => { const h = (n || 1) * RUN_HOURS; return h < 48 ? `${h} h` : `${Math.round(h / 24)} days`; };
+  const uptime = (n) => {  // n runs in a row ≈ n × RUN_HOURS
+    if (!n) return '<span class="quiet">–</span>';
+    const h = n * RUN_HOURS, text = n === 1 ? "new" : h < 48 ? `${h} h` : `${Math.round(h / 24)} days`;
+    return n >= STABLE ? `<span class="stable-badge">${text}</span>` : `<span class="quiet">${text}</span>`;
+  };
+  const share = (r) => r.uptime_7d == null ? uptime(r.streak)  // lists from before the uptime existed
+    : `<span class="uptime${(r.streak || 0) >= STABLE ? " stable-badge" : ""}" title="On the list in ${r.uptime_7d} % of this week's runs and ${r.uptime_24h} % of today's – up without a gap for ${upFor(r.streak)}"><span class="meter" style="--v:${r.uptime_7d}%"></span>${r.uptime_7d} %</span>`;
+  const SITE_NAMES = { google: "Google", reddit: "Reddit", amazon: "Amazon", instagram: "Instagram", tiktok: "TikTok", discord: "Discord" };
+  const through = (r) => {
+    const ok = Object.keys(SITE_NAMES).filter(k => (r.sites || {})[k] === true);
+    if (!ok.length) return '<span class="quiet">–</span>';
+    // two chips and a count keep the column one line high; the title lists them all
+    const names = ok.map(k => SITE_NAMES[k]), more = names.length - 2;
+    return `<span class="sites" title="Gets through to ${names.join(", ")}">${names.slice(0, 2).map(n => `<span class="site">${n}</span>`).join("")}${more > 0 ? `<span class="site more">+${more}</span>` : ""}</span>`;
+  };
+  const speed = (k) => !k ? '<span class="quiet">–</span>'
+    : `<span class="${k >= 500 ? "fast" : k >= 100 ? "mid" : "slow"}">${k >= 1024 ? (k / 1024).toFixed(1) + " MB/s" : fmt(k) + " KB/s"}</span>`;
+  const latency = (ms) => `<span class="${ms < 1000 ? "fast" : ms < 3000 ? "mid" : "slow"}">${fmt(ms)} ms</span>`;
+  const state = { rows: [], shown: PAGE, sort: "rank", dir: 1, types: new Set(["http", "socks4", "socks5"]),
+                  https: false, elite: false, noDc: false, noBl: false, stable: false, country: "", site: "", maxLat: 8000, q: "" };
+
+  // Theme
+  const themeBtn = $("#theme");
+  const isLight = () => html.dataset.theme === "light";
+  const labelTheme = () => themeBtn.setAttribute("aria-label", isLight() ? "Switch to dark theme" : "Switch to light theme");
+  const themeColor = () => { $('meta[name="theme-color"]').content = isLight() ? "#EFEFEC" : "#121113"; };
+  labelTheme(); themeColor();
+  const flip = () => {
+    html.dataset.theme = isLight() ? "dark" : "light";
+    try { localStorage.setItem("theme", html.dataset.theme); } catch (e) {}
+    themeColor(); labelTheme();
+  };
+  let themeVT = null;
+  themeBtn.onclick = () => {
+    if (calm || !document.startViewTransition) return flip();
+    // the new theme grows as a circle out of the switch
+    const r = themeBtn.getBoundingClientRect(), x = r.left + r.width / 2, y = r.top + r.height / 2;
+    const radius = Math.hypot(Math.max(x, innerWidth - x), Math.max(y, innerHeight - y));
+    if (themeVT) themeVT.skipTransition();  // a second click finishes the first one at once
+    html.classList.add("vt-theme");
+    const vt = themeVT = document.startViewTransition(flip);
+    vt.ready.then(() => html.animate({ clipPath: [`circle(0 at ${x}px ${y}px)`, `circle(${radius}px at ${x}px ${y}px)`] },
+                                     { duration: 600, easing: "cubic-bezier(.65, 0, .35, 1)", pseudoElement: "::view-transition-new(root)" }))
+      .catch(() => {});
+    vt.finished.finally(() => { if (themeVT === vt) { themeVT = null; html.classList.remove("vt-theme"); } });
+  };
+
+  // Copying, toasts
+  const toastEl = $("#toast");
+  function toast(msg) { toastEl.textContent = msg; toastEl.classList.add("show"); clearTimeout(toastEl._t); toastEl._t = setTimeout(() => toastEl.classList.remove("show"), 1800); }
+  async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg); } catch (e) { toast("Copying isn't allowed here. Select the text instead."); } }
+  // Copy and download in the format the viewer picked – plain ip:port is what many tools want
+  const CSV_COLS = ["proxy", "ptype", "country", "latency", "speed_kbps", "https", "anonymity", "uptime_7d", "org", "hosting", "blocklisted"];
+  const csvCell = (v) => v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+  const FORMATS = {
+    url: { ext: "txt", type: "text/plain", text: (rows) => rows.map(r => r.url).join("\n") + "\n" },
+    plain: { ext: "txt", type: "text/plain", text: (rows) => rows.map(r => r.proxy).join("\n") + "\n" },
+    json: { ext: "json", type: "application/json", text: (rows) => JSON.stringify(rows.map(({ rank, ...r }) => r), null, 1) + "\n" },
+    csv: { ext: "csv", type: "text/csv", text: (rows) => [CSV_COLS.join(","), ...rows.map(r => CSV_COLS.map(c => csvCell(r[c])).join(","))].join("\n") + "\n" },
+  };
+  const fmtSelect = $("#fmt");
+  try { const f = localStorage.getItem("format"); if (FORMATS[f]) fmtSelect.value = f; } catch (e) {}
+  fmtSelect.onchange = () => { try { localStorage.setItem("format", fmtSelect.value); } catch (e) {} };
+  const format = () => FORMATS[fmtSelect.value] || FORMATS.url;
+  function download(rows, base) {
+    const f = format();
+    const blob = new Blob([f.text(rows)], { type: f.type });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(blob), download: `${base}.${f.ext}` });
+    document.body.append(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 1000);
+  }
+  function ago(iso) {
+    const s = (Date.now() - new Date(iso)) / 1000;
+    if (s < 90) return "just now"; if (s < 5400) return `${Math.round(s / 60)} minutes ago`;
+    if (s < 129600) return `${Math.round(s / 3600)} hours ago`; return `${Math.round(s / 86400)} days ago`;
+  }
+
+  // Smooth scrolling (Lenis), the nav hides while scrolling down
+  let lenis = null;
+  window.startLenis = () => {  // called by the Lenis script once it has loaded; without it the browser scrolls normally
+    if (calm || lenis || !window.Lenis) return;
+    lenis = new Lenis({ lerp: 0.1, smoothWheel: true });
+    const raf = (t) => { lenis.raf(t); requestAnimationFrame(raf); };
+    requestAnimationFrame(raf);
+  };
+  document.addEventListener("click", (e) => {
+    const a = e.target.closest('a[href^="#"]');
+    if (!a) return;
+    const target = a.getAttribute("href") === "#top" ? 0 : $(a.getAttribute("href"));
+    if (target === null) return;
+    e.preventDefault();
+    if (lenis) lenis.scrollTo(target, { offset: target === 0 ? 0 : -72, duration: 1.4 });
+    else if (target === 0) scrollTo({ top: 0 }); else target.scrollIntoView();
+    const focusTarget = target === 0 ? $("#top") : target;
+    if (!focusTarget.hasAttribute("tabindex")) focusTarget.setAttribute("tabindex", "-1");
+    focusTarget.focus({ preventScroll: true });
+  });
+  let lastY = scrollY, ticking = false;
+  const onScroll = () => {
+    const y = scrollY;
+    document.body.classList.toggle("nav-hidden", y > lastY && y > 400);
+    lastY = y;
+    if (routeOnScreen) updateRoute();
+    ticking = false;
+  };
+  addEventListener("scroll", () => { if (!ticking) { ticking = true; requestAnimationFrame(onScroll); } }, { passive: true });
+  addEventListener("resize", () => { placeGates(); updateRoute(); });
+
+  // Count up once the number is visible
+  function countTo(el, to, decimals = 0) {
+    const show = (v) => { el.textContent = decimals ? v.toFixed(decimals) : fmt(Math.round(v)); };
+    el._to = to;  // a newer run replaces the target, also while the count waits for the figure to scroll in
+    if (calm || el._counted) return show(to);
+    if (el._waiting) return;
+    el._waiting = true;
+    const io = new IntersectionObserver((entries) => {
+      const e = entries[0];  // from half visible – or if we already jumped past it
+      if (e.intersectionRatio < 0.5 && e.boundingClientRect.top > 0) return;
+      io.disconnect();
+      el._counted = true;
+      const start = performance.now(), dur = 1600;
+      const step = (t) => { const k = Math.min(1, (t - start) / dur); show(el._to * (1 - Math.pow(2, -10 * k)) / (1 - Math.pow(2, -10))); if (k < 1) requestAnimationFrame(step); };
+      requestAnimationFrame(step);
+    }, { threshold: [0, 0.5] });
+    io.observe(el);
+  }
+
+  // Route through the five checks – scroll progress pushes a packet along the line
+  const GATES = [["Lists", 0.03], ["Handshake", 0.27], ["Honeypots", 0.5], ["Content", 0.73], ["Details", 0.96]];
+  const path = $("#route-path"), done = $("#route-done"), packet = $("#packet"), halo = $("#halo");
+  const total = path.getTotalLength();
+  const steps = $$(".step");
+  done.style.strokeDasharray = total; done.style.strokeDashoffset = total;
+  function placeGates() {
+    $("#gates").innerHTML = GATES.map(([label, f], i) => {
+      const p = path.getPointAtLength(total * f), above = i % 2 === 0;
+      return `<circle class="gate" cx="${p.x}" cy="${p.y}" r="11"/><text class="gate-label" x="${p.x}" y="${p.y + (above ? -26 : 38)}">${label}</text>`;
+    }).join("");
+  }
+  placeGates();
+  let current = -1;
+  function updateRoute() {
+    const section = $("#checks");
+    let p = 1;
+    if (!calm) {
+      const r = section.getBoundingClientRect();
+      p = Math.min(1, Math.max(0, -r.top / Math.max(1, r.height - innerHeight)));
+    }
+    const along = Math.min(1, p / 0.9);  // the last 10 % belong to the result
+    const pt = path.getPointAtLength(total * along);
+    packet.setAttribute("cx", pt.x); packet.setAttribute("cy", pt.y); halo.setAttribute("cx", pt.x); halo.setAttribute("cy", pt.y);
+    done.style.strokeDashoffset = total * (1 - along);
+    // Camera: if the route is wider than the screen, the packet stays roughly in the middle
+    const svg = $("#route-svg"), cam = svg.parentElement;
+    const extra = svg.clientWidth - (cam.clientWidth - 2 * parseFloat(getComputedStyle(cam).paddingLeft));
+    if (extra > 1 && !calm) {  // without motion: scrollable sideways instead
+      const scale = svg.clientWidth / 1200;
+      const shift = Math.min(extra, Math.max(0, pt.x * scale - cam.clientWidth / 2));
+      svg.style.transform = `translateX(${-shift}px)`;
+    } else svg.style.transform = "";
+    const passed = GATES.filter(([, f]) => along >= f - 0.001).length;
+    $$("#gates .gate").forEach((g, i) => g.classList.toggle("on", i < passed));
+    $$("#gates .gate-label").forEach((g, i) => g.classList.toggle("on", i < passed));
+    const which = p >= 0.93 ? steps.length - 1 : Math.max(0, passed - 1);
+    if (which !== current && !calm) { steps.forEach((s, i) => s.classList.toggle("on", i === which)); current = which; }
+  }
+  updateRoute();
+  // scrolling elsewhere on the page skips the route entirely; leaving it once more settles the end state
+  let routeOnScreen = true;
+  if ("IntersectionObserver" in window)
+    new IntersectionObserver((e) => { routeOnScreen = e[0].isIntersecting; updateRoute(); }, { rootMargin: "200px 0px" }).observe($("#checks"));
+
+  // List
+  function filtered() {
+    const q = state.q.trim().toLowerCase();
+    const rows = state.rows.filter(r => state.types.has(r.ptype) && (!state.https || r.https) && (!state.elite || r.anonymity === "elite")
+      && (!state.noDc || !r.hosting) && (!state.noBl || !r.blocklisted) && (!state.stable || (r.streak || 0) >= STABLE) && (!state.country || r.country === state.country) && (!state.site || (r.sites || {})[state.site] === true)
+      && (state.maxLat >= 8000 || r.latency <= state.maxLat)  // all the way right = no limit
+      && (!q || `${r.ptype} ${r.proxy} ${r.country} ${r.country ? countryName(r.country) : ""} ${r.exit_ip} ${r.org || ""} AS${r.asn || ""}`.toLowerCase().includes(q)));
+    const k = state.sort, d = state.dir;
+    const missing = (v) => v == null || v === "";  // not measured: always last, whichever way it's sorted
+    return rows.sort((a, b) => (missing(a[k]) - missing(b[k]))
+      || (a[k] > b[k] ? 1 : a[k] < b[k] ? -1 : 0) * d || a.latency - b.latency);
+  }
+  function render() {
+    const rows = filtered();
+    $("#rows").innerHTML = rows.slice(0, state.shown).map(r => `<tr>
+      <td><span class="t-type" title="${esc(r.ptype)}"><span class="dot ${esc(r.ptype)}"></span><span class="name">${esc(r.ptype)}</span></span></td>
+      <td><button class="addr-btn" type="button" data-url="${esc(r.url)}" aria-label="Copy ${esc(r.url)}">${esc(r.proxy)}<svg aria-hidden="true"><use href="#i-copy"/></svg></button><a class="detail" href="proxy/${esc(r.proxy.replace(":", "-"))}/" aria-label="Details and week of ${esc(r.proxy)}" title="Details and this week's checks"><svg aria-hidden="true"><use href="#i-open"/></svg></a></td>
+      <td title="${esc(r.country ? countryName(r.country) : "")}">${flag(r.country)} ${esc(r.country || "–")}</td>
+      <td>${latency(r.latency)}</td>
+      <td class="hide-sm">${speed(r.speed_kbps)}</td>
+      <td class="hide-sm">${r.https ? "Yes" : '<span class="quiet">No</span>'}</td>
+      <td class="hide-sm">${share(r)}</td>
+      <td class="hide-sm">${through(r)}</td>
+      <td class="hide-sm provider" title="${esc(r.org ? `AS${r.asn} ${r.org}, exit ${r.exit_ip}` : r.exit_ip)}">${r.hosting ? '<span class="tag" title="Datacenter">DC</span>' : ""}${r.blocklisted ? '<span class="tag bl" title="Exit IP on the SpamCop blocklist">BL</span>' : ""}${esc(short(r.org) || r.exit_ip)}</td></tr>`).join("")
+      || '<tr><td colspan="9" class="empty">No proxy matches these filters. Try a higher latency limit or fewer filters.</td></tr>';
+    $("#count").textContent = rows.length ? `Showing ${fmt(Math.min(state.shown, rows.length))} of ${fmt(rows.length)} matching proxies` : "";
+    $("#more").hidden = rows.length <= state.shown;
+    $("#best").hidden = state.sort === "rank";
+    saveView();
+    $$("th[data-key]").forEach(th => th.dataset.key === state.sort ? th.setAttribute("aria-sort", state.dir > 0 ? "ascending" : "descending") : th.removeAttribute("aria-sort"));
+  }
+  const refresh = () => { state.shown = PAGE; render(); };
+
+  // The filters live in the address bar, so a view can be shared or bookmarked
+  const ALL_TYPES = ["http", "socks4", "socks5"], FLAGS = { https: "https", elite: "elite", noDc: "nodc", noBl: "nobl", stable: "stable" };
+  function viewUrl() {
+    const q = new URLSearchParams();
+    if (state.types.size !== ALL_TYPES.length) q.set("types", [...state.types].join(","));
+    Object.entries(FLAGS).forEach(([key, name]) => { if (state[key]) q.set(name, "1"); });
+    if (state.country) q.set("country", state.country);
+    if (state.site) q.set("site", state.site);
+    if (state.maxLat < 8000) q.set("latency", state.maxLat);
+    if (state.q.trim()) q.set("q", state.q.trim());
+    if (state.sort !== "rank") q.set("sort", (state.dir < 0 ? "-" : "") + state.sort);
+    return location.pathname + (q.toString() ? `?${q}` : "") + location.hash;
+  }
+  // debounced: browsers limit replaceState (Safari throws after ~100 calls in 30 s, e.g. while dragging the slider)
+  let saveTimer = 0;
+  function saveView() {
+    clearTimeout(saveTimer);
+    saveTimer = setTimeout(() => {
+      const url = viewUrl();
+      if (url !== location.pathname + location.search + location.hash) {
+        try { history.replaceState(history.state, "", url); } catch (e) {}
+      }
+    }, 400);
+  }
+  function loadView() {
+    const q = new URLSearchParams(location.search);
+    if (q.has("types")) state.types = new Set(q.get("types").split(",").filter(t => ALL_TYPES.includes(t)));
+    Object.entries(FLAGS).forEach(([key, name]) => { state[key] = q.get(name) === "1"; });
+    state.country = /^[A-Z]{2}$/.test(q.get("country") || "") ? q.get("country") : "";
+    state.site = Object.keys(SITE_NAMES).includes(q.get("site")) ? q.get("site") : "";
+    const lat = parseInt(q.get("latency"), 10);
+    state.maxLat = lat >= 200 && lat < 8000 ? Math.round(lat / 100) * 100 : 8000;
+    state.q = (q.get("q") || "").slice(0, 100);
+    const sort = (q.get("sort") || "").replace(/^-/, "");
+    if ($(`th[data-key="${CSS.escape(sort)}"]`)) { state.sort = sort; state.dir = q.get("sort").startsWith("-") ? -1 : 1; }
+    // show it on the controls
+    $$(".chip[data-type]").forEach(b => b.setAttribute("aria-pressed", state.types.has(b.dataset.type)));
+    Object.keys(FLAGS).forEach((key) => { const b = $({ https: "#f-https", elite: "#f-elite", noDc: "#f-dc", noBl: "#f-bl", stable: "#f-stable" }[key]); b.setAttribute("aria-pressed", state[key]); });
+    $("#f-site").value = state.site;
+    $("#f-lat").value = state.maxLat;
+    $("#f-lat-v").textContent = state.maxLat >= 8000 ? "any" : `${fmt(state.maxLat)} ms`;
+    $("#f-q").value = state.q;
+  }
+  loadView();
+  $("#share").onclick = () => copy(new URL(viewUrl(), location.href).href, "Link to this view copied");
+  // the same as the bookmarklet, without the round trip: a random proxy from the reliable ones in the list
+  $("#pick-one").onclick = () => {
+    const pool = state.rows.filter(r => (r.uptime_7d || 0) >= 90);  // exactly what stable.txt holds
+    const from = pool.length ? pool : state.rows.filter(r => r.https).slice(0, 30);
+    if (!from.length) return toast("The list isn't loaded yet");
+    const p = from[Math.floor(Math.random() * from.length)];
+    copy(p.url, `Copied ${p.url}`);
+  };
+  $("#bookmarklet").onclick = (e) => { e.preventDefault(); toast("Drag it to your bookmarks bar – it works on any site from there"); };
+  // chips, the country and sorting let the rows settle in; typing and the slider stay instant
+  const morph = (fn) => {
+    fn();
+    if (calm) return;
+    const body = $("#rows");
+    body.classList.remove("settle");
+    void body.offsetWidth;  // restart the animation on the next change too
+    [...body.rows].slice(0, 12).forEach((tr, i) => tr.style.setProperty("--r", i));
+    body.classList.add("settle");
+  };
+  $$(".chip[data-type]").forEach(b => b.onclick = () => {
+    const t = b.dataset.type; state.types.has(t) ? state.types.delete(t) : state.types.add(t);
+    b.setAttribute("aria-pressed", state.types.has(t)); morph(refresh);
+  });
+  const toggle = (id, key) => { const b = $(id); b.onclick = () => { state[key] = !state[key]; b.setAttribute("aria-pressed", state[key]); morph(refresh); }; };
+  toggle("#f-https", "https"); toggle("#f-elite", "elite"); toggle("#f-dc", "noDc"); toggle("#f-stable", "stable"); toggle("#f-bl", "noBl");
+  $("#f-country").onchange = (e) => { state.country = e.target.value; morph(refresh); if (mapReady) drawMap(mapCounts); };
+  $("#f-site").onchange = (e) => { state.site = e.target.value; morph(refresh); };
+  $("#f-lat").oninput = (e) => { state.maxLat = +e.target.value; $("#f-lat-v").textContent = state.maxLat >= 8000 ? "any" : `${fmt(state.maxLat)} ms`; refresh(); };
+  $("#f-q").oninput = (e) => { state.q = e.target.value; refresh(); };
+  $("#more").onclick = () => { state.shown += PAGE * 4; render(); };
+  $("#best").onclick = () => { state.sort = "rank"; state.dir = 1; morph(render); };
+  $$("th[data-key]").forEach(th => {
+    th.querySelector(".sort").onclick = () => { const k = th.dataset.key; state.dir = state.sort === k ? -state.dir : 1; state.sort = k; morph(render); };
+  });
+  $("#rows").onclick = (e) => { const b = e.target.closest(".addr-btn"); if (b) copy(b.dataset.url, `Copied ${b.dataset.url}`); };
+  $("#copy-all").onclick = () => { const rows = filtered(); copy(format().text(rows), `Copied ${fmt(rows.length)} proxies`); };
+  $("#download").onclick = () => download(filtered(), "proxies");
+  $("#dl-all").onclick = () => state.rows.length ? download(state.rows, "all") : toast("The list is still loading");
+  // the transcript plays once when it comes into view
+  const transcript = $("#transcript");
+  if (calm || !("IntersectionObserver" in window)) transcript.classList.remove("pending");
+  else new IntersectionObserver((e, o) => { if (e[0].isIntersecting) { transcript.classList.remove("pending"); o.disconnect(); } },
+                                { threshold: .4 }).observe(transcript);
+  // stars: shown once there are enough to mean something
+  fetch("https://api.github.com/repos/maximilianfeix/proxy-scraper").then(r => r.ok ? r.json() : null).then((repo) => {
+    const n = repo && repo.stargazers_count;
+    if (n >= 25) $$("[data-stars]").forEach((el) => { el.textContent = fmt(n); });
+  }).catch(() => {});
+  // "/" jumps to the search, like on GitHub
+  document.addEventListener("keydown", (e) => {
+    if (e.key !== "/" || e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, select, textarea")) return;
+    e.preventDefault();
+    $("#f-q").focus({ preventScroll: true });
+    $("#f-q").scrollIntoView({ block: "center", behavior: calm ? "auto" : "smooth" });
+  });
+  $("#sieve-rows").onclick = (e) => { const b = e.target.closest("button[data-url]"); if (b) copy(b.dataset.url, `Copied ${b.dataset.url}`); };
+  $$("[data-copy-pre]").forEach(b => b.onclick = () => copy(b.parentElement.querySelector("pre").textContent + "\n", "Copied the command"));
+  $("#raw").innerHTML = [["all", "Everything"], ["http", "HTTP"], ["socks4", "SOCKS4"], ["socks5", "SOCKS5"], ["https", "HTTPS-capable"], ["elite", "Elite"], ["stable", "Stable this week"]]
+    .map(([f, label]) => `<a href="${RAW}/${f}.txt"><span>${label}</span><span class="mono">${f}.txt</span></a>`).join("");
+
+  // Charts
+  function bars(el, entries, label) {
+    const max = Math.max(1, ...entries.map(e => e[1]));
+    el.innerHTML = entries.map(([k, n]) => `<div class="bar-row"><span class="k">${esc(label(k))}</span><span class="bar"><i data-w="${(100 * n / max).toFixed(1)}"></i></span><span class="v">${fmt(n)}</span></div>`).join("")
+      || '<p class="note">No data yet.</p>';
+    const grow = () => el.querySelectorAll("i").forEach(i => { i.style.width = i.dataset.w + "%"; });
+    if (calm) return grow();
+    const io = new IntersectionObserver((e) => { if (e[0].isIntersecting) { io.disconnect(); grow(); } }, { threshold: 0.3 });
+    io.observe(el);
+  }
+  function trend(history) {
+    const el = $("#trend");
+    const runs = history ? history.length : 0;
+    // runs a few minutes apart (started by hand) are noise, not trend: keep the last of each such cluster
+    history = (history || []).filter((h, i, a) => i === a.length - 1 || Date.parse(a[i + 1].updated) - Date.parse(h.updated) > 20 * 60e3);
+    if (history.length < 2) { el.innerHTML = '<p class="note">The chart fills up with every run.</p>'; return; }
+    const W = 800, H = 260, P = 10, max = Math.max(...history.map(h => h.total)) * 1.12 || 1;
+    // spaced by time, not by index: the runs weren't always the same distance apart
+    const t0 = Date.parse(history[0].updated), span = Math.max(Date.parse(history[history.length - 1].updated) - t0, 1);
+    const x = (h) => P + (Date.parse(h.updated) - t0) * (W - 2 * P) / span, y = (v) => H - P - v * (H - 2 * P) / max;
+    // monotone cubic (Fritsch–Carlson): smooth, but never overshoots the measured values – the runs aren't
+    // evenly spaced, and a plain spline turns close runs into spikes
+    const f = (v) => v.toFixed(1);
+    const line = (key) => {
+      const p = history.map((h) => [x(h), y(key(h))]).filter((q, i, a) => !i || q[0] > a[i - 1][0]);
+      const n = p.length, d = [], m = [];
+      if (n < 2) return p.length ? `M${f(p[0][0])},${f(p[0][1])}` : "";
+      for (let i = 0; i < n - 1; i++) d.push((p[i + 1][1] - p[i][1]) / (p[i + 1][0] - p[i][0]));
+      m[0] = d[0]; m[n - 1] = d[n - 2];
+      for (let i = 1; i < n - 1; i++) m[i] = d[i - 1] * d[i] <= 0 ? 0 : (d[i - 1] + d[i]) / 2;
+      for (let i = 0; i < n - 1; i++) {
+        if (!d[i]) { m[i] = m[i + 1] = 0; continue; }
+        const a = m[i] / d[i], b = m[i + 1] / d[i], s2 = a * a + b * b;
+        if (s2 > 9) { const t = 3 / Math.sqrt(s2); m[i] = t * a * d[i]; m[i + 1] = t * b * d[i]; }
+      }
+      let path = `M${f(p[0][0])},${f(p[0][1])}`;
+      for (let i = 0; i < n - 1; i++) {
+        const h = (p[i + 1][0] - p[i][0]) / 3;
+        path += `C${f(p[i][0] + h)},${f(p[i][1] + m[i] * h)} ${f(p[i + 1][0] - h)},${f(p[i + 1][1] - m[i + 1] * h)} ${f(p[i + 1][0])},${f(p[i + 1][1])}`;
+      }
+      return path;
+    };
+    const area = line(h => h.total) + `L${W - P},${H - P}L${P},${H - P}Z`;
+    const last = history[history.length - 1];
+    el.innerHTML = `<svg viewBox="0 0 ${W} ${H}" preserveAspectRatio="none" role="img" aria-label="Working proxies per run, last run ${fmt(last.total)}">
+      <defs><linearGradient id="fade" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="var(--signal-ink)" stop-opacity=".28"/><stop offset="1" stop-color="var(--signal-ink)" stop-opacity="0"/></linearGradient></defs>
+      <path d="${area}" fill="url(#fade)"/>
+      <path d="${line(h => h.https || 0)}" fill="none" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4" vector-effect="non-scaling-stroke"/>
+      <path d="${line(h => h.total)}" fill="none" stroke="var(--signal-ink)" stroke-width="2.5" stroke-linejoin="round" vector-effect="non-scaling-stroke"/></svg>`;
+    const day = (iso) => new Date(iso).toLocaleString("en-GB", { day: "numeric", month: "short", hour: "2-digit", minute: "2-digit" });
+    $("#axis-from").textContent = day(history[0].updated); $("#axis-to").textContent = day(last.updated);
+    $("#trend-note").textContent = `${fmt(runs)} runs, now one every ${RUN_HOURS === 1 ? "hour" : `${RUN_HOURS} hours`}. Last run: ${fmt(last.total)} working.`;
+  }
+  // The sieve: a sped-up replay of one run. The mix of outcomes on screen is a readable sample (a real run drops
+  // ~99.8 % as dead), the counters climb to the real totals, and every proxy that passes is one from this list.
+  let sieveRun = null;  // -> (rows, total) once the replay is running: a newer run swaps in its proxies
+  function sieve(rows, total) {
+    if (sieveRun) return sieveRun(rows, total);
+    const list = $("#sieve-rows"), box = $("#sieve"), MAX = 6;
+    if (!rows.length) return;
+    let good = [...rows].sort(() => Math.random() - .5).slice(0, 60);
+    sieveRun = (newRows, newTotal) => { if (newRows.length) good = [...newRows].sort(() => Math.random() - .5).slice(0, 60); total = newTotal; };
+    const OUTCOMES = [["dead", 1, "no handshake, just an open port – or not even that"], ["dead", 1, "timed out"],
+                      ["honeypot", 2, "different exit IP on the second site"], ["dead", 1, "connection refused"],
+                      ["tamper", 3, "rewrote the page: injected a <script>"], ["dead", 1, "not a proxy"],
+                      ["pass", 4, ""], ["honeypot", 2, "only answered the check request"], ["tamper", 3, "added ads to the page"]];
+    const CANDIDATES = 1000000, rand = (a, b) => a + Math.floor(Math.random() * (b - a));
+    // only first octets of public ranges – private and reserved addresses never make it into a run anyway
+    const OCTETS = [5, 23, 31, 37, 45, 46, 51, 62, 77, 78, 82, 85, 89, 91, 93, 95, 103, 109, 116, 122, 139, 144, 146, 152, 154, 159, 162, 165, 178, 185, 188, 190, 194, 202, 212];
+    const fakeAddr = () => `${OCTETS[rand(0, OCTETS.length)]}.${rand(0, 255)}.${rand(0, 255)}.${rand(1, 254)}:${[80, 8080, 3128, 1080, 4145, 9050, 8888][rand(0, 7)]}`;
+    let n = 0, gi = 0, checked = 0, kept = 0, timer = null, paused = false, onScreen = true, tabShown = true, holding = false;
+    const counters = () => { $("#sieve-checked").textContent = fmt(checked); $("#sieve-kept").textContent = fmt(kept); };
+    function row(outcome, stage, reason, proxy) {
+      const li = document.createElement("li");
+      li.className = "cand";
+      const pips = [0, 1, 2, 3].map(() => '<span class="pip"></span>').join("");
+      li.innerHTML = `<span class="addr">${esc(proxy ? proxy.proxy : fakeAddr())}</span><span class="pips" aria-hidden="true">${pips}</span><span class="verdict">checking …</span>`;
+      list.prepend(li);
+      while (list.children.length > MAX) list.lastElementChild.remove();
+      const p = li.querySelectorAll(".pip");
+      const passes = outcome === "pass";
+      [0, 1, 2, 3].forEach((k) => setTimeout(() => {
+        if (k < stage) p[k].classList.add(passes || k < stage - 1 ? "ok" : "no");
+        if (k === stage - 1 || (passes && k === 3)) {
+          const v = li.querySelector(".verdict");
+          if (passes) {
+            li.classList.add("in");
+            v.innerHTML = `<button type="button" data-url="${esc(proxy.url)}" aria-label="Copy ${esc(proxy.url)}">kept · ${flag(proxy.country)} ${esc(proxy.country || "")} ${fmt(proxy.latency)} ms${proxy.https ? " · HTTPS" : ""}</button>`;
+          } else {
+            li.classList.add("out");
+            v.textContent = reason;
+          }
+        }
+      }, 140 * (k + 1)));
+    }
+    function step() {
+      const [outcome, stage, reason] = OUTCOMES[n++ % OUTCOMES.length];
+      row(outcome, stage, reason, outcome === "pass" ? good[gi++ % good.length] : null);
+      checked = Math.min(CANDIDATES, checked + rand(9000, 16000));
+      kept = Math.min(total, Math.round(total * checked / CANDIDATES));
+      counters();
+      if (checked >= CANDIDATES) { checked = 0; kept = 0; }  // start the next run
+    }
+    const run = () => { clearInterval(timer); timer = (!paused && !holding && onScreen && tabShown) ? setInterval(step, 900) : null; };
+    if (calm) {  // no motion: one still frame of a finished run, with one of each outcome
+      [0, 2, 6, 4, 3, 7].forEach((k) => {
+        const [outcome, stage, reason] = OUTCOMES[k];
+        row(outcome, stage, reason, outcome === "pass" ? good[0] : null);
+      });
+      checked = CANDIDATES; kept = total; counters();
+      $("#sieve-toggle").style.display = "none";
+      return;
+    }
+    step(); run();
+    new IntersectionObserver((e) => { onScreen = e[0].isIntersecting; run(); }).observe(box);
+    document.addEventListener("visibilitychange", () => { tabShown = !document.hidden; run(); });
+    // hold still while someone points at a row or tabs into it, so a kept proxy can be copied
+    const hold = (on) => { holding = on; run(); };
+    list.addEventListener("mouseenter", () => hold(true));
+    list.addEventListener("mouseleave", () => hold(list.contains(document.activeElement)));
+    list.addEventListener("focusin", () => hold(true));
+    list.addEventListener("focusout", (e) => hold(list.contains(e.relatedTarget) || list.matches(":hover")));
+    $("#sieve-toggle").onclick = (e) => {
+      paused = box.classList.toggle("paused");
+      e.currentTarget.setAttribute("aria-pressed", paused);
+      e.currentTarget.setAttribute("aria-label", paused ? "Play the replay" : "Pause the replay");
+      run();
+    };
+  }
+
+  // the data sits right next to this page
+  // The world map: loaded only when it comes near (d3-geo, topojson and the outlines are ~250 KB)
+  const ISO = {"242":"FJ","834":"TZ","732":"EH","124":"CA","840":"US","398":"KZ","860":"UZ","598":"PG","360":"ID","032":"AR","152":"CL","180":"CD","706":"SO","404":"KE","729":"SD","148":"TD","332":"HT","214":"DO","643":"RU","044":"BS","238":"FK","578":"NO","304":"GL","260":"TF","626":"TL","710":"ZA","426":"LS","484":"MX","858":"UY","076":"BR","068":"BO","604":"PE","170":"CO","591":"PA","188":"CR","558":"NI","340":"HN","222":"SV","320":"GT","084":"BZ","862":"VE","328":"GY","740":"SR","250":"FR","218":"EC","630":"PR","388":"JM","192":"CU","716":"ZW","072":"BW","516":"NA","686":"SN","466":"ML","478":"MR","204":"BJ","562":"NE","566":"NG","120":"CM","768":"TG","288":"GH","384":"CI","324":"GN","624":"GW","430":"LR","694":"SL","854":"BF","140":"CF","178":"CG","266":"GA","226":"GQ","894":"ZM","454":"MW","508":"MZ","748":"SZ","024":"AO","108":"BI","376":"IL","422":"LB","450":"MG","275":"PS","270":"GM","788":"TN","012":"DZ","400":"JO","784":"AE","634":"QA","414":"KW","368":"IQ","512":"OM","548":"VU","116":"KH","764":"TH","418":"LA","104":"MM","704":"VN","408":"KP","410":"KR","496":"MN","356":"IN","050":"BD","064":"BT","524":"NP","586":"PK","004":"AF","762":"TJ","417":"KG","795":"TM","364":"IR","760":"SY","051":"AM","752":"SE","112":"BY","804":"UA","616":"PL","040":"AT","348":"HU","498":"MD","642":"RO","440":"LT","428":"LV","233":"EE","276":"DE","100":"BG","300":"GR","792":"TR","008":"AL","191":"HR","756":"CH","442":"LU","056":"BE","528":"NL","620":"PT","724":"ES","372":"IE","540":"NC","090":"SB","554":"NZ","036":"AU","144":"LK","156":"CN","158":"TW","380":"IT","208":"DK","826":"GB","352":"IS","031":"AZ","268":"GE","608":"PH","458":"MY","096":"BN","705":"SI","246":"FI","703":"SK","203":"CZ","232":"ER","392":"JP","600":"PY","887":"YE","682":"SA","010":"AQ","196":"CY","504":"MA","818":"EG","434":"LY","231":"ET","262":"DJ","800":"UG","646":"RW","070":"BA","807":"MK","688":"RS","499":"ME","780":"TT","728":"SS"};
+  const addScript = (src) => new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.appendChild(s); });
+  let mapReady = null, mapCounts = {};
+  function drawMap(counts) {
+    mapCounts = counts;
+    const el = $("#map");
+    if (!mapReady) {
+      mapReady = addScript("https://cdn.jsdelivr.net/npm/d3-array@3/dist/d3-array.min.js")
+        .then(() => addScript("https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js"))
+        .then(() => addScript("https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"))
+        .then(() => fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")).then(r => r.json())
+        .then((world) => {
+          const W = 960;
+          const land = topojson.feature(world, world.objects.countries).features.filter(f => f.properties.name !== "Antarctica");
+          const all = { type: "FeatureCollection", features: land };
+          const projection = d3.geoNaturalEarth1().fitWidth(W, all);
+          const path = d3.geoPath(projection);
+          const H = Math.ceil(path.bounds(all)[1][1]);  // as tall as the land, no empty band above or below
+          el.innerHTML = `<svg viewBox="0 0 ${W} ${H}">${land.map(f => `<path class="land" data-cc="${ISO[f.id] || ""}" d="${path(f)}"/>`).join("")}</svg>`;
+          el.classList.add("pending");
+        })
+        .catch(() => { el.innerHTML = '<p class="note map-wait">The map could not be loaded – the country list below still works.</p>'; });
+    }
+    return mapReady.then(() => {
+      const max = Math.max(1, ...Object.values(mapCounts));
+      $("#map-max").textContent = fmt(max);
+      el.querySelectorAll(".land").forEach((p) => {
+        const cc = p.dataset.cc, n = mapCounts[cc] || 0;
+        p.classList.toggle("has", n > 0);
+        p.classList.toggle("on", !!cc && cc === state.country);
+        p.style.setProperty("--t", n ? (Math.log(1 + n) / Math.log(1 + max)).toFixed(3) : 0);
+        p.style.setProperty("--d", n ? Math.round(700 * (1 - Math.log(1 + n) / Math.log(1 + max))) : 0);  // busiest first
+        if (n) { p.setAttribute("tabindex", "0"); p.setAttribute("role", "button"); p.setAttribute("aria-label", `${countryName(cc)}: ${fmt(n)} proxies – show them`); }
+        else { p.removeAttribute("tabindex"); p.removeAttribute("role"); p.removeAttribute("aria-label"); }
+      });
+      void el.offsetWidth;  // let the browser see the paths at opacity 0 first, or there's nothing to fade from
+      requestAnimationFrame(() => el.classList.remove("pending"));
+    });
+  }
+  function pickCountry(cc) {
+    state.country = cc;
+    $("#f-country").value = cc;
+    morph(refresh);
+    drawMap(mapCounts);
+    const list = $("#list");
+    if (lenis) lenis.scrollTo(list, { offset: -72, duration: 1.2 }); else list.scrollIntoView({ behavior: calm ? "auto" : "smooth" });
+  }
+  (() => {
+    const el = $("#map"), tip = $("#map-tip"), panel = $("#map-panel");
+    const show = (target, x, y) => {
+      const cc = target.dataset.cc, n = mapCounts[cc] || 0;
+      if (!cc || !n) { tip.hidden = true; return; }
+      tip.textContent = `${flag(cc)} ${countryName(cc)} · ${fmt(n)} ${n === 1 ? "proxy" : "proxies"}`;
+      const box = panel.getBoundingClientRect();
+      tip.style.left = `${x - box.left}px`; tip.style.top = `${y - box.top}px`; tip.hidden = false;
+    };
+    el.addEventListener("pointermove", (e) => { const t = e.target.closest(".land"); if (t) show(t, e.clientX, e.clientY); else tip.hidden = true; });
+    el.addEventListener("pointerleave", () => { tip.hidden = true; });
+    el.addEventListener("focusin", (e) => { const t = e.target.closest(".land.has"); if (t) { const r = t.getBoundingClientRect(); show(t, r.left + r.width / 2, r.top); } });
+    el.addEventListener("focusout", () => { tip.hidden = true; });
+    el.addEventListener("click", (e) => { const t = e.target.closest(".land.has"); if (t) pickCountry(t.dataset.cc); });
+    el.addEventListener("keydown", (e) => { const t = e.target.closest(".land.has"); if (t && (e.key === "Enter" || e.key === " ")) { e.preventDefault(); pickCountry(t.dataset.cc); } });
+  })();
+
+  const load = (f) => fetch(f, { cache: "no-cache" }).then(r => r.ok ? r.json() : null).catch(() => null);
+  // The data – on load, and again whenever a new run has been published while the page is open
+  let latest = null, mapWanted = false, shownRun = null;
+  new IntersectionObserver((e, o) => {
+    if (!e[0].isIntersecting) return;
+    o.disconnect(); mapWanted = true;
+    if (latest) drawMap(latest);
+  }, { rootMargin: "600px" }).observe($("#map-panel"));
+
+  let started = false;
+  function apply(rows, st, history) {
+    rows.forEach((r, i) => { r.rank = i; });  // proxies.json comes best first: first answer plus download speed, weighted by the chance it's still up
+    state.rows = rows;
+    shownRun = st.updated;
+    RUN_HOURS = st.run_hours || 6;  // lists from before run_hours existed ran every 6 hours
+    STABLE = Math.ceil(24 / RUN_HOURS);
+    const when = new Date(st.updated).toLocaleString("en-GB", { dateStyle: "medium", timeStyle: "short" });
+    $("#updated").textContent = `${fmt(st.total)} verified, updated ${ago(st.updated)}`;
+    $("#updated").title = when;
+    countTo($("#n-total"), st.total);
+    countTo($("#n-https"), pct(st.https, st.total));
+    countTo($("#n-elite"), pct(st.elite, st.total));
+    countTo($("#n-lat"), st.median_latency / 1000, 1);
+    sieve(rows, st.total);
+    started = true;
+    $("#final-n").textContent = fmt(st.total);
+    const live = { total: fmt(st.total), https: fmt(st.https), stable: fmt(rows.filter(r => (r.uptime_7d || 0) >= 90).length),
+                   google: st.sites && st.sites.google != null ? fmt(st.sites.google) : "–",
+                   speed: st.median_speed_kbps ? `${fmt(st.median_speed_kbps)} KB/s` : "–", ago: ago(st.updated) };
+    $$("[data-live]").forEach((el) => { el.textContent = live[el.dataset.live] ?? "–"; });
+    const dc = st.datacenter != null ? ` ${pct(st.datacenter, st.total)} % exit from a datacenter` : "";
+    const bl = st.blocklisted != null ? `${dc ? "," : ""} ${pct(st.blocklisted, st.total)} % from an IP on a spam blocklist` : "";
+    $("#step5").textContent = `HTTPS with verified TLS, anonymity, country, provider and spam blocklists. This time ${fmt(st.https)} tunnel HTTPS and ${fmt(st.elite)} are elite.${dc}${bl}${dc || bl ? "." : ""}`;
+    if (history) trend(history);  // a failed history.json on a refresh keeps the chart that's there
+    const byCountry = {};
+    rows.forEach(r => { if (/^[A-Z]{2}$/.test(r.country || "")) byCountry[r.country] = (byCountry[r.country] || 0) + 1; });
+    const countries = Object.entries(byCountry).sort((a, b) => b[1] - a[1]);
+    bars($("#countries"), countries.slice(0, 7), (cc) => `${flag(cc)} ${countryName(cc)}`);
+    const buckets = [[300, "< 0.3 s"], [700, "< 0.7 s"], [1500, "< 1.5 s"], [3000, "< 3 s"], [Infinity, "3 s +"]];
+    bars($("#latency"), buckets.map(([max, label], i) => [label, rows.filter(r => r.latency < max && (i === 0 || r.latency >= buckets[i - 1][0])).length]), (l) => l);
+    const sel = $("#f-country");
+    while (sel.options.length > 1) sel.remove(1);
+    countries.forEach(([cc, n]) => sel.add(new Option(`${flag(cc)} ${countryName(cc)} (${n})`, cc)));
+    sel.value = state.country;  // from a shared link, or what was picked before the refresh
+    if (sel.value !== state.country) state.country = "";  // a country that has no proxies this hour
+    latest = byCountry;
+    if (mapWanted) drawMap(byCountry);
+    render();
+    watchNextRun(st);
+  }
+
+  // "next check in 23 min" – and once it's due, look for the new run every minute (only while the tab is visible)
+  let nextTimer = 0;
+  function watchNextRun(st) {
+    clearInterval(nextTimer);
+    const due = Date.parse(st.updated) + RUN_HOURS * 3600e3 + 6 * 60e3;  // a run takes a few minutes
+    let polling = false;
+    const tick = async () => {
+      const left = Math.round((due - Date.now()) / 60e3);
+      $("#next-run").textContent = left > 1 ? `next check in ${left} min` : "next check any minute";
+      if (left > 0 || polling || document.hidden) return;
+      polling = true;
+      const fresh = await load("stats.json");
+      polling = false;
+      if (!fresh || fresh.updated === shownRun) return;
+      const [rows, history] = await Promise.all([load("proxies.json"), load("history.json")]);
+      if (!rows) return;
+      const wasStarted = started;
+      apply(rows, fresh, history);
+      if (wasStarted) toast(`Fresh list: ${fmt(fresh.total)} proxies from the run just now`);
+    };
+    tick();
+    nextTimer = setInterval(tick, 60e3);
+  }
+
+  Promise.all([load("proxies.json"), load("stats.json"), load("history.json")]).then(([rows, st, history]) => {
+    if (!rows || !st) {
+      $("#rows").innerHTML = '<tr><td colspan="9" class="empty">The list could not be loaded. The plain text files under "Use it" still work.</td></tr>';
+      $("#updated").textContent = "The latest run could not be loaded";
+      $$(".fig .count").forEach(el => { el.textContent = "–"; });
+      $("#map").innerHTML = '<p class="note map-wait">The map needs the list, which could not be loaded. It tries again every minute.</p>';
+      RUN_HOURS = 0;
+      watchNextRun({ updated: new Date(Date.now() - 3600e3).toISOString() });  // keep trying, once a minute
+      return;
+    }
+    apply(rows, st, history);
+  });
+})();
+</script>
+<script src="https://cdn.jsdelivr.net/npm/lenis@1.1.20/dist/lenis.min.js" async onload="startLenis()"></script>
+</body>
+</html>

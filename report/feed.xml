@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+  <title>The week in free proxies</title>
+  <subtitle>How long free proxies last and which sites let them through – from hourly checks by proxy-scraper</subtitle>
+  <link rel="self" href="https://maximilianfeix.github.io/proxy-scraper/report/feed.xml"/>
+  <link rel="alternate" href="https://maximilianfeix.github.io/proxy-scraper/report/"/>
+  <id>https://maximilianfeix.github.io/proxy-scraper/report/</id>
+  <updated>2026-10-05T00:00:00Z</updated>
+  <author><name>proxy-scraper</name></author>
+  <entry>
+    <title>The week in free proxies: Sep 28 – Oct 05, 2026</title>
+    <link rel="alternate" href="https://maximilianfeix.github.io/proxy-scraper/report/"/>
+    <id>https://maximilianfeix.github.io/proxy-scraper/report/2026-W40</id>
+    <updated>2026-10-05T00:00:00Z</updated>
+    <content type="text">44,428 different proxies passed every check at least once. Of the 42,645 that dropped off again, 85 % were gone by the next check, and only 22 (under 0.1 %) made it through 24 checks in a row (about a day) or more. 156 proxies on the list right now have been up for 24 checks in a row or more.
+
+Google let 47 % through – 38 % of datacenter exits, 71 % of the rest.
+
+Reddit let 35 % through – 12 % of datacenter exits, 91 % of the rest.
+
+Amazon let 2 % through – 1 % of datacenter exits, 6 % of the rest.
+
+Instagram let 18 % through – 3 % of datacenter exits, 53 % of the rest.
+
+TikTok let 96 % through – 100 % of datacenter exits, 88 % of the rest.
+
+Between 739 and 3,064 proxies worked at any one time. Right now: 1,639, 60 % of them tunnel HTTPS, 64 % exit from a datacenter.
+
+Downloading 100 KB through them: half manage 62 KiB/s or more, the fastest tenth over 121 KiB/s.
+
+Most of them sit in United States (480), India (189), Germany (91), China (79), Netherlands (75).</content>
+  </entry>
+  <entry xmlns="http://www.w3.org/2005/Atom">
+    <title>The week in free proxies: Sep 25 – Sep 28, 2026</title>
+    <link rel="alternate" href="https://maximilianfeix.github.io/proxy-scraper/report/" />
+    <id>https://maximilianfeix.github.io/proxy-scraper/report/2026-W39</id>
+    <updated>2026-09-28T00:00:00Z</updated>
+    <content type="text">20,255 different proxies passed every check at least once. Of the 19,228 that dropped off again, 88 % were gone by the next check, and only 3 (under 0.1 %) made it through 24 checks in a row (about a day) or more. 102 proxies on the list right now have been up for 24 checks in a row or more.
+
+Google let 48 % through – 41 % of datacenter exits, 54 % of the rest.
+
+Reddit let 54 % through – 24 % of datacenter exits, 91 % of the rest.
+
+Amazon let 35 % through – 33 % of datacenter exits, 40 % of the rest.
+
+Instagram let 39 % through – 21 % of datacenter exits, 62 % of the rest.
+
+TikTok let 62 % through – 78 % of datacenter exits, 42 % of the rest.
+
+Between 888 and 4,223 proxies worked at any one time. Right now: 1,026, 46 % of them tunnel HTTPS, 45 % exit from a datacenter.
+
+Downloading 100 KB through them: half manage 80 KiB/s or more, the fastest tenth over 129 KiB/s.
+
+Most of them sit in United States (317), China (152), Germany (44), Netherlands (43), France (33).</content>
+  </entry>
+  
+  <entry xmlns="http://www.w3.org/2005/Atom">
+    <title>The week in free proxies: Sep 25 – Sep 27, 2026</title>
+    <link rel="alternate" href="https://maximilianfeix.github.io/proxy-scraper/report/" />
+    <id>https://maximilianfeix.github.io/proxy-scraper/report/2026-W38</id>
+    <updated>2026-09-21T00:00:00Z</updated>
+    <content type="text">18,497 different proxies passed every check at least once. Of the 16,879 that dropped off again, 87 % were gone by the next check, and only 2 (under 0.1 %) made it through 24 checks in a row (about a day) or more. 98 proxies on the list right now have been up for 24 checks in a row or more.
+
+Google let 42 % through – 28 % of datacenter exits, 68 % of the rest.
+
+Reddit let 36 % through – 9 % of datacenter exits, 90 % of the rest.
+
+Amazon let 3 % through – 2 % of datacenter exits, 4 % of the rest.
+
+Instagram let 27 % through – 6 % of datacenter exits, 69 % of the rest.
+
+TikTok let 55 % through – 62 % of datacenter exits, 41 % of the rest.
+
+Between 888 and 4,223 proxies worked at any one time. Right now: 1,615, 55 % of them tunnel HTTPS, 53 % exit from a datacenter.
+
+Downloading 100 KB through them: half manage 84 KiB/s or more, the fastest tenth over 167 KiB/s.
+
+Most of them sit in United States (600), Australia (173), China (148), Germany (61), Israel (53).</content>
+  </entry>
+
+
+</feed>

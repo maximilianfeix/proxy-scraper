@@ -1,0 +1,142 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free proxies in Russia – checked every hour | proxy-scraper</title>
+<meta name="description" content="39 free proxies in Russia, checked every hour: real handshake, honeypot and content check. Download as text or filter the full list.">
+<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/country/ru/">
+<meta property="og:title" content="Free proxies in Russia">
+<meta property="og:description" content="39 free proxies in Russia, checked every hour: real handshake, honeypot and content check. Download as text or filter the full list.">
+<meta property="og:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<meta property="og:url" content="https://maximilianfeix.github.io/proxy-scraper/country/ru/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../../logo.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+<style>
+:root { --bg: #121113; --panel: #1A191C; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0; --signal: #D4F77A;
+        --signal-ink: #D4F77A; --on-signal: #121113; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root { --bg: #EFEFEC; --panel: #FFFFFF; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
+          --signal-ink: #3F5A00; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.55 "Geist", ui-sans-serif, system-ui,
+       sans-serif; padding-inline: 16px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 36px; }
+a { color: var(--signal-ink); }
+:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 6px; }
+.mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 600;
+         letter-spacing: -.03em; font-size: 18px; }
+.brand img { width: 30px; height: 30px; border-radius: 9px; }
+h1 { margin: 0; font-size: clamp(36px, 6vw, 72px); line-height: 1; letter-spacing: -.05em; font-weight: 600;
+     text-wrap: balance; }
+.lede { margin: 16px 0 0; color: var(--muted); font-size: 18px; max-width: 62ch; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.btn { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 99px; text-decoration: none;
+       font-weight: 500; border: 1px solid var(--line); color: var(--text); }
+.btn.primary { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+.table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+caption { text-align: left; padding: 14px 16px 0; color: var(--muted); font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 12px 16px;
+     border-bottom: 1px solid var(--line); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+     white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.empty { padding: 28px 16px; color: var(--muted); }
+nav h2 { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 10px; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+nav a { display: inline-block; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px;
+        text-decoration: none; color: var(--text); font-size: 14px; }
+nav a[aria-current] { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+
+.wrap > * { min-width: 0; }  /* grid items default to their content's width: the wide table would push the page */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+         background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.facts div { background: var(--panel); padding: 16px 18px; }
+.facts dt { font-size: 26px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.facts dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+.use pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+           overflow-x: auto; font-size: 14px; margin: 0 0 10px; }
+.note { color: var(--muted); font-size: 14px; }
+.faq h3 { font-size: 18px; font-weight: 500; margin: 22px 0 6px; }
+.faq p { margin: 0; color: var(--muted); max-width: 70ch; }
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How many free proxies in Russia work right now?", "acceptedAnswer": {"@type": "Answer", "text": "39 passed every check in the last run (10 Oct 2026, 19:32 UTC): a real handshake, a honeypot check on two sites and a content check. 10 of them tunnel HTTPS with verified TLS, and 2 were on the list in 90 % or more of this week's hourly checks. The list is checked again every hour."}}, {"@type": "Question", "name": "Which free proxies in Russia get through to Google?", "acceptedAnswer": {"@type": "Answer", "text": "In the last check, 8 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list on the website can be filtered by it."}}, {"@type": "Question", "name": "How do I get working proxies in Russia in code or the terminal?", "acceptedAnswer": {"@type": "Answer", "text": "Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country RU prints five from the hourly list. From Python, live_proxies() takes the same filters."}}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../../"><img src="../../logo.png" alt="">proxy-scraper</a>
+    <a href="../../">All proxies</a>
+  </header>
+  <main>
+    <h1>Free proxies in Russia</h1>
+    <p class="lede">39 proxies in Russia that worked in the last check (10 Oct 2026, 19:32 UTC). Each one passed a real handshake, a honeypot check on two sites and a content check, so none of them rewrite the pages you load.</p>
+    <div class="actions">
+      <a class="btn primary" href="proxies.txt" download>Download 39 as .txt</a>
+      <a class="btn" href="../../?country=RU#list">Filter the full list</a>
+      <a class="btn" href="https://github.com/maximilianfeix/proxy-scraper">Check them from your network</a>
+    </div>
+  </main>
+  <dl class="facts"><div><dt>39</dt><dd>working right now</dd></div><div><dt>10</dt><dd>tunnel HTTPS</dd></div><div><dt>2</dt><dd>on the list 90 %+ of the week</dd></div><div><dt>8</dt><dd>get through to Google</dd></div><div><dt>67 KB/s</dt><dd>median download speed</dd></div></dl>
+  <div class="table"><table><caption>The 39 fastest to load a page, as ip:port. The download has all 39 as type://ip:port.</caption><thead><tr><th scope="col">Proxy</th><th scope="col">Type</th><th scope="col">Country</th><th scope="col">Latency</th><th scope="col">Speed</th><th scope="col">Uptime</th><th scope="col">HTTPS</th><th scope="col">Gets through</th><th scope="col">Provider</th></tr></thead><tbody><tr><td class="mono"><a href="../../proxy/31.10.83.158-8080/">31.10.83.158:8080</a></td><td>HTTP</td><td>RU</td><td>511 ms</td><td>–</td><td>94 %</td><td>no</td><td>–</td><td>JSC &quot;AVIEL&quot;</td></tr>
+<tr><td class="mono"><a href="../../proxy/109.95.220.45-8080/">109.95.220.45:8080</a></td><td>HTTP</td><td>RU</td><td>532 ms</td><td>–</td><td>95 %</td><td>no</td><td>–</td><td>Limited Liability Company Sviaz Industri</td></tr>
+<tr><td class="mono"><a href="../../proxy/188.191.165.159-70/">188.191.165.159:70</a></td><td>HTTP</td><td>RU</td><td>536 ms</td><td>–</td><td>73 %</td><td>no</td><td>–</td><td>Intelsc Ltd.</td></tr>
+<tr><td class="mono"><a href="../../proxy/37.79.248.25-80/">37.79.248.25:80</a></td><td>HTTP</td><td>RU</td><td>817 ms</td><td>–</td><td>86 %</td><td>no</td><td>–</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/95.66.138.21-8880/">95.66.138.21:8880</a></td><td>HTTP</td><td>RU</td><td>805 ms</td><td>–</td><td>66 %</td><td>no</td><td>–</td><td>Limited Liability Company &quot;VLADINFO&quot;</td></tr>
+<tr><td class="mono"><a href="../../proxy/178.140.3.161-5678/">178.140.3.161:5678</a></td><td>HTTP</td><td>RU</td><td>810 ms</td><td>–</td><td>80 %</td><td>no</td><td>–</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/176.106.241.50-80/">176.106.241.50:80</a></td><td>HTTP</td><td>RU</td><td>796 ms</td><td>–</td><td>45 %</td><td>no</td><td>–</td><td>NPF SOFTVIDEO Ltd.</td></tr>
+<tr><td class="mono"><a href="../../proxy/185.17.153.178-8080/">185.17.153.178:8080</a></td><td>HTTP</td><td>RU</td><td>800 ms</td><td>–</td><td>60 %</td><td>no</td><td>–</td><td>Grand Ltd</td></tr>
+<tr><td class="mono"><a href="../../proxy/89.250.148.158-1080/">89.250.148.158:1080</a></td><td>SOCKS4</td><td>RU</td><td>1,182 ms</td><td>–</td><td>11 %</td><td>no</td><td>–</td><td>JSC &quot;ER-Telecom Holding&quot;</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.129.107.119-443/">31.129.107.119:443</a></td><td>SOCKS4</td><td>RU</td><td>865 ms</td><td>96 KB/s</td><td>1 %</td><td>yes</td><td>Google, Amazon, TikTok, Discord</td><td>Beget LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/5.254.178.160-10801/">5.254.178.160:10801</a></td><td>SOCKS4</td><td>RU</td><td>846 ms</td><td>81 KB/s</td><td>11 %</td><td>yes</td><td>Google, Reddit</td><td>Limited Liability Company &quot;TTK-Svyaz&quot;</td></tr>
+<tr><td class="mono"><a href="../../proxy/46.47.197.210-3128/">46.47.197.210:3128</a></td><td>HTTP</td><td>RU</td><td>797 ms</td><td>–</td><td>47 %</td><td>no</td><td>–</td><td>PJSC MegaFon</td></tr>
+<tr><td class="mono"><a href="../../proxy/89.188.242.243-80/">89.188.242.243:80</a></td><td>HTTP</td><td>RU</td><td>1,033 ms</td><td>–</td><td>40 %</td><td>no</td><td>–</td><td>PJSC &quot;Vimpelcom&quot;</td></tr>
+<tr><td class="mono"><a href="../../proxy/83.219.1.130-5678/">83.219.1.130:5678</a></td><td>SOCKS4</td><td>RU</td><td>963 ms</td><td>69 KB/s</td><td>18 %</td><td>yes</td><td>Google, Reddit, TikTok</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.129.107.119-443/">31.129.107.119:443</a></td><td>SOCKS5</td><td>RU</td><td>1,041 ms</td><td>65 KB/s</td><td>1 %</td><td>yes</td><td>TikTok, Discord</td><td>Beget LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.130.59.142-1080/">31.130.59.142:1080</a></td><td>SOCKS4</td><td>RU</td><td>3,038 ms</td><td>–</td><td>8 %</td><td>no</td><td>–</td><td>Kom lan Ltd</td></tr>
+<tr><td class="mono"><a href="../../proxy/217.67.182.6-1080/">217.67.182.6:1080</a></td><td>SOCKS5</td><td>RU</td><td>2,054 ms</td><td>64 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>JSC Mastertel</td></tr>
+<tr><td class="mono"><a href="../../proxy/89.188.124.8-1080/">89.188.124.8:1080</a></td><td>SOCKS5</td><td>RU</td><td>3,615 ms</td><td>–</td><td>8 %</td><td>no</td><td>–</td><td>Citytelecom LLC</td></tr>
+<tr><td class="mono"><a href="../../proxy/93.171.157.249-8080/">93.171.157.249:8080</a></td><td>HTTP</td><td>RU</td><td>614 ms</td><td>–</td><td>37 %</td><td>no</td><td>–</td><td>Vikscom Ltd.</td></tr>
+<tr><td class="mono"><a href="../../proxy/109.194.34.246-8082/">109.194.34.246:8082</a></td><td>HTTP</td><td>RU</td><td>717 ms</td><td>–</td><td>46 %</td><td>no</td><td>–</td><td>JSC &quot;ER-Telecom Holding&quot;</td></tr>
+<tr><td class="mono"><a href="../../proxy/91.202.185.69-80/">91.202.185.69:80</a></td><td>HTTP</td><td>RU</td><td>803 ms</td><td>–</td><td>66 %</td><td>no</td><td>–</td><td>Globalcom Ltd.</td></tr>
+<tr><td class="mono"><a href="../../proxy/188.17.153.86-11080/">188.17.153.86:11080</a></td><td>SOCKS5</td><td>RU</td><td>1,158 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/91.230.154.221-4145/">91.230.154.221:4145</a></td><td>SOCKS4</td><td>RU</td><td>1,299 ms</td><td>–</td><td>10 %</td><td>no</td><td>–</td><td>JSC &quot;ER-Telecom Holding&quot;</td></tr>
+<tr><td class="mono"><a href="../../proxy/37.193.125.68-1090/">37.193.125.68:1090</a></td><td>SOCKS4</td><td>RU</td><td>3,163 ms</td><td>70 KB/s</td><td>15 %</td><td>yes</td><td>Google, Reddit, TikTok</td><td>Novotelecom Ltd</td></tr>
+<tr><td class="mono"><a href="../../proxy/185.47.55.110-1080/">185.47.55.110:1080</a></td><td>SOCKS5</td><td>RU</td><td>4,213 ms</td><td>–</td><td>5 %</td><td>yes</td><td>Google, Reddit, TikTok</td><td>Comfortel Ltd.</td></tr>
+<tr><td class="mono"><a href="../../proxy/88.84.204.217-1080/">88.84.204.217:1080</a></td><td>SOCKS5</td><td>RU</td><td>3,101 ms</td><td>51 KB/s</td><td>5 %</td><td>yes</td><td>Google</td><td>Flex Ltd.</td></tr>
+<tr><td class="mono"><a href="../../proxy/95.84.138.220-1080/">95.84.138.220:1080</a></td><td>SOCKS5</td><td>RU</td><td>2,035 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/176.195.18.41-1080/">176.195.18.41:1080</a></td><td>SOCKS5</td><td>RU</td><td>2,037 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>PJSC MegaFon</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.41.227.175-2080/">31.41.227.175:2080</a></td><td>SOCKS5</td><td>RU</td><td>2,180 ms</td><td>–</td><td>14 %</td><td>no</td><td>–</td><td>PE Pivovar Aleksej Nikolaevich</td></tr>
+<tr><td class="mono"><a href="../../proxy/94.180.29.141-1080/">94.180.29.141:1080</a></td><td>SOCKS5</td><td>RU</td><td>2,491 ms</td><td>–</td><td>7 %</td><td>no</td><td>–</td><td>JSC &quot;ER-Telecom Holding&quot;</td></tr>
+<tr><td class="mono"><a href="../../proxy/84.42.102.18-1080/">84.42.102.18:1080</a></td><td>SOCKS5</td><td>RU</td><td>2,627 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/89.151.134.157-3629/">89.151.134.157:3629</a></td><td>SOCKS4</td><td>RU</td><td>950 ms</td><td>–</td><td>7 %</td><td>yes</td><td>Google, Reddit, TikTok</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.172.215.67-1080/">31.172.215.67:1080</a></td><td>SOCKS5</td><td>RU</td><td>2,822 ms</td><td>–</td><td>6 %</td><td>no</td><td>–</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/213.21.21.130-8080/">213.21.21.130:8080</a></td><td>HTTP</td><td>RU</td><td>1,503 ms</td><td>21 KB/s</td><td>6 %</td><td>yes</td><td>Google, Reddit, TikTok</td><td>Global Network Management Inc</td></tr>
+<tr><td class="mono"><a href="../../proxy/95.84.167.131-1080/">95.84.167.131:1080</a></td><td>SOCKS5</td><td>RU</td><td>3,047 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/84.253.122.42-1080/">84.253.122.42:1080</a></td><td>SOCKS5</td><td>RU</td><td>3,066 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Moscow Center of New Telecommunication T</td></tr>
+<tr><td class="mono"><a href="../../proxy/91.223.224.238-48293/">91.223.224.238:48293</a></td><td>SOCKS4</td><td>RU</td><td>3,631 ms</td><td>–</td><td>11 %</td><td>no</td><td>–</td><td>LLC ATK Telecom</td></tr>
+<tr><td class="mono"><a href="../../proxy/82.148.13.136-80/">82.148.13.136:80</a></td><td>HTTP</td><td>RU</td><td>3,634 ms</td><td>–</td><td>16 %</td><td>no</td><td>–</td><td>JSC Selectel</td></tr>
+<tr><td class="mono"><a href="../../proxy/5.101.199.95-8999/">5.101.199.95:8999</a></td><td>HTTP</td><td>RU</td><td>5,427 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Grand Ltd</td></tr></tbody></table></div>
+  <section class="use"><h2>In the terminal or in code</h2><pre class="mono">pipx install proxy-scraper-cli
+proxy-scraper --pick 5 --country RU
+curl -x "$(proxy-scraper --pick --country RU --https-only)" https://api.ipify.org</pre><p class="note">--pick takes proxies from the same hourly list in about half a second. From Python: <code>live_proxies()</code>, see the <a href="https://github.com/maximilianfeix/proxy-scraper#from-python">README</a>.</p></section>
+  <section class="faq"><h2>Questions</h2><h3>How many free proxies in Russia work right now?</h3><p>39 passed every check in the last run (10 Oct 2026, 19:32 UTC): a real handshake, a honeypot check on two sites and a content check. 10 of them tunnel HTTPS with verified TLS, and 2 were on the list in 90 % or more of this week&#x27;s hourly checks. The list is checked again every hour.</p><h3>Which free proxies in Russia get through to Google?</h3><p>In the last check, 8 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list on the website can be filtered by it.</p><h3>How do I get working proxies in Russia in code or the terminal?</h3><p>Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country RU prints five from the hourly list. From Python, live_proxies() takes the same filters.</p></section>
+  <nav aria-label="More lists"><h2>By protocol</h2><ul><li><a href="../../http/">HTTP (257)</a></li><li><a href="../../socks4/">SOCKS4 (284)</a></li><li><a href="../../socks5/">SOCKS5 (806)</a></li><li><a href="../../https/">HTTPS (707)</a></li><li><a href="../../elite/">elite (1,310)</a></li></ul></nav><nav aria-label="By country"><h2>By country</h2><ul><li><a href="../../country/us/">United States (391)</a></li><li><a href="../../country/de/">Germany (99)</a></li><li><a href="../../country/id/">Indonesia (82)</a></li><li><a href="../../country/fr/">France (80)</a></li><li><a href="../../country/br/">Brazil (62)</a></li><li><a href="../../country/in/">India (54)</a></li><li><a href="../../country/cn/">China (51)</a></li><li><a href="../../country/nl/">Netherlands (47)</a></li><li><a href="../../country/ru/" aria-current="page">Russia (39)</a></li><li><a href="../../country/sg/">Singapore (39)</a></li><li><a href="../../country/il/">Israel (31)</a></li><li><a href="../../country/kr/">South Korea (29)</a></li><li><a href="../../country/jp/">Japan (25)</a></li><li><a href="../../country/bd/">Bangladesh (21)</a></li><li><a href="../../country/hk/">Hong Kong (21)</a></li><li><a href="../../country/co/">Colombia (20)</a></li><li><a href="../../country/fi/">Finland (18)</a></li><li><a href="../../country/vn/">Vietnam (18)</a></li><li><a href="../../country/gb/">United Kingdom (17)</a></li><li><a href="../../country/pe/">Peru (15)</a></li><li><a href="../../country/kh/">Cambodia (14)</a></li><li><a href="../../country/ua/">Ukraine (12)</a></li><li><a href="../../country/ca/">Canada (10)</a></li><li><a href="../../country/pl/">Poland (9)</a></li><li><a href="../../country/ro/">Romania (9)</a></li><li><a href="../../country/th/">Thailand (9)</a></li><li><a href="../../country/lv/">Latvia (8)</a></li><li><a href="../../country/cz/">Czechia (7)</a></li><li><a href="../../country/za/">South Africa (7)</a></li><li><a href="../../country/ph/">Philippines (6)</a></li><li><a href="../../country/es/">Spain (6)</a></li><li><a href="../../country/my/">Malaysia (5)</a></li><li><a href="../../country/tr/">Turkey (5)</a></li><li><a href="../../country/ar/">Argentina (4)</a></li><li><a href="../../country/np/">Nepal (4)</a></li><li><a href="../../country/pk/">Pakistan (4)</a></li><li><a href="../../country/tw/">Taiwan (4)</a></li><li><a href="../../country/au/">Australia (3)</a></li><li><a href="../../country/cl/">Chile (3)</a></li><li><a href="../../country/ng/">Nigeria (3)</a></li><li><a href="../../country/se/">Sweden (3)</a></li><li><a href="../../country/al/">Albania (2)</a></li><li><a href="../../country/at/">Austria (2)</a></li><li><a href="../../country/bg/">Bulgaria (2)</a></li><li><a href="../../country/ec/">Ecuador (2)</a></li><li><a href="../../country/eg/">Egypt (2)</a></li><li><a href="../../country/hn/">Honduras (2)</a></li><li><a href="../../country/ir/">Iran (2)</a></li><li><a href="../../country/iq/">Iraq (2)</a></li><li><a href="../../country/it/">Italy (2)</a></li><li><a href="../../country/mx/">Mexico (2)</a></li><li><a href="../../country/rs/">Serbia (2)</a></li><li><a href="../../country/az/">Azerbaijan (1)</a></li><li><a href="../../country/ee/">Estonia (1)</a></li><li><a href="../../country/kz/">Kazakhstan (1)</a></li><li><a href="../../country/ke/">Kenya (1)</a></li><li><a href="../../country/mo/">Macao (1)</a></li><li><a href="../../country/ml/">Mali (1)</a></li><li><a href="../../country/ma/">Morocco (1)</a></li><li><a href="../../country/sn/">Senegal (1)</a></li><li><a href="../../country/sc/">Seychelles (1)</a></li><li><a href="../../country/ve/">Venezuela (1)</a></li></ul></nav>
+  <footer>
+    <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>
+    <span>Collected and checked by <a href="https://github.com/maximilianfeix/proxy-scraper">proxy-scraper</a>, open source, MIT licensed.</span>
+  </footer>
+</div>
+</body>
+</html>

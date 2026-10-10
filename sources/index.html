@@ -1,0 +1,244 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which free proxy lists actually work? 291 sources ranked every hour | proxy-scraper</title>
+<meta name="description" content="291 sources of free proxies, checked every hour. In a typical one 3.3 % of the proxies pass a real handshake, a honeypot check and a content check. Ranked by working proxies and by share.">
+<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/sources/">
+<meta property="og:title" content="Which free proxy lists actually work?">
+<meta property="og:description" content="291 sources of free proxies, checked every hour. In a typical one 3.3 % of the proxies pass a real handshake, a honeypot check and a content check. Ranked by working proxies and by share.">
+<meta property="og:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<meta property="og:url" content="https://maximilianfeix.github.io/proxy-scraper/sources/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../logo.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+<style>
+:root { --bg: #121113; --panel: #1A191C; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0; --signal: #D4F77A;
+        --signal-ink: #D4F77A; --on-signal: #121113; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root { --bg: #EFEFEC; --panel: #FFFFFF; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
+          --signal-ink: #3F5A00; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.55 "Geist", ui-sans-serif, system-ui,
+       sans-serif; padding-inline: 16px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 36px; }
+a { color: var(--signal-ink); }
+:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 6px; }
+.mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 600;
+         letter-spacing: -.03em; font-size: 18px; }
+.brand img { width: 30px; height: 30px; border-radius: 9px; }
+h1 { margin: 0; font-size: clamp(36px, 6vw, 72px); line-height: 1; letter-spacing: -.05em; font-weight: 600;
+     text-wrap: balance; }
+.lede { margin: 16px 0 0; color: var(--muted); font-size: 18px; max-width: 62ch; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.btn { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 99px; text-decoration: none;
+       font-weight: 500; border: 1px solid var(--line); color: var(--text); }
+.btn.primary { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+.table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+caption { text-align: left; padding: 14px 16px 0; color: var(--muted); font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 12px 16px;
+     border-bottom: 1px solid var(--line); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+     white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.empty { padding: 28px 16px; color: var(--muted); }
+nav h2 { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 10px; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+nav a { display: inline-block; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px;
+        text-decoration: none; color: var(--text); font-size: 14px; }
+nav a[aria-current] { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+
+.wrap > * { min-width: 0; }  /* grid items default to their content's width: the wide table would push the page */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+         background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.facts div { background: var(--panel); padding: 16px 18px; }
+.facts dt { font-size: 26px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.facts dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+.use pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+           overflow-x: auto; font-size: 14px; margin: 0 0 10px; }
+.note { color: var(--muted); font-size: 14px; }
+.faq h3 { font-size: 18px; font-weight: 500; margin: 22px 0 6px; }
+.faq p { margin: 0; color: var(--muted); max-width: 70ch; }
+
+td.num, th.num { text-align: right; }
+td .muted { color: var(--muted); }
+.method p { color: var(--muted); max-width: 70ch; margin: 0 0 12px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../"><img src="../logo.png" alt="">proxy-scraper</a>
+    <a href="../#list">The live list</a>
+  </header>
+  <main>
+    <h1>Which free proxy lists actually work?</h1>
+    <p class="lede">291 public sources of free proxies are collected and checked every hour. In the latest runs a typical source had 3.3 % of its checked proxies pass every check. This is how each one did (10 Oct 2026, 19:32 UTC).</p>
+    <div class="actions">
+      <a class="btn primary" href="../#list">The proxies that passed</a>
+      <a class="btn" href="../sources.json">All sources as JSON</a>
+      <a class="btn" href="https://github.com/maximilianfeix/proxy-scraper/issues/new?template=new_source.yml">Add a list</a>
+    </div>
+  </main>
+  <dl class="facts">
+    <div><dt>291</dt><dd>sources checked</dd></div>
+    <div><dt>220</dt><dd>still maintained</dd></div>
+    <div><dt>48</dt><dd>without a single working proxy</dd></div>
+    <div><dt>3.3 %</dt><dd>work in a typical source (median)</dd></div>
+  </dl>
+  <section><h2>Most working proxies</h2>
+  <div class="table"><table><caption>The 100 sources that delivered the most working proxies per run.</caption><thead><tr><th scope="col" class="num">#</th><th scope="col">Source</th><th scope="col" class="num">Proxies listed</th><th scope="col" class="num">Checked</th><th scope="col" class="num">Passed every check</th><th scope="col" class="num">Share</th></tr></thead><tbody><tr><td class="num">1</td><td><a href="https://api.proxyscrape.com/" rel="nofollow noopener">api.proxyscrape.com</a></td><td class="num">34,645</td><td class="num">32,651</td><td class="num">2,305</td><td class="num">7.1 %</td></tr>
+<tr><td class="num">2</td><td><a href="https://github.com/Tsprnay/Proxy-lists" rel="nofollow noopener">Tsprnay/Proxy-lists</a></td><td class="num">1,762,674</td><td class="num">351,670</td><td class="num">2,089</td><td class="num">0.6 %</td></tr>
+<tr><td class="num">3</td><td><a href="https://github.com/hproxy-com/free-proxy-list" rel="nofollow noopener">hproxy-com/free-proxy-list</a></td><td class="num">68,656</td><td class="num">54,838</td><td class="num">1,953</td><td class="num">3.6 %</td></tr>
+<tr><td class="num">4</td><td><a href="https://github.com/Tianndev/free-proxy" rel="nofollow noopener">Tianndev/free-proxy</a></td><td class="num">168,991</td><td class="num">114,830</td><td class="num">1,931</td><td class="num">1.7 %</td></tr>
+<tr><td class="num">5</td><td><a href="https://github.com/noctiro/getproxy" rel="nofollow noopener">noctiro/getproxy</a></td><td class="num">181,486</td><td class="num">179,332</td><td class="num">1,628</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">6</td><td><a href="https://github.com/Denisyoya/Proxy-List-Gamt" rel="nofollow noopener">Denisyoya/Proxy-List-Gamt</a></td><td class="num">12,935</td><td class="num">13,433</td><td class="num">1,525</td><td class="num">11.4 %</td></tr>
+<tr><td class="num">7</td><td><a href="https://github.com/dpangestuw/Free-Proxy" rel="nofollow noopener">dpangestuw/Free-Proxy</a></td><td class="num">35,844</td><td class="num">34,191</td><td class="num">1,472</td><td class="num">4.3 %</td></tr>
+<tr><td class="num">8</td><td><a href="https://github.com/vmheaven/VMHeaven.io-Free-Proxy-List" rel="nofollow noopener">vmheaven/VMHeaven.io-Free-Proxy-List</a></td><td class="num">28,842</td><td class="num">27,841</td><td class="num">1,240</td><td class="num">4.5 %</td></tr>
+<tr><td class="num">9</td><td><a href="https://github.com/VPSLabCloud/VPSLab-Free-Proxy-List" rel="nofollow noopener">VPSLabCloud/VPSLab-Free-Proxy-List</a></td><td class="num">19,189</td><td class="num">19,011</td><td class="num">1,205</td><td class="num">6.3 %</td></tr>
+<tr><td class="num">10</td><td><a href="https://github.com/handeveloper1/DailyProxy---Auto-Update-List" rel="nofollow noopener">handeveloper1/DailyProxy---Auto-Update-List</a></td><td class="num">286,940</td><td class="num">138,422</td><td class="num">1,179</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">11</td><td><a href="https://github.com/proxifly/free-proxy-list" rel="nofollow noopener">proxifly/free-proxy-list</a></td><td class="num">110,478</td><td class="num">108,784</td><td class="num">1,134</td><td class="num">1.0 %</td></tr>
+<tr><td class="num">12</td><td><a href="https://github.com/TuanMinPay/live-proxy" rel="nofollow noopener">TuanMinPay/live-proxy</a></td><td class="num">182,138</td><td class="num">137,297</td><td class="num">1,020</td><td class="num">0.7 %</td></tr>
+<tr><td class="num">13</td><td><a href="https://github.com/tomjiu/proxy-pipeline" rel="nofollow noopener">tomjiu/proxy-pipeline</a></td><td class="num">612,465</td><td class="num">190,183</td><td class="num">1,019</td><td class="num">0.5 %</td></tr>
+<tr><td class="num">14</td><td><a href="https://github.com/dinoz0rg/proxy-list" rel="nofollow noopener">dinoz0rg/proxy-list</a></td><td class="num">421,271</td><td class="num">113,321</td><td class="num">983</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">15</td><td><a href="https://github.com/nguyenduytan/NDT-Proxy-Scraper" rel="nofollow noopener">nguyenduytan/NDT-Proxy-Scraper</a></td><td class="num">67,145</td><td class="num">64,574</td><td class="num">982</td><td class="num">1.5 %</td></tr>
+<tr><td class="num">16</td><td><a href="https://github.com/fyvri/fresh-proxy-list" rel="nofollow noopener">fyvri/fresh-proxy-list</a></td><td class="num">666,381</td><td class="num">134,079</td><td class="num">936</td><td class="num">0.7 %</td></tr>
+<tr><td class="num">17</td><td><a href="https://github.com/SevenworksDev/proxy-list" rel="nofollow noopener">SevenworksDev/proxy-list</a></td><td class="num">447,580</td><td class="num">119,546</td><td class="num">916</td><td class="num">0.8 %</td></tr>
+<tr><td class="num">18</td><td><a href="https://github.com/xyzs996/free-proxy-health-list" rel="nofollow noopener">xyzs996/free-proxy-health-list</a></td><td class="num">15,338</td><td class="num">13,527</td><td class="num">882</td><td class="num">6.5 %</td></tr>
+<tr><td class="num">19</td><td><a href="https://github.com/SoliSpirit/proxy-list" rel="nofollow noopener">SoliSpirit/proxy-list</a></td><td class="num">418,958</td><td class="num">112,396</td><td class="num">867</td><td class="num">0.8 %</td></tr>
+<tr><td class="num">20</td><td><a href="https://github.com/Mohammedcha/ProxRipper" rel="nofollow noopener">Mohammedcha/ProxRipper</a></td><td class="num">537,841</td><td class="num">109,251</td><td class="num">855</td><td class="num">0.8 %</td></tr>
+<tr><td class="num">21</td><td><a href="https://github.com/hienhoceo-dpsmedia/nekobox-proxy-list" rel="nofollow noopener">hienhoceo-dpsmedia/nekobox-proxy-list</a></td><td class="num">26,476</td><td class="num">26,398</td><td class="num">849</td><td class="num">3.2 %</td></tr>
+<tr><td class="num">22</td><td><a href="https://github.com/handeveloper1/Proxy" rel="nofollow noopener">handeveloper1/Proxy</a></td><td class="num">160,716</td><td class="num">97,268</td><td class="num">815</td><td class="num">0.8 %</td></tr>
+<tr><td class="num">23</td><td><a href="https://github.com/ErcinDedeoglu/proxies" rel="nofollow noopener">ErcinDedeoglu/proxies</a></td><td class="num">160,600</td><td class="num">97,384</td><td class="num">814</td><td class="num">0.8 %</td></tr>
+<tr><td class="num">24</td><td><a href="https://github.com/Firmfox/Proxify" rel="nofollow noopener">Firmfox/Proxify</a></td><td class="num">187,672</td><td class="num">84,456</td><td class="num">774</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">25</td><td><a href="https://github.com/proxygenerator1/ProxyGenerator" rel="nofollow noopener">proxygenerator1/ProxyGenerator</a></td><td class="num">22,545</td><td class="num">21,215</td><td class="num">756</td><td class="num">3.6 %</td></tr>
+<tr><td class="num">26</td><td><a href="https://github.com/MohammadKobirShah/ProxyScraper-Pro" rel="nofollow noopener">MohammadKobirShah/ProxyScraper-Pro</a></td><td class="num">9,614</td><td class="num">9,577</td><td class="num">704</td><td class="num">7.3 %</td></tr>
+<tr><td class="num">27</td><td><a href="https://github.com/proxio-io/proxy-list" rel="nofollow noopener">proxio-io/proxy-list</a></td><td class="num">44,851</td><td class="num">33,949</td><td class="num">703</td><td class="num">2.1 %</td></tr>
+<tr><td class="num">28</td><td><a href="https://github.com/litportnet/free-proxy-list" rel="nofollow noopener">litportnet/free-proxy-list</a></td><td class="num">4,319</td><td class="num">4,299</td><td class="num">673</td><td class="num">15.6 %</td></tr>
+<tr><td class="num">29</td><td><a href="https://github.com/Thordata/awesome-free-proxy-list" rel="nofollow noopener">Thordata/awesome-free-proxy-list</a></td><td class="num">1,791</td><td class="num">1,918</td><td class="num">612</td><td class="num">31.9 %</td></tr>
+<tr><td class="num">30</td><td><a href="https://github.com/ProxyScrape/free-proxy-list" rel="nofollow noopener">ProxyScrape/free-proxy-list</a></td><td class="num">6,354</td><td class="num">6,825</td><td class="num">604</td><td class="num">8.8 %</td></tr>
+<tr><td class="num">31</td><td><a href="https://cdn.jsdelivr.net/" rel="nofollow noopener">cdn.jsdelivr.net</a> <span class="muted">· unchanged for a week</span></td><td class="num">33,400</td><td class="num">33,253</td><td class="num">603</td><td class="num">1.8 %</td></tr>
+<tr><td class="num">32</td><td><a href="https://github.com/6yyn/free-proxy-list" rel="nofollow noopener">6yyn/free-proxy-list</a></td><td class="num">15,582</td><td class="num">12,877</td><td class="num">589</td><td class="num">4.6 %</td></tr>
+<tr><td class="num">33</td><td><a href="https://github.com/Ian-Lusule/Proxies" rel="nofollow noopener">Ian-Lusule/Proxies</a></td><td class="num">18,883</td><td class="num">18,467</td><td class="num">585</td><td class="num">3.2 %</td></tr>
+<tr><td class="num">34</td><td><a href="https://github.com/Ch4120N/Ch4120N-Proxy-List" rel="nofollow noopener">Ch4120N/Ch4120N-Proxy-List</a></td><td class="num">3,362</td><td class="num">3,503</td><td class="num">577</td><td class="num">16.5 %</td></tr>
+<tr><td class="num">35</td><td><a href="https://github.com/vmheaven/VMHeaven-Free-Proxy-Updated" rel="nofollow noopener">vmheaven/VMHeaven-Free-Proxy-Updated</a></td><td class="num">12,214</td><td class="num">11,755</td><td class="num">563</td><td class="num">4.8 %</td></tr>
+<tr><td class="num">36</td><td><a href="https://openproxylist.xyz/" rel="nofollow noopener">openproxylist.xyz</a></td><td class="num">19,941</td><td class="num">19,673</td><td class="num">556</td><td class="num">2.8 %</td></tr>
+<tr><td class="num">37</td><td><a href="https://github.com/z3a4/free-proxy-list" rel="nofollow noopener">z3a4/free-proxy-list</a></td><td class="num">12,956</td><td class="num">12,033</td><td class="num">543</td><td class="num">4.5 %</td></tr>
+<tr><td class="num">38</td><td><a href="https://github.com/ObcbO/getproxy" rel="nofollow noopener">ObcbO/getproxy</a></td><td class="num">60,941</td><td class="num">60,103</td><td class="num">542</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">39</td><td><a href="https://github.com/AnAverageBeing/openshield-blocklists" rel="nofollow noopener">AnAverageBeing/openshield-blocklists</a></td><td class="num">59,190</td><td class="num">58,409</td><td class="num">534</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">40</td><td><a href="https://github.com/Riyoway/Proxies" rel="nofollow noopener">Riyoway/Proxies</a></td><td class="num">16,490</td><td class="num">15,716</td><td class="num">525</td><td class="num">3.3 %</td></tr>
+<tr><td class="num">41</td><td><a href="https://github.com/dpangestuw/Free-PROXY" rel="nofollow noopener">dpangestuw/Free-PROXY</a></td><td class="num">11,948</td><td class="num">11,374</td><td class="num">493</td><td class="num">4.3 %</td></tr>
+<tr><td class="num">42</td><td><a href="https://api.openproxylist.xyz/" rel="nofollow noopener">api.openproxylist.xyz</a></td><td class="num">15,283</td><td class="num">15,070</td><td class="num">471</td><td class="num">3.1 %</td></tr>
+<tr><td class="num">43</td><td><a href="https://github.com/Moleway/Free-Proxy-List" rel="nofollow noopener">Moleway/Free-Proxy-List</a></td><td class="num">2,774</td><td class="num">2,774</td><td class="num">469</td><td class="num">16.9 %</td></tr>
+<tr><td class="num">44</td><td><a href="https://proxyspace.pro/" rel="nofollow noopener">proxyspace.pro</a></td><td class="num">11,966</td><td class="num">11,684</td><td class="num">467</td><td class="num">4.0 %</td></tr>
+<tr><td class="num">45</td><td><a href="https://github.com/Riyoway/Proxcy" rel="nofollow noopener">Riyoway/Proxcy</a></td><td class="num">18,012</td><td class="num">16,158</td><td class="num">465</td><td class="num">2.9 %</td></tr>
+<tr><td class="num">46</td><td><a href="https://github.com/Anonym0usWork1221/Free-Proxies" rel="nofollow noopener">Anonym0usWork1221/Free-Proxies</a></td><td class="num">54,401</td><td class="num">53,931</td><td class="num">462</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">47</td><td><a href="https://github.com/Access-At/proxy-list" rel="nofollow noopener">Access-At/proxy-list</a></td><td class="num">7,620</td><td class="num">5,778</td><td class="num">448</td><td class="num">7.8 %</td></tr>
+<tr><td class="num">48</td><td><a href="https://github.com/Cheagjihvg/simple-proxylist" rel="nofollow noopener">Cheagjihvg/simple-proxylist</a></td><td class="num">47,809</td><td class="num">33,557</td><td class="num">445</td><td class="num">1.3 %</td></tr>
+<tr><td class="num">49</td><td><a href="https://github.com/ExoticSecurityWeb/scraper-proxy" rel="nofollow noopener">ExoticSecurityWeb/scraper-proxy</a></td><td class="num">1,820</td><td class="num">1,858</td><td class="num">444</td><td class="num">23.9 %</td></tr>
+<tr><td class="num">50</td><td><a href="https://github.com/proxy-free/free-proxy-list" rel="nofollow noopener">proxy-free/free-proxy-list</a></td><td class="num">7,434</td><td class="num">7,524</td><td class="num">432</td><td class="num">5.7 %</td></tr>
+<tr><td class="num">51</td><td><a href="https://github.com/mzyui/proxy-list" rel="nofollow noopener">mzyui/proxy-list</a> <span class="muted">· unchanged for a week</span></td><td class="num">108,447</td><td class="num">46,077</td><td class="num">429</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">52</td><td><a href="https://github.com/zloi-user/hideip.me" rel="nofollow noopener">zloi-user/hideip.me</a></td><td class="num">7,142</td><td class="num">5,254</td><td class="num">425</td><td class="num">8.1 %</td></tr>
+<tr><td class="num">53</td><td><a href="https://github.com/zevtyardt/proxy-list" rel="nofollow noopener">zevtyardt/proxy-list</a> <span class="muted">· unchanged for a week</span></td><td class="num">108,447</td><td class="num">42,898</td><td class="num">403</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">54</td><td><a href="https://github.com/iplocate/free-proxy-list" rel="nofollow noopener">iplocate/free-proxy-list</a></td><td class="num">3,256</td><td class="num">3,544</td><td class="num">379</td><td class="num">10.7 %</td></tr>
+<tr><td class="num">55</td><td><a href="https://github.com/wyattowalsh/proxywhirl" rel="nofollow noopener">wyattowalsh/proxywhirl</a></td><td class="num">41,290</td><td class="num">16,520</td><td class="num">378</td><td class="num">2.3 %</td></tr>
+<tr><td class="num">56</td><td><a href="https://github.com/i-am-unbekannt/BLITZPROXY" rel="nofollow noopener">i-am-unbekannt/BLITZPROXY</a></td><td class="num">255,446</td><td class="num">42,291</td><td class="num">375</td><td class="num">0.9 %</td></tr>
+<tr><td class="num">57</td><td><a href="https://github.com/ebrasha/abdal-proxy-hub" rel="nofollow noopener">ebrasha/abdal-proxy-hub</a></td><td class="num">16,664</td><td class="num">16,470</td><td class="num">369</td><td class="num">2.2 %</td></tr>
+<tr><td class="num">58</td><td><a href="https://github.com/proxmint/free-proxy-list" rel="nofollow noopener">proxmint/free-proxy-list</a></td><td class="num">2,173</td><td class="num">2,125</td><td class="num">368</td><td class="num">17.3 %</td></tr>
+<tr><td class="num">59</td><td><a href="https://github.com/komutan234/Proxy-List-Free" rel="nofollow noopener">komutan234/Proxy-List-Free</a></td><td class="num">10,659</td><td class="num">9,090</td><td class="num">354</td><td class="num">3.9 %</td></tr>
+<tr><td class="num">60</td><td><a href="https://github.com/Xnuvers007/free-proxy" rel="nofollow noopener">Xnuvers007/free-proxy</a></td><td class="num">90,089</td><td class="num">15,401</td><td class="num">352</td><td class="num">2.3 %</td></tr>
+<tr><td class="num">61</td><td><a href="https://github.com/TheSpeedX/PROXY-List" rel="nofollow noopener">TheSpeedX/PROXY-List</a></td><td class="num">8,835</td><td class="num">8,465</td><td class="num">342</td><td class="num">4.0 %</td></tr>
+<tr><td class="num">62</td><td><a href="https://github.com/FifzzSENZE/Master-Proxy" rel="nofollow noopener">FifzzSENZE/Master-Proxy</a> <span class="muted">· unchanged for a week</span></td><td class="num">658,051</td><td class="num">68,076</td><td class="num">339</td><td class="num">0.5 %</td></tr>
+<tr><td class="num">63</td><td><a href="https://github.com/azestkingscrown/Free_Proxy_List" rel="nofollow noopener">azestkingscrown/Free_Proxy_List</a></td><td class="num">1,863</td><td class="num">1,827</td><td class="num">313</td><td class="num">17.1 %</td></tr>
+<tr><td class="num">64</td><td><a href="https://github.com/398001/ProxysList" rel="nofollow noopener">398001/ProxysList</a></td><td class="num">1,152</td><td class="num">1,037</td><td class="num">306</td><td class="num">29.5 %</td></tr>
+<tr><td class="num">65</td><td><a href="https://databay.com/" rel="nofollow noopener">databay.com</a> <span class="muted">· doesn't load</span></td><td class="num">7,380</td><td class="num">7,235</td><td class="num">303</td><td class="num">4.2 %</td></tr>
+<tr><td class="num">66</td><td><a href="https://github.com/relayglass/free-proxy-list" rel="nofollow noopener">relayglass/free-proxy-list</a> <span class="muted">· unchanged for a week</span></td><td class="num">1,845</td><td class="num">1,845</td><td class="num">300</td><td class="num">16.3 %</td></tr>
+<tr><td class="num">67</td><td><a href="https://github.com/Skillter/ProxyGather" rel="nofollow noopener">Skillter/ProxyGather</a> <span class="muted">· unchanged for a week</span></td><td class="num">60,937</td><td class="num">22,072</td><td class="num">299</td><td class="num">1.4 %</td></tr>
+<tr><td class="num">68</td><td><a href="https://github.com/mmpx12/proxy-list" rel="nofollow noopener">mmpx12/proxy-list</a></td><td class="num">3,115</td><td class="num">3,114</td><td class="num">294</td><td class="num">9.4 %</td></tr>
+<tr><td class="num">69</td><td><a href="https://github.com/ProxyScraper/ProxyScraper" rel="nofollow noopener">ProxyScraper/ProxyScraper</a></td><td class="num">5,824</td><td class="num">5,919</td><td class="num">294</td><td class="num">5.0 %</td></tr>
+<tr><td class="num">70</td><td><a href="https://github.com/IPParrot/proxy_ips" rel="nofollow noopener">IPParrot/proxy_ips</a></td><td class="num">6,145</td><td class="num">6,097</td><td class="num">277</td><td class="num">4.5 %</td></tr>
+<tr><td class="num">71</td><td><a href="https://github.com/Pxys-io/DailyProxyList" rel="nofollow noopener">Pxys-io/DailyProxyList</a></td><td class="num">3,212</td><td class="num">3,126</td><td class="num">274</td><td class="num">8.8 %</td></tr>
+<tr><td class="num">72</td><td><a href="https://github.com/Pxys-io/proxylistdaily" rel="nofollow noopener">Pxys-io/proxylistdaily</a></td><td class="num">3,212</td><td class="num">3,126</td><td class="num">274</td><td class="num">8.8 %</td></tr>
+<tr><td class="num">73</td><td><a href="https://github.com/RioMMO/ProxyFree" rel="nofollow noopener">RioMMO/ProxyFree</a></td><td class="num">62,319</td><td class="num">34,629</td><td class="num">273</td><td class="num">0.8 %</td></tr>
+<tr><td class="num">74</td><td><a href="https://github.com/pwnx0/proxy" rel="nofollow noopener">pwnx0/proxy</a></td><td class="num">50,517</td><td class="num">22,108</td><td class="num">267</td><td class="num">1.2 %</td></tr>
+<tr><td class="num">75</td><td><a href="https://github.com/r00tee/Proxy-List" rel="nofollow noopener">r00tee/Proxy-List</a> <span class="muted">· unchanged for a week</span></td><td class="num">9,663</td><td class="num">9,593</td><td class="num">260</td><td class="num">2.7 %</td></tr>
+<tr><td class="num">76</td><td><a href="https://github.com/Argh94/Proxy-List" rel="nofollow noopener">Argh94/Proxy-List</a></td><td class="num">7,625</td><td class="num">5,368</td><td class="num">253</td><td class="num">4.7 %</td></tr>
+<tr><td class="num">77</td><td><a href="https://github.com/BlacKSnowDot0/Proxy-Pulse" rel="nofollow noopener">BlacKSnowDot0/Proxy-Pulse</a></td><td class="num">563</td><td class="num">564</td><td class="num">248</td><td class="num">44.0 %</td></tr>
+<tr><td class="num">78</td><td><a href="https://github.com/Bes-js/public-proxy-list" rel="nofollow noopener">Bes-js/public-proxy-list</a></td><td class="num">3,438</td><td class="num">3,177</td><td class="num">247</td><td class="num">7.8 %</td></tr>
+<tr><td class="num">79</td><td><a href="https://github.com/morpheusadam/v2ray-config" rel="nofollow noopener">morpheusadam/v2ray-config</a> <span class="muted">· unchanged for a week</span></td><td class="num">4,352</td><td class="num">4,349</td><td class="num">246</td><td class="num">5.6 %</td></tr>
+<tr><td class="num">80</td><td><a href="https://github.com/elliottophellia/proxylist" rel="nofollow noopener">elliottophellia/proxylist</a></td><td class="num">4,130</td><td class="num">4,153</td><td class="num">242</td><td class="num">5.8 %</td></tr>
+<tr><td class="num">81</td><td><a href="https://github.com/Ciara-12/PROXY-free" rel="nofollow noopener">Ciara-12/PROXY-free</a></td><td class="num">1,252</td><td class="num">1,266</td><td class="num">225</td><td class="num">17.8 %</td></tr>
+<tr><td class="num">82</td><td><a href="https://github.com/databay-labs/free-proxy-list" rel="nofollow noopener">databay-labs/free-proxy-list</a></td><td class="num">10,132</td><td class="num">9,244</td><td class="num">224</td><td class="num">2.4 %</td></tr>
+<tr><td class="num">83</td><td><a href="https://github.com/SoraDev-ID/proxy-scraper" rel="nofollow noopener">SoraDev-ID/proxy-scraper</a></td><td class="num">1,327</td><td class="num">1,327</td><td class="num">222</td><td class="num">16.7 %</td></tr>
+<tr><td class="num">84</td><td><a href="https://github.com/stormsia/proxy-list" rel="nofollow noopener">stormsia/proxy-list</a></td><td class="num">402</td><td class="num">612</td><td class="num">219</td><td class="num">35.7 %</td></tr>
+<tr><td class="num">85</td><td><a href="https://github.com/casals-ar/proxy-list" rel="nofollow noopener">casals-ar/proxy-list</a> <span class="muted">· unchanged for a week</span></td><td class="num">78,738</td><td class="num">19,874</td><td class="num">216</td><td class="num">1.1 %</td></tr>
+<tr><td class="num">86</td><td><a href="https://github.com/casa-ls/proxy-list" rel="nofollow noopener">casa-ls/proxy-list</a> <span class="muted">· unchanged for a week</span></td><td class="num">78,738</td><td class="num">18,041</td><td class="num">212</td><td class="num">1.2 %</td></tr>
+<tr><td class="num">87</td><td><a href="https://github.com/Master-Mind-007/Auto-Parse-Proxy" rel="nofollow noopener">Master-Mind-007/Auto-Parse-Proxy</a> <span class="muted">· unchanged for a week</span></td><td class="num">62,168</td><td class="num">17,272</td><td class="num">211</td><td class="num">1.2 %</td></tr>
+<tr><td class="num">88</td><td><a href="https://github.com/rianilham28/proxian" rel="nofollow noopener">rianilham28/proxian</a></td><td class="num">1,685</td><td class="num">1,685</td><td class="num">209</td><td class="num">12.4 %</td></tr>
+<tr><td class="num">89</td><td><a href="https://github.com/gitrecon1455/fresh-proxy-list" rel="nofollow noopener">gitrecon1455/fresh-proxy-list</a></td><td class="num">320,421</td><td class="num">44,270</td><td class="num">209</td><td class="num">0.5 %</td></tr>
+<tr><td class="num">90</td><td><a href="https://github.com/MuRongPIG/Proxy-Master" rel="nofollow noopener">MuRongPIG/Proxy-Master</a> <span class="muted">· unchanged for a week</span></td><td class="num">292,180</td><td class="num">42,937</td><td class="num">208</td><td class="num">0.5 %</td></tr>
+<tr><td class="num">91</td><td><a href="https://github.com/ALIILAPRO/Proxy" rel="nofollow noopener">ALIILAPRO/Proxy</a></td><td class="num">2,443</td><td class="num">2,545</td><td class="num">205</td><td class="num">8.0 %</td></tr>
+<tr><td class="num">92</td><td><a href="https://github.com/EDT-Pages/Proxy-List" rel="nofollow noopener">EDT-Pages/Proxy-List</a></td><td class="num">5,348</td><td class="num">4,885</td><td class="num">200</td><td class="num">4.1 %</td></tr>
+<tr><td class="num">93</td><td><a href="https://github.com/NetroIndonesia/proxy-live" rel="nofollow noopener">NetroIndonesia/proxy-live</a> <span class="muted">· unchanged for a week</span></td><td class="num">13,788</td><td class="num">5,850</td><td class="num">197</td><td class="num">3.4 %</td></tr>
+<tr><td class="num">94</td><td><a href="https://github.com/trio666/proxy-checker" rel="nofollow noopener">trio666/proxy-checker</a></td><td class="num">756</td><td class="num">2,751</td><td class="num">196</td><td class="num">7.1 %</td></tr>
+<tr><td class="num">95</td><td><a href="https://github.com/MuRongPig/Proxy-Master" rel="nofollow noopener">MuRongPig/Proxy-Master</a> <span class="muted">· unchanged for a week</span></td><td class="num">291,936</td><td class="num">35,223</td><td class="num">196</td><td class="num">0.6 %</td></tr>
+<tr><td class="num">96</td><td><a href="https://github.com/rix4uni/fresh-proxy-list" rel="nofollow noopener">rix4uni/fresh-proxy-list</a></td><td class="num">319,341</td><td class="num">45,272</td><td class="num">196</td><td class="num">0.4 %</td></tr>
+<tr><td class="num">97</td><td><a href="https://github.com/sunny9577/proxy-scraper" rel="nofollow noopener">sunny9577/proxy-scraper</a></td><td class="num">1,892</td><td class="num">2,328</td><td class="num">186</td><td class="num">8.0 %</td></tr>
+<tr><td class="num">98</td><td><a href="https://github.com/NikolaiT/free-proxy-list" rel="nofollow noopener">NikolaiT/free-proxy-list</a></td><td class="num">1,963</td><td class="num">1,952</td><td class="num">179</td><td class="num">9.2 %</td></tr>
+<tr><td class="num">99</td><td><a href="https://github.com/fmw86/free-proxy-pool" rel="nofollow noopener">fmw86/free-proxy-pool</a></td><td class="num">1,837</td><td class="num">1,840</td><td class="num">177</td><td class="num">9.6 %</td></tr>
+<tr><td class="num">100</td><td><a href="https://github.com/Vann-Dev/proxy-list" rel="nofollow noopener">Vann-Dev/proxy-list</a></td><td class="num">1,208</td><td class="num">1,206</td><td class="num">169</td><td class="num">14.0 %</td></tr></tbody></table></div>
+  </section>
+  <section><h2>Highest share of working proxies</h2><div class="table"><table><caption>Highest share among the sources with at least 300 proxies checked per run.</caption><thead><tr><th scope="col" class="num">#</th><th scope="col">Source</th><th scope="col" class="num">Proxies listed</th><th scope="col" class="num">Checked</th><th scope="col" class="num">Passed every check</th><th scope="col" class="num">Share</th></tr></thead><tbody><tr><td class="num">1</td><td><a href="https://github.com/BlacKSnowDot0/Proxy-Pulse" rel="nofollow noopener">BlacKSnowDot0/Proxy-Pulse</a></td><td class="num">563</td><td class="num">564</td><td class="num">248</td><td class="num">44.0 %</td></tr>
+<tr><td class="num">2</td><td><a href="https://github.com/stormsia/proxy-list" rel="nofollow noopener">stormsia/proxy-list</a></td><td class="num">402</td><td class="num">612</td><td class="num">219</td><td class="num">35.7 %</td></tr>
+<tr><td class="num">3</td><td><a href="https://github.com/Thordata/awesome-free-proxy-list" rel="nofollow noopener">Thordata/awesome-free-proxy-list</a></td><td class="num">1,791</td><td class="num">1,918</td><td class="num">612</td><td class="num">31.9 %</td></tr>
+<tr><td class="num">4</td><td><a href="https://github.com/398001/ProxysList" rel="nofollow noopener">398001/ProxysList</a></td><td class="num">1,152</td><td class="num">1,037</td><td class="num">306</td><td class="num">29.5 %</td></tr>
+<tr><td class="num">5</td><td><a href="https://github.com/ExoticSecurityWeb/scraper-proxy" rel="nofollow noopener">ExoticSecurityWeb/scraper-proxy</a></td><td class="num">1,820</td><td class="num">1,858</td><td class="num">444</td><td class="num">23.9 %</td></tr>
+<tr><td class="num">6</td><td><a href="https://free-proxy-list.net/" rel="nofollow noopener">free-proxy-list.net</a></td><td class="num">596</td><td class="num">596</td><td class="num">133</td><td class="num">22.3 %</td></tr>
+<tr><td class="num">7</td><td><a href="https://github.com/kevinriverrrr-sudo/auto-proxies" rel="nofollow noopener">kevinriverrrr-sudo/auto-proxies</a></td><td class="num">389</td><td class="num">375</td><td class="num">72</td><td class="num">19.3 %</td></tr>
+<tr><td class="num">8</td><td><a href="https://github.com/Ciara-12/PROXY-free" rel="nofollow noopener">Ciara-12/PROXY-free</a></td><td class="num">1,252</td><td class="num">1,266</td><td class="num">225</td><td class="num">17.8 %</td></tr>
+<tr><td class="num">9</td><td><a href="https://github.com/proxmint/free-proxy-list" rel="nofollow noopener">proxmint/free-proxy-list</a></td><td class="num">2,173</td><td class="num">2,125</td><td class="num">368</td><td class="num">17.3 %</td></tr>
+<tr><td class="num">10</td><td><a href="https://github.com/azestkingscrown/Free_Proxy_List" rel="nofollow noopener">azestkingscrown/Free_Proxy_List</a></td><td class="num">1,863</td><td class="num">1,827</td><td class="num">313</td><td class="num">17.1 %</td></tr>
+<tr><td class="num">11</td><td><a href="https://github.com/Moleway/Free-Proxy-List" rel="nofollow noopener">Moleway/Free-Proxy-List</a></td><td class="num">2,774</td><td class="num">2,774</td><td class="num">469</td><td class="num">16.9 %</td></tr>
+<tr><td class="num">12</td><td><a href="https://github.com/SoraDev-ID/proxy-scraper" rel="nofollow noopener">SoraDev-ID/proxy-scraper</a></td><td class="num">1,327</td><td class="num">1,327</td><td class="num">222</td><td class="num">16.7 %</td></tr>
+<tr><td class="num">13</td><td><a href="https://github.com/Ch4120N/Ch4120N-Proxy-List" rel="nofollow noopener">Ch4120N/Ch4120N-Proxy-List</a></td><td class="num">3,362</td><td class="num">3,503</td><td class="num">577</td><td class="num">16.5 %</td></tr>
+<tr><td class="num">14</td><td><a href="https://github.com/relayglass/free-proxy-list" rel="nofollow noopener">relayglass/free-proxy-list</a> <span class="muted">· unchanged for a week</span></td><td class="num">1,845</td><td class="num">1,845</td><td class="num">300</td><td class="num">16.3 %</td></tr>
+<tr><td class="num">15</td><td><a href="https://github.com/litportnet/free-proxy-list" rel="nofollow noopener">litportnet/free-proxy-list</a></td><td class="num">4,319</td><td class="num">4,299</td><td class="num">673</td><td class="num">15.6 %</td></tr>
+<tr><td class="num">16</td><td><a href="https://github.com/krokmazagaga/http-proxy-list" rel="nofollow noopener">krokmazagaga/http-proxy-list</a></td><td class="num">397</td><td class="num">399</td><td class="num">60</td><td class="num">15.0 %</td></tr>
+<tr><td class="num">17</td><td><a href="https://github.com/Vann-Dev/proxy-list" rel="nofollow noopener">Vann-Dev/proxy-list</a></td><td class="num">1,208</td><td class="num">1,206</td><td class="num">169</td><td class="num">14.0 %</td></tr>
+<tr><td class="num">18</td><td><a href="https://github.com/Zaeem20/FREE_PROXIES_LIST" rel="nofollow noopener">Zaeem20/FREE_PROXIES_LIST</a></td><td class="num">1,039</td><td class="num">1,000</td><td class="num">131</td><td class="num">13.1 %</td></tr>
+<tr><td class="num">19</td><td><a href="https://github.com/rianilham28/proxian" rel="nofollow noopener">rianilham28/proxian</a></td><td class="num">1,685</td><td class="num">1,685</td><td class="num">209</td><td class="num">12.4 %</td></tr>
+<tr><td class="num">20</td><td><a href="https://github.com/Denisyoya/Proxy-List-Gamt" rel="nofollow noopener">Denisyoya/Proxy-List-Gamt</a></td><td class="num">12,935</td><td class="num">13,433</td><td class="num">1,525</td><td class="num">11.4 %</td></tr>
+<tr><td class="num">21</td><td><a href="https://github.com/iplocate/free-proxy-list" rel="nofollow noopener">iplocate/free-proxy-list</a></td><td class="num">3,256</td><td class="num">3,544</td><td class="num">379</td><td class="num">10.7 %</td></tr>
+<tr><td class="num">22</td><td><a href="https://github.com/fmw86/free-proxy-pool" rel="nofollow noopener">fmw86/free-proxy-pool</a></td><td class="num">1,837</td><td class="num">1,840</td><td class="num">177</td><td class="num">9.6 %</td></tr>
+<tr><td class="num">23</td><td><a href="https://github.com/mmpx12/proxy-list" rel="nofollow noopener">mmpx12/proxy-list</a></td><td class="num">3,115</td><td class="num">3,114</td><td class="num">294</td><td class="num">9.4 %</td></tr>
+<tr><td class="num">24</td><td><a href="https://github.com/ClearProxy/checked-proxy-list" rel="nofollow noopener">ClearProxy/checked-proxy-list</a> <span class="muted">· unchanged for a week</span></td><td class="num">801</td><td class="num">801</td><td class="num">74</td><td class="num">9.3 %</td></tr>
+<tr><td class="num">25</td><td><a href="https://github.com/NikolaiT/free-proxy-list" rel="nofollow noopener">NikolaiT/free-proxy-list</a></td><td class="num">1,963</td><td class="num">1,952</td><td class="num">179</td><td class="num">9.2 %</td></tr></tbody></table></div></section>
+  <section class="method"><h2>How it's counted</h2>
+    <p>Every hour each list is downloaded and its proxies are checked: a real HTTP, SOCKS4 or SOCKS5 handshake,
+    a second request to another site that weeds out honeypots, and a known page that has to arrive unchanged.
+    "Passed every check" is the number of proxies from a source that got through all of that in an average recent
+    run, "Share" is that number against the proxies checked from it.</p>
+    <p>A proxy that several lists carry counts for each of them. The files of one repository are one source.
+    A run checks the most promising 150,000 candidates, so of a very large list only a part is checked each time.
+    The lists published by proxy-scraper itself are left out: they are the result of these checks.</p>
+    <p>The same ranking from your own network: <code class="mono">proxy-scraper --list-sources</code>.
+    A list is missing? <a href="https://github.com/maximilianfeix/proxy-scraper/issues/new?template=new_source.yml">Add it as a source</a>.</p>
+  </section>
+  <footer>
+    <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>
+    <span>Collected and checked by <a href="https://github.com/maximilianfeix/proxy-scraper">proxy-scraper</a>, open source, MIT licensed.</span>
+  </footer>
+</div>
+</body>
+</html>

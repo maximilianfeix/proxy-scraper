@@ -146,6 +146,7 @@ def test_proxifier_escapes_logins_and_drops_what_it_cannot_carry():
     assert len(proxies) == 1
     auth = proxies[0].find("Authentication")
     assert auth.get("enabled") == "true"
+    assert root.find("./Options/Encryption").get("mode") == "disabled"  # plain-text passwords need this mode
     assert auth.findtext("Username") == "us&er" and auth.findtext("Password") == "p<a>ss"
 
 

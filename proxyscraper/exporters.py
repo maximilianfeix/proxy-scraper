@@ -243,7 +243,7 @@ def proxifier(rows: Sequence[CheckResult], now: datetime) -> str:
         '      <ExclusionList OnlyFromListMode="false">%ComputerName%; localhost; *.local</ExclusionList>',
         "      <DnsUdpMode>0</DnsUdpMode>",
         "    </Resolve>",
-        '    <Encryption mode="basic" />',
+        '    <Encryption mode="disabled" />',  # passwords are plain text below – "basic" would expect them encrypted
         '    <HttpProxiesSupport enabled="false" />',
         '    <HandleDirectConnections enabled="false" />',
         '    <ConnectionLoopDetection enabled="true" />',

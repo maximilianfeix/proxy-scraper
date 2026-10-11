@@ -136,7 +136,12 @@ def read_stdin() -> bytes:
         raise OSError(0, "nothing was piped in (try: cat proxies.txt | proxy-scraper --recheck -)")
     buffer = getattr(sys.stdin, "buffer", None)
     data = buffer.read() if buffer is not None else sys.stdin.read().encode("utf-8", "replace")
-    return data[3:] if data.startswith(b"\xef\xbb\xbf") else data  # the BOM Notepad and PowerShell write
+    return strip_bom(data)
+
+
+def strip_bom(data: bytes) -> bytes:
+    """Without the BOM Notepad and PowerShell write – glued to the first word, it would hide a login there."""
+    return data[3:] if data.startswith(b"\xef\xbb\xbf") else data
 
 
 # a typed proxy anywhere in a word – at its start, or after "url":" in compact JSON; it ends at a quote, comma or
@@ -235,7 +240,7 @@ async def load_url_jobs(url: str, types, fetch=http_get) -> List[str]:
     """--recheck <URL>: download the list and read it like stdin – plain lines, type://, logins, JSON, CSV
     and tables all work. Raises for anything that isn't a 200 with a body (the caller says so in one line)."""
     data = await fetch(url, timeout=30)
-    return stdin_keys(data, types)
+    return stdin_keys(strip_bom(data), types)
 
 
 LIVE = "live"  # --recheck live: the public live list as the starting point

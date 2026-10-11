@@ -97,6 +97,16 @@ def test_recheck_url_downloads_and_reads_the_list_like_stdin():
         "socks5 8.8.4.4:1080", "socks5 1.1.1.1:80", "socks5 9.9.9.9:3128"]
 
 
+def test_recheck_url_keeps_logins_behind_a_bom():
+    from proxyscraper import app
+
+    async def fetch(url, timeout):  # a list saved by Notepad or PowerShell starts with a BOM
+        return b"\xef\xbb\xbfuser:pass@8.8.8.8:8080\n9.9.9.9:3128:user:pass\n"
+
+    jobs = asyncio.run(app.load_url_jobs("https://example.com/bought.txt", ["http"], fetch=fetch))
+    assert jobs == ["http user:pass@8.8.8.8:8080", "http user:pass@9.9.9.9:3128"]
+
+
 def test_recheck_url_errors_reach_the_caller():
     from proxyscraper import app
 

@@ -4,6 +4,10 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.28.0] – 2026-10-11
+
+The first tag since 1.27.0 – everything listed under 1.27.1 below ships with this release too.
+
 ### Added
 - `--recheck https://example.com/proxies.txt` checks a list straight from the web – downloaded and read like stdin (plain lines, `type://`, logins, JSON, CSV, tables). A download error is one line, not a traceback; `--serve-refill` re-downloads the list and falls back to the history when it's gone ([#267](https://github.com/maximilianfeix/proxy-scraper/issues/267))
 - `--export proxifier` writes `proxifier.ppx`, a profile for Proxifier 4 on Windows and macOS: the best 50 proxies in a redundancy chain, localhost direct, logins XML-escaped ([#268](https://github.com/maximilianfeix/proxy-scraper/issues/268))
@@ -331,8 +335,9 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.1...HEAD
-[1.27.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...v1.27.1
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.28.0...HEAD
+[1.28.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...v1.28.0
+[1.27.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...29b8fb6
 [1.27.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.26.0...v1.27.0
 [1.26.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.25.0...v1.26.0
 [1.25.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.24.0...v1.25.0

@@ -19,3 +19,16 @@ Things that count as a vulnerability here, for example:
 - crafted source lists or proxy answers that lead to code execution, path traversal or writing outside the results and data folders
 
 Not a vulnerability: public proxies reading unencrypted traffic. That's how they work – never send sensitive data through them.
+
+## Verifying a release
+
+Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) ships the wheel and sdist together with a Sigstore bundle (`*.sigstore.json`), signed keylessly by the release workflow of this repository. To check that a file really came from it:
+
+```bash
+pipx install sigstore
+sigstore verify github proxy_scraper_cli-1.27.0-py3-none-any.whl \
+  --bundle proxy_scraper_cli-1.27.0-py3-none-any.whl.sigstore.json \
+  --repository maximilianfeix/proxy-scraper
+```
+
+Workflows pin every action by commit SHA, install Python packages by hash, run CodeQL on every push and the [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/maximilianfeix/proxy-scraper) weekly. `main` is protected against force pushes and deletion.

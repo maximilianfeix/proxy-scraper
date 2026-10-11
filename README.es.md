@@ -34,7 +34,7 @@ Traducción del README en inglés; si algo no coincide, la versión inglesa es l
 
 La mayoría de las listas de proxies gratuitos están muertas en un 95 %, y buena parte del resto son honeypots o proxies que inyectan scripts en tus páginas. **proxy-scraper** recopila proxies públicos HTTP, SOCKS4 y SOCKS5 de más de 700 fuentes y se queda solo con los que superan todas las comprobaciones. Aprende en cada ejecución qué fuentes merecen la pena y puede convertir el resultado en un único proxy rotativo.
 
-**En cifras:** en un solo día comprobó 3,6 millones de proxies gratuitos: el 1,1 % funcionaba, y más de la mitad de los que respondieron fallaron en una segunda petición. [Qué hay realmente por ahí →](docs/free-proxies-in-numbers.md)
+**En cifras:** en un solo día realizó 3,6 millones de comprobaciones de proxies gratuitos: el 1,1 % las superó, y más de la mitad de los que respondieron fallaron en una segunda petición. [Qué hay realmente por ahí →](docs/free-proxies-in-numbers.md)
 
 **Usado por:** la lista horaria es una fuente integrada de [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) y [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).
 

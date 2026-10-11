@@ -615,7 +615,7 @@ proxy-scraper --source https://example.com/my-list.txt --source socks5=./socks.t
 proxy-scraper --only-sources --source bought.txt --want 50                            # only yours
 ```
 
-Any text with `ip:port` works; lines like `socks5://user:pass@host:port` keep their type, bare ones are tried as HTTP and SOCKS5 unless you write `http=…`. For logins written the way many paid lists export them, `ip:port:user:pass`, use `--recheck bought.txt` or pipe the list into `--recheck -` – sources leave that form alone, since lists like `ip:port:US:elite` look the same.
+Any text with `ip:port` works; lines like `socks5://user:pass@host:port` keep their type, bare ones are tried as HTTP and SOCKS5 unless you write `http=…`. For logins written the way many paid lists export them, `ip:port:user:pass`, use `--recheck bought.txt`, `--recheck https://example.com/proxies.txt` for a list on the web, or pipe the list into `--recheck -` – sources leave that form alone, since lists like `ip:port:US:elite` look the same.
 
 <a id="output"></a>
 
@@ -855,7 +855,7 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--no-blocklisted` | skip proxies whose exit IP is on the SpamCop blocklist – those often get captchas |
 | `--no-dnsbl` | skip the blocklist lookup |
 | `--target URL` | only proxies that reach this site (repeatable) |
-| `--recheck [FILE\|-\|live]` | only check proxies from a file, stdin (`-`), the last run, or the public live list |
+| `--recheck [FILE\|URL\|-\|live]` | only check proxies from a file, a URL, stdin (`-`), the last run, or the public live list |
 | `--fast` | skip the HTTPS test (confirmation and anonymity still run) |
 | `--no-geo` | skip the country lookup |
 | `-c`, `--concurrency N` | simultaneous checks (default: 2000) |

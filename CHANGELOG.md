@@ -5,6 +5,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ## [Unreleased]
 
 ### Added
+- `--recheck https://example.com/proxies.txt` checks a list straight from the web – downloaded and read like stdin (plain lines, `type://`, logins, JSON, CSV, tables). A download error is one line, not a traceback; `--serve-refill` re-downloads the list and falls back to the history when it's gone ([#267](https://github.com/maximilianfeix/proxy-scraper/issues/267))
 - Which free proxy lists actually work: the website has a [ranking of the sources](https://maximilianfeix.github.io/proxy-scraper/sources/), rewritten every hour from what the runs learned. Every source with the proxies it lists, how many were checked, how many passed every check and the share, plus whether the list is still maintained. The files of one repository count as one source, and the numbers are those of an average recent run. All of it is in `sources.json` too
 
 ### Fixed

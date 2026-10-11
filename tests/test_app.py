@@ -81,3 +81,37 @@ def test_recheck_live_falls_back_when_offline(tmp_path, monkeypatch):
     monkeypatch.setattr(app, "note", lambda *a, **k: None)
     jobs = asyncio.run(app.load_live_jobs(["http"], ProxyHistory(tmp_path / "h.json"), fetch=fetch))
     assert jobs == ["http 9.9.9.9:80"]
+
+
+def test_recheck_url_downloads_and_reads_the_list_like_stdin():
+    from proxyscraper import app
+
+    async def fetch(url, timeout):
+        assert url == "https://example.com/proxies.txt" and timeout == 30
+        return b"socks5://8.8.4.4:1080\n1.1.1.1:80\n| 9.9.9.9 | 3128 |\n"
+
+    jobs = asyncio.run(app.load_url_jobs("https://example.com/proxies.txt", ["http", "socks5"], fetch=fetch))
+    assert jobs == ["socks5 8.8.4.4:1080", "http 1.1.1.1:80", "socks5 1.1.1.1:80", "http 9.9.9.9:3128",
+                    "socks5 9.9.9.9:3128"]
+    assert asyncio.run(app.load_url_jobs("https://example.com/proxies.txt", ["socks5"], fetch=fetch)) == [
+        "socks5 8.8.4.4:1080", "socks5 1.1.1.1:80", "socks5 9.9.9.9:3128"]
+
+
+def test_recheck_url_errors_reach_the_caller():
+    from proxyscraper import app
+
+    async def fetch(url, timeout):
+        raise ConnectionError("HTTP 404")
+
+    with pytest.raises(ConnectionError):
+        asyncio.run(app.load_url_jobs("https://example.com/gone.txt", ["http"], fetch=fetch))
+
+
+@pytest.mark.parametrize("target, expected", [
+    ("https://example.com/a.txt", True), ("HTTP://x", True), ("proxies.txt", False), ("-", False), ("", False),
+    ("live", False),
+])
+def test_is_url(target, expected):
+    from proxyscraper import app
+
+    assert app.is_url(target) is expected

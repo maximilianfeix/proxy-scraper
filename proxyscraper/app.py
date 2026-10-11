@@ -226,6 +226,18 @@ def load_recheck_jobs(target: str, types, history: ProxyHistory) -> List[str]:
     return [k for k in keys if split_key(k)[0] in types]
 
 
+def is_url(target: str) -> bool:
+    """--recheck https://…: the list lives on the web."""
+    return target.lower().startswith(("http://", "https://"))
+
+
+async def load_url_jobs(url: str, types, fetch=http_get) -> List[str]:
+    """--recheck <URL>: download the list and read it like stdin – plain lines, type://, logins, JSON, CSV
+    and tables all work. Raises for anything that isn't a 200 with a body (the caller says so in one line)."""
+    data = await fetch(url, timeout=30)
+    return stdin_keys(data, types)
+
+
 LIVE = "live"  # --recheck live: the public live list as the starting point
 REFILL_CONCURRENCY = 500  # checks at once during --serve-refill, so the running server stays responsive
 LIVE_URL = f"{RAW_BASE}/all.txt"
@@ -405,6 +417,13 @@ class Run:
         if opts.recheck == LIVE:
             jobs = await load_live_jobs(opts.types, self.history)
             info("Recheck", f"{fmt(len(jobs))} proxies from the live list (checked every hour by GitHub Actions)")
+        elif opts.recheck and is_url(opts.recheck):
+            try:
+                jobs = await load_url_jobs(opts.recheck, opts.types)
+            except Exception as e:  # DNS, TLS, a timeout, HTTP 404 – one line, not a traceback
+                note(f"Can't download {opts.recheck}: {e or type(e).__name__}.", BAD, "✘")
+                return []
+            info("Recheck", f"{fmt(len(jobs))} proxies from {opts.recheck}")
         elif opts.recheck is not None:
             try:
                 jobs = load_recheck_jobs(opts.recheck, opts.types, self.history)
@@ -592,6 +611,11 @@ class Run:
         opts = replace(self.opts, concurrency=min(self.opts.concurrency, REFILL_CONCURRENCY))
         if opts.recheck == LIVE:
             jobs = await load_live_jobs(opts.types, self.history)
+        elif opts.recheck and is_url(opts.recheck):
+            try:  # the list on the web may have changed since the start; if it's gone, the history still has ours
+                jobs = await load_url_jobs(opts.recheck, opts.types)
+            except Exception:
+                jobs = load_recheck_jobs("", opts.types, self.history)
         else:
             jobs = load_recheck_jobs("", opts.types, self.history)
         serving = {e.result.key for e in pool.usable}  # working right now – no need to check them again

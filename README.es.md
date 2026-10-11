@@ -22,7 +22,7 @@
 <a href="#mcp"><img src="https://img.shields.io/badge/MCP_server-121113?style=for-the-badge" alt="Servidor MCP para agentes de IA"></a>
 <a href="bot/"><img src="https://img.shields.io/badge/Discord_bot-121113?style=for-the-badge" alt="Bot de Discord"></a>
 
-[English](README.md) · [简体中文](README.zh-CN.md) · **Español** · [Deutsch](README.de.md)
+[English](README.md) · [简体中文](README.zh-CN.md) · **Español** · [Deutsch](README.de.md) · [Русский](README.ru.md) · [Português (Brasil)](README.pt-BR.md) · [Français](README.fr.md)
 
 [Instalación](#install) · [Lista en vivo](#live-list) · [Para agentes de IA](#mcp) · [Servidor proxy](#proxy-server) · [Cómo funciona](#how-it-works) · [Recetas](#recipes) · [Opciones](#options) · [Preguntas frecuentes](#faq)
 

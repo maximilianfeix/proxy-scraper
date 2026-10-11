@@ -14,7 +14,7 @@
 [![Stars](https://img.shields.io/github/stars/maximilianfeix/proxy-scraper?style=flat-square&color=D4F77A&labelColor=121113)](https://github.com/maximilianfeix/proxy-scraper/stargazers)
 [![License](https://img.shields.io/badge/license-MIT-D4F77A?style=flat-square&labelColor=121113)](LICENSE)
 
-[English](README.md) · [简体中文](README.zh-CN.md) · [Español](README.es.md) · **Deutsch**
+[English](README.md) · [简体中文](README.zh-CN.md) · [Español](README.es.md) · **Deutsch** · [Русский](README.ru.md) · [Português (Brasil)](README.pt-BR.md) · [Français](README.fr.md)
 
 [Installation](#install) · [Stündliche Proxy-Liste](#live-list) · [Proxy-Pool-API](#pool-api) · [Rotierender Proxy-Server](#proxy-server) · [Python](#python) · [KI-Agenten (MCP)](#mcp) · [FAQ](#faq)
 

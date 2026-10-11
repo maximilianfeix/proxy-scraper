@@ -47,7 +47,7 @@ curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
 
 `uvx` comes with [uv](https://docs.astral.sh/uv/); `pipx run proxy-scraper-cli --pick 5` does the same.
 
-**Just the lists** – rebuilt every hour, best proxies first: [all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [by country](https://maximilianfeix.github.io/proxy-scraper/) · [more formats](#live-list)
+**Only want proxies?** The lists, rebuilt every hour, best first: [all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [by country](https://maximilianfeix.github.io/proxy-scraper/) · [more formats](#live-list)
 
 <div align="center">
 <img src="docs/demo.svg" alt="Animated demo: the live dashboard during a check, the report, the setup wizard and collecting" width="880">

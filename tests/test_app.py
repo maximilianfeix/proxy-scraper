@@ -104,7 +104,8 @@ def test_recheck_url_keeps_logins_behind_a_bom():
         return b"\xef\xbb\xbfuser:pass@8.8.8.8:8080\n9.9.9.9:3128:user:pass\n"
 
     jobs = asyncio.run(app.load_url_jobs("https://example.com/bought.txt", ["http"], fetch=fetch))
-    assert jobs == ["http user:pass@8.8.8.8:8080", "http user:pass@9.9.9.9:3128"]
+    # ip:port:user:pass keeps its login, and the bare address stays too – "ip:port:US:elite" looks the same
+    assert jobs == ["http user:pass@8.8.8.8:8080", "http user:pass@9.9.9.9:3128", "http 9.9.9.9:3128"]
 
 
 def test_recheck_url_errors_reach_the_caller():

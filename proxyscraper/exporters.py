@@ -8,6 +8,8 @@
   curl          curl.txt, one URL per line in the format for `curl -x` (SOCKS5 with DNS through the proxy)
   pac           proxy.pac for browsers, FoxyProxy and the OS proxy settings: the best 30 HTTP and SOCKS5,
                 tried in order
+  proxifier     proxifier.ppx, a profile for Proxifier 4 on Windows and macOS: the best 50 proxies in a
+                redundancy chain (the first that works is used), localhost stays direct
 """
 
 from __future__ import annotations
@@ -189,12 +191,93 @@ def pac(rows: Sequence[CheckResult], now: datetime) -> str:
                                chain="; ".join(entries) or PAC_FAIL_CLOSED)
 
 
+PROXIFIER_TYPES = {"http": "HTTPS", "socks4": "SOCKS4", "socks5": "SOCKS5"}  # "HTTPS" = HTTP proxy with CONNECT
+PROXIFIER_MAX = 50  # a redundancy chain tries the entries in order; more only delays the failure case
+PROXIFIER_OPTIONS = 48  # what Proxifier writes for a plain proxy entry (no UDP, no DNS through it)
+PROXIFIER_CHAIN_ID = 200
+
+
+def proxifier(rows: Sequence[CheckResult], now: datetime) -> str:
+    """A Proxifier profile (.ppx, XML). All proxies go into one redundancy chain, which Proxifier walks in
+    order until one answers – so the best proxies come first, like everywhere else. HTTP proxies only when
+    they can CONNECT (Proxifier tunnels everything), SOCKS4 only without a login (SOCKS4 has no password)."""
+    from xml.sax.saxutils import escape
+
+    entries = []
+    for r in rows:
+        ep = parse_endpoint(r.proxy)
+        if r.ptype not in PROXIFIER_TYPES or not tunnels(r) or (r.ptype == "socks4" and ep.has_auth):
+            continue
+        pid = 100 + len(entries)
+        lines = [
+            f'    <Proxy id="{pid}" type="{PROXIFIER_TYPES[r.ptype]}">',
+            f"      <Options>{PROXIFIER_OPTIONS}</Options>",
+            f"      <Port>{ep.port}</Port>",
+            f"      <Address>{escape(ep.host)}</Address>",
+        ]
+        if ep.has_auth:
+            lines += [
+                '      <Authentication enabled="true">',
+                f"        <Username>{escape(ep.user or '')}</Username>",
+                f"        <Password>{escape(ep.password or '')}</Password>",
+                "      </Authentication>",
+            ]
+        entries.append("\n".join([*lines, "    </Proxy>"]))
+        if len(entries) == PROXIFIER_MAX:
+            break
+    ids = [100 + i for i in range(len(entries))]
+    chain = [f'    <Chain id="{PROXIFIER_CHAIN_ID}" type="redundancy">', "      <Name>proxy-scraper</Name>",
+             *(f'      <Proxy enabled="true">{i}</Proxy>' for i in ids), "    </Chain>"]
+    default = (f'      <Action type="Chain">{PROXIFIER_CHAIN_ID}</Action>' if ids
+               else '      <Action type="Block" />')  # no proxies: block rather than quietly go direct
+    return "\n".join([
+        '<?xml version="1.0" encoding="UTF-8"?>',
+        f"<!-- proxy-scraper, {now:%Y-%m-%d %H:%M}, {len(entries)} proxies (fastest first, HTTP only with CONNECT) -->",
+        '<ProxifierProfile version="102" platform="Windows" product_id="0" product_minver="400">',
+        "  <Options>",
+        "    <Resolve>",
+        '      <AutoModeDetection enabled="true" />',
+        '      <ViaProxy enabled="false">',
+        '        <TryLocalDnsFirst enabled="false" />',
+        "      </ViaProxy>",
+        '      <ExclusionList OnlyFromListMode="false">%ComputerName%; localhost; *.local</ExclusionList>',
+        "      <DnsUdpMode>0</DnsUdpMode>",
+        "    </Resolve>",
+        '    <Encryption mode="basic" />',
+        '    <HttpProxiesSupport enabled="false" />',
+        '    <HandleDirectConnections enabled="false" />',
+        '    <ConnectionLoopDetection enabled="true" />',
+        '    <ProcessServices enabled="false" />',
+        '    <ProcessOtherUsers enabled="false" />',
+        "  </Options>",
+        "  <ProxyList>",
+        *entries,
+        "  </ProxyList>",
+        "  <ChainList>",
+        *(chain if ids else []),
+        "  </ChainList>",
+        "  <RuleList>",
+        '    <Rule enabled="true">',
+        "      <Name>Localhost</Name>",
+        "      <Targets>localhost; 127.0.0.1; ::1; %ComputerName%</Targets>",
+        '      <Action type="Direct" />',
+        "    </Rule>",
+        '    <Rule enabled="true">',
+        "      <Name>Default</Name>",
+        default,
+        "    </Rule>",
+        "  </RuleList>",
+        "</ProxifierProfile>",
+    ]) + "\n"
+
+
 EXPORTERS: Dict[str, Tuple[str, Exporter]] = {
     "proxychains": ("proxychains.conf", proxychains),
     "clash": ("clash.yaml", clash),
     "singbox": ("singbox.json", singbox),
     "curl": ("curl.txt", curl),
     "pac": ("proxy.pac", pac),
+    "proxifier": ("proxifier.ppx", proxifier),
 }
 
 

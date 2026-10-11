@@ -5,7 +5,7 @@ import pytest
 
 from proxyscraper.checker import CheckResult
 from proxyscraper.cli import parse_args
-from proxyscraper.exporters import EXPORTERS, clash, curl, parse_exports, proxychains
+from proxyscraper.exporters import EXPORTERS, clash, curl, parse_exports, proxifier, proxychains
 from proxyscraper.options import RunOptions
 from proxyscraper.output import ResultWriter
 
@@ -113,3 +113,51 @@ def test_singbox_without_usable_proxies_is_still_valid():
     from proxyscraper.exporters import singbox
     conf = json.loads(singbox([], NOW))
     assert conf["route"]["final"] == "direct"
+
+
+
+def test_proxifier_profile_is_xml_with_a_redundancy_chain():
+    import xml.etree.ElementTree as ET
+
+    text = proxifier(ROWS, NOW)
+    root = ET.fromstring(text)  # well-formed, or this raises
+    assert root.tag == "ProxifierProfile" and root.get("version") == "102"
+    proxies = root.findall("./ProxyList/Proxy")
+    assert [(p.get("id"), p.get("type"), p.findtext("Address"), p.findtext("Port")) for p in proxies] == [
+        ("100", "SOCKS5", "203.0.113.10", "1080"), ("101", "HTTPS", "198.51.100.24", "8080"),
+        ("102", "SOCKS4", "192.0.2.40", "4145")]
+    chain = root.find("./ChainList/Chain")
+    assert chain.get("type") == "redundancy" and [c.text for c in chain.findall("Proxy")] == ["100", "101", "102"]
+    rules = root.findall("./RuleList/Rule")
+    assert rules[0].findtext("Name") == "Localhost" and rules[0].find("Action").get("type") == "Direct"
+    assert rules[-1].find("Action").get("type") == "Chain" and rules[-1].find("Action").text == "200"
+
+
+def test_proxifier_escapes_logins_and_drops_what_it_cannot_carry():
+    import xml.etree.ElementTree as ET
+
+    rows = [
+        result("socks5", "us&er:p<a>ss@203.0.113.10:1080"),
+        result("socks4", "someone@192.0.2.40:4145"),  # SOCKS4 has no password – left out
+        CheckResult("http 198.51.100.1:80", "http", "198.51.100.1:80", 50, "9.9.9.9", https=False),  # no CONNECT
+    ]
+    root = ET.fromstring(proxifier(rows, NOW))
+    proxies = root.findall("./ProxyList/Proxy")
+    assert len(proxies) == 1
+    auth = proxies[0].find("Authentication")
+    assert auth.get("enabled") == "true"
+    assert auth.findtext("Username") == "us&er" and auth.findtext("Password") == "p<a>ss"
+
+
+def test_proxifier_without_proxies_blocks_instead_of_going_direct():
+    import xml.etree.ElementTree as ET
+
+    root = ET.fromstring(proxifier([], NOW))
+    assert root.find("./ChainList/Chain") is None
+    assert root.findall("./RuleList/Rule")[-1].find("Action").get("type") == "Block"
+
+
+def test_proxifier_takes_the_best_fifty():
+    rows = [result("socks5", f"203.0.113.{i}:1080", i) for i in range(1, 80)]
+    text = proxifier(rows, NOW)
+    assert text.count("<Proxy id=") == 50 and "203.0.113.1<" in text and "203.0.113.51<" not in text

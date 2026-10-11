@@ -746,6 +746,25 @@ if __name__ == "__main__":
 
 In a Scrapy project, put `RotatingProxy` in `middlewares.py` and add it to `DOWNLOADER_MIDDLEWARES` in `settings.py`. For long crawls, reload the pool now and then – the list changes every hour.
 
+**Selenium** – Chrome and Firefox can't send a proxy login, so point them at the local rotating server instead: every page load goes out through another checked proxy, and dead ones are skipped for you
+
+```bash
+proxy-scraper --recheck live --serve --https-only     # 127.0.0.1:8899, ready in about 30 s
+```
+
+```python
+from selenium import webdriver
+
+options = webdriver.ChromeOptions()
+options.add_argument("--proxy-server=http://127.0.0.1:8899")
+driver = webdriver.Chrome(options=options)
+driver.get("https://api.ipify.org")
+print(driver.find_element("tag name", "body").text)     # a different IP on each start
+driver.quit()
+```
+
+Firefox takes the proxy as preferences: `options = webdriver.FirefoxOptions()`, then `options.set_preference("network.proxy.type", 1)`, `"network.proxy.http"` / `"network.proxy.ssl"` to `"127.0.0.1"` and `"network.proxy.http_port"` / `"network.proxy.ssl_port"` to `8899`. Keep the server without `--serve-host`, so only your own machine can use it, and start it with `--https-only` when the pages are `https://` – then only proxies that passed the HTTPS test with verified TLS serve them. One browser session keeps its connections, so for a new IP per page use `session-NAME` in the proxy login (not possible in Selenium) or restart the driver.
+
 **proxychains, Clash / Mihomo, sing-box** – ready-made configs with `--export`
 
 ```bash

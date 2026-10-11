@@ -32,7 +32,7 @@
 
 Most free proxy lists are 95 % dead, and a good part of the rest are honeypots or proxies that inject scripts into your pages. **proxy-scraper** collects public HTTP, SOCKS4 and SOCKS5 proxies from 700+ sources and keeps only the ones that pass every check. It learns with every run which sources are worth it, and it can turn the result into a single rotating proxy.
 
-**In numbers:** in one day it checked 3.6 million free proxies – 1.1 % worked, and more than half of the ones that answered failed a second request. [What's actually out there →](docs/free-proxies-in-numbers.md)
+**In numbers:** in one day it ran 3.6 million checks on free proxies – 1.1 % passed, and more than half of the ones that answered failed a second request. [What's actually out there →](docs/free-proxies-in-numbers.md)
 
 **Used by:** the hourly list is a built-in source of [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).
 
@@ -46,6 +46,8 @@ curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
 ```
 
 `uvx` comes with [uv](https://docs.astral.sh/uv/); `pipx run proxy-scraper-cli --pick 5` does the same.
+
+**Just the lists** – rebuilt every hour, best proxies first: [all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [by country](https://maximilianfeix.github.io/proxy-scraper/) · [more formats](#live-list)
 
 <div align="center">
 <img src="docs/demo.svg" alt="Animated demo: the live dashboard during a check, the report, the setup wizard and collecting" width="880">
@@ -388,6 +390,8 @@ macOS, Linux and Windows, Python 3.9 to 3.14. Only two dependencies: `rich` and 
 | Usable as a single rotating proxy | ❌ | ✅ `--serve` |
 | API to fetch a proxy (proxy_pool compatible) | ❌ | ✅ [`/get`](#pool-api) |
 | Ready-made list without running anything | ✅ | ✅ [live list](#live-list) |
+
+Named and dated: [how it compares to proxifly, TheSpeedX, monosans and clarketm](docs/comparison.md).
 
 <a id="examples"></a>
 

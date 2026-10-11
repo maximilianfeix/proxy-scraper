@@ -24,7 +24,7 @@
 
 大多数免费代理列表里 95% 的代理已经失效，剩下的还有不少是蜜罐，或者会往你的网页里注入脚本。**proxy-scraper** 从 700 多个公开来源收集 HTTP、SOCKS4 和 SOCKS5 代理，只保留通过全部检测的那些。它每次运行都会学习哪些来源值得抓取，还能把结果变成一个本地轮换代理。
 
-**数据说话：** 一天内检测了 360 万个免费代理，只有 1.1% 真正可用；首次请求有响应的代理中，54% 在第二次请求时失败，约每 40 个可用代理就有 1 个会篡改网页内容。[详细数据（英文）→](docs/free-proxies-in-numbers.md)
+**数据说话：** 一天内对免费代理做了 360 万次检测，只有 1.1% 通过；首次请求有响应的代理中，54% 在第二次请求时失败，约每 40 个可用代理就有 1 个会篡改网页内容。[详细数据（英文）→](docs/free-proxies-in-numbers.md)
 
 **谁在用：** 每小时更新的列表是 [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) 和 [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list) 的内置数据源。
 

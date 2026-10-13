@@ -23,6 +23,7 @@ from types import SimpleNamespace
 from typing import Dict, List, Optional
 
 from .charts import THEMES, countries_svg, trend_svg
+from .checkstate import BASIC, CONFIRM, CONTENT, HTTPS, PASSED
 from .exporters import pac
 from .pages import write_pages
 from .parsing import PROXY_TYPES
@@ -49,6 +50,31 @@ def is_public(row: dict) -> bool:
 def load_rows(run_dir: Path) -> List[dict]:
     rows = json.loads((run_dir / "proxies.json").read_text(encoding="utf-8"))
     return best_first(r for r in rows if is_public(r))
+
+
+# What a proxy must have passed – measured, not assumed – to be on a published list (docs/check-states.md).
+# "unavailable" is not enough: a run whose confirmation target was down publishes nothing new, the old list stays.
+LISTED = (BASIC, CONFIRM, CONTENT)
+REQUIRES = {"all.txt": LISTED, "http.txt": LISTED, "socks4.txt": LISTED, "socks5.txt": LISTED,
+            "elite.txt": LISTED, "stable.txt": LISTED, "https.txt": (*LISTED, HTTPS)}
+
+
+def meets_requirements(row: dict) -> bool:
+    """Did this proxy pass every check a listed proxy needs? Rows without recorded checks come from a run
+    before 1.29 and are taken as they are – there is nothing to read."""
+    checks = row.get("checks")
+    if not isinstance(checks, dict) or not checks:
+        return True
+    return all(isinstance(checks.get(name), dict) and checks[name].get("state") == PASSED for name in LISTED)
+
+
+def load_run_summary(run_dir: Path) -> Optional[dict]:
+    """run.json of the run: how many candidates there were, how many got a verdict, how each check ended."""
+    try:
+        data = json.loads((run_dir / "run.json").read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def num(n: int) -> str:
@@ -163,9 +189,16 @@ def load_history(path: Optional[Path]) -> List[dict]:
     return [e for e in data if isinstance(e, dict) and isinstance(e.get("total"), int)]
 
 
-def history_entry(stats: dict) -> dict:
-    return {"updated": stats["updated"], "total": stats["total"], "https": stats["https"],
-            "by_type": stats["by_type"], "median_latency": stats["median_latency"], "run_hours": RUN_HOURS}
+def history_entry(stats: dict, summary: Optional[dict] = None) -> dict:
+    entry = {"updated": stats["updated"], "total": stats["total"], "https": stats["https"],
+             "by_type": stats["by_type"], "median_latency": stats["median_latency"], "run_hours": RUN_HOURS}
+    if summary:  # the denominators of this run, so a later analysis doesn't have to guess them
+        for name in ("candidates", "checked", "not_checked", "working"):
+            if type(summary.get(name)) is int:
+                entry[name] = summary[name]
+        if isinstance(summary.get("checks"), dict):
+            entry["checks"] = summary["checks"]
+    return entry
 
 
 def streak_factor(runs: List[dict]) -> int:
@@ -260,9 +293,14 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
             history: Optional[Path] = None, streaks: Optional[Path] = None, seen: Optional[Path] = None,
             feed: Optional[Path] = None, sources: Optional[Path] = None) -> int:
     rows = load_rows(run_dir)
+    held_back = sum(1 for r in rows if not meets_requirements(r))
+    rows = [r for r in rows if meets_requirements(r)]
+    if held_back:
+        print(f"{held_back} hits held back: their second request or content check did not run.")
     if len(rows) < minimum:
         print(f"Only {len(rows)} hits (< {minimum}) – the old list stays online.")
         return SKIP_EXIT_CODE
+    summary = load_run_summary(run_dir)
     now = now or datetime.now(timezone.utc)
     # whoever was there in the last run keeps counting – everyone else starts at 1, whoever is missing drops out
     past_runs = load_history(history)
@@ -271,7 +309,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     for row in rows:
         row["streak"] = previous.get(row["url"], 0) + 1
     rows = best_first(rows)  # again, now that the streaks say who is likely to last
-    runs = [*past_runs, history_entry(stats_for(rows, now))][-HISTORY_LIMIT:]
+    runs = [*past_runs, history_entry(stats_for(rows, now), summary)][-HISTORY_LIMIT:]
     listed = update_seen(rows, load_seen(seen, past_runs[-1].get("updated") if past_runs else None), now)
     for row in rows:
         entry = listed[row["url"]]
@@ -299,7 +337,12 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
                 works = " ".join(name for name, ok in (listed_row.get("sites") or {}).items() if ok)
                 writer.writerow({**r, **{k: listed_row.get(k, "") for k in extra}, "works_with": works})
     stats = stats_for(rows, now)
+    # what "listed" means, in the data itself: the checks each list requires, and how many hits lacked one
+    stats["requires"] = {name: list(needed) for name, needed in REQUIRES.items()}
+    stats["held_back"] = held_back
     write_json(out / "stats.json", stats, indent=1)
+    if summary is not None:  # the run's denominators: candidates, checked, each check by state and reason
+        write_json(out / "run.json", summary, indent=1)
     badges = out / "badges"
     badges.mkdir(exist_ok=True)
     colors = {"total": "brightgreen", "http": "blue", "socks4": "blueviolet", "socks5": "green"}

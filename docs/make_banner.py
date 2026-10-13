@@ -24,7 +24,7 @@ MARK = f"""<rect width="64" height="64" rx="18" fill="{SIGNAL}"/>
     <circle cx="13" cy="31.5" r="4.6" fill="{INK}"/><circle cx="51" cy="18" r="4.6" fill="{INK}"/>
     <circle cx="26.5" cy="44.5" r="7.6" fill="{SIGNAL}" stroke="{INK}" stroke-width="5"/>"""
 
-GATES = [("Lists", 700, 250), ("Handshake", 820, 170), ("Honeypots", 950, 262), ("Content", 1070, 176), ("Details", 1190, 232)]
+GATES = [("Lists", 700, 250), ("Handshake", 820, 170), ("Second request", 950, 262), ("Content", 1070, 176), ("Details", 1190, 232)]
 
 
 def smooth(points) -> str:
@@ -59,7 +59,7 @@ def render(c: dict) -> str:
       <circle cx="{x}" cy="{y}" r="10" fill="{SIGNAL}" stroke="{c["route"]}" stroke-width="2"/>
       <text x="{x}" y="{y - 22 if above else y + 34}" text-anchor="middle" fill="{c["muted"]}" font-family="{SANS}" font-size="15">{escape(label)}</text>
     </g>""")
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="proxy-scraper – free proxies that actually work. Every proxy passes five checks: lists, handshake, honeypots, content and details.">
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 360" width="1280" height="360" role="img" aria-label="proxy-scraper – free proxies that actually work. Every proxy on the list passed these steps: lists, handshake, second request, content and details.">
   <style>
     .fade {{ animation: fade .8s cubic-bezier(.16,1,.3,1) both; }}
     .route {{ stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw 1.6s cubic-bezier(.16,1,.3,1) .2s forwards; }}
@@ -76,7 +76,7 @@ def render(c: dict) -> str:
     <text x="144" y="110" fill="{c["text"]}" font-family="{SANS}" font-size="30" font-weight="600" letter-spacing="-1">proxy-scraper</text>
     <text x="70" y="206" fill="{c["text"]}" font-family="{SANS}" font-size="66" font-weight="600" letter-spacing="-3.4">Free proxies that</text>
     <text x="70" y="270" fill="{c["text"]}" font-family="{SANS}" font-size="66" font-weight="600" letter-spacing="-3.4">actually work.</text>
-    <text x="72" y="312" fill="{c["muted"]}" font-family="{SANS}" font-size="17">700+ sources, five checks, a fresh list every hour.</text>
+    <text x="72" y="312" fill="{c["muted"]}" font-family="{SANS}" font-size="17">Hundreds of lists, four checks, and the outcome of every one.</text>
   </g>
 
   <path d="{ROUTE}" fill="none" stroke="{c["line"]}" stroke-width="2"/>
@@ -87,16 +87,16 @@ def render(c: dict) -> str:
 
 
 STEPS = [
-    ("700+ lists", ("read every hour,", "most entries are dead")),
+    ("Hundreds of lists", ("read about every hour,", "most entries don't pass")),
     ("A real handshake", ("HTTP, SOCKS4 or SOCKS5,", "not just an open port")),
-    ("Two sites, one IP", ("honeypots that fake a", "response drop out")),
-    ("Nothing injected", ("a static page has to", "arrive byte for byte")),
-    ("The details", ("HTTPS with verified TLS,", "anonymity, country, provider")),
+    ("Two sites, one IP", ("a second request has to", "show the same exit IP")),
+    ("An unchanged page", ("a static test page has to", "arrive byte for byte")),
+    ("The details", ("HTTPS with a certificate that", "verifies, anonymity, country")),
 ]
 
 
 def checks(c: dict) -> str:
-    """The five checks every proxy on the list has passed – the same route as on the website."""
+    """The steps every proxy on the list has passed – the same route as on the website."""
     xs = [128 + i * 256 for i in range(len(STEPS))]
     ys = [150, 96, 158, 100, 140]
     route = smooth([(20, 160), *zip(xs, ys), (1260, 118)])
@@ -112,7 +112,7 @@ def checks(c: dict) -> str:
       <text x="{x}" y="204" text-anchor="middle" fill="{c["text"]}" font-family="{SANS}" font-size="19" font-weight="600" letter-spacing="-0.4">{escape(title)}</text>
       {caption}
     </g>""")
-    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 290" width="1280" height="290" role="img" aria-label="Every proxy passed five checks: 700+ lists, a real handshake, two sites with one IP, nothing injected, and the details.">
+    return f"""<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1280 290" width="1280" height="290" role="img" aria-label="The steps every listed proxy passed: hundreds of lists, a real handshake, two sites with one exit IP, an unchanged test page, and the details.">
   <style>
     .route {{ stroke-dasharray: 100; stroke-dashoffset: 100; animation: draw 1.8s cubic-bezier(.16,1,.3,1) .1s forwards; }}
     .gate {{ animation: fade .6s cubic-bezier(.16,1,.3,1) both; }}

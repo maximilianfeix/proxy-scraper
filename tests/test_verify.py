@@ -31,6 +31,7 @@ def lab(monkeypatch):
 
         running.options = {}
         monkeypatch.setattr(verify, "prepare", prepare)
+        monkeypatch.setattr(api, "_listable", lambda proxy: True)  # the lab's proxies live on 127.0.0.1
         yield running
 
 
@@ -44,11 +45,29 @@ def test_verify_prints_only_proxies_that_pass_now_and_explains_the_rest_on_stder
     dead = lab.run(lab.closed_port())
     changed = lab.run(lab.proxy("203.0.113.11", rewrite=lambda body: INJECTED))
     good = lab.run(lab.proxy("203.0.113.12"))
-    publish(monkeypatch, [row(dead, 50), row(changed, 60), row(good, 70)])  # best first: the good one is last
+    publish(monkeypatch, [row(changed, 50), row(dead, 60), row(good, 70)])  # best first: the good one is last
     assert cli.run(["--pick", "--verify"]) == 0
     out = capsys.readouterr()
     assert out.out == f"http://{good}\n"  # nothing but the URL
-    assert "not usable from this machine" in out.err and "failed the content check" in out.err
+    assert "passed every check" in out.err  # what happened to each candidate is on stderr
+
+
+def test_every_candidate_that_was_tried_gets_its_verdict():
+    async def go():
+        async with Lab() as lab:
+            checker = await lab.checker()
+            keys = [f"http {await lab.closed_port()}",
+                    f"http {await lab.proxy('203.0.113.11', rewrite=lambda b: INJECTED)}",
+                    f"http {await lab.proxy('203.0.113.12')}"]
+            verdicts = []
+            selection = await verify.pick_verified(checker, keys, want=1, concurrency=1,
+                                                   on_report=lambda r: verdicts.append(r.verdict()))
+            return selection, keys, verdicts
+
+    selection, keys, verdicts = asyncio.run(go())
+    assert [r.key for r in selection.verified] == keys[2:] and selection.tried == 3
+    assert verdicts == ["not usable from this machine right now", "answers, but failed the content check",
+                        "passed every check"]
 
 
 def test_plain_pick_is_unchanged_and_checks_nothing(lab, monkeypatch, capsys):
@@ -178,8 +197,8 @@ def test_it_stops_as_soon_as_enough_passed():
             return await verify.pick_verified(checker, keys, want=1), keys
 
     selection, keys = asyncio.run(go())
-    assert [r.key for r in selection.verified] == keys[:1]  # list order: the best one, not the quickest
-    assert selection.tried <= 4 and not selection.exhausted
+    assert len(selection.verified) == 1 and selection.verified[0].key in keys[:2]  # one of the first two tried
+    assert selection.tried <= 2 and not selection.exhausted
 
 
 def test_the_time_limit_ends_it_and_says_so():
@@ -233,7 +252,7 @@ def test_diagnosis_names_the_failed_check_and_is_exit_1(lab, capsys):
     no_tunnel = lab.run(lab.proxy("203.0.113.31", no_connect=True))
     assert cli.run(["--diagnose", no_tunnel]) == 1  # a bare host:port is read as HTTP
     out = capsys.readouterr().out
-    assert "✘ HTTPS" in out and "tunnel_refused: the proxy did not open a tunnel to port 443" in out
+    assert "✘ HTTPS" in out and "tunnel_refused: the proxy did not open a tunnel to the HTTPS target" in out
     assert "works for plain HTTP; HTTPS through it did not work" in out
 
 
@@ -291,3 +310,89 @@ def test_parse_proxy_keeps_logins_and_takes_private_addresses():
 def test_stale_minutes():
     assert verify.stale_minutes(59, 1) is None and verify.stale_minutes(90, 1) is None
     assert verify.stale_minutes(200, 1) == 110 and verify.stale_minutes(None, 1) is None
+
+
+# --------------------------------------------------------------------------- what a review found
+
+@pytest.mark.parametrize("text", ["http://alice:hunter2@127.0.0.1:99999", "http://alice:hunter2@127.0.0.1",
+                                  "socks5://alice:hun/ter2@1.2.3.4:1080", "alice:hunter2@1.2.3.4:80/x"])
+def test_a_malformed_proxy_does_not_leak_its_password(text, capsys):
+    assert cli.run(["--diagnose", text]) == verify.EXIT_USAGE
+    out = capsys.readouterr()
+    assert "hunter2" not in out.err and "hun/ter2" not in out.err and out.out == ""
+    assert "***@" in out.err
+
+
+@pytest.mark.parametrize("proxy", ["127.0.0.1:22", "10.0.0.1:80", "localhost:80", "user:pass@1.1.1.1:80", "0.0.0.0:80",
+                                   "1.1.1.1:80\n--next @2.2.2.2:80", "\x1b[31m1.1.1.1:80", "1.1.1.1:99999", "1.1.1.1",
+                                   "01.1.1.1:80", "1.1.1.1:８０"])
+def test_rows_that_are_not_a_public_address_never_leave_the_list(monkeypatch, capsys, proxy):
+    """The list is downloaded: nothing but ip:port of a public address is printed or connected to."""
+    publish(monkeypatch, [row(proxy), row("9.9.9.9:80", 500)])
+    assert cli.run(["--pick", "5"]) == 0
+    assert capsys.readouterr().out == "http://9.9.9.9:80\n"
+
+
+def test_json_is_json_also_when_nothing_matches_or_loads(monkeypatch, capsys):
+    publish(monkeypatch, [row("9.9.9.9:80")])
+    assert cli.run(["--pick", "--country", "JP", "--json"]) == 1
+    assert json.loads(capsys.readouterr().out)["proxies"] == []
+
+    async def down(url, timeout=0, headers=None):
+        raise ConnectionError("offline")
+
+    monkeypatch.setattr(api, "_live_fetch", down)
+    assert cli.run(["--pick", "--json"]) == 1
+    out = capsys.readouterr()
+    data = json.loads(out.out)
+    assert data["proxies"] == [] and "offline" in data["error"]
+    assert "check_proxies" not in out.err and "proxy-scraper -y" in out.err  # a way out the command line has
+
+
+def test_pick_json_keeps_how_long_a_proxy_has_been_listed(monkeypatch, capsys):
+    publish(monkeypatch, [row("9.9.9.9:80")])
+    assert cli.run(["--pick", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["proxies"][0]["up_for_hours"] == 30
+
+
+@pytest.mark.parametrize("updated, stale", [("2026-01-01T00:00:00", True), ("garbage", True), ("", True)])
+def test_a_list_without_a_readable_or_recent_time_is_stale_not_a_crash(monkeypatch, capsys, updated, stale):
+    monkeypatch.setattr(api, "_live_fetch", fetch_from({"proxies.json": [row("9.9.9.9:80")],
+                                                        "stats.json": {"updated": updated, "run_hours": 1}}))
+    assert cli.run(["--pick", "--json"]) == 0
+    assert json.loads(capsys.readouterr().out)["list"]["stale"] is stale
+
+
+def test_interrupting_the_download_is_exit_130_without_a_traceback(monkeypatch, capsys):
+    async def interrupted(url, timeout=0, headers=None):
+        raise KeyboardInterrupt
+
+    monkeypatch.setattr(api, "_live_fetch", interrupted)
+    assert cli.run(["--pick"]) == 130
+    assert capsys.readouterr().out == ""
+
+
+def test_diagnose_rejects_options_that_belong_to_a_scan(capsys):
+    with pytest.raises(SystemExit):
+        cli.run(["--diagnose", "1.2.3.4:80", "--serve"])
+    assert "--diagnose" in capsys.readouterr().err
+
+
+def test_a_slow_candidate_nobody_needs_any_more_is_not_waited_for():
+    async def go():
+        async with Lab() as lab:
+            checker = await lab.checker(timeout=5.0)
+            keys = [f"http {await lab.proxy('203.0.113.50')}",
+                    f"http {await lab.proxy('203.0.113.51', answers_after=4.0)}"]
+            took = verify.timed()
+            selection = await verify.pick_verified(checker, keys, want=1)
+            return selection, took()
+
+    selection, seconds = asyncio.run(go())
+    assert len(selection.verified) == 1 and seconds < 2.0
+
+
+def test_a_list_that_ran_out_is_not_called_a_budget_problem():
+    assert not verify.Selection([], tried=2, candidates=2, attempts=2).exhausted
+    assert verify.Selection([], tried=10, candidates=40, attempts=10).exhausted
+    assert verify.Selection([], tried=1, candidates=40, attempts=10, out_of_time=True).exhausted

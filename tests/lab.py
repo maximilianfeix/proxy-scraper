@@ -65,12 +65,13 @@ class Lab:
         self.servers: List[asyncio.AbstractServer] = []
         self.confirm_down = False  # the second target stops answering (directly and through proxies)
         self.page = PAGE           # what /html returns at its source
+        self.https_status = b"200 OK"  # what the TLS target answers with
         self.judge_port = self.confirm_port = self.tls_port = self.untrusted_port = 0
 
     async def __aenter__(self) -> "Lab":
         self.judge_port = await self._listen(self._judge)
         self.confirm_port = await self._listen(self._confirm)
-        self.tls_port = await self._listen(self._judge, _context("localhost-cert.pem", "localhost-key.pem"))
+        self.tls_port = await self._listen(self._tls_judge, _context("localhost-cert.pem", "localhost-key.pem"))
         self.untrusted_port = await self._listen(self._judge, _context("untrusted-cert.pem", "untrusted-key.pem"))
         return self
 
@@ -80,8 +81,8 @@ class Lab:
         for server in self.servers:
             await server.wait_closed()
 
-    async def _listen(self, handler, context: Optional[ssl.SSLContext] = None) -> int:
-        server = await asyncio.start_server(handler, "127.0.0.1", 0, ssl=context)
+    async def _listen(self, handler, context: Optional[ssl.SSLContext] = None, port: int = 0) -> int:
+        server = await asyncio.start_server(handler, "127.0.0.1", port, ssl=context)
         self.servers.append(server)
         return server.sockets[0].getsockname()[1]
 
@@ -94,6 +95,17 @@ class Lab:
         try:
             await reader.readuntil(b"\r\n\r\n")
             writer.write(_reply(self._seen(writer).encode() + b"\n"))
+            await writer.drain()
+        except (ConnectionError, OSError, asyncio.IncompleteReadError):
+            pass
+        finally:
+            writer.close()
+
+    async def _tls_judge(self, reader, writer) -> None:
+        try:
+            await reader.readuntil(b"\r\n\r\n")
+            ok = self.https_status == b"200 OK"
+            writer.write(_reply(self._seen(writer).encode() + b"\n" if ok else b"busy", self.https_status))
             await writer.drain()
         except (ConnectionError, OSError, asyncio.IncompleteReadError):
             pass
@@ -131,7 +143,8 @@ class Lab:
 
     async def proxy(self, exit_ip: str, *, second_exit_ip: str = "", rewrite: Optional[Callable[[bytes], bytes]] = None,
                     only_first_target: bool = False, no_connect: bool = False, breaks_tls: bool = False,
-                    answers_after: float = 0.0, garbage: bool = False, adds_header: str = "") -> str:
+                    answers_after: float = 0.0, garbage: bool = False, adds_header: str = "",
+                    port: int = 0) -> str:
         """An HTTP proxy that forwards to the lab's targets, with one flaw at most:
 
         second_exit_ip     the second target sees another address (a rotating or chained exit)
@@ -187,7 +200,7 @@ class Lab:
             finally:
                 writer.close()
 
-        return f"127.0.0.1:{await self._listen(handle)}"
+        return f"127.0.0.1:{await self._listen(handle, port=port)}"
 
     async def _upstream(self, port: int, exit_ip: str):
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
@@ -228,7 +241,8 @@ class Lab:
             c.controls = {
                 CONFIRM: lambda: ck.probe_confirm_target("127.0.0.1", 1.0, self.confirm_port),
                 CONTENT: self.reference,
-                HTTPS: lambda: ck.probe_https_target("localhost", "127.0.0.1", self.tls_port, c.tls_context, 1.0),
+                HTTPS: lambda: ck.probe_https_target("localhost", "127.0.0.1", c.https_port, c.tls_context, 1.0,
+                                                     request=c.request),
             }
         return c
 

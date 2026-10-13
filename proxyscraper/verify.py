@@ -35,7 +35,7 @@ from .handshake import format_auth
 from .judges import rank_judges
 from .parsing import TYPE_ALIASES, make_key, split_key
 
-MAX_CONCURRENCY = 8        # proxies examined at once
+MAX_CONCURRENCY = 8        # proxies examined at once, at most (twice the number asked for, if that is less)
 ATTEMPTS_PER_WANTED = 5    # candidates tried per proxy asked for …
 MIN_ATTEMPTS, MAX_ATTEMPTS = 10, 60  # … within these bounds
 BUDGET_SECONDS = 90.0      # and all of it ends after this long, whatever is still running
@@ -93,10 +93,21 @@ def parse_proxy(text: str) -> str:
     except ValueError:
         host = port = None
     if ptype in (None, "auto") or not host or not port or parts.path.strip("/") or parts.query:
-        raise ValueError(f"not a proxy: {text!r} – give it as socks5://host:port, http://user:pass@host:port "
-                         "or host:port")
+        raise ValueError(f"not a proxy: {redacted(text)!r} – give it as socks5://host:port, "
+                         "http://user:pass@host:port or host:port (a password with / # ? or @ in it has to be "
+                         "percent-encoded)")
     auth = format_auth(unquote(parts.username or ""), unquote(parts.password or ""))
     return make_key(ptype, f"{auth}@{host}:{port}" if auth else f"{host}:{port}")
+
+
+def redacted(text: str) -> str:
+    """What was typed, for an error message: everything between the scheme and the last '@' is a login and
+    never shown, however broken the rest is."""
+    scheme, sep, rest = text.partition("://")
+    _login, at, address = (rest if sep else text).rpartition("@")
+    if not at:
+        return text
+    return f"{scheme}{sep}***@{address}" if sep else f"***@{address}"
 
 
 def shown(ptype: str, proxy: str) -> str:
@@ -151,7 +162,7 @@ class Report:
                 SKIPPED: "; HTTPS was not tested"}[https]
         if open_:
             return ("reachable, but not verified: "
-                    + " and ".join(f"the {LABELS[name].lower()} check did not run ({self.checks[name].reason})"
+                    + " and ".join(f"the {LABELS[name].lower()} check gave no result ({self.checks[name].reason})"
                                    for name in open_) + tail)
         return ("passed every check" if https == PASSED else "works for plain HTTP") + tail
 
@@ -210,8 +221,9 @@ class Selection:
 
     @property
     def exhausted(self) -> bool:
-        """Stopped because the budget ran out, not because enough were found."""
-        return self.out_of_time or self.tried >= self.attempts
+        """Stopped by a limit of this call (time, or attempts while the list still had more) – not because
+        enough were found, and not because the list ran out."""
+        return self.out_of_time or (self.tried >= self.attempts and self.attempts < self.candidates)
 
 
 async def pick_verified(checker: Checker, candidates: Iterable[str], want: int, https: bool = False,
@@ -219,34 +231,47 @@ async def pick_verified(checker: Checker, candidates: Iterable[str], want: int, 
                         concurrency: int = MAX_CONCURRENCY) -> Selection:
     """Examine candidates in list order until `want` passed, the attempts are used up or `budget` seconds are
     over. At most `concurrency` at a time; cancelling this cancels every check still running."""
-    keys = list(candidates)
+    keys = list(dict.fromkeys(candidates))  # a list that names a proxy twice gets it checked once
     attempts = attempts_for(want, len(keys))
     queue = iter(enumerate(keys[:attempts]))
     passed: Dict[int, Report] = {}
     tried = 0
+    stopping = False
+    enough = asyncio.Event()
 
     async def worker() -> None:
         nonlocal tried
         for index, key in queue:
-            if len(passed) >= want:
+            if stopping or len(passed) >= want:
                 return
             report = await examine(checker, key)
+            if stopping:  # a cancel that an old asyncio.wait_for swallowed (Python < 3.12) still ends it here
+                return
             tried += 1
             if on_report:
                 on_report(report)
             if report.passes(https):
                 passed[index] = report
+                if len(passed) >= want:
+                    enough.set()
 
-    workers = [asyncio.ensure_future(worker()) for _ in range(min(concurrency, max(2, want * 2), attempts))]
+    at_once = concurrency if concurrency < MAX_CONCURRENCY else min(MAX_CONCURRENCY, max(2, want * 2))
+    workers = [asyncio.ensure_future(worker()) for _ in range(min(at_once, attempts))]
+    waiting = asyncio.ensure_future(enough.wait())
     out_of_time = False
     try:
-        _, pending = await asyncio.wait(workers, timeout=budget) if workers else (set(), set())
-        out_of_time = bool(pending)
+        if workers:
+            # done when every worker is, or as soon as enough passed – the checks still running then are stopped,
+            # nobody waits for a slow candidate that is no longer needed
+            everyone = asyncio.gather(*workers, return_exceptions=True)
+            finished, _ = await asyncio.wait({everyone, waiting}, timeout=budget, return_when=asyncio.FIRST_COMPLETED)
+            out_of_time = not finished
     finally:  # also when the caller is cancelled (Ctrl+C): nothing keeps connecting in the background
-        for task in workers:
+        stopping = True
+        for task in (*workers, waiting):
             task.cancel()
-        await asyncio.gather(*workers, return_exceptions=True)
-    verified = [passed[i] for i in sorted(passed)][:want]  # in list order: best first
+        await asyncio.gather(*workers, waiting, return_exceptions=True)
+    verified = [passed[i] for i in sorted(passed)][:want]  # of those that passed, in list order
     return Selection(verified, tried, len(keys), attempts, out_of_time)
 
 

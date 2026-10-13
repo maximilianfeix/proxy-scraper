@@ -703,7 +703,7 @@ class Run:
         and how each check ended – "not checked" and "the target was down" apart from "checked and failed"."""
         basic = {"passed": stats.found + stats.fakes + stats.tampered}
         # attempts: a proxy checked again after a check target switch counts once per try
-        basic.update({f"failed:{reason}": n for reason, n in sorted(self.checker.failures.items())})
+        basic.update(dict(sorted(self.checker.failures.items())))
         return {
             "schema": 1,
             "version": __version__,
@@ -717,7 +717,8 @@ class Run:
             },
             "candidates": len(jobs),
             "checked": len(run.checked),            # got a verdict
-            "not_checked": max(len(jobs) - len(run.checked), 0),  # never reached: --want, Ctrl+C, a target switch
+            "not_checked": max(len(jobs) - len(run.checked), 0),  # no verdict: --want, Ctrl+C, out of sockets
+            "no_verdict_local": run.unavailable,    # of those: this machine ran out of sockets during the check
             "stopped": "goal" if run.reached_goal else "interrupted" if run.interrupted else None,
             "working": len(run.results),            # passed basic, not failed by confirm or content
             "kept": len(kept),                      # … and passed the filters

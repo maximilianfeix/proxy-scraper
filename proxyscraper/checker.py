@@ -63,8 +63,8 @@ _CONFIRM_HEADERS = f"Host: {CONFIRM_HOST}\r\nUser-Agent: {USER_AGENT}\r\nAccept:
 CONFIRM_REQUEST = f"GET /get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 HTTP_PROXY_CONFIRM_REQUEST = f"GET http://{CONFIRM_HOST}/get HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 # Integrity: a static HTML page that has to arrive through the proxy exactly as it does directly.
-# Measured on 270 working proxies, 54 (20 %) returned a modified page – mostly with an injected
-# <script src="http://…">.
+# In one early look at 270 proxies, 54 returned a different page; no sample of those pages was kept, so what
+# was different about them is not known. content_check records size, hash and <script count from now on.
 INTEGRITY_REQUEST = f"GET /html HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 HTTP_PROXY_INTEGRITY_REQUEST = f"GET http://{CONFIRM_HOST}/html HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 
@@ -80,8 +80,11 @@ PROXY_HEADERS = {
     "x-forwarded-proto", "x-bluecoat-via", "x-originating-ip",
 }
 ANONYMITY_RANK = {"transparent": 0, "anonymous": 1, "elite": 2}
-# A failed confirmation or HTTPS test is only the proxy's failure if the target itself still answers. It is
-# asked directly at most this often (one request, however many proxies fail in between).
+# A failed confirmation or HTTPS test is only the proxy's failure if the target itself still answers – asked
+# directly, after the failure: an answer from before it could predate an outage. The target is asked at most
+# every CONTROL_GAP seconds (failures in between wait for the next answer and share it), and an answer that
+# says "down" stands for CONTROL_SECONDS.
+CONTROL_GAP = 3.0
 CONTROL_SECONDS = 10.0
 CONTROL_TIMEOUT = 6.0
 Control = Callable[[], Awaitable[object]]
@@ -165,10 +168,10 @@ class Checker:
         # "does the target still answer directly?" per check: CONFIRM and HTTPS return true/false, CONTENT
         # returns the reference hash as it is now (None = unreachable). Without one, a failure is taken as it is.
         self.controls: Dict[str, Control] = dict(controls or {})
-        self._control_cache: Dict[str, Tuple[float, asyncio.Future]] = {}
+        self._control_cache: Dict[str, Tuple[float, asyncio.Future]] = {}  # name -> (asked at, answer)
         self.https_port = 443
         self.tls_context: Optional[ssl.SSLContext] = None  # None = certifi's roots
-        self.failures: Counter = Counter()  # reason code -> basic checks that ended with it
+        self.failures: Counter = Counter()  # "failed:reason" -> basic checks that ended that way
         # the local test lab hands out documentation addresses (203.0.113.x) as exit IPs; real runs never accept them
         self.reserved_exit_ips_ok = False
         # several possible: e.g. the real IP via HTTPS, but iCloud Private Relay or a corporate proxy on port 80
@@ -240,8 +243,9 @@ class Checker:
         ms = round((time.perf_counter() - start) * 1000)
         data = {"exit_ip": exit_ip} if exit_ip else {}
         if reason:
-            self.failures[reason] += 1
-            return None, Check(state_for(reason), reason, target, now_iso(), ms, data)
+            check = Check(state_for(reason), reason, target, now_iso(), ms, data)
+            self.failures[check.label()] += 1
+            return None, check
         check = Check(PASSED, "", target, now_iso(), ms, data)
         result = CheckResult(key, ptype, proxy, ms, exit_ip, checked_at=check.at)
         result.checks[BASIC] = check
@@ -322,6 +326,7 @@ class Checker:
         target = authority(self.confirm_host, self.confirm_port)
         if not self.confirms:
             return Check(UNAVAILABLE, "target_not_configured", target, now_iso(), limits=UNCONFIRMED_LIMITS)
+        began = asyncio.get_running_loop().time()
         start = time.perf_counter()
         reason, data = "", {}
         try:
@@ -349,7 +354,7 @@ class Checker:
         state = state_for(reason)
         # a second site that saw another exit IP did answer; for anything else, the target may be the one
         # that is down – then nothing was learned about this proxy
-        if state == FAILED and reason != "exit_ip_mismatch" and await self._target_ok(CONFIRM) is False:
+        if state == FAILED and reason != "exit_ip_mismatch" and await self._target_ok(CONFIRM, began) is False:
             return Check(UNAVAILABLE, "target_unreachable", target, now_iso(), ms, limits=UNCONFIRMED_LIMITS)
         return Check(state, reason, target, now_iso(), ms, data,
                      limits=MISMATCH_LIMITS if reason == "exit_ip_mismatch" else "")
@@ -382,6 +387,7 @@ class Checker:
             return Check(UNAVAILABLE, "target_not_configured", target, now_iso())
         if self.integrity_reference is None:
             return Check(UNAVAILABLE, "no_reference", target, now_iso())
+        began = asyncio.get_running_loop().time()
         start = time.perf_counter()
         try:
             body = await wait_for(self._confirm(result.ptype, result.proxy, self.integrity_request,
@@ -394,7 +400,7 @@ class Checker:
         digest = page_hash(body)
         if digest != self.integrity_reference and CONTENT in self.controls:
             # the page may have changed at its source since the run started: compare with how it is now
-            current = await self._control(CONTENT)
+            current = await self._control(CONTENT, began)
             if not isinstance(current, bytes):
                 return Check(UNAVAILABLE, "target_unreachable", target, now_iso(), ms)
             self.integrity_reference = current
@@ -405,28 +411,45 @@ class Checker:
 
     # ------------------------------------------------------------------ is the target itself still there?
 
-    async def _control(self, name: str):
-        """What the control for this check says right now – asked directly, at most every CONTROL_SECONDS,
-        and only once however many checks wait for it. None on an error."""
-        loop = asyncio.get_running_loop()
-        cached = self._control_cache.get(name)
-        if cached is None or cached[0] <= loop.time():
-            task = asyncio.ensure_future(self._run_control(self.controls[name]))
-            cached = self._control_cache[name] = (loop.time() + CONTROL_SECONDS, task)
-        # shielded: one cancelled check mustn't take the answer away from the others waiting for it
-        return await asyncio.shield(cached[1])
+    async def _control(self, name: str, since: float):
+        """What this check's target says when asked directly, for a check that began at `since` (loop time) and
+        failed. None on an error.
 
-    async def _run_control(self, control: Control):
+        Only an answer asked for after the check began counts as "fine" – an older one says nothing about a
+        target that went down in between. Without one, this waits for the next time the target is asked (at
+        most CONTROL_GAP seconds away) and shares that answer with everyone else who is waiting. "Down" is
+        believed for CONTROL_SECONDS without asking again: it costs a proxy nothing but an "unavailable".
+        What stays possible: a target that dies between that answer and the proxy's own request, within one
+        check's duration."""
+        loop = asyncio.get_running_loop()
+        now = loop.time()
+        cached = self._control_cache.get(name)
+        if cached is not None:
+            asked_at, answer = cached
+            if asked_at >= since:  # asked (or about to be) after this check began
+                return await asyncio.shield(answer)
+            if answer.done() and not answer.cancelled() and not answer.result() and now - asked_at < CONTROL_SECONDS:
+                return answer.result()
+        ask_at = max(now, cached[0] + CONTROL_GAP) if cached is not None else now
+        answer = asyncio.ensure_future(self._run_control(self.controls[name], ask_at - now))
+        answer.add_done_callback(_consume_exception)
+        self._control_cache[name] = (ask_at, answer)
+        # shielded: one cancelled check mustn't take the answer away from the others waiting for it
+        return await asyncio.shield(answer)
+
+    async def _run_control(self, control: Control, delay: float = 0.0):
+        if delay > 0:
+            await asyncio.sleep(delay)
         try:
             return await asyncio.wait_for(control(), min(self.detail_timeout, CONTROL_TIMEOUT))
         except Exception:  # unreachable, a timeout, a broken answer – the target isn't fine
             return None
 
-    async def _target_ok(self, name: str) -> Optional[bool]:
+    async def _target_ok(self, name: str, since: float) -> Optional[bool]:
         """True/False from the control, None when there is none (then a failure is taken as it is)."""
         if name not in self.controls:
             return None
-        return bool(await self._control(name))
+        return bool(await self._control(name, since))
 
     # ------------------------------------------------------------------ details
 
@@ -457,6 +480,7 @@ class Checker:
     async def https_check(self, result: CheckResult) -> Check:
         """The HTTPS test with its outcome. Passed means: HTTPS_LIMITS, and nothing beyond that."""
         target = authority(self.judge.host, self.https_port)
+        began = asyncio.get_running_loop().time()
         start = time.perf_counter()
         try:
             async with self._slots():
@@ -468,8 +492,8 @@ class Checker:
         if not reason:
             return Check(PASSED, "", target, now_iso(), ms, limits=HTTPS_LIMITS)
         state = state_for(reason)
-        # a certificate that doesn't verify came from somewhere; for anything else the target may be down
-        if state == FAILED and reason != "tls_certificate_invalid" and await self._target_ok(HTTPS) is False:
+        # the same request directly, certificate check included: if that fails too, it isn't the proxy
+        if state == FAILED and await self._target_ok(HTTPS, began) is False:
             state, reason = UNAVAILABLE, "target_unreachable"
         return Check(state, reason, target, now_iso(), ms)
 
@@ -598,7 +622,7 @@ def confirmation_origins(body: bytes) -> Optional[List[str]]:
     """IPs from an httpbin response ("origin": "1.2.3.4" or "1.2.3.4, 5.6.7.8"), None if unusable."""
     try:
         data = json.loads(body)
-    except ValueError:
+    except (ValueError, RecursionError):  # also absurdly nested JSON – the answer comes from a stranger's proxy
         return None
     # httpbin always returns "origin" and "headers" – if one is missing, it's not the expected response
     if not isinstance(data, dict) or not isinstance(data.get("headers"), dict):
@@ -642,15 +666,26 @@ async def probe_confirm_target(ip: str, timeout: float, port: int = CONFIRM_PORT
 
 
 async def probe_https_target(host: str, ip: str, port: int = 443, context: Optional[ssl.SSLContext] = None,
-                             timeout: float = CONTROL_TIMEOUT) -> bool:
-    """Does the HTTPS test's target complete a verified TLS handshake directly (without a proxy)?"""
+                             timeout: float = CONTROL_TIMEOUT, request: Optional[bytes] = None) -> bool:
+    """Does the HTTPS test's target do directly (without a proxy) what the test expects through one: a TLS
+    handshake that verifies and, given the test's request, a 200 with an IP address?"""
+    async def probe() -> bool:
+        reader, writer = await asyncio.open_connection(ip, port, ssl=context or ssl_context(),
+                                                       server_hostname=host)
+        try:
+            if request is None:
+                return True
+            writer.write(request)
+            await writer.drain()
+            status, _, body = await read_response(reader)
+            return status == 200 and _is_ipv4(body.strip().decode("ascii", "ignore"))
+        finally:
+            writer.close()
+
     try:
-        _, writer = await asyncio.wait_for(
-            asyncio.open_connection(ip, port, ssl=context or ssl_context(), server_hostname=host), timeout)
-    except Exception:
+        return await asyncio.wait_for(probe(), timeout)
+    except Exception:  # unreachable, a certificate that doesn't verify, a broken answer
         return False
-    writer.close()
-    return True
 
 
 def direct_controls(checker: "Checker", confirm_ip: Optional[str]) -> Dict[str, Control]:
@@ -658,7 +693,7 @@ def direct_controls(checker: "Checker", confirm_ip: Optional[str]) -> Dict[str, 
     Read from the checker at call time – the check target can switch during a run."""
     controls: Dict[str, Control] = {
         HTTPS: lambda: probe_https_target(checker.judge.host, checker.judge_ip, checker.https_port,
-                                          checker.tls_context),
+                                          checker.tls_context, request=checker.request),
     }
     if confirm_ip:
         controls[CONFIRM] = lambda: probe_confirm_target(confirm_ip, CONTROL_TIMEOUT, checker.confirm_port)
@@ -700,7 +735,7 @@ def classify_anonymity(body: bytes, own_ips: Iterable[str]) -> Optional[str]:
         return "transparent"
     try:
         headers = json.loads(body).get("headers", {})
-    except (ValueError, AttributeError):
+    except (ValueError, AttributeError, RecursionError):
         return None
     if not isinstance(headers, dict):
         return None  # unexpected response – don't crash, just don't confirm

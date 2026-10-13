@@ -130,6 +130,7 @@ def _csv_row(r: CheckResult) -> dict:
     d = _row(r)
     d["targets"] = ";".join(f"{target_label(u, r.targets)}:{'ok' if ok else 'no'}" for u, ok in r.targets.items())
     del d["checks"]
+    d["checked_at"] = d.pop("checked_at")  # new columns go last: whoever reads by position finds the old ones
     for name in CHECKS:
         d[f"check_{name}"] = r.checks[name].label() if name in r.checks else ""
     return d

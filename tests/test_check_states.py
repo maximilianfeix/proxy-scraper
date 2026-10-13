@@ -326,6 +326,10 @@ def test_a_run_counts_each_state_and_keeps_the_old_json_fields(tmp_path):
     assert good["checks"]["https"]["state"] == PASSED and "reason" not in good["checks"]["https"]
     with (tmp_path / "run" / "proxies.csv").open(newline="", encoding="utf-8") as fh:
         table = list(csv.DictReader(fh))
+    # the columns 1.28 wrote keep their position, the new ones come after them
+    assert list(table[0])[:14] == ["ptype", "proxy", "latency", "exit_ip", "https", "anonymity", "country", "targets",
+                                   "asn", "org", "hosting", "blocklisted", "speed_kbps", "url"]
+    assert list(table[0])[14:] == ["checked_at", "check_basic", "check_confirm", "check_content", "check_https"]
     assert {row["check_https"] for row in table} == {"passed", "failed:tunnel_refused"}
     assert all(row["check_confirm"] == "passed" for row in table)
 
@@ -357,3 +361,86 @@ def test_a_check_round_trips_through_json():
                   {"bytes": 10}, "limits")
     assert Check.from_dict(json.loads(json.dumps(check.as_dict()))) == check
     assert Check(PASSED).as_dict() == {"state": "passed"}
+
+
+# --------------------------------------------------------------------------- what a review found
+
+def test_an_answer_from_before_the_outage_does_not_blame_the_next_proxy():
+    """A real failure makes the control ask the target ("fine"). Then the target dies. The proxy checked next
+    must not be failed on the strength of that older answer."""
+    async def scenario(lab, c):
+        picky = await lab.proxy("203.0.113.70", only_first_target=True)
+        honest = await lab.proxy("203.0.113.71")
+        _, first = await all_checks(c, picky)
+        lab.confirm_down = True
+        _, second = await all_checks(c, honest)
+        return first, second
+
+    first, second = in_lab(scenario)
+    assert states(first)[CONFIRM] == (FAILED, "bad_status")  # the target answered directly: the proxy's failure
+    assert states(second)[CONFIRM] == (UNAVAILABLE, "target_unreachable")
+
+
+def test_a_target_with_a_bad_certificate_of_its_own_is_not_the_proxys_tls_failure():
+    async def scenario(lab, c):
+        c.https_port = lab.untrusted_port  # the HTTPS target itself now serves a certificate nobody trusts
+        return await all_checks(c, await lab.proxy(EXIT))
+
+    result, checks = in_lab(scenario)
+    assert states(checks)[HTTPS] == (UNAVAILABLE, "target_unreachable") and result.https is None
+
+
+def test_an_https_target_that_answers_with_an_error_is_not_the_proxys_failure():
+    async def scenario(lab, c):
+        lab.https_status = b"503 Service Unavailable"
+        return await all_checks(c, await lab.proxy(EXIT))
+
+    result, checks = in_lab(scenario)
+    assert states(checks)[HTTPS] == (UNAVAILABLE, "target_unreachable") and result.https is None
+
+
+def test_a_reference_that_changed_since_the_last_look_is_fetched_again():
+    async def scenario(lab, c):
+        proxy = await lab.proxy(EXIT)
+        lab.page = PAGE + b"<!-- one -->"
+        _, first = await all_checks(c, proxy)   # the control fetches the page as it is now
+        lab.page = PAGE + b"<!-- two -->"       # … and it changes again right after
+        _, second = await all_checks(c, proxy)
+        return first, second
+
+    first, second = in_lab(scenario)
+    assert first[CONTENT].state == PASSED and second[CONTENT].state == PASSED
+
+
+@pytest.mark.parametrize("body", [b"[" * 200_000, b'{"origin": "9.9.9.9", "headers": ' + b"[" * 200_000])
+def test_absurdly_nested_json_from_a_proxy_is_an_unusable_answer_not_a_crash(body):
+    assert ck.confirmation_origins(body) is None
+    assert ck.classify_anonymity(body, set()) is None
+
+
+def test_out_of_sockets_is_not_learned_as_a_dead_proxy(tmp_path):
+    class Starved:
+        failures = {}
+
+        async def check_detailed(self, key):
+            return None, Check(UNAVAILABLE, "local_resource_limit")
+
+    async def go():
+        jobs = ["http 1.1.1.1:80", "http 2.2.2.2:80"]
+        stats = LiveStats({"http": 2})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, 2, True)
+        return await pipeline.run_checks(jobs, Starved(), RunOptions(no_geo=True), dashboard, writer,
+                                         GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext())
+
+    run = asyncio.run(go())
+    assert run.checked == [] and run.unavailable == 2  # no verdict: nothing for the history or the sources
+
+
+def test_the_basic_counter_names_the_state_too():
+    async def scenario(lab, c):
+        await all_checks(c, await lab.closed_port())
+        return dict(c.failures)
+
+    failures = in_lab(scenario)
+    assert list(failures) in (["failed:connect_refused"], ["failed:connect_timeout"])

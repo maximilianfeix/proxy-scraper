@@ -52,7 +52,7 @@ REASONS: Dict[str, str] = {
     "own_ip_exposed": "the target saw this machine's own IP – the proxy does not hide it",
     "exit_ip_mismatch": "the second site saw a different exit IP than the first",
     "content_mismatch": "the static test page arrived with different bytes than the reference",
-    "tunnel_refused": "the proxy did not open a tunnel to port 443",
+    "tunnel_refused": "the proxy did not open a tunnel to the HTTPS target",
     "tls_certificate_invalid": "the certificate inside the tunnel did not verify",
     "tls_error": "the TLS handshake inside the tunnel failed",
     # nothing learned about the proxy

@@ -272,8 +272,9 @@ Or let [proxy-scraper]({REPO_URL}) do the rotating and retrying for you:
 
 ```bash
 pip install proxy-scraper-cli
-proxy-scraper --recheck live          # re-check this list from your own network (~30 s)
-proxy-scraper --recheck live --serve  # ... and run it as one rotating local proxy
+proxy-scraper --pick 3 --verify       # three entries of this list that pass right now, from your network
+proxy-scraper --diagnose HOST:PORT    # why one entry works for you or doesn't: every check and what it found
+proxy-scraper --recheck live --serve  # re-check the whole list from here and run it as one rotating local proxy
 ```
 
 ```python

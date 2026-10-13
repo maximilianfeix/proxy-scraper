@@ -74,7 +74,7 @@ def test_datacenter_vs_the_rest_per_site():
 def test_markdown_page_and_post(tmp_path):
     report.write_report(facts(), tmp_path)
     md = (tmp_path / "report" / "report.md").read_text(encoding="utf-8")
-    assert "63 %" in md and "100 different proxies" in md and "Google" in md
+    assert "63 %" in md and "100 different type://ip:port entries" in md and "Google" in md
     html = (tmp_path / "report" / "index.html").read_text(encoding="utf-8")
     assert "<h1>" in html and "63 %" in html
     post = (tmp_path / "report" / "post.txt").read_text(encoding="utf-8").strip()
@@ -110,7 +110,7 @@ def test_long_runners_that_are_still_listed_are_named():
     f = facts(seen=s)
     assert f["lasted_a_day"] == 0 and f["up_a_day_now"] == 1
     md = report.markdown(f)
-    assert "None of them lasted 24 checks in a row" in md and "1 proxy on the list right now has" in md
+    assert "None of them had been on it for 24 runs in a row" in md and "1 proxy on the list right now has" in md
 
 
 def test_tiny_shares_dont_read_as_zero():

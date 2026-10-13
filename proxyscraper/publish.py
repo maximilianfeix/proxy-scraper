@@ -61,10 +61,13 @@ REQUIRES = {"all.txt": LISTED, "http.txt": LISTED, "socks4.txt": LISTED, "socks5
 
 def meets_requirements(row: dict) -> bool:
     """Did this proxy pass every check a listed proxy needs? Rows without recorded checks come from a run
-    before 1.29 and are taken as they are – there is nothing to read."""
+    before 1.29 and are taken as they are – there is nothing to read. (A result of the checker always carries
+    at least its basic check, so "no checks" can't be a proxy of a current run that skipped them.)"""
     checks = row.get("checks")
-    if not isinstance(checks, dict) or not checks:
+    if checks is None or checks == {}:
         return True
+    if not isinstance(checks, dict):
+        return False
     return all(isinstance(checks.get(name), dict) and checks[name].get("state") == PASSED for name in LISTED)
 
 
@@ -147,9 +150,8 @@ def readme(stats: dict, counts: Dict[str, int]) -> str:
     return f"""# Live proxy list
 
 Generated automatically by [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) with GitHub Actions.
-Every proxy here really worked in the last run – best first: by first answer plus the download speed measured
-right after the run, and by how likely it is to still be up (a proxy that has been listed for a day almost always is,
-a new one only in 1 of 4 cases).
+Every proxy here passed every check in the last run – best first: by first answer plus the download speed measured
+right after the run, and by how long it has been on the list (entries that have been listed longer tend to stay).
 Browse and filter it on the [website](https://maximilianfeix.github.io/proxy-scraper/), or get the lists alone,
 one per country too, from [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list).
 
@@ -296,7 +298,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     held_back = sum(1 for r in rows if not meets_requirements(r))
     rows = [r for r in rows if meets_requirements(r)]
     if held_back:
-        print(f"{held_back} hits held back: their second request or content check did not run.")
+        print(f"{held_back} hits held back: no measured pass of the second request or the content check.")
     if len(rows) < minimum:
         print(f"Only {len(rows)} hits (< {minimum}) – the old list stays online.")
         return SKIP_EXIT_CODE

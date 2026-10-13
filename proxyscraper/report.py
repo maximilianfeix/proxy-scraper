@@ -121,36 +121,40 @@ def _lines(f: dict) -> List[str]:
     """The findings as sentences, most striking first – shared by the page, the markdown and the post."""
     out = []
     if f["distinct"]:
-        line = f"{f['distinct']:,} different proxies passed every check at least once."
+        line = (f"{f['distinct']:,} different type://ip:port entries passed every check at least once "
+                "(many are ports on the same host).")
         if f["ended"]:
-            line += (f" Of the {f['ended']:,} that dropped off again, {_share(f['gone_after_one_run'], f['ended'])} "
-                     "were gone by the next check")
+            line += (f" Of the {f['ended']:,} that left the list again, {_share(f['gone_after_one_run'], f['ended'])} "
+                     "were not on the next list")
             if f["lasted_a_day"]:
-                line += (f", and only {f['lasted_a_day']:,} ({_share(f['lasted_a_day'], f['ended'])}) made it through "
-                         f"{DAY} checks in a row (about a day) or more.")
+                line += (f", and {f['lasted_a_day']:,} ({_share(f['lasted_a_day'], f['ended'])}) had been on it for "
+                         f"{DAY} runs in a row (about a day) or more.")
             else:
-                line += f". None of them lasted {DAY} checks in a row (about a day)."
+                line += f". None of them had been on it for {DAY} runs in a row (about a day)."
         if f["up_a_day_now"]:
             many = f["up_a_day_now"]
             line += (f" {many:,} {'proxy' if many == 1 else 'proxies'} on the list right now "
-                     f"{'has' if many == 1 else 'have'} been up for {DAY} checks in a row or more.")
+                     f"{'has' if many == 1 else 'have'} been on it for {DAY} runs in a row or more.")
         out.append(line)
     for key, s in f["sites"].items():
         if s["answered"]:
-            line = f"{SITE_NAMES[key]} let {_pct(s['through'], s['answered'])} % through"
+            line = (f"In the last run {SITE_NAMES[key]} let {_pct(s['through'], s['answered'])} % of the "
+                    f"{s['answered']:,} HTTPS-capable proxies that gave a clear answer through")
             if s["datacenter"] is not None and s["other"] is not None:  # both measured, or no comparison
-                line += f" – {s['datacenter']} % of datacenter exits, {s['other']} % of the rest"
+                line += f" – {s['datacenter']} % of datacenter exits, {s['other']} % of the other exits"
             out.append(line + ".")
-    line = (f"Between {f['low']:,} and {f['peak']:,} proxies worked at any one time. Right now: {f['total']:,}, "
-            f"{f['https']} % of them tunnel HTTPS")
-    out.append(line + (f", {f['datacenter']} % exit from a datacenter." if f["datacenter"] is not None else "."))
+    line = (f"Between {f['low']:,} and {f['peak']:,} entries were on the list at any one time. Right now: "
+            f"{f['total']:,}, {f['https']} % of them tunnel HTTPS to the test host")
+    out.append(line + (f", {f['datacenter']} % are datacenter exits (the provider name looks like a hosting company)."
+                       if f["datacenter"] is not None else "."))
     speeds = f.get("speeds") or []
     if speeds:
         median, top = speeds[len(speeds) // 2], speeds[9 * len(speeds) // 10]
-        out.append(f"Downloading 100 KB through them: half manage {median:,} KiB/s or more, "
+        out.append(f"Downloading 100 KB through the HTTPS-capable ones, counting the downloads that finished: "
+                   f"half manage {median:,} KiB/s or more, "
                    f"the fastest tenth over {top:,} KiB/s.")
     if f["countries"]:
-        out.append("Most of them sit in " + ", ".join(f"{_country(cc)} ({n:,})" for cc, n in f["countries"]) + ".")
+        out.append("Most exit IPs are in " + ", ".join(f"{_country(cc)} ({n:,})" for cc, n in f["countries"]) + ".")
     return out
 
 
@@ -158,9 +162,10 @@ def markdown(f: dict) -> str:
     lines = "\n\n".join(_lines(f))
     return f"""# The week in free proxies: {_period(f)}
 
-Every hour, [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) collects public HTTP, SOCKS4 and SOCKS5
-proxies from 700+ lists and keeps only the ones that pass a real handshake, a honeypot check and a content check.
-This is what {f['runs']:,} of those runs looked like.
+About every hour, [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) collects public HTTP, SOCKS4 and
+SOCKS5 proxies from 700+ lists, checks 150,000 of the candidates and keeps only the ones that pass a basic check, a
+second request to another site and a content check. This is what {f['runs']:,} of those runs looked like. An entry
+that is not on the list was not necessarily measured as failing.
 
 {lines}
 
@@ -177,12 +182,12 @@ personal data through them.*
 def post(f: dict) -> str:
     """A post that fits on X (280 characters)."""
     if f["ended"]:
-        text = (f"{f['distinct']:,} free proxies worked at some point this week. Of the ones that dropped off, "
-                f"{_share(f['gone_after_one_run'], f['ended'])} were gone by the next check. "
-                f"Only {f['up_a_day_now']:,} have been up for about a day straight.")
+        text = (f"{f['distinct']:,} free proxy entries passed every check at some point this week. Of the ones "
+                f"that left the list, {_share(f['gone_after_one_run'], f['ended'])} were not on the next list. "
+                f"{f['up_a_day_now']:,} have been listed for about a day straight.")
         amazon = f["sites"].get("amazon", {})
         if amazon.get("answered"):
-            text += f" Amazon let {_pct(amazon['through'], amazon['answered'])} % through."
+            text += f" In the last run Amazon let {_pct(amazon['through'], amazon['answered'])} % through."
     else:
         text = f"{f['total']:,} free proxies passed every check this hour."
     link = REPORT_URL.replace("https://", "")
@@ -197,9 +202,9 @@ def lifetimes_svg(f: dict, theme: str) -> str:
     height, row = 64 + 34 * len(buckets), 34
     parts = [f'<svg xmlns="http://www.w3.org/2000/svg" width="{WIDTH}" height="{height}" '
              f'viewBox="0 0 {WIDTH} {height}" font-family="{FONT}" role="img" '
-             f'aria-label="How many hourly checks free proxies lasted">',
+             f'aria-label="How many runs in a row entries were on the list">',
              f'<rect width="{WIDTH}" height="{height}" rx="16" fill="{c["bg"]}"/>',
-             f'<text x="28" y="38" fill="{c["muted"]}" font-size="14">Proxies that dropped off this week: '
+             f'<text x="28" y="38" fill="{c["muted"]}" font-size="14">Entries that left the list this week: '
              f'on the list for … in a row</text>']
     for i, (label, n) in enumerate(buckets):
         y = 58 + i * row
@@ -251,7 +256,7 @@ picture img {{ width: 100%; height: auto; border-radius: 16px; }}
   <section class="report">{items}</section>
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="lifetimes-light.svg">
-    <img src="lifetimes-dark.svg" alt="How many hourly checks free proxies lasted this week">
+    <img src="lifetimes-dark.svg" alt="How many runs in a row entries were on the list this week">
   </picture>
   <picture>
     <source media="(prefers-color-scheme: light)" srcset="{root}chart-light.svg">
@@ -302,7 +307,7 @@ def feed(f: dict, previous: Optional[str]) -> str:
     return f"""<?xml version="1.0" encoding="utf-8"?>
 <feed xmlns="http://www.w3.org/2005/Atom">
   <title>The week in free proxies</title>
-  <subtitle>How long free proxies last and which sites let them through – from hourly checks by proxy-scraper</subtitle>
+  <subtitle>How long free proxies stay listed and which sites let them through – checked about hourly</subtitle>
   <link rel="self" href="{REPORT_URL}feed.xml"/>
   <link rel="alternate" href="{REPORT_URL}"/>
   <id>{REPORT_URL}</id>

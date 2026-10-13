@@ -118,12 +118,12 @@ def page(ranking: List[dict], updated: datetime) -> str:
     best = sorted((s for s in ranking if s["checked"] >= MIN_CHECKED and s["working"]),
                   key=lambda s: (-s["share"], -s["working"], s["name"]))[:BEST_ROWS]
     title = "Which free proxy lists actually work?"
-    description = (f"{len(ranking):,} sources of free proxies, checked every hour. In a typical one "
-                   f"{typical:.1f} % of the proxies pass a real handshake, a honeypot check and a content check. "
+    description = (f"{len(ranking):,} sources of free proxies, checked about every hour. In a typical one "
+                   f"{typical:.1f} % of the checked proxies pass a basic check, a second request and a content check. "
                    "Ranked by working proxies and by share.")
-    lede = (f"{len(ranking):,} public sources of free proxies are collected and checked every hour. In the latest "
-            f"runs a typical source had {typical:.1f} % of its checked proxies pass every check. This is how each "
-            f"one did ({when}).")
+    lede = (f"{len(ranking):,} public sources of free proxies are collected and checked about every hour. In the "
+            f"latest runs a typical source had {typical:.1f} % of its checked proxies pass every check. This is how "
+            f"each one did ({when}).")
     best_html = "" if not best else (
         "<section><h2>Highest share of working proxies</h2>"
         + _table(f"Highest share among the sources with at least {MIN_CHECKED:,} proxies checked per run.", best)
@@ -175,8 +175,8 @@ def page(ranking: List[dict], updated: datetime) -> str:
   </section>
   {best_html}
   <section class="method"><h2>How it's counted</h2>
-    <p>Every hour each list is downloaded and its proxies are checked: a real HTTP, SOCKS4 or SOCKS5 handshake,
-    a second request to another site that weeds out honeypots, and a known page that has to arrive unchanged.
+    <p>About every hour each list is downloaded and its proxies are checked: a real HTTP, SOCKS4 or SOCKS5 handshake,
+    a second request to another site that has to show the same exit IP, and a test page that has to arrive unchanged.
     "Passed every check" is the number of proxies from a source that got through all of that in an average recent
     run, "Share" is that number against the proxies checked from it.</p>
     <p>A proxy that several lists carry counts for each of them. The files of one repository are one source.

@@ -32,7 +32,7 @@ from .checkstate import (
     now_iso,
 )
 from .handshake import format_auth
-from .judges import rank_judges
+from .judges import probe_judge, rank_judges
 from .parsing import TYPE_ALIASES, make_key, split_key
 
 MAX_CONCURRENCY = 8        # proxies examined at once, at most (twice the number asked for, if that is less)
@@ -65,6 +65,9 @@ async def prepare(timeout: float, connect_timeout: float) -> Checker:
     checker = Checker(best.ip, own_ips, timeout, connect_timeout, confirm_ip, judge=best.judge,
                       integrity_reference=reference)
     checker.controls = direct_controls(checker, confirm_ip)
+    # a scan watches its first check target and switches when it goes down; here there is no watcher, so a
+    # failed first request asks the target directly, like the later checks do
+    checker.controls[BASIC] = lambda: probe_judge(checker.judge)
     return checker
 
 
@@ -104,10 +107,14 @@ def redacted(text: str) -> str:
     """What was typed, for an error message: everything between the scheme and the last '@' is a login and
     never shown, however broken the rest is."""
     scheme, sep, rest = text.partition("://")
-    _login, at, address = (rest if sep else text).rpartition("@")
-    if not at:
-        return text
-    return f"{scheme}{sep}***@{address}" if sep else f"***@{address}"
+    prefix, rest = (scheme + sep, rest) if sep else ("", text)
+    _login, at, address = rest.rpartition("@")
+    if at:
+        return f"{prefix}***@{address}"
+    parts = rest.split(":")
+    if len(parts) > 2:  # host:port:user:pass, the way some lists export logins – or anything else with more colons
+        return f"{prefix}{':'.join(parts[:2])}:***"
+    return text
 
 
 def shown(ptype: str, proxy: str) -> str:

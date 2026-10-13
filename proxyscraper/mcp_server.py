@@ -27,8 +27,8 @@ unrelated sites, a static page that has to arrive byte for byte and, for HTTPS, 
 test host. Every proxy carries how each check ended (checks: passed, failed, unavailable, skipped) and when.
 
 - get_proxies: instant, from a list re-checked every hour. Start here.
-- check_proxies: checks from this machine's network, so the results work from here right now. Takes 30-90 s.
-- fetch_url: loads a page through a verified proxy and switches proxies by itself if one fails.
+- check_proxies: checks from this machine's network, so the results passed from here seconds ago. Takes 30-90 s.
+- fetch_url: loads a page through a proxy from the checked list and switches proxies by itself if one fails.
 
 Free proxies are run by strangers: never send passwords, cookies, API keys or personal data through them, \
 and expect some of them to stop working at any time."""

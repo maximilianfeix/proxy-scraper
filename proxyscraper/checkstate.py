@@ -64,7 +64,6 @@ REASONS: Dict[str, str] = {
     "fast_mode": "left out with --fast",
     "filtered_out": "a filter had already ruled this proxy out",
     "earlier_check_failed": "an earlier check did not pass, so this one did not run",
-    "cancelled": "the run stopped before this check",
 }
 
 LOCAL_ERRNOS = {errno.EMFILE, errno.ENFILE, errno.ENOBUFS, errno.ENOMEM}

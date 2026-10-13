@@ -18,7 +18,7 @@ from . import sources as srcs
 from .asndb import ProviderLookup
 from .blocklist import Blocklist
 from .checker import Checker, CheckResult
-from .checkstate import CONFIRM, CONTENT, HTTPS, SKIPPED, UNAVAILABLE, Check, now_iso
+from .checkstate import CONFIRM, CONTENT, HTTPS, SKIPPED, Check, now_iso
 from .compat import on_interrupt
 from .fetchcache import FetchCache
 from .geo import GeoResolver
@@ -254,6 +254,7 @@ class CheckRun:
     judge_switches: List[str] = field(default_factory=list)  # "old → new"
     rechecked: int = 0  # checks that were repeated because a check target went down
     unavailable: int = 0  # basic checks that couldn't run on this machine (out of sockets): not in `checked`
+    changed_pages: Counter = field(default_factory=Counter)  # content mismatches: with / without a <script tag
     # check name -> "passed" / "failed:reason" / "unavailable:reason" / "skipped:reason" -> how many proxies
     states: Dict[str, Counter] = field(default_factory=dict)
 
@@ -355,7 +356,7 @@ async def run_checks(
     if watch:
         watch.on_ok, watch.on_switch = judge_ok, judge_switched
     all_workers: Optional[asyncio.Future] = None
-    detailed = getattr(checker, "check_detailed", None)
+    no_verdict: Set[str] = getattr(checker, "no_verdict", set())  # keys whose basic check couldn't run at all
 
     def consider(r: CheckResult) -> None:
         """Live file & goal counter, as soon as all the info the filters need is there."""
@@ -387,13 +388,11 @@ async def run_checks(
         for key in pending:
             started_count += 1
             gen, started = generation, started_count
-            if detailed is not None:
-                r, basic = await detailed(key)
-            else:  # a checker that only knows the plain check
-                r, basic = await checker.check(key), None
+            r = await checker.check(key)
             stats.add_checked(key.split(" ", 1)[0])
             dashboard.advance()
-            if r is None and basic is not None and basic.state == UNAVAILABLE:
+            if r is None and key in no_verdict:
+                no_verdict.discard(key)
                 run.unavailable += 1  # our own shortage (sockets): no verdict, so nothing to learn from it
                 continue
             if r is None and is_suspect(gen, started):
@@ -421,6 +420,9 @@ async def run_checks(
             if modified:
                 run.checked.append(key)
                 stats.tampered += 1
+                # the proxy is dropped here, so what was measured about its page is kept as a count
+                changed = r.checks[CONTENT].data if CONTENT in r.checks else {}
+                run.changed_pages["with_script_tag" if changed.get("script_tags") else "without_script_tag"] += 1
                 continue
             if CONFIRM in r.checks and not r.checks[CONFIRM].ok:
                 stats.confirm_unavailable += 1

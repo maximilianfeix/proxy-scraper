@@ -30,7 +30,7 @@
 
 ---
 
-**Proxy checks you can inspect: what passed, what failed, and when.** proxy-scraper collects public HTTP, SOCKS4 and SOCKS5 proxies from hundreds of lists, puts each one through four checks and keeps the outcome of every check, so "working" is something you can look at instead of a label you have to trust.
+**Proxy checks you can inspect: what passed, what failed, and when.** proxy-scraper collects public HTTP, SOCKS4 and SOCKS5 proxies from hundreds of lists, runs up to four checks on each one and keeps the outcome of each check for the proxies it lists (for the rest it counts how each check ended), so "working" is something you can look at instead of a label you have to trust.
 
 https://github.com/user-attachments/assets/b99c1d8f-5bce-4a52-a8a9-b9c2c726301b
 
@@ -45,7 +45,7 @@ https://github.com/user-attachments/assets/b99c1d8f-5bce-4a52-a8a9-b9c2c726301b
 **Try it** – no install needed, `uvx` comes with [uv](https://docs.astral.sh/uv/) (`pipx run` does the same):
 
 ```bash
-uvx proxy-scraper-cli --pick 3 --verify               # 3 proxies from the hourly list that pass right now, from your network
+uvx proxy-scraper-cli --pick 3 --verify               # up to 3 proxies from the hourly list that pass right now, from your network
 uvx proxy-scraper-cli --diagnose socks5://HOST:PORT   # one proxy, check by check: what it did and what it didn't
 ```
 
@@ -56,16 +56,16 @@ The package is `proxy-scraper-cli` on PyPI (the plain name is taken). Once [inst
 | Command | Where the proxies come from | Checked | Takes |
 |---|---|---|---|
 | `proxy-scraper --pick 5` | the [published list](#live-list) | from GitHub's servers when the list was built, about every hour | under a second |
-| `proxy-scraper --pick 5 --verify` | the published list | **now, from your network** | seconds |
-| `proxy-scraper -y` | every list the tool knows | now, from your network | minutes |
+| `proxy-scraper --pick 5 --verify` | the published list | **now, from your network** | seconds to a minute and a half at most |
+| `proxy-scraper -y` | every list the tool knows | now, from your network | minutes (about three in the hourly runs) |
 
 **What you get**
 
 - **Every check has an outcome you can read.** `passed`, `failed`, `unavailable` or `skipped`, with a reason code, the target and the time, in the terminal, in JSON and from Python. A check that didn't run is never shown as passed, and a check target that is down doesn't turn the proxies checked against it into failures. → [Check states](docs/check-states.md)
-- **Fresh when it matters.** `--pick --verify` checks a few proxies from your own network in seconds. `--recheck` does the same for [a list of your own](#examples), and `--diagnose` tells you why one proxy doesn't work.
+- **Fresh when it matters.** `--pick --verify` checks a few proxies from your own network, usually in seconds. `--recheck` does the same for [a list of your own](#examples), and `--diagnose` tells you why one proxy doesn't work.
 - **More than a list.** A [rotating local proxy server](#proxy-server), a [Python API](#from-python), an [MCP server](#mcp) for AI agents, Docker, and exports for curl, proxychains, Clash and sing-box.
 
-**What it can't do.** Free proxies are run by strangers and most of them don't last. A pass is one measurement, from one network, against test targets: it is not a promise for the next hour or for the site you care about. The HTTPS check is a verified TLS connection to one test host, not a security rating. Use free proxies for public data and testing, never for logins, payments or anything personal. → [What the numbers show and what they don't](docs/free-proxies-in-numbers.md) · [How it compares](docs/comparison.md) · [Who runs free proxies](#who-runs-free-proxies)
+**What it can't do.** Free proxies are run by strangers, and of one hour's list only about a quarter is on the list again a day later. A pass is one measurement, from one network, against test targets: it is not a promise for the next hour or for the site you care about. The HTTPS check is a verified TLS connection to one test host, not a security rating. Use free proxies for public data and testing, never for logins, payments or anything personal. → [What the numbers show and what they don't](docs/free-proxies-in-numbers.md) · [How it compares](docs/comparison.md) · [Who runs free proxies](#who-runs-free-proxies)
 
 **Only want the lists?** You don't need this tool: [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) has them as plain files per protocol and country, rebuilt about every hour. Or straight from here: [all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [more formats](#live-list)
 
@@ -177,7 +177,7 @@ Keys: <kbd>↑</kbd><kbd>↓</kbd> select · <kbd>Space</kbd> toggle · <kbd>1</
 
 ## Live proxy list
 
-Don't want to scan yourself? Every hour **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry passed every check in the last run, best first: fast ones that are likely to still be up come on top.
+Don't want to scan yourself? About every hour **GitHub Actions** runs the tool and publishes the hits to the [`proxy-list`](../../tree/proxy-list) branch – every entry passed the first request, the second request and the content check in the last run (the HTTPS test is recorded per entry, not required), best first: fast ones that are likely to still be up come on top.
 
 > **Just want the lists?** They also live in a repository of their own, **[maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)** – one list per protocol, per country and per site, updated every hour, with the numbers of the last run on the front page. Watch or star it to keep it at hand. Other tools pull it too: [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list) use it as a built-in source.
 
@@ -243,7 +243,7 @@ Or let the tool start from it: `proxy-scraper --recheck live` downloads the list
 
 | Tool | What it does |
 |---|---|
-| `get_proxies` | working proxies right now, from the hourly list – filter by protocol, country, HTTPS, elite, no datacenter, not blocklisted, stable, uptime, latency, gets through to Google/Reddit/Amazon |
+| `get_proxies` | proxies from the hourly list, as checked in its last run – filter by protocol, country, HTTPS, elite, no datacenter, not blocklisted, stable, uptime, latency, gets through to Google/Reddit/Amazon |
 | `check_proxies` | checks proxies from your own network, so they work from where your code runs (30–90 s, reports progress) |
 | `fetch_url` | loads a page through a proxy from the checked list, switches proxies by itself when one fails, returns readable text – HTTPS only through proxies that passed the TLS test |
 
@@ -401,8 +401,8 @@ A list tells you what worked for its author when it was built. This is what the 
 |---|---|
 | Checked right before you use them, from your network | `--pick --verify`, `--recheck`, or a scan |
 | The outcome of every check, with reason and time | `checks` in JSON, `--diagnose` |
-| A second request that has to show the same exit IP | always |
-| A test page that has to arrive byte for byte | always |
+| A second request that has to show the same exit IP | always attempted; if its target is down, your own run keeps the proxy as `unavailable`, the hourly list and `--verify` don't |
+| A test page that has to arrive byte for byte | the same |
 | HTTPS tested with a certificate that verifies (one test host) | unless `--fast` |
 | Anonymity level and country per proxy | yes |
 | Only proxies that reach *your* target site | `--target` |
@@ -502,7 +502,7 @@ It runs on 127.0.0.1 with a random password, takes over each new hourly list by 
 
 ## Rotating proxy server
 
-A list is nice – but usually you just want to enter **one** proxy that always works:
+A list is nice – but usually you just want to enter **one** proxy address and have something behind it that keeps trying:
 
 ```bash
 proxy-scraper --recheck --serve     # recheck the last hits, then go – takes seconds
@@ -574,7 +574,7 @@ curl "http://127.0.0.1:8899/report?proxy=203.0.113.7:8080&ok=0"  # it failed you
 
 Filters work on `/get`, `/pop` and `/all`: `country=DE,AT`, `protocol=socks5`, `https=1`, `anonymity=elite`, `max_latency=1500`, and `format=txt` for plain URLs. With `--serve-password` the API wants it as Basic auth, like the status page.
 
-**Coming from [jhao104/proxy_pool](https://github.com/jhao104/proxy_pool)?** The endpoints, `type=https` and most JSON fields (`proxy`, `https`, `region`, `check_count`, `fail_count`, …) are the same, so point your code at port 8899 and most of it keeps working (two differences: there is no `last_time`, and `anonymous` is true/false, not a string) – without Redis, and with proxies that passed the second-request, content and TLS checks:
+**Coming from [jhao104/proxy_pool](https://github.com/jhao104/proxy_pool)?** The endpoints, `type=https` and most JSON fields (`proxy`, `https`, `region`, `check_count`, `fail_count`, …) are the same, so point your code at port 8899 and most of it keeps working (three differences: there is no `last_time`, `anonymous` is true/false, not a string, and `source` is always `proxy-scraper`) – without Redis, and with proxies that passed the second-request, content and TLS checks:
 
 ```python
 import requests
@@ -611,7 +611,7 @@ flowchart LR
 ```
 
 1. **Sources** – the curated list in [`sources.json`](proxyscraper/sources.json), meta sources (other projects that maintain lists of proxy sources) and, once a day, a GitHub search for actively maintained repos. Every search adds to what earlier ones found; a list the search hasn't seen for three weeks drops out.
-2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads 0 MB instead of ~160 MB.
+2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads only what changed (in one logged hourly run 52 MB, with 431 of 746 lists unchanged).
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
 4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. The targets of the later checks are asked directly when a check against them fails; if they don't answer either, the proxy's check is `unavailable`, not `failed`. Anyone passing your own IP through is out. Then comes the **second request** via `httpbin.org`, which has to see the same exit IP: proxies that only answer the first check with “200 + IP” fail here, and so do unstable ones and exits that rotate. Finally a static HTML page has to arrive byte for byte as it does without a proxy. Each of these leaves [its outcome](docs/check-states.md) on the result.
 5. **Countries and providers** – looked up offline in the free DB-IP databases, including the provider (ASN) and whether the provider's name looks like a hosting company (between 45 % and 65 % of the entries in the lists we looked at) (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
@@ -906,6 +906,9 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
 | `--list-sources [N]` | show the source ranking (add `--json` for scripts: url, status, hit rate, checks, last change) |
 | `--pick [N]` | print N proxies (default 1) from the hourly checked list and exit – no scan, same filters, plus `--min-uptime PERCENT`, `--min-speed KBPS` and `--works-on google,reddit,…` |
+| `--verify` | with `--pick`: check the candidates from your machine first and print only those that pass now – 5 candidates per proxy asked for (10 to 60), up to 8 at a time, 90 s at most; exit code 3 if fewer than N passed |
+| `--diagnose PROXY` | check one proxy and show what each check found, [state by state](docs/check-states.md); exit code 0 nothing failed, 1 a check failed, 3 a check could not run |
+| `--json` | with `--pick` or `--diagnose` (and `--list-sources`): the result as JSON on stdout |
 | `--serve-host ADDR` | where the proxy server listens (default `127.0.0.1`; any other address needs a password or `--serve-open`) |
 | `--serve-password SECRET` | clients must send this password in the proxy login; better set `PROXY_SCRAPER_SERVE_PASSWORD` |
 | `--serve-open` | allow `--serve-host` without a password – only behind a firewall or with `docker -p 127.0.0.1:…` |
@@ -935,7 +938,7 @@ The repo does part of the work itself:
 | [**tests**](../../actions/workflows/tests.yml) | 3 operating systems × 4 Python versions, plus a built and installed package – on every push and pull request |
 | [**lint**](../../actions/workflows/lint.yml) | `ruff` with a pinned version – same rules locally and in CI |
 | [**codeql**](../../actions/workflows/codeql.yml) | security analysis on every push and once a week |
-| [**proxy list**](../../actions/workflows/proxy-list.yml) | every hour: collect, check, publish to `proxy-list`. The learned statistics live in the Actions cache, so the tool keeps getting better in the cloud too |
+| [**proxy list**](../../actions/workflows/proxy-list.yml) | about every hour: collect, check, publish to `proxy-list`. The learned statistics live in the Actions cache, so the tool keeps getting better in the cloud too |
 | [**docker**](../../actions/workflows/docker.yml) | builds the image on every change and runs a real scan inside it; on a version tag it publishes `linux/amd64` + `linux/arm64` to `ghcr.io` |
 | [**release**](../../actions/workflows/release.yml) | on a version tag: test, build, smoke-test and publish a GitHub release with the wheel |
 | [**discord bot**](../../actions/workflows/bot.yml) | tests the bot and deploys it to the server on every change in `bot/` |

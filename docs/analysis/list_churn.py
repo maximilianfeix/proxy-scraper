@@ -7,7 +7,8 @@
 seen.json holds, per type://ip:port entry, one bit per published run of the last week: on the list or not.
 That is all there is, so this is all the numbers below can mean:
 
-  - "on the list" = passed every check in that run. "Not on the list" has no recorded reason: the entry may
+  - "on the list" = passed the first request, the second request and the content check in that run.
+    "Not on the list" has no recorded reason: the entry may
     have failed, may not have been reached within the run's limit of 150,000 checks, or the second check
     target may have been unavailable. Before 1.29 none of these were told apart.
   - An entry is one protocol and one ip:port. Many entries are ports of the same machine, so every number is
@@ -45,6 +46,21 @@ def ended_stretch(bits: int, runs: int) -> Optional[int]:
     return None if low + length >= runs else length
 
 
+def all_ended_stretches(bits: int, runs: int) -> List[int]:
+    """The length of every stretch on the list that began and ended inside the window – an entry that came and
+    went five times has five. (ended_stretch above looks only at the last one, and only if the entry is off the
+    list now: that is how the weekly report counts.)"""
+    lengths, length = [], 0
+    for t in range(runs - 1, -1, -1):  # oldest run first
+        if bits >> t & 1:
+            length += 1
+        else:
+            if length and length != runs - 1 - t:  # not one that was already running when the window began
+                lengths.append(length)
+            length = 0
+    return lengths  # a stretch that reaches the newest run hasn't ended
+
+
 def current_stretch(bits: int, runs: int) -> int:
     n = 0
     while n < runs and bits >> n & 1:
@@ -56,11 +72,16 @@ def stretches(seen: Dict[str, int], runs: int, label: str) -> None:
     mask = (1 << runs) - 1
     ended = [n for bits in seen.values() if (n := ended_stretch(bits, runs))]
     one = sum(1 for n in ended if n == 1)
+    every = [n for bits in seen.values() for n in all_ended_stretches(bits, runs)]
+    every_one = sum(1 for n in every if n == 1)
     print(f"{label}")
     print(f"  on the list at least once        {sum(1 for b in seen.values() if b & mask):,}")
-    print(f"  stretches that ended             {len(ended):,}")
-    print(f"    of those, one run long         {one:,}  = {100 * one / max(len(ended), 1):.0f} % of ended stretches")
-    print(f"    of those, {DAY_RUNS}+ runs long        {sum(1 for n in ended if n >= DAY_RUNS):,}")
+    print(f"  off the list at the end          {len(ended):,}  (counted by their last stretch, like the weekly report)")
+    print(f"    last stretch one run long      {one:,}  = {100 * one / max(len(ended), 1):.0f} % of those")
+    print(f"    last stretch {DAY_RUNS}+ runs long     {sum(1 for n in ended if n >= DAY_RUNS):,}")
+    print(f"  every stretch that began and ended inside the window: {len(every):,}")
+    print(f"    one run long                   {every_one:,}  = {100 * every_one / max(len(every), 1):.0f} % of those")
+    print(f"    {DAY_RUNS}+ runs long                  {sum(1 for n in every if n >= DAY_RUNS):,}")
     print(f"  still listed, for {DAY_RUNS}+ runs now   "
           f"{sum(1 for b in seen.values() if current_stretch(b, runs) >= DAY_RUNS):,}  (not part of the ended ones)")
 

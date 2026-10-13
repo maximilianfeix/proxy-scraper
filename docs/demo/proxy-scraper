@@ -12,7 +12,7 @@ from pathlib import Path
 HERE = Path(__file__).resolve().parent
 sys.path.insert(0, str(HERE.parent.parent))
 
-from proxyscraper import api, cli, verify  # noqa: E402
+from proxyscraper import agent, api, cli, verify  # noqa: E402
 from tests.lab import Lab  # noqa: E402
 
 try:
@@ -34,5 +34,5 @@ async def live_fetch(url, timeout=0, headers=None):
 
 verify.prepare = prepare
 api._live_fetch = live_fetch
-api._listable = lambda proxy: True  # the lab's proxies live on 127.0.0.1, which a real list may not name
+agent.listable = lambda proxy: True  # the lab's proxies live on 127.0.0.1, which a real list may not name
 sys.exit(cli.run(sys.argv[1:]))

@@ -33,7 +33,7 @@ from .checker import CheckResult
 from .checkstate import STATES
 from .netio import http_get
 from .pages import SITE_URL
-from .parsing import PROXY_TYPES, make_key
+from .parsing import PROXY_TYPES, make_key, normalize_proxy
 from .publish import RAW_BASE
 from .ranking import best_first
 from .server import ProxyPool, RotatingServer
@@ -107,6 +107,20 @@ class LiveList:
 Fetch = Callable[..., Awaitable[bytes]]
 
 
+def listable(proxy: object) -> bool:
+    """Is this what the hourly list holds – a public IPv4 address and a port, nothing else? The list is
+    downloaded: a row with a login, a host name, a local or private address, spaces or control characters is
+    not handed to anyone (--pick, the Python API, the MCP tools, the rotating fetcher), and nothing connects
+    to it."""
+    if not isinstance(proxy, str):
+        return False
+    ip, sep, port = proxy.rpartition(":")
+    try:
+        return bool(sep) and port.isascii() and port.isdigit() and normalize_proxy(ip.encode(), port.encode()) == proxy
+    except (ValueError, UnicodeError):
+        return False
+
+
 class LiveSource:
     """The hourly list from GitHub Pages, cached for a few minutes. A failed refresh keeps the old list."""
 
@@ -148,7 +162,8 @@ class LiveSource:
                     error = e
                     continue
                 if isinstance(rows, list) and isinstance(stats, dict):
-                    self._cache = LiveList([r for r in rows if isinstance(r, dict)], stats, self.clock())
+                    self._cache = LiveList([r for r in rows if isinstance(r, dict) and listable(r.get("proxy"))],
+                                           stats, self.clock())
                     self._expires = self.clock() + self._keep_for(self._cache)
                     return self._cache
             if self._cache:  # GitHub is unreachable: the old list, and don't wait for it again on every call

@@ -150,7 +150,8 @@ def readme(stats: dict, counts: Dict[str, int]) -> str:
     return f"""# Live proxy list
 
 Generated automatically by [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) with GitHub Actions.
-Every proxy here passed every check in the last run – best first: by first answer plus the download speed measured
+Every proxy here passed the first request, the second request and the content check in the last run.
+Best first: by first answer plus the download speed measured
 right after the run, and by how long it has been on the list (entries that have been listed longer tend to stay).
 Browse and filter it on the [website](https://maximilianfeix.github.io/proxy-scraper/), or get the lists alone,
 one per country too, from [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list).
@@ -330,7 +331,10 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
         reader = csv.DictReader(src)
         extra = ("first_seen", "uptime_24h", "uptime_7d", "works_with", "speed_kbps")
         base = list(reader.fieldnames or ["proxy"])
-        writer = csv.DictWriter(dst, fieldnames=[*base, *(k for k in extra if k not in base)])
+        # the columns of 1.29 (checked_at, check_…) go last, so the ones before them keep their position
+        newer = [k for k in base if k == "checked_at" or k.startswith("check_")]
+        base = [k for k in base if k not in newer]
+        writer = csv.DictWriter(dst, fieldnames=[*base, *(k for k in extra if k not in base), *newer])
         writer.writeheader()
         csv_rows = {r.get("url", ""): r for r in reader if is_public(r)}
         for listed_row in rows:  # in the order of proxies.json: best first

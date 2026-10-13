@@ -2,9 +2,9 @@
 
 Basic check: one TCP connection per proxy, fetching the exit IP from checkip.amazonaws.com.
 Confirmation (only for proxies that pass the basic check, so only a few):
-  - a second, independent request to httpbin.org/get – filters out honeypots that answer only the
-    check request with "200 + IP" and reject everything else. The same response shows the headers
-    that arrive and with that the anonymity level.
+  - a second, independent request to httpbin.org/get that has to see the same exit IP – a proxy that
+    answers only the check request with "200 + IP" doesn't pass it, nor does an unstable one or an exit
+    that changes. The same response shows the headers that arrive and with that the anonymity level.
 Detail check:
   - HTTPS: open a tunnel to port 443 and a verified TLS connection inside it – fails for proxies
     that can't CONNECT or that break up TLS (MITM).
@@ -84,6 +84,9 @@ ANONYMITY_RANK = {"transparent": 0, "anonymous": 1, "elite": 2}
 # directly, after the failure: an answer from before it could predate an outage. The target is asked at most
 # every CONTROL_GAP seconds (failures in between wait for the next answer and share it), and an answer that
 # says "down" stands for CONTROL_SECONDS.
+# reasons of a failed first request that a dead check target would produce just the same
+TARGET_DEPENDENT = {"timeout", "bad_status", "connection_closed", "connection_error", "invalid_response",
+                    "handshake_refused"}
 CONTROL_GAP = 3.0
 CONTROL_SECONDS = 10.0
 CONTROL_TIMEOUT = 6.0
@@ -172,6 +175,7 @@ class Checker:
         self.https_port = 443
         self.tls_context: Optional[ssl.SSLContext] = None  # None = certifi's roots
         self.failures: Counter = Counter()  # "failed:reason" -> basic checks that ended that way
+        self.no_verdict: Set[str] = set()  # keys whose basic check was "unavailable"; whoever reads it removes it
         # the local test lab hands out documentation addresses (203.0.113.x) as exit IPs; real runs never accept them
         self.reserved_exit_ips_ok = False
         # several possible: e.g. the real IP via HTTPS, but iCloud Private Relay or a corporate proxy on port 80
@@ -220,6 +224,7 @@ class Checker:
         ptype, proxy = split_key(key)
         judge = self.judge
         target = authority(judge.host, judge.port)
+        began = asyncio.get_running_loop().time()
         start = time.perf_counter()
         reason, exit_ip = "", ""
         try:
@@ -243,8 +248,16 @@ class Checker:
         ms = round((time.perf_counter() - start) * 1000)
         data = {"exit_ip": exit_ip} if exit_ip else {}
         if reason:
-            check = Check(state_for(reason), reason, target, now_iso(), ms, data)
+            state = state_for(reason)
+            # only where a control is set (--diagnose, --pick --verify): a scan has JudgeWatch for this. Whatever
+            # fails before the proxy talks to the target (no connection, a refused login) is the proxy's either way
+            if (state == FAILED and BASIC in self.controls and reason in TARGET_DEPENDENT
+                    and await self._target_ok(BASIC, began) is False):
+                state, reason = UNAVAILABLE, "target_unreachable"
+            check = Check(state, reason, target, now_iso(), ms, data)
             self.failures[check.label()] += 1
+            if state == UNAVAILABLE:
+                self.no_verdict.add(key)  # for callers of check(), which only see None: this one isn't a failure
             return None, check
         check = Check(PASSED, "", target, now_iso(), ms, data)
         result = CheckResult(key, ptype, proxy, ms, exit_ip, checked_at=check.at)
@@ -634,8 +647,8 @@ def confirmation_origins(body: bytes) -> Optional[List[str]]:
 def classify_confirmation(body: bytes, own_ips: Iterable[str], exit_ip: str) -> Optional[str]:
     """Check the response from httpbin.org/get -> anonymity level, or None for an unusable response.
 
-    Honeypots don't return JSON with a valid sender IP here. The proxy also has to show the same
-    exit IP on both requests – rotating or chained exits aren't reliable.
+    A proxy that only answers the first check doesn't return JSON with a valid sender IP here. The proxy
+    also has to show the same exit IP on both requests – rotating or chained exits aren't reliable.
     """
     origins = confirmation_origins(body)
     if origins is None or exit_ip not in origins:

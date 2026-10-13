@@ -420,10 +420,12 @@ def test_absurdly_nested_json_from_a_proxy_is_an_unusable_answer_not_a_crash(bod
 
 def test_out_of_sockets_is_not_learned_as_a_dead_proxy(tmp_path):
     class Starved:
-        failures = {}
+        def __init__(self):
+            self.no_verdict = set()
 
-        async def check_detailed(self, key):
-            return None, Check(UNAVAILABLE, "local_resource_limit")
+        async def check(self, key):
+            self.no_verdict.add(key)  # what Checker.check does when the basic check is "unavailable"
+            return None
 
     async def go():
         jobs = ["http 1.1.1.1:80", "http 2.2.2.2:80"]
@@ -444,3 +446,58 @@ def test_the_basic_counter_names_the_state_too():
 
     failures = in_lab(scenario)
     assert list(failures) in (["failed:connect_refused"], ["failed:connect_timeout"])
+
+
+def test_the_real_checker_marks_a_check_without_a_verdict(monkeypatch):
+    async def scenario(lab, c):
+        async def no_sockets(proxy, detail=False):
+            raise OSError(24, "Too many open files")
+
+        monkeypatch.setattr(c, "_connect", no_sockets)
+        key = f"http {await lab.proxy(EXIT)}"
+        return await c.check(key), key, set(c.no_verdict), dict(c.failures)
+
+    result, key, no_verdict, failures = in_lab(scenario)
+    assert result is None and no_verdict == {key} and failures == {"unavailable:local_resource_limit": 1}
+
+
+def test_a_run_uses_check_so_a_replaced_check_is_respected(tmp_path):
+    """Code that swaps Checker.check (the proxy server's tests do, callers may) must still be what a run calls."""
+    called = []
+
+    async def prepare(lab):
+        return [await lab.proxy("203.0.113.90")]
+
+    async def go():
+        async with Lab() as lab:
+            c = await lab.checker()
+
+            async def replaced(key):
+                called.append(key)
+                return None
+
+            c.check = replaced
+            jobs = [f"http {p}" for p in await prepare(lab)]
+            stats = LiveStats({"http": 1})
+            writer = output.ResultWriter(run_dir=tmp_path / "run")
+            run = await pipeline.run_checks(jobs, c, RunOptions(no_geo=True),
+                                            CheckDashboard(stats, writer.live_path, 1, True), writer,
+                                            GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext())
+            return run, jobs
+
+    run, jobs = asyncio.run(go())
+    assert called == jobs and run.checked == jobs
+
+
+def test_a_dead_first_target_is_not_the_proxys_failure_where_a_control_is_set():
+    """--diagnose and --pick --verify have no JudgeWatch: the first request asks its target directly too."""
+    async def scenario(lab, c):
+        c.controls[BASIC] = lambda: ck.probe_https_target("localhost", "127.0.0.1", 1, c.tls_context, 0.5)  # "down"
+        dead_target = await lab.proxy(EXIT, only_first_target=True)  # … and a proxy whose first request fails
+        lab.servers[0].close()
+        await lab.servers[0].wait_closed()
+        return await all_checks(c, dead_target), await all_checks(c, await lab.closed_port())
+
+    (_, through_proxy), (_, no_proxy) = in_lab(scenario)
+    assert states(through_proxy)[BASIC] == (UNAVAILABLE, "target_unreachable")
+    assert no_proxy[BASIC].state == FAILED  # no connection to the proxy at all: that is the proxy's, target or not

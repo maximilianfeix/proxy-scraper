@@ -29,12 +29,12 @@ export PATH="$PWD/docs/demo:$PATH"          # `proxy-scraper` is now the wrapper
 
 proxy-scraper --pick 2 --verify --https-only
 proxy-scraper --diagnose 127.0.0.1:8083
-proxy-scraper --diagnose 127.0.0.1:8085 --json
+proxy-scraper --diagnose 127.0.0.1:8085 --json | jq '.verdict, .checks.https'
 
 kill %1
 ```
 
-`docs/demo/proxy-scraper` is the real command line with two things swapped: the list comes from the lab instead of GitHub, and the check targets are the lab's instead of checkip.amazonaws.com and httpbin.org.
+`docs/demo/proxy-scraper` is the real command line with three things swapped: the list comes from the lab instead of GitHub, the check targets are the lab's instead of checkip.amazonaws.com and httpbin.org, and addresses on 127.0.0.1 are accepted from the list (a real list may only name public ones).
 
 ## Record it again
 

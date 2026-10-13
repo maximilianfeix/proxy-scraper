@@ -219,3 +219,15 @@ def test_rows_from_before_checks_were_recorded_are_published_as_before(tmp_path)
     assert publish.publish(run_dir(tmp_path), out, minimum=2) == 0
     stats = json.loads((out / "stats.json").read_text())
     assert stats["total"] == 4 and stats["held_back"] == 0 and not (out / "run.json").exists()
+
+
+def test_the_published_csv_keeps_its_old_columns_in_place_and_adds_the_new_ones_last(tmp_path):
+    import csv
+
+    ResultWriter(run_dir=tmp_path / "run").finalize([_checked(i) for i in range(1, 4)])
+    out = tmp_path / "public"
+    assert publish.publish(tmp_path / "run", out, minimum=1) == 0
+    with (out / "proxies.csv").open(newline="", encoding="utf-8") as fh:
+        header = next(csv.reader(fh))
+    assert header[13:18] == ["url", "first_seen", "uptime_24h", "uptime_7d", "works_with"]  # where 1.28 had them
+    assert header[-5:] == ["checked_at", "check_basic", "check_confirm", "check_content", "check_https"]

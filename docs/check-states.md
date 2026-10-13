@@ -12,7 +12,7 @@ Every check of a proxy ends in one of four states. They are in `proxies.json`, i
 Two rules follow from that:
 
 - **A check that didn't run is never `passed`.** Before 1.29, a run without a reachable second target kept every proxy as if it had been confirmed, and a missing reference page looked like "content unchanged".
-- **A check target that is down doesn't fail the proxies checked against it.** When a second request or an HTTPS test fails, the tool asks the target directly (at most once every 10 seconds, however many proxies fail in between). If the target doesn't answer, the proxy's check is `unavailable`, not `failed`.
+- **A check target that is down doesn't fail the proxies checked against it.** When a second request, a content request that returned a different page, or an HTTPS test fails, the tool asks the target directly: at most once every 3 seconds however many proxies fail in between, and a "down" answer is reused for 10 seconds. If the target doesn't answer, the proxy's check is `unavailable`, not `failed`. For the first request a scan does it differently: it watches the target, switches to another one and checks the affected proxies again. `--diagnose` and `--pick --verify` have no such watcher and ask directly, as for the later checks. Two things are never asked about, because the target did answer: a second site that saw a different exit IP, and a proxy that could not be connected to in the first place.
 
 ## The checks
 
@@ -75,7 +75,7 @@ A check that is missing from `checks` never got that far.
 | `tls_certificate_invalid` | failed | the certificate inside the tunnel did not verify |
 | `tls_error` | failed | the TLS handshake inside the tunnel failed |
 | `target_not_configured` | unavailable | the check target did not answer when the run started, so the check never ran |
-| `target_unreachable` | unavailable | the check target did not answer directly either while this was checked |
+| `target_unreachable` | unavailable | the check target did not answer directly either while this was checked (any of the four checks) |
 | `no_reference` | unavailable | there was no reference page to compare with |
 | `local_resource_limit` | unavailable | this machine ran out of sockets or file descriptors |
 | `fast_mode` | skipped | left out with `--fast` |
@@ -95,7 +95,7 @@ For the content check, a timeout or an error page is `unavailable` with the conn
 
 Your own run keeps a proxy whose second request could not run, because the alternative is an empty result whenever httpbin.org has a bad minute. It tells you: a note at the end of the run, and `unavailable` in the files. Filter on `checks.confirm.state` if you need more.
 
-The published list is stricter. Only measured passes are listed, `stats.json` says so in `requires`, and `held_back` counts the hits that lacked one. A run whose second target was down publishes too few entries, and then nothing: the previous list stays online and its `updated` time shows its age.
+The published list is stricter. Only measured passes are listed, `stats.json` says so in `requires`, and `held_back` counts the hits that lacked one. If the second target was down for part of a run, the list is shorter by those. A run with fewer than 20 measured passes publishes nothing: the previous list stays online and its `updated` time shows its age.
 
 ## What a run records
 
@@ -104,14 +104,16 @@ Every run writes `run.json` next to its results, and the hourly list publishes i
 ```json
 {"schema": 1, "version": "1.29.0", "started": "…", "finished": "…",
  "targets": {"basic": "checkip.amazonaws.com", "basic_switches": [], "confirm": "httpbin.org", "content_reference": true},
- "candidates": 150000, "checked": 149212, "not_checked": 788, "stopped": null, "working": 1104, "kept": 1104,
- "checks": {"basic": {"passed": 2391, "failed:connect_timeout": 101220, "failed:connect_refused": 30122},
-            "confirm": {"passed": 1161, "failed:bad_status": 702, "failed:exit_ip_mismatch": 311},
-            "content": {"passed": 1104, "failed:content_mismatch": 57},
-            "https": {"passed": 706, "failed:tunnel_refused": 398}}}
+ "candidates": 150000, "checked": 150000, "not_checked": 0, "no_verdict_local": 0, "stopped": null,
+ "working": 1104, "kept": 1104,
+ "checks": {"basic": {"failed:connect_refused": 30122, "failed:connect_timeout": 101220, "passed": 2391},
+            "confirm": {"failed:bad_status": 919, "failed:exit_ip_mismatch": 311, "passed": 1161},
+            "content": {"failed:content_mismatch": 57, "passed": 1104},
+            "https": {"failed:tunnel_refused": 398, "passed": 706}},
+ "changed_pages": {"with_script_tag": 21, "without_script_tag": 36}}
 ```
 
-The numbers in this example are made up to show the shape. `candidates` are the proxies the run set out to check, `checked` the ones that got a verdict, `not_checked` the rest (stopped by `--want` or Ctrl+C). `basic` counts attempts: a proxy that is checked again after a check target switch counts once per try.
+The numbers in this example are made up to show the shape. `candidates` are the proxies the run set out to check, `checked` the ones that got a verdict, `not_checked` the rest (stopped by `--want` or Ctrl+C, or this machine ran out of sockets: `no_verdict_local`). `changed_pages` splits the content mismatches by whether the page that came back contains a `<script` tag; the reference page has none. `basic` counts attempts: a proxy that is checked again after a check target switch counts once per try.
 
 ## For code that reads the old fields
 
@@ -120,7 +122,7 @@ Nothing was renamed or removed. `https` is still `true`, `false` or `null`, and 
 - `https` is `null` when the HTTPS test could not run (its target was down, or this machine ran out of sockets). It used to be `false`.
 - `anonymity` is `""` for a proxy whose second request could not run. That was already the case; now `checks.confirm.state` tells you why.
 
-`proxies.csv` has five new columns, all at the end so the old ones keep their position: `checked_at`, then `check_basic`, `check_confirm`, `check_content` and `check_https` with values like `passed` or `unavailable:target_unreachable`.
+`proxies.csv`, a run's own and the hourly list's, has five new columns, all at the end so the old ones keep their position: `checked_at`, then `check_basic`, `check_confirm`, `check_content` and `check_https` with values like `passed` or `unavailable:target_unreachable`.
 
 Lists published before 1.29 have neither `checks` nor `checked_at`. Readers treat that as "not recorded", not as passed.
 
@@ -128,8 +130,8 @@ Lists published before 1.29 have neither `checks` nor `checked_at`. Readers trea
 
 | Command | 0 | 1 | 3 | 2 | 130 |
 |---|---|---|---|---|---|
-| `--pick N` | at least one proxy matched | none matched, or the list could not be loaded | – | bad arguments | – |
+| `--pick N` | at least one proxy matched | none matched, or the list could not be loaded | – | bad arguments | interrupted, nothing printed |
 | `--pick N --verify` | N proxies passed | none passed, or nothing could be checked | fewer than N passed (they are printed) | bad arguments | interrupted, nothing printed |
-| `--diagnose PROXY` | reached and nothing failed | a check failed | nothing failed, but a check was `unavailable` | not a proxy | interrupted |
+| `--diagnose PROXY` | reached and nothing failed | a check failed, or no check target could be reached from this machine | nothing failed, but a check was `unavailable` | not a proxy | interrupted |
 
 `--pick --verify` tries 5 candidates per proxy asked for (at least 10, at most 60), up to 8 at a time (twice the number asked for, if that is less), and stops checking after 90 seconds. Loading the list and asking the check targets directly comes before that and takes a few seconds more. Among the proxies that passed, the ones higher on the list are printed. A proxy that passes was checked seconds ago from your network against the targets above. That is all it promises.

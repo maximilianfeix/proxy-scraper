@@ -13,8 +13,8 @@ Or skip the checking and take the list that GitHub Actions checks every hour:
     for p in live_proxies(types=["socks5"], countries="DE", https=True, min_uptime=90):
         print(p.url, p.latency, p.uptime_7d)
 
-Behind find_proxies runs exactly the same as on the command line (sources, learning, honeypot and
-tampering checks, result files under results/), just without output in the terminal.
+Behind find_proxies runs exactly the same as on the command line (sources, learning, the second request and
+the content check, result files under results/), just without output in the terminal.
 
 Large lists are parsed in a process pool. On macOS and Windows it starts the worker processes
 with "spawn", which re-imports the calling script – as with any code that uses multiprocessing,
@@ -186,19 +186,6 @@ class LiveProxy(CheckResult):
     speed_kbps: Optional[int] = None  # download speed in KiB/s in the last run (HTTPS-capable ones only)
 
 
-def _listable(proxy: str) -> bool:
-    """Is this what the hourly list holds – a public IPv4 address and a port, nothing else? The list is
-    downloaded: a row with a login, a host name, a local or private address, spaces or control characters is not
-    printed and nothing connects to it."""
-    from .parsing import normalize_proxy
-
-    ip, sep, port = proxy.rpartition(":")
-    try:
-        return bool(sep) and port.isascii() and port.isdigit() and normalize_proxy(ip.encode(), port.encode()) == proxy
-    except (ValueError, UnicodeError):
-        return False
-
-
 def _live_fetch(url: str, timeout: float = 20, headers=None):
     from .netio import http_get
     return http_get(url, timeout=timeout, headers=headers)
@@ -278,7 +265,7 @@ async def _live_selection(*, types: Iterable[str] = PROXY_TYPES, countries: Iter
                               "connection, or check proxies from this machine instead (find_proxies, or "
                               "`proxy-scraper -y` on the command line)") from None
     found = [_live_proxy(r, data.run_hours) for r in data.rows
-             if r.get("ptype") in types and isinstance(r.get("proxy"), str) and _listable(r["proxy"])]
+             if r.get("ptype") in types and isinstance(r.get("proxy"), str)]  # LiveSource validated the rows
     # best first – by how quickly a page comes through when the list has download speeds (#186), and how likely the
     # proxy is still up
     typical = typical_speed(p.speed_kbps for p in found)

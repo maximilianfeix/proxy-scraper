@@ -723,6 +723,8 @@ class Run:
             "working": len(run.results),            # passed basic, not failed by confirm or content
             "kept": len(kept),                      # … and passed the filters
             "checks": {BASIC: basic, **{name: dict(sorted(c.items())) for name, c in run.states.items()}},
+            # of the pages that arrived with different bytes: how many contain a <script tag (the reference has none)
+            "changed_pages": dict(sorted(run.changed_pages.items())),
         }
 
     def learn(self, run: CheckRun, network_blocked: bool, sources: bool = True):

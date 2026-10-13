@@ -7,7 +7,7 @@ from datetime import datetime, timedelta, timezone
 
 import pytest
 
-from proxyscraper import api, cli, verify
+from proxyscraper import agent, api, cli, verify
 from proxyscraper.checkstate import BASIC, CONFIRM, CONTENT, HTTPS
 from tests.lab import INJECTED, Lab, LabThread
 from tests.test_live_api import fetch_from
@@ -31,7 +31,7 @@ def lab(monkeypatch):
 
         running.options = {}
         monkeypatch.setattr(verify, "prepare", prepare)
-        monkeypatch.setattr(api, "_listable", lambda proxy: True)  # the lab's proxies live on 127.0.0.1
+        monkeypatch.setattr(agent, "listable", lambda proxy: True)  # the lab's proxies live on 127.0.0.1
         yield running
 
 
@@ -396,3 +396,20 @@ def test_a_list_that_ran_out_is_not_called_a_budget_problem():
     assert not verify.Selection([], tried=2, candidates=2, attempts=2).exhausted
     assert verify.Selection([], tried=10, candidates=40, attempts=10).exhausted
     assert verify.Selection([], tried=1, candidates=40, attempts=10, out_of_time=True).exhausted
+
+
+def test_a_login_written_with_colons_is_masked_in_the_error(capsys):
+    assert cli.run(["--diagnose", "1.2.3.4:8084:user:s3cr3t"]) == verify.EXIT_USAGE
+    err = capsys.readouterr().err
+    assert "s3cr3t" not in err and "1.2.3.4:8084:***" in err
+
+
+@pytest.mark.parametrize("proxy", ["127.0.0.1:22", "user:pass@1.1.1.1:80", "1.1.1.1:80\n--next @2.2.2.2:80"])
+def test_every_reader_of_the_list_gets_validated_rows(proxy):
+    """Not only --pick: the MCP tools and the rotating fetcher read the list through the same source."""
+    async def go():
+        source = agent.LiveSource(fetch=fetch_from({"proxies.json": [row(proxy), row("9.9.9.9:80")],
+                                                    "stats.json": stats()}))
+        return [r["proxy"] for r in (await source.get()).rows]
+
+    assert asyncio.run(go()) == ["9.9.9.9:80"]

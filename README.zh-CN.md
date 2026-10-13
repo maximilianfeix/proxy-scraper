@@ -22,7 +22,7 @@
 
 ---
 
-**每一项代理检测都查得到：哪些通过了，哪些没通过，什么时候测的。** proxy-scraper 从数百个列表收集公开的 HTTP、SOCKS4 和 SOCKS5 代理，让每个代理经过四项检测，并保留每一项的结果。这样，「可用」就是你能亲眼查看的东西，而不是一个只能选择相信的标签。
+**每一项代理检测都查得到：哪些通过了，哪些没通过，什么时候测的。** proxy-scraper 从数百个列表收集公开的 HTTP、SOCKS4 和 SOCKS5 代理，对每个代理最多做四项检测，并为列入列表的代理保留每一项检测的结果（其余代理只统计每项检测的结局）。这样，「可用」就是你能亲眼查看的东西，而不是一个只能选择相信的标签。
 
 <div align="center">
 <img src="docs/demo/checks.gif" alt="终端录屏：proxy-scraper --pick 2 --verify --https-only 输出两个代理，并在 stderr 说明另外四个为什么没被选中；proxy-scraper --diagnose 逐项显示一个代理的每项检测及其结果" width="880">
@@ -33,7 +33,7 @@
 **试一试**——无需安装，`uvx` 随 [uv](https://docs.astral.sh/uv/) 提供（`pipx run` 效果相同）：
 
 ```bash
-uvx proxy-scraper-cli --pick 3 --verify               # 从每小时列表取 3 个此刻从你的网络能通过检测的代理
+uvx proxy-scraper-cli --pick 3 --verify               # 从每小时列表最多取 3 个此刻从你的网络能通过检测的代理
 uvx proxy-scraper-cli --diagnose socks5://HOST:PORT   # 单个代理，逐项检测：哪些做到了，哪些没做到
 ```
 
@@ -44,16 +44,16 @@ PyPI 上的包名是 `proxy-scraper-cli`（不带后缀的名字已被占用）�
 | 命令 | 代理来源 | 检测时间和位置 | 耗时 |
 |---|---|---|---|
 | `proxy-scraper --pick 5` | [已发布的列表](#live-list) | 列表生成时从 GitHub 的服务器检测，大约每小时一次 | 不到一秒 |
-| `proxy-scraper --pick 5 --verify` | 已发布的列表 | **现在，从你的网络** | 几秒 |
-| `proxy-scraper -y` | 工具已知的所有列表 | 现在，从你的网络 | 几分钟 |
+| `proxy-scraper --pick 5 --verify` | 已发布的列表 | **现在，从你的网络** | 几秒，最长一分半钟 |
+| `proxy-scraper -y` | 工具已知的所有列表 | 现在，从你的网络 | 几分钟（每小时的运行大约三分钟） |
 
 **你能得到什么**
 
 - **每项检测都有一个看得懂的结果。** `passed`、`failed`、`unavailable` 或 `skipped`（通过、未通过、无法检测、已跳过），附带原因代码、检测目标和时间，在终端、JSON 和 Python 中都能看到。没有运行的检测绝不会显示为通过；检测目标自身宕机时，用它检测的代理也不会被记为未通过。→ [检测状态（英文）](docs/check-states.md)
-- **需要时拿到最新结果。** `--pick --verify` 在几秒内从你自己的网络检测几个代理。`--recheck` 对[你自己的列表](README.md#examples)做同样的事，`--diagnose` 告诉你某个代理为什么不能用。
+- **需要时拿到最新结果。** `--pick --verify` 从你自己的网络检测几个代理，通常只要几秒。`--recheck` 对[你自己的列表](README.md#examples)做同样的事，`--diagnose` 告诉你某个代理为什么不能用。
 - **不只是一份列表。** [本地轮换代理服务器](#proxy-server)、[Python API](#python)、面向 AI 智能体的 [MCP 服务器](#mcp)、Docker，以及 curl、proxychains、Clash 和 sing-box 的导出格式。
 
-**它做不到的事。** 免费代理由陌生人运营，大多数存活不久。一次通过只是一次测量：来自一个网络，针对的是测试目标。它不保证下一个小时仍然可用，也不保证能访问你关心的网站。HTTPS 检测只是与一个测试主机建立经过验证的 TLS 连接，不是安全评级。免费代理只适合公开数据和测试，绝不要用于登录、支付或任何涉及个人信息的操作。→ [这些数字说明了什么，没说明什么（英文）](docs/free-proxies-in-numbers.md) · [与其他项目的对比（英文）](docs/comparison.md) · [谁在运行免费代理](#faq)
+**它做不到的事。** 免费代理由陌生人运营；某一小时的列表里，一天后仍在列表上的只有大约四分之一。一次通过只是一次测量：来自一个网络，针对的是测试目标。它不保证下一个小时仍然可用，也不保证能访问你关心的网站。HTTPS 检测只是与一个测试主机建立经过验证的 TLS 连接，不是安全评级。免费代理只适合公开数据和测试，绝不要用于登录、支付或任何涉及个人信息的操作。→ [这些数字说明了什么，没说明什么（英文）](docs/free-proxies-in-numbers.md) · [与其他项目的对比（英文）](docs/comparison.md) · [谁在运行免费代理](#faq)
 
 **只想要列表？** 那你不需要这个工具：[free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) 按协议和国家提供纯文本文件，大约每小时重新生成一次。也可以直接从这里下载：[all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [更多格式](#live-list)
 
@@ -104,7 +104,7 @@ docker run --rm ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
 
 ## 每小时更新的代理列表
 
-不想自己扫描？GitHub Actions 每小时运行一次本工具并发布结果。列表中的每个代理在上一次运行中都通过了全部检测，按「最优优先」排序：加载网页快、并且很可能仍然在线的排在最前面（已连续在线一天的代理，一小时后仍可用的比例为 99%；新出现的只有 25%）。
+不想自己扫描？GitHub Actions 大约每小时运行一次本工具并发布结果。列表中的每个代理在上一次运行中都通过了第一次请求、第二次请求和内容检测（HTTPS 测试的结果按条目记录，但不是入选条件），按「最优优先」排序：加载网页快、并且很可能仍然在线的排在最前面。
 
 - **网页版**（可按协议、国家、HTTPS、运营商、延迟筛选）：https://maximilianfeix.github.io/proxy-scraper/
 - **纯列表仓库**（按协议、按国家、按网站分类的 TXT，以及 JSON / CSV）：[maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)
@@ -131,7 +131,7 @@ curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
 
 ## 代理池 API：兼容 jhao104/proxy_pool
 
-用过 [jhao104/proxy_pool](https://github.com/jhao104/proxy_pool)？proxy-scraper 的接口、`type=https` 参数和大部分 JSON 字段（`proxy`、`https`、`region`、`check_count`、`fail_count` 等）与它相同，把代码指向 8899 端口，大部分都能继续使用（有两处不同：没有 `last_time` 字段，`anonymous` 是 true/false 而不是字符串）——**不需要 Redis**，而且每个代理都通过了第二次请求检测和内容检测，标记为支持 HTTPS 的代理还通过了 TLS 检测。
+用过 [jhao104/proxy_pool](https://github.com/jhao104/proxy_pool)？proxy-scraper 的接口、`type=https` 参数和大部分 JSON 字段（`proxy`、`https`、`region`、`check_count`、`fail_count` 等）与它相同，把代码指向 8899 端口，大部分都能继续使用（有三处不同：没有 `last_time` 字段，`anonymous` 是 true/false 而不是字符串，`source` 始终是 `proxy-scraper`）——**不需要 Redis**，而且每个代理都通过了第二次请求检测和内容检测，标记为支持 HTTPS 的代理还通过了 TLS 检测。
 
 ```bash
 proxy-scraper --recheck live --serve   # 从每小时列表开始，约 30 秒后可用

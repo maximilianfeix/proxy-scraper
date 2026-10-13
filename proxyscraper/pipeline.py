@@ -18,6 +18,7 @@ from . import sources as srcs
 from .asndb import ProviderLookup
 from .blocklist import Blocklist
 from .checker import Checker, CheckResult
+from .checkstate import CONFIRM, CONTENT, HTTPS, SKIPPED, Check, now_iso
 from .compat import on_interrupt
 from .fetchcache import FetchCache
 from .geo import GeoResolver
@@ -252,6 +253,13 @@ class CheckRun:
     reached_goal: bool = False
     judge_switches: List[str] = field(default_factory=list)  # "old → new"
     rechecked: int = 0  # checks that were repeated because a check target went down
+    # check name -> "passed" / "failed:reason" / "unavailable:reason" / "skipped:reason" -> how many proxies
+    states: Dict[str, Counter] = field(default_factory=dict)
+
+    def count(self, r: CheckResult, name: str) -> None:
+        check = r.checks.get(name)
+        if check is not None:
+            self.states.setdefault(name, Counter())[check.label()] += 1
 
 
 class JobQueue:
@@ -390,16 +398,24 @@ async def run_checks(
                 continue
             # A hit only counts as checked once the verdict is in: a worker cancelled during the next requests
             # (--want reached, Ctrl+C) must not record a proxy that just worked as a failure.
-            # second, independent request – honeypots often pass the first check by chance
-            if not await checker.confirm(r):
+            # second, independent request – a proxy that only answers the check request passes the first by chance.
+            # False only when the request ran and didn't confirm it; an unreachable confirmation target leaves
+            # the proxy in, marked "unavailable" (r.checks) – it's the target that failed, not the proxy
+            confirmed = await checker.confirm(r)
+            run.count(r, CONFIRM)
+            if not confirmed:
                 run.checked.append(key)
                 stats.fakes += 1
                 continue
-            # third request: does a known page arrive unchanged? Otherwise the proxy injects something
-            if await checker.tampers(r):
+            # third request: does a known page arrive unchanged?
+            modified = await checker.tampers(r)
+            run.count(r, CONTENT)
+            if modified:
                 run.checked.append(key)
                 stats.tampered += 1
                 continue
+            if CONFIRM in r.checks and not r.checks[CONFIRM].ok:
+                stats.confirm_unavailable += 1
             if providers:
                 providers.annotate(r)
             if blocklist:
@@ -420,6 +436,10 @@ async def run_checks(
                     stats.add_details(r)
                 else:
                     stats.details_saved += 1
+                    r.checks[HTTPS] = Check(SKIPPED, "filtered_out", at=now_iso())
+            else:
+                r.checks[HTTPS] = Check(SKIPPED, "fast_mode", at=now_iso())
+            run.count(r, HTTPS)
             consider(r)
 
     with live_factory(dashboard):

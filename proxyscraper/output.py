@@ -21,6 +21,7 @@ from typing import Dict, Iterable, List, Optional, Sequence, TextIO
 
 from . import paths
 from .checker import CheckResult
+from .checkstate import CHECKS
 from .exporters import EXPORTERS
 from .parsing import PROXY_TYPES
 from .paths import atomic_write
@@ -115,17 +116,33 @@ def _silence(stream: TextIO) -> None:
 
 
 def _row(r: CheckResult) -> dict:
+    """Every field as before, plus checked_at and checks: how each check ended (see docs/check-states.md)."""
     d = asdict(r)
     d.pop("key")
+    d["checks"] = {name: check.as_dict() for name, check in r.checks.items()}
     d["url"] = f"{r.ptype}://{r.proxy}"
     return d
 
 
 def _csv_row(r: CheckResult) -> dict:
-    """Like _row, but flat: target sites as "google.com:ok;discord.com:no"."""
+    """Like _row, but flat: target sites as "google.com:ok;discord.com:no", and one column per check at the
+    end ("passed", "unavailable:target_unreachable", empty = didn't get that far)."""
     d = _row(r)
     d["targets"] = ";".join(f"{target_label(u, r.targets)}:{'ok' if ok else 'no'}" for u, ok in r.targets.items())
+    del d["checks"]
+    for name in CHECKS:
+        d[f"check_{name}"] = r.checks[name].label() if name in r.checks else ""
     return d
+
+
+RUN_SUMMARY = "run.json"
+
+
+def write_run_summary(run_dir: Path, summary: dict) -> Path:
+    """The run's numbers next to its results: counts and host names only, no proxies."""
+    path = run_dir / RUN_SUMMARY
+    atomic_write(path, json.dumps(summary, indent=1, ensure_ascii=False) + "\n")
+    return path
 
 
 LATEST_POINTER = "latest.txt"

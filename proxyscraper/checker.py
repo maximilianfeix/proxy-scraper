@@ -8,6 +8,10 @@ Confirmation (only for proxies that pass the basic check, so only a few):
 Detail check:
   - HTTPS: open a tunnel to port 443 and a verified TLS connection inside it – fails for proxies
     that can't CONNECT or that break up TLS (MITM).
+
+Every check leaves a Check on the result (result.checks, see checkstate.py): passed, failed, unavailable or
+skipped, with a reason code, the target, the time and what was measured. A check that didn't run is never
+"passed", and when a check target itself is down the proxies checked against it are "unavailable", not failed.
 """
 
 from __future__ import annotations
@@ -21,12 +25,30 @@ import re
 import socket
 import ssl
 import time
+from collections import Counter
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Sequence, Set, Tuple
+from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Sequence, Set, Tuple
 
+from .checkstate import (
+    BASIC,
+    CONFIRM,
+    CONTENT,
+    FAILED,
+    HTTPS,
+    LOCAL_ERRNOS,
+    PASSED,
+    SKIPPED,
+    UNAVAILABLE,
+    Check,
+    CheckFailed,
+    legacy_bool,
+    now_iso,
+    reason_for,
+    state_for,
+)
 from .handshake import Endpoint, parse_endpoint, socks4, socks5, socks5_ipv4, stream_io, with_proxy_auth
 from .judges import DEFAULT_JUDGE, Judge
-from .netio import USER_AGENT, authority, dechunk, http_request, read_response, ssl_context
+from .netio import USER_AGENT, authority, dechunk, host_header, http_request, read_response, ssl_context
 from .parsing import normalize_public_ip, split_key
 from .targets import Target
 
@@ -58,6 +80,20 @@ PROXY_HEADERS = {
     "x-forwarded-proto", "x-bluecoat-via", "x-originating-ip",
 }
 ANONYMITY_RANK = {"transparent": 0, "anonymous": 1, "elite": 2}
+# A failed confirmation or HTTPS test is only the proxy's failure if the target itself still answers. It is
+# asked directly at most this often (one request, however many proxies fail in between).
+CONTROL_SECONDS = 10.0
+CONTROL_TIMEOUT = 6.0
+Control = Callable[[], Awaitable[object]]
+
+# what the results do not say – written next to them, so nobody has to guess
+UNCONFIRMED_LIMITS = "no second request ran: a proxy that only answers the first check would look the same"
+MISMATCH_LIMITS = ("the second site saw another exit IP: a rotating or chained exit, or a proxy that fakes the "
+                   "first answer – this check can't tell which")
+CONTENT_LIMITS = ("the bytes differ from the reference: an injected script or ad, a captive portal, a "
+                  "re-encoded or cut-off copy – this check doesn't tell which")
+HTTPS_LIMITS = ("a verified TLS connection to this one host worked through the proxy at this time – it says "
+                "nothing about other sites, later requests or who runs the proxy")
 
 
 async def wait_for(coro, timeout: float):
@@ -94,6 +130,9 @@ class CheckResult:
     hosting: Optional[bool] = None  # exit probably in a datacenter? None = unknown
     blocklisted: Optional[bool] = None  # exit IP on the SpamCop blocklist? None = unknown
     speed_kbps: Optional[int] = None  # download speed from the live list (KiB/s), None = not measured
+    checked_at: str = ""    # when the basic check finished (ISO 8601, UTC); every check has its own time too
+    # check name (basic, confirm, content, https) -> how it ended; a missing name means: never got that far
+    checks: Dict[str, Check] = field(default_factory=dict)
 
     @property
     def url(self) -> str:
@@ -106,12 +145,32 @@ class Checker:
                  confirm_ip: Optional[str] = None, detail_timeout: Optional[float] = None,
                  detail_connect_timeout: Optional[float] = None,
                  targets: Sequence[Tuple[Target, str]] = (), https_test: bool = True,
-                 judge: Judge = DEFAULT_JUDGE, integrity_reference: Optional[bytes] = None):
+                 judge: Judge = DEFAULT_JUDGE, integrity_reference: Optional[bytes] = None,
+                 confirm_host: str = CONFIRM_HOST, confirm_port: int = CONFIRM_PORT,
+                 controls: Optional[Dict[str, Control]] = None):
         self.use_judge(judge, judge_ip)
         # hash of the page as it arrives directly – without a reference there is no tampering check
         self.integrity_reference = integrity_reference
-        # without a reachable confirmation target nothing is confirmed (otherwise every proxy would fail)
+        # without a reachable confirmation target nothing is confirmed (otherwise every proxy would fail) –
+        # the results then say "unavailable", not "passed"
         self.confirm_ip_bytes = socket.inet_aton(confirm_ip) if confirm_ip else None
+        self.confirm_host, self.confirm_port = confirm_host, confirm_port
+        host = host_header(confirm_host, confirm_port, False)
+        # deliberately without a Proxy-Connection header – it would show up as a proxy trace itself
+        headers = f"Host: {host}\r\nUser-Agent: {USER_AGENT}\r\nAccept: */*\r\nConnection: close\r\n\r\n"
+        self.confirm_request = f"GET /get HTTP/1.1\r\n{headers}".encode()
+        self.http_proxy_confirm_request = f"GET http://{host}/get HTTP/1.1\r\n{headers}".encode()
+        self.integrity_request = f"GET /html HTTP/1.1\r\n{headers}".encode()
+        self.http_proxy_integrity_request = f"GET http://{host}/html HTTP/1.1\r\n{headers}".encode()
+        # "does the target still answer directly?" per check: CONFIRM and HTTPS return true/false, CONTENT
+        # returns the reference hash as it is now (None = unreachable). Without one, a failure is taken as it is.
+        self.controls: Dict[str, Control] = dict(controls or {})
+        self._control_cache: Dict[str, Tuple[float, asyncio.Future]] = {}
+        self.https_port = 443
+        self.tls_context: Optional[ssl.SSLContext] = None  # None = certifi's roots
+        self.failures: Counter = Counter()  # reason code -> basic checks that ended with it
+        # the local test lab hands out documentation addresses (203.0.113.x) as exit IPs; real runs never accept them
+        self.reserved_exit_ips_ok = False
         # several possible: e.g. the real IP via HTTPS, but iCloud Private Relay or a corporate proxy on port 80
         self.own_ips = set(own_ips)
         self.timeout = timeout
@@ -150,45 +209,75 @@ class Checker:
     # ------------------------------------------------------------------ basic check
 
     async def check(self, key: str) -> Optional[CheckResult]:
-        """Working proxy -> CheckResult, otherwise None."""
+        """Working proxy -> CheckResult, otherwise None (check_detailed also says why)."""
+        return (await self.check_detailed(key))[0]
+
+    async def check_detailed(self, key: str) -> Tuple[Optional[CheckResult], Check]:
+        """The basic check with its outcome: (result, check) for a working proxy, (None, check) otherwise."""
         ptype, proxy = split_key(key)
+        judge = self.judge
+        target = authority(judge.host, judge.port)
         start = time.perf_counter()
+        reason, exit_ip = "", ""
         try:
             body = await wait_for(self._check(ptype, proxy), self.timeout)
-        except Exception:  # timeout, connection error, broken response – all mean "no good"
-            return None
-
-        if body is None:
-            return None
-        exit_ip = body.strip().decode("ascii", "ignore")
-        try:
-            ipaddress.IPv4Address(exit_ip)
-        except ValueError:
-            return None  # proxy returns garbage/ads/a login page -> unusable
-        if normalize_public_ip(exit_ip.encode()) != exit_ip:
-            return None  # 127.0.0.1, 10.x and the like aren't a real exit IP – the proxy answers itself
-        if exit_ip in self.own_ips:
-            return None  # transparent proxy reveals your real IP
-        return CheckResult(key, ptype, proxy, round((time.perf_counter() - start) * 1000), exit_ip)
+        except Exception as e:  # timeout, connection error, broken response – all mean "no good"
+            reason = reason_for(e)
+        else:
+            if body is None:
+                reason = "bad_status"
+            else:
+                exit_ip = body.strip().decode("ascii", "ignore")
+                try:
+                    ipaddress.IPv4Address(exit_ip)
+                except ValueError:
+                    reason, exit_ip = "invalid_response", ""  # garbage/ads/a login page -> unusable
+                else:
+                    if not self.reserved_exit_ips_ok and normalize_public_ip(exit_ip.encode()) != exit_ip:
+                        reason = "private_exit_ip"  # 127.0.0.1, 10.x and the like – the proxy answers itself
+                    elif exit_ip in self.own_ips:
+                        reason = "own_ip_exposed"  # transparent proxy reveals your real IP
+        ms = round((time.perf_counter() - start) * 1000)
+        data = {"exit_ip": exit_ip} if exit_ip else {}
+        if reason:
+            self.failures[reason] += 1
+            return None, Check(state_for(reason), reason, target, now_iso(), ms, data)
+        check = Check(PASSED, "", target, now_iso(), ms, data)
+        result = CheckResult(key, ptype, proxy, ms, exit_ip, checked_at=check.at)
+        result.checks[BASIC] = check
+        return result, check
 
     async def _check(self, ptype: str, proxy: str):
         # Many ip:port entries appear under several types in the lists – whatever fails at the
         # TCP connect fails for the other types just the same.
         ep = parse_endpoint(proxy)
         if ep.address in self.unreachable:
-            return None
+            raise CheckFailed("known_unreachable")
         # keep target IP and request together – if the check target changes mid-way, both still match
         ip_bytes, port = self.judge_ip_bytes, self.judge.port
         request = self.http_proxy_request if ptype == "http" else self.request
-        reader, writer = await self._connect(proxy)
+        reader, writer = await self._connect_or_fail(proxy)
         try:
             if not await self._handshake(ptype, ep, reader, writer, ip_bytes, port):
-                return None
+                raise CheckFailed("handshake_refused")
             writer.write(with_proxy_auth(request, ep) if ptype == "http" else request)
             await writer.drain()
             return await _read_http_200(reader)
         finally:
             writer.close()
+
+    async def _connect_or_fail(self, proxy: str, detail: bool = False):
+        """_connect, with the reason a connection didn't come about as a CheckFailed."""
+        try:
+            return await self._connect(proxy, detail)
+        except asyncio.TimeoutError:
+            raise CheckFailed("connect_timeout") from None
+        except ConnectionRefusedError:
+            raise CheckFailed("connect_refused") from None
+        except OSError as e:
+            if e.errno in LOCAL_ERRNOS:
+                raise  # our shortage, not the proxy's
+            raise CheckFailed("connect_failed") from None
 
     async def _connect(self, proxy: str, detail: bool = False):
         """TCP connection to the proxy. Only the basic check remembers unreachable proxies and uses the
@@ -220,29 +309,60 @@ class Checker:
     # ------------------------------------------------------------------ confirmation
 
     async def confirm(self, result: CheckResult) -> bool:
-        """A second, independent request through the same proxy. False = fake/honeypot or unstable.
+        """A second, independent request through the same proxy. False = it ran and did not confirm the proxy.
 
-        Also sets the anonymity level from the headers that reach the target.
+        True does not mean "confirmed": without a reachable confirmation target the check is unavailable and
+        the proxy is kept – result.checks["confirm"] says which of the two it was. Also sets the anonymity
+        level from the headers that reach the target.
         """
+        check = result.checks[CONFIRM] = await self.confirm_check(result)
+        return check.state != FAILED
+
+    async def confirm_check(self, result: CheckResult) -> Check:
+        target = authority(self.confirm_host, self.confirm_port)
         if not self.confirms:
-            return True
+            return Check(UNAVAILABLE, "target_not_configured", target, now_iso(), limits=UNCONFIRMED_LIMITS)
+        start = time.perf_counter()
+        reason, data = "", {}
         try:
             body = await wait_for(self._confirm(result.ptype, result.proxy), self.detail_timeout)
-        except Exception:  # an error on the second request means: not reliable
-            return False
-        anonymity = classify_confirmation(body, self.own_ips, result.exit_ip) if body is not None else None
-        if anonymity is None:
-            return False
-        result.anonymity = anonymity
-        return True
+        except Exception as e:  # an error on the second request means: not reliable
+            reason = reason_for(e)
+        else:
+            origins = confirmation_origins(body) if body is not None else None
+            if body is None:
+                reason = "bad_status"
+            elif origins is None:
+                reason = "invalid_response"
+            elif result.exit_ip not in origins:
+                reason, data = "exit_ip_mismatch", {"exit_ip": result.exit_ip, "second_exit_ip": origins[-1]}
+            else:
+                anonymity = classify_anonymity(body, self.own_ips)
+                if anonymity is None:
+                    reason = "invalid_response"
+                else:
+                    result.anonymity = anonymity
+                    data = {"exit_ip": result.exit_ip, "anonymity": anonymity}
+        ms = round((time.perf_counter() - start) * 1000)
+        if not reason:
+            return Check(PASSED, "", target, now_iso(), ms, data)
+        state = state_for(reason)
+        # a second site that saw another exit IP did answer; for anything else, the target may be the one
+        # that is down – then nothing was learned about this proxy
+        if state == FAILED and reason != "exit_ip_mismatch" and await self._target_ok(CONFIRM) is False:
+            return Check(UNAVAILABLE, "target_unreachable", target, now_iso(), ms, limits=UNCONFIRMED_LIMITS)
+        return Check(state, reason, target, now_iso(), ms, data,
+                     limits=MISMATCH_LIMITS if reason == "exit_ip_mismatch" else "")
 
-    async def _confirm(self, ptype: str, proxy: str, request: bytes = CONFIRM_REQUEST,
-                       http_proxy_request: bytes = HTTP_PROXY_CONFIRM_REQUEST) -> Optional[bytes]:
+    async def _confirm(self, ptype: str, proxy: str, request: Optional[bytes] = None,
+                       http_proxy_request: Optional[bytes] = None) -> Optional[bytes]:
         ep = parse_endpoint(proxy)
-        reader, writer = await self._connect(proxy, detail=True)
+        request = request or self.confirm_request
+        http_proxy_request = http_proxy_request or self.http_proxy_confirm_request
+        reader, writer = await self._connect_or_fail(proxy, detail=True)
         try:
-            if not await self._handshake(ptype, ep, reader, writer, self.confirm_ip_bytes, CONFIRM_PORT):
-                return None
+            if not await self._handshake(ptype, ep, reader, writer, self.confirm_ip_bytes, self.confirm_port):
+                raise CheckFailed("handshake_refused")
             writer.write(with_proxy_auth(http_proxy_request, ep) if ptype == "http" else request)
             await writer.drain()
             # the response comes from the (untrusted) proxy – read only a limited amount
@@ -251,45 +371,113 @@ class Checker:
             writer.close()
 
     async def tampers(self, result: CheckResult) -> bool:
-        """Does the proxy modify content (ads, scripts)? True only for a clearly modified page –
-        timeouts or error pages say nothing about that, the other checks cover those."""
-        if self.integrity_reference is None or not self.confirms:
-            return False
+        """Does a known page arrive with different bytes? True only for a page that came back and differs –
+        timeouts or error pages say nothing about that (result.checks["content"] is then "unavailable")."""
+        check = result.checks[CONTENT] = await self.content_check(result)
+        return check.state == FAILED
+
+    async def content_check(self, result: CheckResult) -> Check:
+        target = f"{authority(self.confirm_host, self.confirm_port)}/html"
+        if not self.confirms:
+            return Check(UNAVAILABLE, "target_not_configured", target, now_iso())
+        if self.integrity_reference is None:
+            return Check(UNAVAILABLE, "no_reference", target, now_iso())
+        start = time.perf_counter()
         try:
-            body = await wait_for(self._confirm(result.ptype, result.proxy, INTEGRITY_REQUEST,
-                                                HTTP_PROXY_INTEGRITY_REQUEST), self.detail_timeout)
-        except Exception:
-            return False
-        return body is not None and page_hash(body) != self.integrity_reference
+            body = await wait_for(self._confirm(result.ptype, result.proxy, self.integrity_request,
+                                                self.http_proxy_integrity_request), self.detail_timeout)
+        except Exception as e:  # no page, no comparison
+            return Check(UNAVAILABLE, reason_for(e), target, now_iso(), round((time.perf_counter() - start) * 1000))
+        ms = round((time.perf_counter() - start) * 1000)
+        if body is None:
+            return Check(UNAVAILABLE, "bad_status", target, now_iso(), ms)
+        digest = page_hash(body)
+        if digest != self.integrity_reference and CONTENT in self.controls:
+            # the page may have changed at its source since the run started: compare with how it is now
+            current = await self._control(CONTENT)
+            if not isinstance(current, bytes):
+                return Check(UNAVAILABLE, "target_unreachable", target, now_iso(), ms)
+            self.integrity_reference = current
+        if digest == self.integrity_reference:
+            return Check(PASSED, "", target, now_iso(), ms, {"bytes": len(body)})
+        data = {"bytes": len(body), "sha256": digest.hex()[:16], "script_tags": body.lower().count(b"<script")}
+        return Check(FAILED, "content_mismatch", target, now_iso(), ms, data, limits=CONTENT_LIMITS)
+
+    # ------------------------------------------------------------------ is the target itself still there?
+
+    async def _control(self, name: str):
+        """What the control for this check says right now – asked directly, at most every CONTROL_SECONDS,
+        and only once however many checks wait for it. None on an error."""
+        loop = asyncio.get_running_loop()
+        cached = self._control_cache.get(name)
+        if cached is None or cached[0] <= loop.time():
+            task = asyncio.ensure_future(self._run_control(self.controls[name]))
+            cached = self._control_cache[name] = (loop.time() + CONTROL_SECONDS, task)
+        # shielded: one cancelled check mustn't take the answer away from the others waiting for it
+        return await asyncio.shield(cached[1])
+
+    async def _run_control(self, control: Control):
+        try:
+            return await asyncio.wait_for(control(), min(self.detail_timeout, CONTROL_TIMEOUT))
+        except Exception:  # unreachable, a timeout, a broken answer – the target isn't fine
+            return None
+
+    async def _target_ok(self, name: str) -> Optional[bool]:
+        """True/False from the control, None when there is none (then a failure is taken as it is)."""
+        if name not in self.controls:
+            return None
+        return bool(await self._control(name))
 
     # ------------------------------------------------------------------ details
 
     async def enrich(self, result: CheckResult) -> None:
         """Add HTTPS support and target sites, all in parallel (anonymity comes from the confirmation)."""
-        https = self._safe(self.check_https(result.ptype, result.proxy)) if self.https_test else _none()
+        https = self.https_check(result) if self.https_test else _none()
         outcomes = await asyncio.gather(
             https,
             *(self._safe(self.check_target(result.ptype, result.proxy, t, ip)) for t, ip in self.targets),
         )
-        result.https = bool(outcomes[0]) if self.https_test else None
+        check = outcomes[0] or Check(SKIPPED, "fast_mode", at=now_iso())
+        result.checks[HTTPS] = check
+        result.https = legacy_bool(check)  # true/false only when it was measured
         result.targets = {t.url: bool(ok) for (t, _), ok in zip(self.targets, outcomes[1:])}
 
-    async def _safe(self, coro):
+    def _slots(self) -> asyncio.Semaphore:
         if self._detail_slots is None:  # only here: before Python 3.10 a semaphore is bound to the event loop
             self._detail_slots = asyncio.Semaphore(DETAIL_CONNECTIONS)
+        return self._detail_slots
+
+    async def _safe(self, coro):
         try:
-            async with self._detail_slots:
+            async with self._slots():
                 return await wait_for(coro, self.detail_timeout)
         except Exception:  # detail check failed -> "no"/"unknown", the basic result stays
             return None
 
+    async def https_check(self, result: CheckResult) -> Check:
+        """The HTTPS test with its outcome. Passed means: HTTPS_LIMITS, and nothing beyond that."""
+        target = authority(self.judge.host, self.https_port)
+        start = time.perf_counter()
+        try:
+            async with self._slots():
+                ok = await wait_for(self.check_https(result.ptype, result.proxy), self.detail_timeout)
+            reason = "" if ok else "invalid_response"
+        except Exception as e:
+            reason = reason_for(e)
+        ms = round((time.perf_counter() - start) * 1000)
+        if not reason:
+            return Check(PASSED, "", target, now_iso(), ms, limits=HTTPS_LIMITS)
+        state = state_for(reason)
+        # a certificate that doesn't verify came from somewhere; for anything else the target may be down
+        if state == FAILED and reason != "tls_certificate_invalid" and await self._target_ok(HTTPS) is False:
+            state, reason = UNAVAILABLE, "target_unreachable"
+        return Check(state, reason, target, now_iso(), ms)
+
     async def check_https(self, ptype: str, proxy: str) -> bool:
-        """Tunnel to the check target on port 443 + verified TLS + fetch the exit IP."""
+        """Tunnel to the check target on port 443 + verified TLS + fetch the exit IP. False for a wrong
+        answer inside the tunnel; a refused tunnel or a failed TLS handshake raises (CheckFailed, SSLError)."""
         judge, ip_bytes, request = self.judge, self.judge_ip_bytes, self.request  # in case it switches mid-way
-        opened = await self._tls_tunnel(ptype, proxy, judge.host, ip_bytes, 443)
-        if opened is None:
-            return False
-        reader, writer = opened
+        reader, writer = await self._open_tls(ptype, proxy, judge.host, ip_bytes, self.https_port)
         try:
             writer.write(request)
             await writer.drain()
@@ -341,6 +529,14 @@ class Checker:
 
     async def _tls_tunnel(self, ptype: str, proxy: str, host: str, ip_bytes: bytes, port: int):
         """Tunnel through the proxy to host:port with verified TLS inside. None = tunnel refused or MITM."""
+        try:
+            return await self._open_tls(ptype, proxy, host, ip_bytes, port)
+        except (CheckFailed, ssl.SSLCertVerificationError):
+            return None
+
+    async def _open_tls(self, ptype: str, proxy: str, host: str, ip_bytes: bytes, port: int):
+        """Like _tls_tunnel, but says why it didn't work: CheckFailed("tunnel_refused"), or the
+        SSLCertVerificationError of a proxy that breaks up TLS (MITM) – useless for HTTPS either way."""
         loop = asyncio.get_running_loop()
         ep = parse_endpoint(proxy)
         sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -348,12 +544,9 @@ class Checker:
         try:
             await loop.sock_connect(sock, (ep.host, ep.port))
             if not await self._open_tunnel(loop, sock, ptype, ep, host, ip_bytes, port):
-                sock.close()
-                return None
-            return await asyncio.open_connection(sock=sock, ssl=ssl_context(), server_hostname=host)
-        except ssl.SSLCertVerificationError:
-            sock.close()
-            return None  # proxy breaks up TLS (MITM) -> useless for HTTPS
+                raise CheckFailed("tunnel_refused")
+            return await asyncio.open_connection(sock=sock, ssl=self.tls_context or ssl_context(),
+                                                 server_hostname=host)
         except BaseException:
             sock.close()
             raise
@@ -446,6 +639,31 @@ async def probe_confirm_target(ip: str, timeout: float, port: int = CONFIRM_PORT
     except Exception:  # unreachable -> continue without confirmation
         return False
     return body is not None and confirmation_origins(body) is not None
+
+
+async def probe_https_target(host: str, ip: str, port: int = 443, context: Optional[ssl.SSLContext] = None,
+                             timeout: float = CONTROL_TIMEOUT) -> bool:
+    """Does the HTTPS test's target complete a verified TLS handshake directly (without a proxy)?"""
+    try:
+        _, writer = await asyncio.wait_for(
+            asyncio.open_connection(ip, port, ssl=context or ssl_context(), server_hostname=host), timeout)
+    except Exception:
+        return False
+    writer.close()
+    return True
+
+
+def direct_controls(checker: "Checker", confirm_ip: Optional[str]) -> Dict[str, Control]:
+    """The controls of a normal run: each asks the check's own target directly, the way the check does.
+    Read from the checker at call time – the check target can switch during a run."""
+    controls: Dict[str, Control] = {
+        HTTPS: lambda: probe_https_target(checker.judge.host, checker.judge_ip, checker.https_port,
+                                          checker.tls_context),
+    }
+    if confirm_ip:
+        controls[CONFIRM] = lambda: probe_confirm_target(confirm_ip, CONTROL_TIMEOUT, checker.confirm_port)
+        controls[CONTENT] = lambda: integrity_reference(CONTROL_TIMEOUT)
+    return controls
 
 
 def page_hash(body: bytes) -> bytes:

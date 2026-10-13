@@ -18,6 +18,7 @@ from typing import Dict, List, Optional, Tuple
 from rich.live import Live
 from rich.text import Text
 
+from . import __version__
 from . import sources as srcs
 from .asndb import AsnDB, ProviderLookup, load_asn_db
 from .asndb import is_current as asn_is_current
@@ -29,9 +30,11 @@ from .checker import (
     JUDGE_HOST,
     Checker,
     CheckResult,
+    direct_controls,
     integrity_reference,
     probe_confirm_target,
 )
+from .checkstate import BASIC, now_iso
 from .compat import on_interrupt, raise_fd_limit
 from .fetchcache import FetchCache
 from .geo import GeoResolver
@@ -41,7 +44,7 @@ from .history import ProxyHistory
 from .judges import JudgeProbe, JudgeWatch, rank_judges
 from .netio import INSECURE_HOSTS, http_get
 from .options import STDOUT, RunOptions
-from .output import ResultWriter, latest_results
+from .output import ResultWriter, latest_results, write_run_summary
 from .pages import REPO_URL
 from .parsing import (
     JSON_IP_PORT_RE,
@@ -322,6 +325,7 @@ class Run:
         self.opts = opts
         self.show_banner = show_banner
         self.started = time.perf_counter()
+        self.started_at = now_iso()
         self.quality = srcs.SourceStats()
         self.history = ProxyHistory()
         self.scraped: Optional[ScrapeResult] = None
@@ -387,10 +391,11 @@ class Run:
         ))
         if self.confirm_ip and self.integrity is None:
             note(f"Reference page from {CONFIRM_HOST} unreachable – proxies that modify content "
-                 "won't be detected in this run.")
+                 "won't be detected in this run (their content check says \"unavailable\").")
         if not self.confirm_ip:
-            note(f"{CONFIRM_HOST} unreachable – without a second confirmation fake proxies (honeypots) "
-                 "can slip through, and anonymity stays unknown.")
+            note(f"{CONFIRM_HOST} unreachable – no second request runs, so proxies that only answer the "
+                 "first check can slip through, and anonymity stays unknown. The results say so: "
+                 "their confirm check is \"unavailable\", not \"passed\".")
         if not ips:
             note("Own IP unknown – transparent proxies (they reveal your IP) won't be filtered out.")
         if blocklist and not blocklist.usable:
@@ -515,6 +520,8 @@ class Run:
                           detail_connect_timeout=opts.connect_timeout, targets=self.targets,
                           https_test=not opts.fast or opts.filters.https_only, judge=judge.judge,
                           integrity_reference=self.integrity)
+        # a failed second request or HTTPS test only counts against a proxy while the target itself answers
+        checker.controls = direct_controls(checker, self.confirm_ip)
         self.checker = checker  # for the proxy server: rechecking disabled proxies
         watch = JudgeWatch(self.judges, lambda new: checker.use_judge(new.judge, new.ip))
         dashboard.judge = judge.judge.host
@@ -565,6 +572,7 @@ class Run:
         kept = [r for r in run.results if opts.filters.accepts(r)]
         self.kept = kept
         files = writer.finalize(kept)
+        files["Run summary (JSON)"] = write_run_summary(writer.run_dir, self.summary(jobs, run, stats, kept))
         network_blocked = is_network_blocked(stats)
         per_source = self.learn(run, network_blocked)
         geo.save()
@@ -688,6 +696,32 @@ class Run:
         if db is not None:
             geo.use_offline(db)
 
+    def summary(self, jobs: List[str], run: CheckRun, stats: LiveStats, kept: List[CheckResult]) -> dict:
+        """The run in numbers, with its denominators: how many candidates there were, how many got a verdict,
+        and how each check ended – "not checked" and "the target was down" apart from "checked and failed"."""
+        basic = {"passed": stats.found + stats.fakes + stats.tampered}
+        # attempts: a proxy checked again after a check target switch counts once per try
+        basic.update({f"failed:{reason}": n for reason, n in sorted(self.checker.failures.items())})
+        return {
+            "schema": 1,
+            "version": __version__,
+            "started": self.started_at,
+            "finished": now_iso(),
+            "targets": {
+                "basic": self.judges[0].judge.host,
+                "basic_switches": run.judge_switches,
+                "confirm": CONFIRM_HOST if self.confirm_ip else None,  # None: no second request ran at all
+                "content_reference": self.integrity is not None,
+            },
+            "candidates": len(jobs),
+            "checked": len(run.checked),            # got a verdict
+            "not_checked": max(len(jobs) - len(run.checked), 0),  # never reached: --want, Ctrl+C, a target switch
+            "stopped": "goal" if run.reached_goal else "interrupted" if run.interrupted else None,
+            "working": len(run.results),            # passed basic, not failed by confirm or content
+            "kept": len(kept),                      # … and passed the filters
+            "checks": {BASIC: basic, **{name: dict(sorted(c.items())) for name, c in run.states.items()}},
+        }
+
     def learn(self, run: CheckRun, network_blocked: bool, sources: bool = True):
         """Update source statistics and history – on a blocked network only the hits."""
         per_source = attribute_results(self.scraped, run.checked, run.working) if self.scraped and sources else {}
@@ -726,8 +760,12 @@ class Run:
             note(f"Check target went down, switched: {', '.join(run.judge_switches)}. {fmt(run.rechecked)} proxies "
                  "were checked again and don't count for the source statistics.", WARN, "⚠")
         if stats.tampered:
-            note(f"{fmt(stats.tampered)} proxies modified a test page (usually by injecting scripts) "
-                 "and were dropped.", WARN, "⚠")
+            note(f"{fmt(stats.tampered)} proxies returned a static test page with different bytes and were "
+                 "dropped (why – scripts, ads, a portal page – isn't determined).", WARN, "⚠")
+        if stats.confirm_unavailable:
+            note(f"{fmt(stats.confirm_unavailable)} of the hits were kept without a second request "
+                 f"({CONFIRM_HOST} didn't answer) – in proxies.json their confirm check is \"unavailable\".",
+                 WARN, "⚠")
         if stats.hosting and run.results and not opts.filters.no_datacenter:
             note(f"{fmt(stats.hosting)} of {fmt(len(run.results))} hits ({pct(stats.hosting, len(run.results))}) "
                  "probably exit from datacenters – those often get blocked sooner. "

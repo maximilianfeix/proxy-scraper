@@ -406,12 +406,12 @@ A list tells you what worked for its author when it was built. This is what the 
 | HTTPS tested with a certificate that verifies (one test host) | unless `--fast` |
 | Anonymity level and country per proxy | yes |
 | Only proxies that reach *your* target site | `--target` |
-| Learns which sources are worth it | ❌ | ✅ |
-| Usable as a single rotating proxy | ❌ | ✅ `--serve` |
-| API to fetch a proxy (proxy_pool compatible) | ❌ | ✅ [`/get`](#pool-api) |
-| Ready-made list without running anything | ✅ | ✅ [live list](#live-list) |
+| Learns which sources are worth it | yes |
+| Usable as a single rotating proxy | `--serve` |
+| API to fetch a proxy (same paths as proxy_pool) | [`/get`](#pool-api) |
+| Ready-made list without running anything | [live list](#live-list) |
 
-Named and dated: [how it compares to proxifly, TheSpeedX, monosans and clarketm](docs/comparison.md).
+Named and dated: [how it compares to other tools and lists, task by task](docs/comparison.md).
 
 <a id="examples"></a>
 

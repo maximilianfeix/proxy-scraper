@@ -38,6 +38,8 @@ flowchart LR
 | `parsing.py` | finds proxies in any format, drops private/reserved ranges, keys are `"type ip:port"` strings |
 | `pipeline.py` | collect in parallel (process pool for big lists), prioritise, run the check workers |
 | `checker.py` | the checks themselves, see below |
+| `checkstate.py` | the outcome of a check: four states, reason codes, what goes into JSON |
+| `verify.py` | checking a handful of proxies with every outcome kept: `--pick --verify` (bounded attempts, a few at a time, a time limit) and `--diagnose` |
 | `handshake.py` | HTTP/SOCKS4/SOCKS5 handshakes including login, shared by checker and server |
 | `judges.py` | check targets, Cloudflare filter, failover while running |
 | `geo.py` · `geodb.py` · `asndb.py` | countries and providers, offline from DB-IP, ip-api.com as fallback |
@@ -66,12 +68,16 @@ flowchart TD
     B -- no --> C[handshake + GET check target<br/>exit IP must be public and not ours]
     C -- fails --> X
     C --> D[confirm via httpbin.org<br/>same exit IP · anonymity from headers]
-    D -- fails --> H[counted as honeypot]
+    D -- fails, target answers directly --> H[failed second request<br/>dropped]
+    D -- fails, target down too --> U[confirm: unavailable<br/>kept, and says so]
     D --> E[fetch a static page<br/>must match byte for byte]
-    E -- differs --> T[counted as tampering]
-    E --> F[country · provider · blocklist · HTTPS with verified TLS · target sites]
-    F --> R[result]
+    U --> E
+    E -- differs --> T[content mismatch<br/>dropped]
+    E --> F[country · provider · blocklist · HTTPS with a verified certificate · target sites]
+    F --> R[result with the outcome of every check]
 ```
+
+Each check leaves a `Check` on the result (`checkstate.py`): `passed`, `failed`, `unavailable` or `skipped`, with a reason code, the target, the time, what was measured and what the result doesn't say. Two rules hold everywhere: a check that didn't run is never `passed`, and a check target that is down doesn't fail the proxies checked against it. For the first target that is `JudgeWatch` (switch and re-check). For the later ones the checker asks the target directly after a failure, at most every few seconds, and only believes an answer that is newer than the failing check. What the states mean, which lists require which, and the reason codes: [check-states.md](check-states.md).
 
 Only hits go through the later steps, so the expensive checks cost little. Every failure still counts for the source it came from, that's what the learning is built on. A hit is only recorded once its verdict is in: when `--want` or Ctrl+C stops the workers, proxies still being confirmed are neither working nor failed.
 
@@ -120,15 +126,15 @@ Installed with pip/pipx, `data/` lives in the user data folder (`PROXY_SCRAPER_H
 
 ## Decisions we measured
 
-Some things look like obvious improvements and turned out not to be. The numbers are in the linked issues.
+Some things look like obvious improvements and turned out not to be. Where an issue is linked, it has the numbers, unless noted.
 
 - **Protocol detection before checking** ([#3](../../../issues/3)) – a third of the addresses are listed under all three types, but sniffing the protocol with an extra connection made runs slower (77 s vs 60 s). Dropped.
 - **IPv6** ([#1](../../../issues/1)) – about 300 entries across all 726 sources, mostly V2Ray configs. Not worth it yet.
-- **Check targets are ranked by quality, not latency** ([#8](../../../issues/8)) – the same 300 proxies found 255 hits through checkip.amazonaws.com but only 199 through ident.me, although ident.me answered faster.
-- **Tamper check** ([#46](../../../issues/46)) – in the first measurement one in five working proxies injected something into a plain HTML page; over the 3.6 million checks in [the numbers](free-proxies-in-numbers.md) it was about one in 40, still around 100 per hourly run. That's why it's always on.
+- **Check targets are ranked by quality, not latency** ([#8](../../../issues/8)) – in one comparison with the same 300 proxies, checkip.amazonaws.com gave 255 hits and ident.me 199, although ident.me answered faster. The measurement itself was not posted to the issue.
+- **Content check** ([#46](../../../issues/46)) – in one early look, 54 of 270 proxies returned a different page than the reference; over the 3.6 million checks in [the numbers](free-proxies-in-numbers.md) it was 5.2 % of the proxies that got that far, about 90 per hourly run. No sample of those pages was kept, so why they differed isn't known. That's why it's always on, and why it now records size, hash and `<script` count of a changed page.
 - **Cloudflare is never a check target** – many "proxies" are Cloudflare addresses that would answer a request to a Cloudflare-hosted site themselves.
-- **Blocklists** ([#66](../../../issues/66)) – Spamhaus refuses public resolvers, DroneBL lists 59 % of exit IPs (it's essentially a list of open proxies), SpamCop lists 29 %. Only SpamCop is used, and only after a probe with the documented test address proves the resolver gets real answers.
+- **Blocklists** ([#66](../../../issues/66)) – Spamhaus refuses public resolvers, in one measurement of 708 exit IPs DroneBL listed 59 % (it's essentially a list of open proxies) and SpamCop 29 %. Only SpamCop is used, and only after a probe with the documented test address proves the resolver gets real answers.
 
 ## Testing
 
-Everything runs offline: `tests/fakes.py` has real HTTP, SOCKS4 and SOCKS5 proxies, honeypots, login-protected proxies and target sites on `localhost`. Network code is tested against those, not against mocks of our own functions. CI runs the suite on Linux, macOS and Windows with Python 3.9, 3.11, 3.13 and 3.14, builds the package, and does a real scan inside the Docker image.
+Everything runs offline: `tests/fakes.py` has real HTTP, SOCKS4 and SOCKS5 proxies, login-protected proxies and target sites on `localhost`, and `tests/lab.py` a whole lab: check targets that can go down, and proxies that each misbehave in one known way (another exit IP on the second request, a rewritten page, no CONNECT, a certificate that doesn't verify, a late answer). Network code is tested against those, not against mocks of our own functions. CI runs the suite on Linux, macOS and Windows with Python 3.9, 3.11, 3.13 and 3.14, builds the package, and does a real scan inside the Docker image.

@@ -4,8 +4,33 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- **Every check has an outcome you can read.** Each kept proxy carries `checks`: `basic`, `confirm`, `content` and `https`, each `passed`, `failed`, `unavailable` or `skipped`, with a reason code, the target, the time (`at`, and `checked_at` for the proxy) and what was measured. In `proxies.json`, as columns at the end of `proxies.csv`, in the Python API (`result.checks`) and in the MCP results. [docs/check-states.md](docs/check-states.md) has the states, the reason codes and what each list requires
+- `--pick N --verify` checks the candidates of the hourly list from your machine first and prints only the ones that pass now (with `--https-only` the HTTPS test too). It tries 5 candidates per proxy asked for (10 to 60), up to 8 at a time, for 90 seconds at most. Exit code 3 when fewer than N passed; they are still printed. What happened to each candidate goes to stderr
+- `--diagnose PROXY` checks one proxy and shows what each check found: reachable or not and why, exit IP, second request, content, HTTPS, latency and time, and what could not be checked. `--json` for a report scripts can read. Passwords are masked in all of it. Unlike a scan it takes any address, your own proxy on localhost included
+- `--pick --json` prints when the list was published, how old it is and whether it is overdue, next to each proxy's own check time
+- Every run writes `run.json` next to its results: how many candidates there were, how many got a verdict, how many didn't, and each check by state and reason. The hourly list publishes it and keeps the counts in `history.json`
+- `docs/analysis/`: scripts that reproduce the numbers of [the numbers article](docs/free-proxies-in-numbers.md) from the workflow logs and from the list's own files, with the per-run data of 28–29 Sep 2026 as a CSV
+- `docs/demo/`: a lab of simulated proxies on localhost and the recording made with it
+
 ### Changed
+- **A check that didn't run is no longer reported like one that passed.** Without a reachable second target (httpbin.org) a run used to keep every proxy as if it had been confirmed, and without a reference page a rewritten page looked like an unchanged one. Both are `unavailable` now, in the files and in a note at the end of the run
+- **A check target that goes down no longer fails the proxies checked against it.** The second target was only asked once, at the start: if it went down mid-run, every proxy after that was counted as a failed second request and learned as dead. Now a failed second request or HTTPS test makes the tool ask the target directly (every 3 seconds at most), and if it doesn't answer either, the proxy's check is `unavailable`
+- The hourly list only lists proxies whose basic check, second request and content check were measured and passed, `https.txt` also the HTTPS test. `stats.json` says so in `requires` and counts the rest in `held_back`. A run whose second target was down publishes nothing, and the previous list stays online
+- `https` in the results is `null`, not `false`, when the HTTPS test could not run (its target was down). A proxy whose content request got no page back is `unavailable` for that check and therefore not on the published list; before, it counted as unchanged
+- Words: a failed second request is no longer called a "fake" or a "honeypot", a changed test page no longer "tampering" or "injected scripts", in the terminal, on the website, in the list's README and in the package description. The checks measure what they measure; why a proxy fails them, they don't know
+- The numbers article says what each number counts and what it can't tell. Corrected: 3.6 million are checks, not proxies; the page differed for 5.2 % of the proxies that reached that check (not "1 in 40 working proxies"), for reasons nobody recorded; "85 % gone within an hour" was a share of ended stretches, and about a quarter of a list is on the list again a day later
+- README: the top says in one screen what the tool is for, with a real terminal recording and the three ways to get proxies side by side. The generated screenshots are labelled as illustrations with sample data. The comparison is by task and includes two tools it left out, and where they are the better choice
+- The website's "typical free list" column is gone (no other list was measured) and its animated run is labelled as an illustration
+
 - Docker image: base image is now `python:3.14-slim` (was 3.12), still pinned by digest. CI dependencies bumped together: ruff 0.17.0 (lock file regenerated, the separate Dependabot PR failed on the stale `lint.txt`), CodeQL action 4.38.3 for init, analyze and upload-sarif at once (the analyze-only bump failed on a version mismatch – Dependabot now groups them), Scorecard action 2.5.0, upload/download-artifact 7.0.2/8.0.2
+
+### Fixed
+- `--pick` when the list can't be loaded suggested `check_proxies`, which is a tool of the MCP server, not a command
+- `--recheck` with only local or private addresses said "No proxies to check" without saying that such addresses are skipped
+- Rows of the downloaded list are only used when they are `ip:port` of a public address. A row with a line break, a login or a local address was printed as it came
+- A proxy answering the second request with deeply nested JSON ended the whole run with a `RecursionError` on Python 3.9
+- Running out of sockets during a check was learned as a dead proxy
 
 ## [1.29.0] – 2026-10-14
 

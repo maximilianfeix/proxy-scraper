@@ -18,3 +18,6 @@ working_proxies_*.txt
 build/
 dist/
 *.egg-info/
+
+# the demo lab's state while it runs (docs/demo/lab_server.py)
+docs/demo/.lab.json

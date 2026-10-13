@@ -1,0 +1,38 @@
+#!/usr/bin/env python3
+"""proxy-scraper, pointed at the demo lab instead of the internet (start docs/demo/lab_server.py first).
+
+The command line, the checks and the output are the real ones. Two things are swapped: the hourly list comes
+from the lab's file, and the check targets are the lab's servers on localhost.
+"""
+
+import json
+import sys
+from pathlib import Path
+
+HERE = Path(__file__).resolve().parent
+sys.path.insert(0, str(HERE.parent.parent))
+
+from proxyscraper import api, cli, verify  # noqa: E402
+from tests.lab import Lab  # noqa: E402
+
+try:
+    state = json.loads((HERE / ".lab.json").read_text())
+except OSError:
+    sys.exit("the demo lab isn't running – start it with: python docs/demo/lab_server.py")
+
+lab = Lab()
+lab.judge_port, lab.confirm_port, lab.tls_port = state["judge_port"], state["confirm_port"], state["tls_port"]
+
+
+async def prepare(timeout, connect_timeout):
+    return await lab.checker(timeout=min(timeout, 2.0))
+
+
+async def live_fetch(url, timeout=0, headers=None):
+    return json.dumps(state["rows" if url.endswith("proxies.json") else "stats"]).encode()
+
+
+verify.prepare = prepare
+api._live_fetch = live_fetch
+api._listable = lambda proxy: True  # the lab's proxies live on 127.0.0.1, which a real list may not name
+sys.exit(cli.run(sys.argv[1:]))

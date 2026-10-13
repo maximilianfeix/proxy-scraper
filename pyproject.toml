@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 # "proxy-scraper" is blocked on PyPI by the older, similar "proxyscraper" – commands and imports keep the name
 name = "proxy-scraper-cli"
 dynamic = ["version"]
-description = "Finds free HTTP, SOCKS4 and SOCKS5 proxies that actually work: 700+ sources, real checks, honeypot filtering and a rotating local proxy server."
+description = "Finds and checks free HTTP, SOCKS4 and SOCKS5 proxies and shows what each check found: passed, failed or not run, and when. With a rotating local proxy server."
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE"]

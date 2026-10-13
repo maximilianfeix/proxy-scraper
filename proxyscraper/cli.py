@@ -36,7 +36,7 @@ from .preferences import load_last_argv, save_last_argv
 from .server.pool import STRATEGIES
 from .sites import SITES
 from .targets import parse_target
-from .ui import ACCENT, BAD, MUTED, banner, note, render_source_ranking, widgets
+from .ui import ACCENT, BAD, GOOD, MUTED, WARN, banner, note, render_source_ranking, widgets
 from .ui.keys import is_interactive
 from .ui.wizard import run_wizard
 
@@ -63,25 +63,133 @@ def list_sources(limit: int, as_json: bool = False) -> int:
     return 0
 
 
+def _say(message: str) -> None:
+    """Diagnostics for --pick and --diagnose: stderr, so stdout stays what was asked for."""
+    print(f"proxy-scraper: {message}", file=sys.stderr)
+
+
 def pick(args) -> int:
-    """--pick: proxies from the hourly list, nothing but their URLs on stdout (for $(…) in a shell)."""
-    from .api import live_proxies
+    """--pick: proxies from the hourly list, nothing but their URLs on stdout (for $(…) in a shell).
+
+    With --verify each candidate is checked from this machine first, and only the ones that pass are printed.
+    With --json stdout is one JSON document instead: when the list was published, and per proxy when and how it
+    was checked. Exit codes: 0 as many as asked for, 1 none (or nothing could be loaded), 3 with --verify: some,
+    but fewer than asked for (they are printed), 130 interrupted."""
+    from . import verify
+    from .agent import describe
+    from .api import _live_selection
 
     try:
-        found = live_proxies(types=args.types, countries=args.country or "", https=args.https_only,
-                             anonymity=args.anonymity or "", max_latency=args.max_latency,
-                             no_datacenter=args.no_datacenter, no_blocklisted=args.no_blocklisted,
-                             min_uptime=args.min_uptime, works_on=args.works_on, min_speed=args.min_speed,
-                             limit=args.pick)
+        found, live = asyncio.run(_live_selection(
+            types=args.types, countries=args.country or "", https=args.https_only, anonymity=args.anonymity or "",
+            max_latency=args.max_latency, no_datacenter=args.no_datacenter, no_blocklisted=args.no_blocklisted,
+            min_uptime=args.min_uptime, works_on=args.works_on, min_speed=args.min_speed))
     except (ConnectionError, ValueError) as e:
-        print(f"proxy-scraper: {e}", file=sys.stderr)
+        _say(str(e))
         return 1
+    age = live.age_minutes()
+    late = verify.stale_minutes(age, live.run_hours)
+    listed = {"updated": live.updated or None, "age_minutes": age, "stale": live.stale()}
+    if live.stale():
+        _say(f"the published list is {age} minutes old" + (f" ({late} minutes overdue)" if late else "")
+             + " – the hourly run seems to have missed. Its proxies were last checked back then"
+             + ("" if args.verify else "; add --verify to check them now from this machine"))
     if not found:
-        print("proxy-scraper: no proxy in the live list matches these filters right now – loosen them, "
-              "or run a scan of your own", file=sys.stderr)
+        _say("no proxy in the live list matches these filters right now – loosen them, or run a scan of your own")
         return 1
-    sys.stdout.write("".join(f"{p.url}\n" for p in found))
-    return 0
+    if not args.verify:
+        chosen = found[:args.pick]
+        if args.json:
+            # checked from GitHub's servers when the list was published – nothing was checked just now
+            _print_json({"list": listed, "verified": False,
+                         "proxies": [describe(_as_row(p), live.run_hours) for p in chosen]})
+        else:
+            sys.stdout.write("".join(f"{p.url}\n" for p in chosen))
+        return 0
+
+    async def verified():
+        checker = await verify.prepare(args.timeout, args.connect_timeout)
+        for text in verify.setup_notes(checker):
+            _say(text)
+
+        def progress(report) -> None:
+            _say(f"{verify.shown(report.ptype, report.proxy)}: {report.verdict()}")
+
+        return checker, await verify.pick_verified(checker, [p.key for p in found], args.pick,
+                                                   https=args.https_only, on_report=progress)
+
+    took = verify.timed()
+    try:
+        checker, selection = asyncio.run(verified())
+    except verify.VerifyError as e:
+        _say(str(e))
+        return 1
+    except KeyboardInterrupt:
+        _say("interrupted – nothing was printed")
+        return verify.EXIT_INTERRUPTED
+    reports = selection.verified
+    if len(reports) < args.pick:
+        _say(verify.shortfall_message(selection, args.pick, args.https_only, checker))
+    if args.json:
+        _print_json({"list": listed, "verified": True, "verified_from": "this machine", "wanted": args.pick,
+                     "tried": selection.tried, "candidates": selection.candidates, "took_seconds": took(),
+                     "budget_exhausted": selection.exhausted and len(reports) < args.pick,
+                     "proxies": [r.as_dict() for r in reports]})
+    else:
+        sys.stdout.write("".join(f"{r.url}\n" for r in reports))
+    if not reports:
+        return 1
+    return 0 if len(reports) >= args.pick else verify.EXIT_PARTIAL
+
+
+def _as_row(p) -> dict:
+    """A LiveProxy the way the list had it, for describe()."""
+    return {"ptype": p.ptype, "proxy": p.proxy, "country": p.country, "latency": p.latency, "https": p.https,
+            "anonymity": p.anonymity, "org": p.org, "hosting": p.hosting, "blocklisted": p.blocklisted,
+            "uptime_7d": p.uptime_7d, "sites": p.sites, "speed_kbps": p.speed_kbps, "checked_at": p.checked_at,
+            "checks": {name: check.as_dict() for name, check in p.checks.items()}}
+
+
+def _print_json(data) -> None:
+    sys.stdout.write(json.dumps(data, indent=1, ensure_ascii=False) + "\n")
+
+
+def diagnose(args) -> int:
+    """--diagnose PROXY: one proxy, every check, what each one found – as text, or as JSON with --json.
+
+    Exit codes: 0 reached and nothing failed, 1 a check failed, 3 nothing failed but not everything could be
+    checked (a check target was down), 2 not a proxy, 130 interrupted."""
+    from . import verify
+
+    try:
+        key = verify.parse_proxy(args.diagnose)
+    except ValueError as e:
+        _say(str(e))
+        return verify.EXIT_USAGE
+
+    async def run_it():
+        checker = await verify.prepare(args.timeout, args.connect_timeout)
+        if args.fast:
+            checker.https_test = False
+        return checker, await verify.examine(checker, key)
+
+    try:
+        checker, report = asyncio.run(run_it())
+    except verify.VerifyError as e:
+        _say(str(e))
+        return 1
+    except KeyboardInterrupt:
+        _say("interrupted")
+        return verify.EXIT_INTERRUPTED
+    notes = verify.setup_notes(checker)
+    if args.json:
+        _print_json({**report.as_dict(), "notes": notes})
+        return report.exit_code()
+    styles = {"passed": GOOD, "failed": BAD, "unavailable": WARN, "skipped": MUTED}
+    out = Console(highlight=False, soft_wrap=True)  # the report is what was asked for: stdout, lines unbroken
+    for line, state in verify.render(report, notes):
+        out.print(Text(line, style=styles.get(state, "")))
+    return report.exit_code()
 
 
 def site_list(text: str) -> List[str]:
@@ -204,6 +312,14 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     live.add_argument("--pick", nargs="?", const=1, type=positive_int, metavar="N",
                       help="print N proxies (default 1) from the hourly checked list that match the filters above, "
                            "one URL per line, and exit – e.g. curl -x \"$(proxy-scraper --pick --https-only)\" …")
+    live.add_argument("--verify", action="store_true",
+                      help="with --pick: check the candidates from this machine first and print only those that pass "
+                           "the handshake, the second request and the content check right now (with --https-only "
+                           "also HTTPS). Tries a limited number, a few at a time; exit code 3 if fewer than N passed")
+    live.add_argument("--diagnose", metavar="PROXY",
+                      help="check one proxy (socks5://host:port, http://user:pass@host:port, host:port) and show "
+                           "what each check found: reachable, exit IP, second request, content, HTTPS, latency, "
+                           "time – and what could not be checked. --json for a machine-readable report")
     live.add_argument("--min-uptime", type=percent, default=0, metavar="PERCENT",
                       help="with --pick: only proxies on the list in at least this share of the week's checks")
     live.add_argument("--min-speed", type=positive_int, default=0, metavar="KBPS",
@@ -260,10 +376,15 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="reload every list completely (otherwise unchanged ones are skipped via ETag)")
     s.add_argument("--list-sources", nargs="?", const=50, type=positive_int, metavar="N",
                    help="show the source ranking by hit rate (default: top 50) and exit")
-    s.add_argument("--json", action="store_true", help="with --list-sources: print the ranking as JSON to stdout")
+    s.add_argument("--json", action="store_true",
+                   help="with --list-sources, --pick or --diagnose: print the result as JSON to stdout")
     args = p.parse_args(argv)
-    if args.json and args.list_sources is None:
-        p.error("--json only works together with --list-sources")
+    if args.json and args.list_sources is None and args.pick is None and args.diagnose is None:
+        p.error("--json only works together with --list-sources, --pick or --diagnose")
+    if args.verify and args.pick is None:
+        p.error("--verify only works together with --pick")
+    if args.diagnose is not None and args.pick is not None:
+        p.error("--diagnose checks the one proxy given, --pick takes proxies from the live list – use one of them")
     if (args.min_uptime or args.works_on or args.min_speed) and args.pick is None:
         p.error("--min-uptime, --min-speed and --works-on only work together with --pick")
     if args.pick is not None:  # --pick exits right away: options for a scan or the server would be silently ignored
@@ -325,6 +446,8 @@ def run(argv: Optional[List[str]] = None) -> int:
         return list_sources(args.list_sources, args.json)
     if args.pick is not None:
         return pick(args)
+    if args.diagnose is not None:
+        return diagnose(args)
     opts = RunOptions.from_args(args)
     if opts.output == STDOUT:
         widgets.console = Console(highlight=False, stderr=True)  # stdout only carries the hits

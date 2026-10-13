@@ -231,3 +231,29 @@ class Lab:
                 HTTPS: lambda: ck.probe_https_target("localhost", "127.0.0.1", self.tls_port, c.tls_context, 1.0),
             }
         return c
+
+
+class LabThread:
+    """The lab on a loop of its own in a background thread – for code that starts its own event loops
+    (the command line does, once per step): `with LabThread() as lab: proxy = lab.run(lab.proxy(...))`."""
+
+    def __enter__(self) -> "LabThread":
+        import threading
+
+        self.loop = asyncio.new_event_loop()
+        self.thread = threading.Thread(target=self.loop.run_forever, name="proxy-lab", daemon=True)
+        self.thread.start()
+        self.lab = self.run(Lab().__aenter__())
+        return self
+
+    def run(self, coro):
+        return asyncio.run_coroutine_threadsafe(coro, self.loop).result(10)
+
+    def __getattr__(self, name):
+        return getattr(self.lab, name)
+
+    def __exit__(self, *exc) -> None:
+        self.run(self.lab.__aexit__(None, None, None))
+        self.loop.call_soon_threadsafe(self.loop.stop)
+        self.thread.join(5)
+        self.loop.close()

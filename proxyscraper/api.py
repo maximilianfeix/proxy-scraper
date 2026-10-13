@@ -39,6 +39,7 @@ from urllib.parse import urlsplit
 from rich.console import Console
 
 from .checker import CheckResult
+from .checkstate import Check
 from .options import Filters, RunOptions, parse_countries
 from .parsing import PROXY_TYPES
 from .targets import parse_target
@@ -201,7 +202,10 @@ def _live_proxy(row: dict, run_hours: int) -> LiveProxy:
         uptime_24h=row.get("uptime_24h"), uptime_7d=row.get("uptime_7d"), first_seen=row.get("first_seen") or "",
         up_for_hours=streak * run_hours,
         sites={k: v for k, v in (row.get("sites") or {}).items() if isinstance(v, bool)},
-        speed_kbps=row.get("speed_kbps") if type(row.get("speed_kbps")) is int else None)
+        speed_kbps=row.get("speed_kbps") if type(row.get("speed_kbps")) is int else None,
+        checked_at=row.get("checked_at") if isinstance(row.get("checked_at"), str) else "",
+        checks={name: check for name, raw in (row.get("checks") if isinstance(row.get("checks"), dict) else {}).items()
+                for check in [Check.from_dict(raw)] if check})
 
 
 async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: Iterable[str] = (), https: bool = False,
@@ -218,7 +222,22 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
                 tiktok, discord
     min_speed   only proxies that downloaded at least this many KiB/s in the last run
     limit       at most this many (0 = all)
+
+    Each proxy has checked_at and checks (how every check ended in that run) when the list carries them.
     """
+    found, _ = await _live_selection(types=types, countries=countries, https=https, anonymity=anonymity,
+                                     max_latency=max_latency, no_datacenter=no_datacenter,
+                                     no_blocklisted=no_blocklisted, min_uptime=min_uptime, works_on=works_on,
+                                     min_speed=min_speed)
+    return found[:limit] if limit else found
+
+
+async def _live_selection(*, types: Iterable[str] = PROXY_TYPES, countries: Iterable[str] = (), https: bool = False,
+                          anonymity: str = "", max_latency: int = 0, no_datacenter: bool = False,
+                          no_blocklisted: bool = False, min_uptime: int = 0, works_on: Iterable[str] = (),
+                          min_speed: int = 0):
+    """Every matching proxy of the hourly list, best first, and the list itself (when it was published, whether
+    it is overdue)."""
     from .agent import AgentError, LiveSource
     from .ranking import expected_ms, typical_speed
     from .sites import SITE
@@ -252,7 +271,7 @@ async def live_proxies_async(*, types: Iterable[str] = PROXY_TYPES, countries: I
     found.sort(key=lambda p: expected_ms(p.latency, p.speed_kbps, p.https, typical, p.up_for_hours // run_hours))
     found = [p for p in found if opts.filters.accepts(p) and (not min_uptime or (p.uptime_7d or 0) >= min_uptime)
              and all(p.sites.get(s) for s in works_on) and (not min_speed or (p.speed_kbps or 0) >= min_speed)]
-    return found[:limit] if limit else found
+    return found, data
 
 
 def live_proxies(**kwargs) -> List[LiveProxy]:

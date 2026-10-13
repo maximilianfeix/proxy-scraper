@@ -74,6 +74,7 @@ class LiveList:
     rows: List[dict]
     stats: dict
     loaded_at: float
+    refresh_failed: bool = False  # the last attempt to reload it failed – this is the copy from before
 
     @property
     def updated(self) -> str:
@@ -90,6 +91,12 @@ class LiveList:
         except ValueError:
             return None
         return max(0, round(((now or datetime.now(timezone.utc)) - updated).total_seconds() / 60))
+
+    def stale(self, now: Optional[datetime] = None) -> bool:
+        """Older than it should be: a reload failed, or the hourly run hasn't published for more than its
+        interval plus half an hour. The proxies in it were checked at `updated`, not later."""
+        age = self.age_minutes(now)
+        return self.refresh_failed or (age is not None and age > self.run_hours * 60 + 30)
 
 
 Fetch = Callable[..., Awaitable[bytes]]
@@ -141,6 +148,7 @@ class LiveSource:
                     return self._cache
             if self._cache:  # GitHub is unreachable: the old list, and don't wait for it again on every call
                 self._retry_at = self.clock() + RETRY_AFTER
+                self._cache.refresh_failed = True
                 return self._cache
             raise AgentError(f"The live proxy list couldn't be loaded ({error}). check_proxies can still find "
                              "working proxies by checking them from this machine.")
@@ -216,7 +224,8 @@ def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) ->
     if isinstance(item, CheckResult):
         item = {"ptype": item.ptype, "proxy": item.proxy, "country": item.country, "latency": item.latency,
                 "https": item.https, "anonymity": item.anonymity, "org": item.org, "hosting": item.hosting,
-                "blocklisted": item.blocklisted}
+                "blocklisted": item.blocklisted, "checked_at": item.checked_at,
+                "checks": {name: check.as_dict() for name, check in item.checks.items()}}
     streak = item.get("streak")
     return {
         "url": f"{item['ptype']}://{item['proxy']}",
@@ -233,6 +242,9 @@ def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) ->
         "uptime_7d_percent": item.get("uptime_7d"),
         "works_on": [name for name, ok in (item.get("sites") or {}).items() if ok],
         "speed_kbps": item.get("speed_kbps"),
+        # when this proxy itself was checked and how each check ended (lists from before 1.29 have neither)
+        "checked_at": item.get("checked_at") or None,
+        "checks": item.get("checks") if isinstance(item.get("checks"), dict) else {},
     }
 
 

@@ -261,7 +261,9 @@ async def _live_selection(*, types: Iterable[str] = PROXY_TYPES, countries: Iter
     try:
         data = await LiveSource(fetch=_live_fetch).get()
     except AgentError as e:
-        raise ConnectionError(str(e)) from None
+        raise ConnectionError(f"the live proxy list couldn't be loaded ({getattr(e, 'cause', e)}) – check the "
+                              "connection, or check proxies from this machine instead (find_proxies, or "
+                              "`proxy-scraper -y` on the command line)") from None
     found = [_live_proxy(r, data.run_hours) for r in data.rows
              if r.get("ptype") in types and isinstance(r.get("proxy"), str)]
     # best first – by how quickly a page comes through when the list has download speeds (#186), and how likely the

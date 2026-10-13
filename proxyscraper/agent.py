@@ -150,8 +150,10 @@ class LiveSource:
                 self._retry_at = self.clock() + RETRY_AFTER
                 self._cache.refresh_failed = True
                 return self._cache
-            raise AgentError(f"The live proxy list couldn't be loaded ({error}). check_proxies can still find "
-                             "working proxies by checking them from this machine.")
+            failure = AgentError(f"The live proxy list couldn't be loaded ({error}). check_proxies can still "
+                                 "find working proxies by checking them from this machine.")
+            failure.cause = str(error)  # for callers that aren't agents and have no check_proxies tool
+            raise failure
 
     async def _json(self, url: str):
         return json.loads(await self.fetch(url, timeout=20))

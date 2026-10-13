@@ -350,7 +350,9 @@ class Run:
             self.show_mode()
             jobs = await self.gather_jobs()
             if not jobs:
-                note("No proxies to check.", BAD, "✘")
+                note("No proxies to check." + (" Local, private and reserved addresses in a list are skipped – "
+                                               "to check one proxy of your own: --diagnose HOST:PORT"
+                                               if self.opts.recheck else ""), BAD, "✘")
                 return 1
         finally:
             section_end()

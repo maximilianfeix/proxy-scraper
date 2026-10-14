@@ -10,7 +10,8 @@ WORKFLOWS = sorted((ROOT / ".github" / "workflows").glob("*.y*ml"))
 LOCKS = sorted((ROOT / ".github" / "requirements").glob("*.txt"))
 # pip, pip3, python -m pip, with any spacing
 INSTALL = re.compile(r"\bpip3?\s+install\b([^\n]*)")
-LOCKED = r" (--quiet )?-r \.github/requirements/\w+\.txt"
+# --require-hashes: a lock line without a hash fails instead of installing unchecked (and Scorecard sees it)
+LOCKED = r" (--quiet )?--require-hashes -r \.github/requirements/\w+\.txt"
 # our own freshly built wheel is the one exception – it's what those steps test. Only these exact forms.
 OWN_WHEEL = {" dist/*.whl", ' "$(ls $GITHUB_WORKSPACE/dist/*.whl)[mcp]"'}
 
@@ -20,7 +21,9 @@ def installs(text):
 
 
 @pytest.mark.parametrize("text,ok", [
-    ("pip install -r .github/requirements/test.txt", True),
+    ("pip install --require-hashes -r .github/requirements/test.txt", True),
+    ("python -m pip install --quiet --require-hashes -r .github/requirements/hf.txt", True),
+    ("pip install -r .github/requirements/test.txt", False),  # locked, but hashes not enforced
     ("pip install dist/*.whl", True),
     ("pip install requests", False),
     ("pip3 install requests", False),

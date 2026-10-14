@@ -93,8 +93,12 @@ jobs:
           v="${GITHUB_REF_NAME#v}"
           jq --arg v "$v" '.version = $v | .packages[0].version = $v' server.json > server.tmp && mv server.tmp server.json
       - name: Install mcp-publisher
-        # pinned: a newer publisher may want a newer server.json schema – update both together
-        run: curl -sL "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz" | tar xz mcp-publisher
+        # pinned: a newer publisher may want a newer server.json schema – update both together. The sha256 is the
+        # one from that release's registry_1.8.1_checksums.txt: this job holds an OIDC token, so nothing unchecked runs
+        run: |
+          curl -sSfL -o mcp-publisher.tar.gz "https://github.com/modelcontextprotocol/registry/releases/download/v1.8.1/mcp-publisher_linux_amd64.tar.gz"
+          echo "a06c9096dcb9727c13555b6be26c7effa707b01f06a4c561ba7a3635443cf2cc  mcp-publisher.tar.gz" | sha256sum -c -
+          tar xzf mcp-publisher.tar.gz mcp-publisher
       - run: ./mcp-publisher login github-oidc
       - name: Publish (PyPI can take a moment to show the new version)
         run: |

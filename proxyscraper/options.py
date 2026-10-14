@@ -124,6 +124,7 @@ class RunOptions:
     sticky: int = 0  # seconds a target site keeps the same proxy (0 = new one for every connection)
     serve_host: str = "127.0.0.1"  # address of the proxy server; anything else is reachable from outside
     serve_password: str = field(default="", repr=False)  # required from clients if set; never written to argv
+    serve_open: bool = False  # a non-loopback serve_host without a password needs this explicit opt-in
     serve_refill: float = 0  # hours between background refills of the proxy server's pool, 0 = off
 
     def __post_init__(self) -> None:
@@ -213,6 +214,7 @@ class RunOptions:
             sticky=args.sticky,
             serve_host=args.serve_host,
             serve_password=args.serve_password,
+            serve_open=args.serve_open,
             serve_refill=args.serve_refill,
         )
 
@@ -262,6 +264,7 @@ class RunOptions:
             argv += ["--rotate", self.rotate]
         if self.serve_host != "127.0.0.1":
             argv += ["--serve-host", self.serve_host]
+        _flag(argv, "--serve-open", self.serve_open)
         _opt(argv, "--sticky", self.sticky, 0)
         _opt(argv, "--serve-refill", float(self.serve_refill), 0.0)
         return argv

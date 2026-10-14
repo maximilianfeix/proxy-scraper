@@ -122,7 +122,7 @@ pip install -r requirements.txt
 python3 proxy_scraper.py
 ```
 
-Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) also ships a wheel you can install with `pip install <file>.whl`, and a multi-arch image (amd64/arm64) on `ghcr.io`. In the container the wizard never shows up, it runs straight away. For the proxy server use `--serve --serve-host 0.0.0.0` with `-p 127.0.0.1:8899:8899`, so the port is only open on your own machine.
+Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) also ships a wheel you can install with `pip install <file>.whl`, and a multi-arch image (amd64/arm64) on `ghcr.io`. In the container the wizard never shows up, it runs straight away. For the proxy server use `--serve --serve-host 0.0.0.0 --serve-open` with `-p 127.0.0.1:8899:8899`, so the port is only open on your own machine – or set `-e PROXY_SCRAPER_SERVE_PASSWORD=…` instead of `--serve-open`.
 
 Tab completion for bash, zsh, fish and PowerShell:
 
@@ -507,7 +507,7 @@ proxy-scraper --recheck --serve --serve-host 0.0.0.0
 curl -x "http://country-de:$PROXY_SCRAPER_SERVE_PASSWORD@your-server:8899" https://api.ipify.org
 ```
 
-Without a password, `--serve-host` means **anyone who reaches the port can use it**. The ready-made [`compose.yaml`](compose.yaml) starts the server in Docker from the live list, with a password, a health check and learned state in a volume: put `PROXY_PASSWORD=…` into `.env`, then `docker compose up -d`.
+Without a password the server refuses to start on any address but `127.0.0.1`: that would be an open proxy for **anyone who reaches the port** (Docker publishes ports past host firewalls like ufw). If a firewall or `-p 127.0.0.1:…` already keeps others out, say so with `--serve-open`. The ready-made [`compose.yaml`](compose.yaml) starts the server in Docker from the live list, with a password, a health check and learned state in a volume: put `PROXY_PASSWORD=…` into `.env`, then `docker compose up -d`.
 
 | Option | What it does |
 |---|---|
@@ -885,8 +885,9 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
 | `--list-sources [N]` | show the source ranking (add `--json` for scripts: url, status, hit rate, checks, last change) |
 | `--pick [N]` | print N proxies (default 1) from the hourly checked list and exit – no scan, same filters, plus `--min-uptime PERCENT`, `--min-speed KBPS` and `--works-on google,reddit,…` |
-| `--serve-host ADDR` | where the proxy server listens (default `127.0.0.1`; `0.0.0.0` for Docker, with a warning) |
+| `--serve-host ADDR` | where the proxy server listens (default `127.0.0.1`; any other address needs a password or `--serve-open`) |
 | `--serve-password SECRET` | clients must send this password in the proxy login; better set `PROXY_SCRAPER_SERVE_PASSWORD` |
+| `--serve-open` | allow `--serve-host` without a password – only behind a firewall or with `docker -p 127.0.0.1:…` |
 | `--rotate STRATEGY` · `--sticky SEC` | how the proxy server picks proxies, see [above](#proxy-server) |
 | `--serve-refill HOURS` | while serving, check fresh proxies every HOURS and add the hits to the pool |
 | `--serve [PORT]` | afterwards serve as a rotating proxy on `127.0.0.1:PORT` (default: 8899) |

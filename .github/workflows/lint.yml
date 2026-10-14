@@ -17,5 +17,5 @@ jobs:
         with:
           python-version: "3.13"
       # version pinned so the same rules apply locally and in CI
-      - run: pip install -r .github/requirements/lint.txt
+      - run: pip install --require-hashes -r .github/requirements/lint.txt
       - run: ruff check --output-format=github .

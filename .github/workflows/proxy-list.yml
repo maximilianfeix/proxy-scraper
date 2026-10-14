@@ -26,7 +26,7 @@ jobs:
         with:
           python-version: "3.13"
           cache: pip
-      - run: pip install -r .github/requirements/run.txt
+      - run: pip install --require-hashes -r .github/requirements/run.txt
 
       # learned source statistics and history from the last run – the tool keeps learning here too
       - uses: actions/cache/restore@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6
@@ -178,7 +178,7 @@ jobs:
           parquet="proxies-$day.parquet"
           target="data/$year/$parquet"
 
-          python -m pip install --quiet -r .github/requirements/hf.txt
+          python -m pip install --quiet --require-hashes -r .github/requirements/hf.txt
           # the dataset card is kept in the repo; an unchanged card makes no commit
           hf upload "$HF_DATASET_REPO" docs/huggingface/README.md README.md --repo-type dataset \
               --commit-message "Update dataset card" || echo "::warning::Could not update the dataset card"

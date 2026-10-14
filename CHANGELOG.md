@@ -6,6 +6,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ### Security
 - The rotating proxy server no longer starts as an open proxy by accident: `--serve-host` on any address but `127.0.0.1` / `::1` / `localhost` now needs a password (`PROXY_SCRAPER_SERVE_PASSWORD`) or the explicit `--serve-open`. Before, this was only a warning – and Docker publishes ports past host firewalls like ufw, so `-p 8899:8899` without a password served anyone on the internet. The check runs before the scan, exits with code 2 and says what to set. `compose.yaml` already uses a password and is unaffected. If you run the image with `--serve-host 0.0.0.0 -p 127.0.0.1:8899:8899` and no password, add `--serve-open`
+- Supply chain: every CI install from the hash-locked requirement files now runs with `--require-hashes`, so a line without a hash fails the build instead of installing unchecked, and the Docker base image is pinned by digest (multi-arch index) with a weekly Dependabot update that keeps the base image's security fixes coming. The release job checks `mcp-publisher` against the sha256 from its release before running it
 
 ### Fixed
 - `test_finds_add_up_and_old_ones_expire` depended on today's date and failed from 2026-10-12 on ([#327](https://github.com/maximilianfeix/proxy-scraper/pull/327))

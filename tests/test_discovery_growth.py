@@ -15,7 +15,7 @@ def test_finds_add_up_and_old_ones_expire(tmp_path):
     srcs.save_discovered({"https://b/socks5.txt": "socks5"}, path, now=NOW - timedelta(days=5))
     kept = srcs.save_discovered({"https://c/all.txt": "auto"}, path, now=NOW)
     assert kept == {"https://b/socks5.txt": "socks5", "https://c/all.txt": "auto"}  # a: not seen for 30 days
-    assert srcs.load_discovered(path) == kept
+    assert srcs.load_discovered(path, now=NOW) == kept
     seen = json.loads(path.read_text())["last_seen"]
     assert seen["https://b/socks5.txt"] < seen["https://c/all.txt"]
 

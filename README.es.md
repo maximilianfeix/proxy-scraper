@@ -122,7 +122,7 @@ pip install -r requirements.txt
 python3 proxy_scraper.py
 ```
 
-Cada [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) incluye además un wheel que puedes instalar con `pip install <file>.whl`, y una imagen multiarquitectura (amd64/arm64) en `ghcr.io`. En el contenedor el asistente nunca aparece: se ejecuta directamente. Para el servidor proxy usa `--serve --serve-host 0.0.0.0` con `-p 127.0.0.1:8899:8899`, de modo que el puerto solo esté abierto en tu propia máquina.
+Cada [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest) incluye además un wheel que puedes instalar con `pip install <file>.whl`, y una imagen multiarquitectura (amd64/arm64) en `ghcr.io`. En el contenedor el asistente nunca aparece: se ejecuta directamente. Para el servidor proxy usa `--serve --serve-host 0.0.0.0 --serve-open` con `-p 127.0.0.1:8899:8899`, de modo que el puerto solo esté abierto en tu propia máquina, o define `-e PROXY_SCRAPER_SERVE_PASSWORD=…` en lugar de `--serve-open`.
 
 Autocompletado con tabulador para bash, zsh, fish y PowerShell:
 
@@ -501,7 +501,7 @@ proxy-scraper --recheck --serve --serve-host 0.0.0.0
 curl -x "http://country-de:$PROXY_SCRAPER_SERVE_PASSWORD@your-server:8899" https://api.ipify.org
 ```
 
-Sin contraseña, `--serve-host` significa que **cualquiera que llegue al puerto puede usarlo**. El [`compose.yaml`](compose.yaml) incluido inicia el servidor en Docker a partir de la lista en vivo, con contraseña, comprobación de estado y el estado aprendido en un volumen: pon `PROXY_PASSWORD=…` en `.env` y luego ejecuta `docker compose up -d`.
+Sin contraseña, el servidor no arranca en ninguna dirección que no sea `127.0.0.1`: sería un proxy abierto para **cualquiera que llegue al puerto** (Docker publica los puertos saltándose cortafuegos como ufw). Si un cortafuegos o `-p 127.0.0.1:…` ya impide el acceso a otros, indícalo con `--serve-open`. El [`compose.yaml`](compose.yaml) incluido inicia el servidor en Docker a partir de la lista en vivo, con contraseña, comprobación de estado y el estado aprendido en un volumen: pon `PROXY_PASSWORD=…` en `.env` y luego ejecuta `docker compose up -d`.
 
 | Opción | Qué hace |
 |---|---|
@@ -855,8 +855,9 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--no-cache` | descarga de nuevo todas las listas (las que no han cambiado normalmente se omiten mediante ETag) |
 | `--list-sources [N]` | muestra el ranking de fuentes (añade `--json` para scripts: url, estado, tasa de aciertos, comprobaciones, último cambio) |
 | `--pick [N]` | imprime N proxies (por defecto 1) de la lista horaria ya comprobada y sale: sin escaneo, mismos filtros, más `--min-uptime PERCENT`, `--min-speed KBPS` y `--works-on google,reddit,…` |
-| `--serve-host ADDR` | dónde escucha el servidor proxy (por defecto `127.0.0.1`; `0.0.0.0` para Docker, con una advertencia) |
+| `--serve-host ADDR` | dónde escucha el servidor proxy (por defecto `127.0.0.1`; cualquier otra dirección necesita contraseña o `--serve-open`) |
 | `--serve-password SECRET` | los clientes deben enviar esta contraseña en el login del proxy; mejor define `PROXY_SCRAPER_SERVE_PASSWORD` |
+| `--serve-open` | permite `--serve-host` sin contraseña: solo detrás de un cortafuegos o con `docker -p 127.0.0.1:…` |
 | `--rotate STRATEGY` · `--sticky SEC` | cómo elige proxies el servidor proxy, véase [arriba](#proxy-server) |
 | `--serve-refill HOURS` | mientras sirve, comprueba proxies nuevos cada HOURS y añade los aciertos al pool |
 | `--serve [PORT]` | después sirve como proxy rotativo en `127.0.0.1:PORT` (por defecto: 8899) |

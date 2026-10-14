@@ -306,6 +306,17 @@ def is_loopback(host: str) -> bool:
         return host == "localhost"
 
 
+def open_server_refusal(opts: RunOptions) -> Optional[str]:
+    """Why the proxy server must not start with these settings, or None. Outside 127.0.0.1 without a password it
+    is an open proxy for anyone who reaches the port – Docker publishes ports on every interface by default
+    and past host firewalls like ufw – so that takes a deliberate --serve-open."""
+    if not opts.serve or is_loopback(opts.serve_host) or opts.serve_password or opts.serve_open:
+        return None
+    return (f"--serve-host {opts.serve_host} without a password would be an open proxy for anyone who reaches the "
+            "port. Set PROXY_SCRAPER_SERVE_PASSWORD (clients send it in the proxy login), or add --serve-open if "
+            "a firewall or docker -p 127.0.0.1:8899:8899 already keeps others out.")
+
+
 class Run:
     def __init__(self, opts: RunOptions, show_banner: bool = True):
         self.opts = opts
@@ -569,13 +580,17 @@ class Run:
         if not proxies:
             note("No matching proxy found – the proxy server doesn't start.", BAD, "✘")
             return
+        refusal = open_server_refusal(self.opts)
+        if refusal:  # cli.run refuses before the scan; this covers Run used on its own
+            note(refusal, BAD, "✘")
+            return
         pool = ProxyPool(proxies, strategy=self.opts.rotate, sticky_seconds=self.opts.sticky)
         server = RotatingServer(pool, host=self.opts.serve_host, port=self.opts.serve, timeout=self.opts.timeout,
                                 password=self.opts.serve_password)
         if not is_loopback(self.opts.serve_host) and not self.opts.serve_password:
             note(f"The proxy server listens on {self.opts.serve_host} – without a password. Anyone who can reach "
-                 "it can use it. Set PROXY_SCRAPER_SERVE_PASSWORD, or keep it behind a firewall "
-                 "or in a container with -p 127.0.0.1:…", WARN, "⚠")
+                 "it can use it (--serve-open). Keep it behind a firewall or in a container with "
+                 "-p 127.0.0.1:…", WARN, "⚠")
         try:
             await server.start()
         except OSError as e:

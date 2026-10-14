@@ -16,7 +16,7 @@ from rich.text import Text
 
 from . import __version__
 from . import sources as srcs
-from .app import Run
+from .app import Run, open_server_refusal
 from .compat import ensure_utf8_output
 from .completion import CompletionAction
 from .exporters import EXPORTERS, parse_exports
@@ -225,6 +225,9 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
     v.add_argument("--serve-password", default=os.environ.get("PROXY_SCRAPER_SERVE_PASSWORD", ""), metavar="SECRET",
                    help="clients must send this password in the proxy login (HTTP and SOCKS5); better set "
                         "PROXY_SCRAPER_SERVE_PASSWORD, so it doesn't show up in the process list")
+    v.add_argument("--serve-open", action="store_true",
+                   help="allow --serve-host on an address other than 127.0.0.1 without a password – an open proxy "
+                        "for anyone who reaches the port. Only behind a firewall or with docker -p 127.0.0.1:…")
     v.add_argument("--serve-refill", type=non_negative_float, default=0, metavar="HOURS",
                    help="every HOURS check fresh proxies in the background (the live list with --recheck live, "
                         "otherwise the last run + history) and add the hits to the running server")
@@ -334,6 +337,10 @@ def run(argv: Optional[List[str]] = None) -> int:
         if opts is None:
             note("Cancelled – nothing was started.", MUTED, "ℹ")
             return 0
+    refusal = open_server_refusal(opts)
+    if refusal:  # before the scan, not after minutes of checking
+        note(refusal, BAD, "✘")
+        return 2
     try:
         # after the wizard the banner is already on screen
         return asyncio.run(Run(opts, show_banner=not use_wizard).execute())

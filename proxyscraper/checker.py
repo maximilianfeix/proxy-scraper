@@ -102,6 +102,13 @@ HTTPS_LIMITS = ("a verified TLS connection to this one host worked through the p
                 "nothing about other sites, later requests or who runs the proxy")
 
 
+def control_clock() -> float:
+    """Seconds for ordering checks and control answers. Not the event loop's clock: that is time.monotonic(),
+    which ticks only every ~15.6 ms on Windows before Python 3.13 – a control asked just *before* a check began
+    would then carry the same time and pass for an answer asked after it."""
+    return time.perf_counter()
+
+
 async def wait_for(coro, timeout: float):
     """asyncio.wait_for that leaves no unretrieved exception behind when cancelled.
 
@@ -224,7 +231,7 @@ class Checker:
         ptype, proxy = split_key(key)
         judge = self.judge
         target = authority(judge.host, judge.port)
-        began = asyncio.get_running_loop().time()
+        began = control_clock()
         start = time.perf_counter()
         reason, exit_ip = "", ""
         connected: List[bool] = []
@@ -346,7 +353,7 @@ class Checker:
         target = authority(self.confirm_host, self.confirm_port)
         if not self.confirms:
             return Check(UNAVAILABLE, "target_not_configured", target, now_iso(), limits=UNCONFIRMED_LIMITS)
-        began = asyncio.get_running_loop().time()
+        began = control_clock()
         start = time.perf_counter()
         reason, data = "", {}
         try:
@@ -407,7 +414,7 @@ class Checker:
             return Check(UNAVAILABLE, "target_not_configured", target, now_iso())
         if self.integrity_reference is None:
             return Check(UNAVAILABLE, "no_reference", target, now_iso())
-        began = asyncio.get_running_loop().time()
+        began = control_clock()
         start = time.perf_counter()
         try:
             body = await wait_for(self._confirm(result.ptype, result.proxy, self.integrity_request,
@@ -432,7 +439,7 @@ class Checker:
     # ------------------------------------------------------------------ is the target itself still there?
 
     async def _control(self, name: str, since: float):
-        """What this check's target says when asked directly, for a check that began at `since` (loop time) and
+        """What this check's target says when asked directly, for a check that began at `since` (control_clock()) and
         failed. None on an error.
 
         Only an answer asked for after the check began counts as "fine" – an older one says nothing about a
@@ -441,8 +448,7 @@ class Checker:
         believed for CONTROL_SECONDS without asking again: it costs a proxy nothing but an "unavailable".
         What stays possible: a target that dies between that answer and the proxy's own request, within one
         check's duration."""
-        loop = asyncio.get_running_loop()
-        now = loop.time()
+        now = control_clock()
         cached = self._control_cache.get(name)
         if cached is not None:
             asked_at, answer = cached
@@ -500,7 +506,7 @@ class Checker:
     async def https_check(self, result: CheckResult) -> Check:
         """The HTTPS test with its outcome. Passed means: HTTPS_LIMITS, and nothing beyond that."""
         target = authority(self.judge.host, self.https_port)
-        began = asyncio.get_running_loop().time()
+        began = control_clock()
         start = time.perf_counter()
         try:
             async with self._slots():

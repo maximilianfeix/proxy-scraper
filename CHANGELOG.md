@@ -28,6 +28,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - Docker image: base image is now `python:3.14-slim` (was 3.12), still pinned by digest. CI dependencies bumped together: ruff 0.17.0 (lock file regenerated, the separate Dependabot PR failed on the stale `lint.txt`), CodeQL action 4.38.3 for init, analyze and upload-sarif at once (the analyze-only bump failed on a version mismatch – Dependabot now groups them), Scorecard action 2.5.0, upload/download-artifact 7.0.2/8.0.2
 
 ### Fixed
+- On Windows with Python before 3.13, a control answer from just before a check began could count as fresh (the event loop's clock ticks every ~15.6 ms there), so `--diagnose` and `--pick --verify` could compare a changed test page against an old copy or blame a proxy for a target that was down. Control answers and checks are now ordered by `time.perf_counter()`
 - A proxy whose TCP connect used up the whole time limit was reported as `timeout` ("accepted the connection but did not answer") instead of `connect_timeout`, and with a control set (`--diagnose`, `--pick --verify`) it could even become "target unreachable". On Windows, which retries a refused local port for about 2 s, this was the normal case
 - `--pick` when the list can't be loaded suggested `check_proxies`, which is a tool of the MCP server, not a command
 - `--recheck` with only local or private addresses said "No proxies to check" without saying that such addresses are skipped

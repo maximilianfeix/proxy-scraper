@@ -6,6 +6,11 @@ updates:
       interval: weekly
     commit-message:
       prefix: "ci"
+    # every github/codeql-action step has to run the same version – one PR per bump keeps init and analyze apart
+    # and fails the analyze job ("Loaded a configuration file for version …")
+    groups:
+      codeql-action:
+        patterns: ["github/codeql-action*"]
   # Python dependencies – this entry also picks up bot/requirements.txt – grouped into one PR a week
   - package-ecosystem: pip
     directory: /
@@ -17,7 +22,7 @@ updates:
       python:
         patterns: ["*"]
   # the base image is pinned by digest (reproducible builds) – this keeps the digest current, so security fixes
-  # in python:3.12-slim still arrive weekly
+  # in python:3.14-slim still arrive weekly
   - package-ecosystem: docker
     directory: /
     schedule:

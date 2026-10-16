@@ -32,6 +32,10 @@
 
 Most free proxy lists are 95 % dead, and a good part of the rest are honeypots or proxies that inject scripts into your pages. **proxy-scraper** collects public HTTP, SOCKS4 and SOCKS5 proxies from 700+ sources and keeps only the ones that pass every check. It learns with every run which sources are worth it, and it can turn the result into a single rotating proxy.
 
+<a href="docs/video/proxy-scraper.mp4"><img src="docs/video/proxy-scraper.jpg" alt="21-second video: 700+ lists sifted down to proxies that pass every check, the live dashboard, --pick and --serve" width="100%"></a>
+
+<sub>▶ <a href="docs/video/proxy-scraper.mp4">Watch the 21-second video</a> · real interface, example numbers, documentation IPs</sub>
+
 **In numbers:** in one day it ran 3.6 million checks on free proxies – 1.1 % passed, and more than half of the ones that answered failed a second request. [What's actually out there →](docs/free-proxies-in-numbers.md)
 
 **Used by:** the hourly list is a built-in source of [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).

@@ -227,10 +227,15 @@ class Checker:
         began = asyncio.get_running_loop().time()
         start = time.perf_counter()
         reason, exit_ip = "", ""
+        connected: List[bool] = []
         try:
-            body = await wait_for(self._check(ptype, proxy), self.timeout)
+            body = await wait_for(self._check(ptype, proxy, connected), self.timeout)
         except Exception as e:  # timeout, connection error, broken response – all mean "no good"
             reason = reason_for(e)
+            if reason == "timeout" and not connected:
+                # the time ran out during the TCP connect (with connect timeout = timeout the outer limit can
+                # fire first; Windows also retries a refused localhost port for ~2 s): the proxy never answered
+                reason = "connect_timeout"
         else:
             if body is None:
                 reason = "bad_status"
@@ -264,7 +269,7 @@ class Checker:
         result.checks[BASIC] = check
         return result, check
 
-    async def _check(self, ptype: str, proxy: str):
+    async def _check(self, ptype: str, proxy: str, connected: Optional[List[bool]] = None):
         # Many ip:port entries appear under several types in the lists – whatever fails at the
         # TCP connect fails for the other types just the same.
         ep = parse_endpoint(proxy)
@@ -274,6 +279,8 @@ class Checker:
         ip_bytes, port = self.judge_ip_bytes, self.judge.port
         request = self.http_proxy_request if ptype == "http" else self.request
         reader, writer = await self._connect_or_fail(proxy)
+        if connected is not None:
+            connected.append(True)
         try:
             if not await self._handshake(ptype, ep, reader, writer, ip_bytes, port):
                 raise CheckFailed("handshake_refused")

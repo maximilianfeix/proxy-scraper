@@ -93,6 +93,20 @@ def test_a_closed_port_is_connect_refused():
     assert sum(c.failures.values()) == 1
 
 
+def test_running_out_of_time_during_the_connect_is_connect_timeout_not_a_silent_proxy(monkeypatch):
+    """With connect timeout = timeout the outer limit can fire first; the proxy still never answered."""
+    async def scenario(lab, c):
+        async def hangs(proxy, detail=False):
+            await asyncio.sleep(10)
+
+        monkeypatch.setattr(c, "_connect", hangs)
+        c.timeout = 0.2
+        return await all_checks(c, await lab.proxy(EXIT))
+
+    result, checks = in_lab(scenario)
+    assert result is None and states(checks)[BASIC] == (FAILED, "connect_timeout")
+
+
 def test_a_page_instead_of_an_ip_is_an_invalid_response():
     async def scenario(lab, c):
         return await all_checks(c, await lab.proxy(EXIT, garbage=True))
@@ -412,7 +426,9 @@ def test_a_reference_that_changed_since_the_last_look_is_fetched_again():
     assert first[CONTENT].state == PASSED and second[CONTENT].state == PASSED
 
 
-@pytest.mark.parametrize("body", [b"[" * 200_000, b'{"origin": "9.9.9.9", "headers": ' + b"[" * 200_000])
+# short ids: pytest puts the test id into PYTEST_CURRENT_TEST, and Windows refuses variables over 32,767 characters
+@pytest.mark.parametrize("body", [b"[" * 200_000, b'{"origin": "9.9.9.9", "headers": ' + b"[" * 200_000],
+                         ids=["bare", "inside-headers"])
 def test_absurdly_nested_json_from_a_proxy_is_an_unusable_answer_not_a_crash(body):
     assert ck.confirmation_origins(body) is None
     assert ck.classify_anonymity(body, set()) is None

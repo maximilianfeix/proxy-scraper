@@ -37,7 +37,7 @@ uvx proxy-scraper-cli --pick 3 --verify               # 从每小时列表最多
 uvx proxy-scraper-cli --diagnose socks5://HOST:PORT   # 单个代理，逐项检测：哪些做到了，哪些没做到
 ```
 
-PyPI 上的包名是 `proxy-scraper-cli`（不带后缀的名字已被占用）。[安装](#install)之后，命令是 `proxy-scraper`。`--verify` 和 `--diagnose` 需要 1.29 或更高版本。
+PyPI 上的包名是 `proxy-scraper-cli`（不带后缀的名字已被占用）。[安装](#install)之后，命令是 `proxy-scraper`。`--verify` 和 `--diagnose` 需要 1.30 或更高版本。
 
 **获取代理的三种方式，以及每种方式下「已检测」的含义：**
 

@@ -11,7 +11,7 @@ Every check of a proxy ends in one of four states. They are in `proxies.json`, i
 
 Two rules follow from that:
 
-- **A check that didn't run is never `passed`.** Before 1.29, a run without a reachable second target kept every proxy as if it had been confirmed, and a missing reference page looked like "content unchanged".
+- **A check that didn't run is never `passed`.** Before 1.30, a run without a reachable second target kept every proxy as if it had been confirmed, and a missing reference page looked like "content unchanged".
 - **A check target that is down doesn't fail the proxies checked against it.** When a second request, a content request that returned a different page, or an HTTPS test fails, the tool asks the target directly: at most once every 3 seconds however many proxies fail in between, and a "down" answer is reused for 10 seconds. If the target doesn't answer, the proxy's check is `unavailable`, not `failed`. For the first request a scan does it differently: it watches the target, switches to another one and checks the affected proxies again. `--diagnose` and `--pick --verify` have no such watcher and ask directly, as for the later checks. Two things are never asked about, because the target did answer: a second site that saw a different exit IP, and a proxy that could not be connected to in the first place.
 
 ## The checks
@@ -102,7 +102,7 @@ The published list is stricter. Only measured passes are listed, `stats.json` sa
 Every run writes `run.json` next to its results, and the hourly list publishes it:
 
 ```json
-{"schema": 1, "version": "1.29.0", "started": "…", "finished": "…",
+{"schema": 1, "version": "1.30.0", "started": "…", "finished": "…",
  "targets": {"basic": "checkip.amazonaws.com", "basic_switches": [], "confirm": "httpbin.org", "content_reference": true},
  "candidates": 150000, "checked": 150000, "not_checked": 0, "no_verdict_local": 0, "stopped": null,
  "working": 1104, "kept": 1104,
@@ -124,7 +124,7 @@ Nothing was renamed or removed. `https` is still `true`, `false` or `null`, and 
 
 `proxies.csv`, a run's own and the hourly list's, has five new columns, all at the end so the old ones keep their position: `checked_at`, then `check_basic`, `check_confirm`, `check_content` and `check_https` with values like `passed` or `unavailable:target_unreachable`.
 
-Lists published before 1.29 have neither `checks` nor `checked_at`. Readers treat that as "not recorded", not as passed.
+Lists published before 1.30 have neither `checks` nor `checked_at`. Readers treat that as "not recorded", not as passed.
 
 ## Exit codes of the commands that check a few proxies
 

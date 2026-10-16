@@ -264,7 +264,7 @@ def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) ->
         "uptime_7d_percent": item.get("uptime_7d"),
         "works_on": [name for name, ok in (item.get("sites") or {}).items() if ok],
         "speed_kbps": item.get("speed_kbps"),
-        # when this proxy itself was checked and how each check ended (lists from before 1.29 have neither)
+        # when this proxy itself was checked and how each check ended (lists from before 1.30 have neither)
         "checked_at": item["checked_at"] if isinstance(item.get("checked_at"), str) and item["checked_at"] else None,
         # the list comes from the network: only checks that are objects with a known state get through
         "checks": {name: check for name, check in (item.get("checks") if isinstance(item.get("checks"), dict)

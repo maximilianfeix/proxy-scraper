@@ -27,7 +27,7 @@ The per-run numbers in that CSV were read from the workflow's console logs ([`fu
 
 **Why the second request failed.** The logs have a count and no reasons. A proxy fails this step if it can't load two pages in a row, if its exit IP changes between the two requests (a rotating or chained exit), if it only answers the first check, or if the second site turns it away. The earlier version of this page called these "honeypots". Some may be. Nothing that was measured says how many.
 
-It also counts httpbin.org's own bad minutes. Until 1.29 the tool asked httpbin.org directly once, at the start of a run, and never again. If it went down halfway, every proxy after that failed the second request. None of the 24 runs logged a missing second target at the start; what happened during them is not in the logs.
+It also counts httpbin.org's own bad minutes. Until 1.30 the tool asked httpbin.org directly once, at the start of a run, and never again. If it went down halfway, every proxy after that failed the second request. None of the 24 runs logged a missing second target at the start; what happened during them is not in the logs.
 
 **Why the page differed.** The check compares one hash. A page cut off by the proxy, a cached older copy, a block page with status 200 and an injected script all give a different hash. The earlier version said these proxies "usually inject a script". That came from one early look at 270 proxies, of which 54 returned a changed page. No sample of those pages was kept, so it is not a finding. The earlier version also gave the share as "1 in 40 working proxies", which used the wrong denominator: 2,244 is 2.4 % of everything that answered, and 5.2 % of the proxies that reached this check.
 
@@ -69,7 +69,7 @@ Median over the week's runs, range in brackets. So about a quarter of a list is 
 
 ### What this doesn't tell you
 
-**That an entry failed.** Not being on the list is not a recorded failure. An entry is missing from a run if it failed a check, but also if the run didn't get to it, if the runner was slow that hour, or if the second check target had a bad moment. Before 1.29 the published data can't tell these apart.
+**That an entry failed.** Not being on the list is not a recorded failure. An entry is missing from a run if it failed a check, but also if the run didn't get to it, if the runner was slow that hour, or if the second check target had a bad moment. Before 1.30 the published data can't tell these apart.
 
 **How long a proxy lives.** Runs are about hourly: the median gap was 0.96 h, eight gaps were over 1.5 h and one was 13.9 h. "24 runs" is roughly a day, not exactly. Stretches that began before the week or haven't ended are left out of the "left the list" rows, and those are the long ones.
 
@@ -97,9 +97,9 @@ The first version showed one run (Google 47 %, Amazon 2 %) and concluded "Amazon
 - median first answer after 1.9 s; median download speed 68 KiB/s among the HTTPS-capable entries from which at least 20 KB of a 100 KB download arrived within 12 seconds
 - most entries were SOCKS5, and most SOCKS5 entries are ports on the crowded hosts (937 of 1,122 in that day's stored list, the 01:14 snapshot, all in one /24), so this says little about the protocols
 
-## What changes with 1.29
+## What changes with 1.30
 
-The gaps above are gaps in what was recorded. From 1.29 on:
+The gaps above are gaps in what was recorded. From 1.30 on:
 
 - every check of every kept proxy ends as `passed`, `failed`, `unavailable` or `skipped`, with a reason code, the target and the time ([check states](check-states.md))
 - a check target that goes down mid-run no longer fails the proxies checked against it; they are marked `unavailable`

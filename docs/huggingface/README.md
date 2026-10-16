@@ -82,7 +82,7 @@ measured yet on early days are null, and so are `asn`, `org`, `country`, `anonym
 the same columns, so all days load as one table.
 
 Not being on the list in a run is not a measured failure, so `streak` and `uptime_*` describe list membership.
-From proxy-scraper 1.29 on, each row of the published `proxies.json` and of the daily `proxies-YYYY-MM-DD.json.gz`
+From proxy-scraper 1.30 on, each row of the published `proxies.json` and of the daily `proxies-YYYY-MM-DD.json.gz`
 snapshots in the GitHub release also carries `checked_at` and `checks`: how each check ended (`passed`, `failed`,
 `unavailable` or `skipped`). The Parquet files here keep the fixed columns above.
 

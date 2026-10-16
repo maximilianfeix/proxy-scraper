@@ -10,7 +10,7 @@ Compared with [monosans/proxy-scraper-checker](https://github.com/monosans/proxy
 
 | | What you do | How recent, and can you see it |
 |---|---|---|
-| **proxy-scraper** | `uvx proxy-scraper-cli --pick 5`, or `--pick 5 --verify` to check them from your network first | Hourly list; with 1.29 every entry has its own `checked_at`. With `--verify`: checked seconds ago, time in `--json` |
+| **proxy-scraper** | `uvx proxy-scraper-cli --pick 5`, or `--pick 5 --verify` to check them from your network first | Hourly list; with 1.30 every entry has its own `checked_at`. With `--verify`: checked seconds ago, time in `--json` |
 | monosans | No pick command. `curl` the first lines of [monosans/proxy-list](https://github.com/monosans/proxy-list), or run a full scrape-and-check | List re-checked every hour; the time is the commit's, per list |
 | proxy_pool | Start Redis, the scheduler and the server, then `curl 127.0.0.1:5010/all/` | Pool re-checked every 2 minutes; `last_time` per proxy. HTTP proxies only |
 | proxybroker2 | `python -m proxybroker find --types HTTP --limit 5` | Checked during the command. No time in the output |
@@ -30,7 +30,7 @@ If you already run Redis and want a pool that keeps itself fresh, proxy_pool doe
 
 | | What you can see |
 |---|---|
-| **proxy-scraper** | `--diagnose PROXY`: every check with `passed`, `failed`, `unavailable` or `skipped`, a reason code, the target and the time, as text or JSON. The same per kept proxy in `proxies.json`, and counted by reason in `run.json`. New in 1.29; before that, nothing per proxy |
+| **proxy-scraper** | `--diagnose PROXY`: every check with `passed`, `failed`, `unavailable` or `skipped`, a reason code, the target and the time, as text or JSON. The same per kept proxy in `proxies.json`, and counted by reason in `run.json`. New in 1.30; before that, nothing per proxy |
 | monosans | `debug = true`: one line of error text per failed proxy |
 | proxy_pool | `fail_count` and pass/fail log lines; the validators swallow the reason |
 | proxybroker2 | `--log DEBUG` with per-protocol steps, `--show-stats` with buckets (timeout, failed, wrong protocol or level), `proxy.get_log()` from Python |
@@ -65,7 +65,7 @@ For a shared, persistent pool behind Redis, proxy_pool is the better fit. proxy-
 | The check | exit IP from a check target, a second site that has to see the same IP, a static page that has to arrive byte for byte | one full fetch of `https://ipv4.icanhazip.com` by default | `HEAD http://httpbin.org`, then `HEAD https://www.qq.com` | a "judge" page that has to echo a marker, referer and cookie |
 | TLS certificate verified | in the separate HTTPS test (one host); a proxy without HTTPS is still listed, with `https: false` | yes, in the main check with the default settings | no (`verify=False`) | off by default (`--verify-ssl`) |
 | Anonymity level | yes | no | field exists, never set | yes |
-| "Could not be checked" apart from "failed" | yes, per check (1.29) | no | only "not checked yet" (`last_status` empty) | no |
+| "Could not be checked" apart from "failed" | yes, per check (1.30) | no | only "not checked yet" (`last_status` empty) | no |
 | IPv6 | no | not verified | not verified | yes |
 
 Where the others are the better choice:
@@ -83,7 +83,7 @@ Where the others are the better choice:
 | Proxy must complete a real request | "validated" | not documented | yes, a full URL fetch | "Google passed" per entry | yes, two sites that have to see the same exit IP |
 | A test page has to arrive unchanged | not documented | not documented | not documented | not documented | yes, one static page, byte for byte |
 | HTTPS tested with a verified certificate | `https` field, method not documented | not documented | yes, if the list is built with the checker's default settings (not verified) | not documented | yes, a separate test to one host |
-| Outcome of each check per entry | no | no | no | no | yes, from 1.29 |
+| Outcome of each check per entry | no | no | no | no | yes, from 1.30 |
 | Per-protocol files | txt, json, csv | txt | txt, json | txt | txt (json and csv hold all protocols together) |
 | Per-country files | yes | no | no (country in JSON) | no (country per line) | yes, plus per site |
 | Per entry | country, city, anonymity, https, score | – | latency, country, city, ASN | country, anonymity, Google passed | latency, country, ASN, anonymity, hoster flag, share of runs on the list |

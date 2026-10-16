@@ -47,7 +47,7 @@ uvx proxy-scraper-cli --pick 3 --verify               # hasta 3 proxies de la li
 uvx proxy-scraper-cli --diagnose socks5://HOST:PORT   # un proxy, comprobación por comprobación: qué hizo y qué no
 ```
 
-El paquete se llama `proxy-scraper-cli` en PyPI (el nombre sin sufijo ya estaba cogido). Una vez [instalado](#install), el comando es `proxy-scraper`. `--verify` y `--diagnose` necesitan la versión 1.29 o posterior.
+El paquete se llama `proxy-scraper-cli` en PyPI (el nombre sin sufijo ya estaba cogido). Una vez [instalado](#install), el comando es `proxy-scraper`. `--verify` y `--diagnose` necesitan la versión 1.30 o posterior.
 
 **Tres formas de conseguir proxies, y qué significa “comprobado” en cada una:**
 
@@ -331,7 +331,7 @@ Más de 350 listas curadas, además de las que se encuentran a través de metali
 <td valign="top">
 
 **Verificación real**<br>
-Cada acierto tiene que responder a **una segunda petición** a un sitio no relacionado con la misma IP de salida: en más de 3,6 millones de comprobaciones, el 54 % de los proxies que respondieron a la primera petición no superaron la segunda. Una tercera petición descarga **una página de prueba estática que tiene que llegar byte por byte**: en el 5,2 % de los proxies que llegaron hasta ahí no fue así. Por qué un proxy falla una u otra (inestable, una salida que rota, una página modificada o cortada) es algo que esas ejecuciones no registraron; desde la versión 1.29 cada resultado lleva un código de motivo ([las cifras](docs/free-proxies-in-numbers.md), [estados de las comprobaciones](docs/check-states.md)). Además: HTTPS a través de un túnel con **un certificado TLS que se verifica** para el host de prueba, nivel de anonimato *elite / anonymous / transparent* y el país de la IP de salida.
+Cada acierto tiene que responder a **una segunda petición** a un sitio no relacionado con la misma IP de salida: en más de 3,6 millones de comprobaciones, el 54 % de los proxies que respondieron a la primera petición no superaron la segunda. Una tercera petición descarga **una página de prueba estática que tiene que llegar byte por byte**: en el 5,2 % de los proxies que llegaron hasta ahí no fue así. Por qué un proxy falla una u otra (inestable, una salida que rota, una página modificada o cortada) es algo que esas ejecuciones no registraron; desde la versión 1.30 cada resultado lleva un código de motivo ([las cifras](docs/free-proxies-in-numbers.md), [estados de las comprobaciones](docs/check-states.md)). Además: HTTPS a través de un túnel con **un certificado TLS que se verifica** para el host de prueba, nivel de anonimato *elite / anonymous / transparent* y el país de la IP de salida.
 
 </td>
 <td valign="top">

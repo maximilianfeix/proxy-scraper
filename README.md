@@ -49,7 +49,7 @@ uvx proxy-scraper-cli --pick 3 --verify               # up to 3 proxies from the
 uvx proxy-scraper-cli --diagnose socks5://HOST:PORT   # one proxy, check by check: what it did and what it didn't
 ```
 
-The package is `proxy-scraper-cli` on PyPI (the plain name is taken). Once [installed](#install), the command is `proxy-scraper`. `--verify` and `--diagnose` need version 1.29 or newer.
+The package is `proxy-scraper-cli` on PyPI (the plain name is taken). Once [installed](#install), the command is `proxy-scraper`. `--verify` and `--diagnose` need version 1.30 or newer.
 
 **Three ways to get proxies, and what "checked" means for each:**
 
@@ -337,7 +337,7 @@ Started without arguments, the tool asks what you need using the arrow keys – 
 <td valign="top">
 
 **Real verification**<br>
-Every hit has to answer **a second request** to an unrelated site with the same exit IP: over 3.6 million checks, 54 % of the proxies that answered the first request did not pass the second. A third request fetches **a static test page that has to arrive byte for byte**: for 5.2 % of the proxies that got that far it didn't. Why a proxy fails either one (unstable, a rotating exit, a changed or cut-off page) is not something those runs recorded; from 1.29 on every result carries a reason code ([the numbers](docs/free-proxies-in-numbers.md), [check states](docs/check-states.md)). Plus: HTTPS through a tunnel with **a TLS certificate that verifies** for the test host, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
+Every hit has to answer **a second request** to an unrelated site with the same exit IP: over 3.6 million checks, 54 % of the proxies that answered the first request did not pass the second. A third request fetches **a static test page that has to arrive byte for byte**: for 5.2 % of the proxies that got that far it didn't. Why a proxy fails either one (unstable, a rotating exit, a changed or cut-off page) is not something those runs recorded; from 1.30 on every result carries a reason code ([the numbers](docs/free-proxies-in-numbers.md), [check states](docs/check-states.md)). Plus: HTTPS through a tunnel with **a TLS certificate that verifies** for the test host, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
 
 </td>
 <td valign="top">

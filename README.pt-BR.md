@@ -37,7 +37,7 @@ uvx proxy-scraper-cli --pick 3 --verify               # até 3 proxies da lista 
 uvx proxy-scraper-cli --diagnose socks5://HOST:PORT   # um proxy, verificação por verificação: o que ele fez e o que não fez
 ```
 
-No PyPI o pacote se chama `proxy-scraper-cli` (o nome simples já estava ocupado). Depois de [instalado](#install), o comando é `proxy-scraper`. `--verify` e `--diagnose` exigem a versão 1.29 ou mais recente.
+No PyPI o pacote se chama `proxy-scraper-cli` (o nome simples já estava ocupado). Depois de [instalado](#install), o comando é `proxy-scraper`. `--verify` e `--diagnose` exigem a versão 1.30 ou mais recente.
 
 **Três formas de obter proxies, e o que "verificado" significa em cada uma:**
 

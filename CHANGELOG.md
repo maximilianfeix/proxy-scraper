@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.30.0] – 2026-10-16
+
 ### Added
 - **Every check has an outcome you can read.** Each kept proxy carries `checks`: `basic`, `confirm`, `content` and `https`, each `passed`, `failed`, `unavailable` or `skipped`, with a reason code, the target, the time (`at`, and `checked_at` for the proxy) and what was measured. In `proxies.json`, as columns at the end of `proxies.csv`, in the Python API (`result.checks`) and in the MCP results. [docs/check-states.md](docs/check-states.md) has the states, the reason codes and what each list requires
 - `--pick N --verify` checks the candidates of the hourly list from your machine first and prints only the ones that pass now (with `--https-only` the HTTPS test too). It tries 5 candidates per proxy asked for (10 to 60), up to 8 at a time, for 90 seconds at most. Exit code 3 when fewer than N passed; they are still printed. What happened to each candidate goes to stderr
@@ -372,7 +374,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.29.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.30.0...HEAD
+[1.30.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.29.0...v1.30.0
 [1.29.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.28.0...v1.29.0
 [1.28.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...v1.28.0
 [1.27.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...29b8fb6

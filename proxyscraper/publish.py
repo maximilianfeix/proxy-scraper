@@ -61,7 +61,7 @@ REQUIRES = {"all.txt": LISTED, "http.txt": LISTED, "socks4.txt": LISTED, "socks5
 
 def meets_requirements(row: dict) -> bool:
     """Did this proxy pass every check a listed proxy needs? Rows without recorded checks come from a run
-    before 1.29 and are taken as they are – there is nothing to read. (A result of the checker always carries
+    before 1.30 and are taken as they are – there is nothing to read. (A result of the checker always carries
     at least its basic check, so "no checks" can't be a proxy of a current run that skipped them.)"""
     checks = row.get("checks")
     if checks is None or checks == {}:
@@ -331,7 +331,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
         reader = csv.DictReader(src)
         extra = ("first_seen", "uptime_24h", "uptime_7d", "works_with", "speed_kbps")
         base = list(reader.fieldnames or ["proxy"])
-        # the columns of 1.29 (checked_at, check_…) go last, so the ones before them keep their position
+        # the columns of 1.30 (checked_at, check_…) go last, so the ones before them keep their position
         newer = [k for k in base if k == "checked_at" or k.startswith("check_")]
         base = [k for k in base if k not in newer]
         writer = csv.DictWriter(dst, fieldnames=[*base, *(k for k in extra if k not in base), *newer])

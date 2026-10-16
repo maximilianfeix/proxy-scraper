@@ -6,8 +6,8 @@
 
 One CSV row per run, read from what the run printed: how many unique candidates the lists held, how many of them
 were checked (the workflow's --limit), and how many ended where. The logs are the only place these numbers exist
-for runs before 1.29 – GitHub deletes them after 90 days, which is why the result is kept in data/.
-From 1.29 on every run writes the same numbers, with reasons, to run.json (see docs/check-states.md).
+for runs before 1.30 – GitHub deletes them after 90 days, which is why the result is kept in data/.
+From 1.30 on every run writes the same numbers, with reasons, to run.json (see docs/check-states.md).
 
 What a row can and cannot say:
   unique_candidates       protocol/address combinations (an ip:port listed as http and socks5 counts twice)

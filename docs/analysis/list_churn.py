@@ -10,7 +10,7 @@ That is all there is, so this is all the numbers below can mean:
   - "on the list" = passed the first request, the second request and the content check in that run.
     "Not on the list" has no recorded reason: the entry may
     have failed, may not have been reached within the run's limit of 150,000 checks, or the second check
-    target may have been unavailable. Before 1.29 none of these were told apart.
+    target may have been unavailable. Before 1.30 none of these were told apart.
   - An entry is one protocol and one ip:port. Many entries are ports of the same machine, so every number is
     given per entry and per host.
   - Runs are about hourly, not exactly; "24 runs" is roughly a day.
@@ -137,7 +137,7 @@ def main(folder: str) -> int:
         print(f"current list: {len(rows):,} entries, {len({r['proxy'] for r in rows}):,} ip:port, "
               f"{len({host(r['url']) for r in rows}):,} hosts, {len({r.get('exit_ip') for r in rows}):,} exit IPs")
         with_checks = sum(1 for r in rows if r.get("checks"))
-        print(f"entries that carry per-check states (1.29+): {with_checks:,}")
+        print(f"entries that carry per-check states (1.30+): {with_checks:,}")
     return 0
 
 

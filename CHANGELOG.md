@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- Docker image: base image is now `python:3.14-slim` (was 3.12), still pinned by digest. CI dependencies bumped together: ruff 0.17.0 (lock file regenerated, the separate Dependabot PR failed on the stale `lint.txt`), CodeQL action 4.38.3 for init, analyze and upload-sarif at once (the analyze-only bump failed on a version mismatch – Dependabot now groups them), Scorecard action 2.5.0, upload/download-artifact 7.0.2/8.0.2
+
 ## [1.29.0] – 2026-10-14
 
 ### Security

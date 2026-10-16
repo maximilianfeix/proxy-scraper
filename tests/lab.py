@@ -14,7 +14,7 @@ import asyncio
 import json
 import ssl
 from pathlib import Path
-from typing import Callable, Dict, List, Optional
+from typing import Callable, Dict, List, Optional, Set
 
 from proxyscraper import checker as ck
 from proxyscraper.checkstate import CONFIRM, CONTENT, HTTPS
@@ -63,6 +63,7 @@ class Lab:
     def __init__(self):
         self.exit_ips: Dict[int, str] = {}  # local port of a proxy's upstream connection -> that proxy's exit IP
         self.servers: List[asyncio.AbstractServer] = []
+        self._handlers: Set[asyncio.Task] = set()  # running connection handlers, held so they aren't collected
         self.confirm_down = False  # the second target stops answering (directly and through proxies)
         self.page = PAGE           # what /html returns at its source
         self.https_status = b"200 OK"  # what the TLS target answers with
@@ -82,7 +83,17 @@ class Lab:
             await server.wait_closed()
 
     async def _listen(self, handler, context: Optional[ssl.SSLContext] = None, port: int = 0) -> int:
-        server = await asyncio.start_server(handler, "127.0.0.1", port, ssl=context)
+        async def held(reader, writer) -> None:
+            # Python 3.9/3.10 keep no reference to a start_server handler task: the garbage collector could end
+            # one mid-answer ("Task was destroyed but it is pending!") and the checker saw an empty reply
+            task = asyncio.current_task()
+            self._handlers.add(task)
+            try:
+                await handler(reader, writer)
+            finally:
+                self._handlers.discard(task)
+
+        server = await asyncio.start_server(held, "127.0.0.1", port, ssl=context)
         self.servers.append(server)
         return server.sockets[0].getsockname()[1]
 

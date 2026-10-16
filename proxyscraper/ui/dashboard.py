@@ -118,8 +118,9 @@ class LiveStats:
         self.https_ok = 0
         self.anonymity: Counter = Counter()
         self.passing = 0
-        self.fakes = 0  # passed the basic check, but not the confirmation
-        self.tampered = 0  # confirmed, but modified a known page (scripts, ads)
+        self.fakes = 0  # passed the basic check, but the second request ran and didn't confirm it
+        self.confirm_unavailable = 0  # hits kept without a second request (its target was down)
+        self.tampered = 0  # confirmed, but a known page arrived with different bytes
         self.hosting = 0  # hits that (probably) exit from a datacenter
         self.blocklisted = 0  # hits whose exit IP is on the SpamCop blocklist
         self.details_saved = 0  # HTTPS tests that could be skipped thanks to filters
@@ -168,10 +169,11 @@ class LiveStats:
 
 
 def hit_line(found: int, checked: int, fakes: int) -> Text:
-    """"1.5% hits" – with filtered fake proxies short enough for narrow cards: "1.5% · 638 fakes"."""
+    """"1.5% hits" – with the proxies the second request didn't confirm, short enough for narrow cards:
+    "1.5% · 638 unconfirmed"."""
     if not fakes:
         return Text(f"{pct(found, checked)} hits", style=MUTED)
-    return Text.assemble((f"{pct(found, checked)} · ", MUTED), (f"{fmt(fakes)} fakes", WARN))
+    return Text.assemble((f"{pct(found, checked)} · ", MUTED), (f"{fmt(fakes)} unconfirmed", WARN))
 
 
 class CheckDashboard:
@@ -318,7 +320,7 @@ class CheckDashboard:
         footer = Text("  Ctrl+C stops and saves", style=MUTED)
         footer.append(f"  ·  {fmt(self.concurrency)} parallel", style=MUTED)
         if s.tampered:
-            footer.append(f"  ·  {fmt(s.tampered)} dropped for tampering", style=WARN)
+            footer.append(f"  ·  {fmt(s.tampered)} dropped: changed a test page", style=WARN)
         if self.judge:
             footer.append(f"  ·  target {self.judge}", style=MUTED)
         if self.judge_note:

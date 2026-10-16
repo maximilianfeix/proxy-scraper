@@ -22,35 +22,51 @@
 
 ---
 
-A maioria das listas de proxies gratuitos está 95 % morta, e boa parte do resto são honeypots ou proxies que injetam scripts nas suas páginas. O **proxy-scraper** coleta proxies HTTP, SOCKS4 e SOCKS5 públicos de mais de 700 fontes e mantém só os que passam em todas as verificações. A cada execução ele aprende quais fontes valem a pena, e pode transformar o resultado em um único proxy rotativo.
-
-**Em números:** em um dia ele fez 3,6 milhões de verificações de proxies gratuitos – 1,1 % passaram, e mais da metade dos que responderam falhou na segunda requisição. [O que realmente existe por aí (em inglês) →](docs/free-proxies-in-numbers.md)
-
-**Quem usa:** a lista de hora em hora é fonte embutida do [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) e do [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).
-
-**Experimente – sem instalar, uns cinco segundos:**
-
-```bash
-uvx proxy-scraper-cli --pick 5 --types socks5     # 5 proxies verificados
-
-# ou só a lista
-curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
-```
-
-O `uvx` vem com o [uv](https://docs.astral.sh/uv/); `pipx run proxy-scraper-cli --pick 5` faz o mesmo.
+**Verificações de proxy que você pode inspecionar: o que passou, o que falhou e quando.** O proxy-scraper coleta proxies HTTP, SOCKS4 e SOCKS5 públicos de centenas de listas, roda até quatro verificações em cada um e guarda o resultado de cada verificação para os proxies que ele lista (para os demais, conta como cada verificação terminou). Assim, "funciona" passa a ser algo que você pode conferir, e não um rótulo em que precisa confiar.
 
 <div align="center">
-<img src="docs/demo.svg" alt="Demonstração: o painel ao vivo durante uma verificação, o relatório, o assistente de configuração e a coleta" width="880">
+<img src="docs/demo/checks.gif" alt="Gravação de terminal: proxy-scraper --pick 2 --verify --https-only imprime dois proxies e diz no stderr por que os outros quatro ficaram de fora; proxy-scraper --diagnose mostra cada verificação de um proxy com o resultado" width="880">
 </div>
+
+<sub>Uma gravação real de terminal, feita com seis proxies simulados em localhost ([reproduza](docs/demo/)). Ela mostra como os resultados são apresentados. Não mede nada sobre proxies públicos.</sub>
+
+**Experimente** – sem instalar nada, o `uvx` vem com o [uv](https://docs.astral.sh/uv/) (`pipx run` faz o mesmo):
+
+```bash
+uvx proxy-scraper-cli --pick 3 --verify               # até 3 proxies da lista de hora em hora que passam agora, a partir da sua rede
+uvx proxy-scraper-cli --diagnose socks5://HOST:PORT   # um proxy, verificação por verificação: o que ele fez e o que não fez
+```
+
+No PyPI o pacote se chama `proxy-scraper-cli` (o nome simples já estava ocupado). Depois de [instalado](#install), o comando é `proxy-scraper`. `--verify` e `--diagnose` exigem a versão 1.30 ou mais recente.
+
+**Três formas de obter proxies, e o que "verificado" significa em cada uma:**
+
+| Comando | De onde vêm os proxies | Verificados | Demora |
+|---|---|---|---|
+| `proxy-scraper --pick 5` | da [lista publicada](#live-list) | a partir dos servidores do GitHub, quando a lista foi gerada, mais ou menos a cada hora | menos de um segundo |
+| `proxy-scraper --pick 5 --verify` | da lista publicada | **agora, a partir da sua rede** | de segundos a um minuto e meio, no máximo |
+| `proxy-scraper -y` | de todas as listas que a ferramenta conhece | agora, a partir da sua rede | minutos (cerca de três nas execuções de hora em hora) |
+
+**O que você recebe**
+
+- **Cada verificação tem um resultado que dá para ler.** `passed`, `failed`, `unavailable` ou `skipped` (passou, falhou, indisponível, pulada), com um código de motivo, o alvo e o horário, no terminal, em JSON e em Python. Uma verificação que não rodou nunca aparece como aprovada, e um alvo de verificação fora do ar não transforma em falha os proxies verificados contra ele. → [Estados das verificações (em inglês)](docs/check-states.md)
+- **Recente quando importa.** `--pick --verify` verifica alguns proxies a partir da sua própria rede, em geral em segundos. `--recheck` faz o mesmo com [uma lista sua](README.md#examples), e `--diagnose` diz por que um proxy não funciona.
+- **Mais que uma lista.** Um [servidor proxy rotativo local](#proxy-server), uma [API Python](#python), um [servidor MCP](#mcp) para agentes de IA, Docker e exportações para curl, proxychains, Clash e sing-box.
+
+**O que ele não faz.** Proxies gratuitos são mantidos por desconhecidos, e da lista de uma hora só cerca de um quarto está de novo na lista um dia depois. Passar em uma verificação é uma medição, feita de uma rede, contra alvos de teste: não é promessa para a próxima hora nem para o site que interessa a você. A verificação de HTTPS é uma conexão TLS verificada com um único host de teste, não uma nota de segurança. Use proxies gratuitos para dados públicos e testes, nunca para logins, pagamentos ou qualquer coisa pessoal. → [O que os números mostram e o que não mostram (em inglês)](docs/free-proxies-in-numbers.md) · [Comparação com outros projetos (em inglês)](docs/comparison.md) · [Quem mantém proxies gratuitos](#faq)
+
+**Só quer as listas?** Você não precisa desta ferramenta: o [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) tem todas em arquivos simples por protocolo e por país, refeitos mais ou menos a cada hora. Ou direto daqui: [all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [mais formatos](#live-list)
+
+**Quem usa:** a lista de hora em hora é fonte embutida do [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) e do [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).
 
 ## As verificações que todo proxy precisa passar
 
 | Verificação | O que significa |
 |---|---|
 | Handshake de verdade | O proxy precisa completar de fato o protocolo HTTP, SOCKS4 ou SOCKS5 |
-| Dois sites independentes, o mesmo IP de saída | Uma segunda requisição independente precisa devolver o mesmo IP de saída – honeypots que só respondem a scanners caem aqui |
-| Conteúdo intacto | Uma página conhecida precisa chegar byte a byte; proxies que injetam scripts ou anúncios são descartados |
-| HTTPS com TLS verificado | Só proxies cujo certificado é verificado de ponta a ponta contam como capazes de HTTPS |
+| Segunda requisição, o mesmo IP de saída | Uma segunda requisição, a outro site, precisa mostrar o mesmo IP de saída. Proxies que só respondem à primeira verificação, os instáveis e os que trocam de saída falham aqui |
+| Conteúdo intacto | Uma página de teste estática precisa chegar byte a byte. O motivo de uma diferença não é determinado |
+| HTTPS com certificado verificado | Um proxy só conta como capaz de HTTPS se o certificado TLS recebido pelo túnel dele for válido para o host de teste |
 | Detalhes | Anonimato (elite / anonymous / transparent), país, ASN e provedor, datacenter ou não, latência, velocidade de download |
 
 <a id="install"></a>
@@ -82,7 +98,7 @@ Iniciado sem argumentos, um assistente pergunta o que você procura: com as seta
 
 ## Lista de proxies de hora em hora
 
-Não quer escanear você mesmo? O GitHub Actions roda a ferramenta a cada hora e publica os acertos. Cada proxy da lista passou em todas as verificações na última execução, ordenado por "melhores primeiro": os rápidos, que provavelmente ainda estão no ar, ficam no topo (um proxy que está há um dia no ar tem 99 % de chance de estar lá daqui a uma hora; um recém-chegado, só 25 %).
+Não quer escanear você mesmo? O GitHub Actions roda a ferramenta mais ou menos a cada hora e publica os acertos. Cada proxy da lista passou na primeira requisição, na segunda requisição e na verificação de conteúdo na última execução (o teste de HTTPS é registrado por entrada, mas não é exigido), ordenado por "melhores primeiro": os rápidos, que provavelmente ainda estão no ar, ficam no topo.
 
 - **Site** (filtre por protocolo, país, HTTPS, provedor, latência): https://maximilianfeix.github.io/proxy-scraper/
 - **Só as listas** (TXT por protocolo, país e site, mais JSON/CSV): [maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)
@@ -106,13 +122,13 @@ curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
 > [!TIP]
 > Os arquivos também estão no GitHub Pages, atrás de uma CDN – sem o limite de taxa do `raw.githubusercontent.com` e com cabeçalhos CORS, ou seja, funcionam direto do navegador. O [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) também funciona, mas pode atrasar algumas horas.
 
-A verificação é feita dos servidores do GitHub nos EUA. `proxy-scraper --recheck live` baixa a lista e verifica tudo de novo a partir da **sua** rede – uns 30 segundos em vez de um scan completo. Com `--serve` você tem um proxy rotativo em menos de um minuto.
+A verificação é feita dos servidores do GitHub nos EUA. `proxy-scraper --recheck live` baixa a lista e verifica tudo de novo a partir da **sua** rede – bem menos de um minuto em vez de um scan completo. Quantos ainda funcionam a partir da sua rede difere muito do número da própria lista, e é por isso que vale verificar de novo. Acrescente `--serve` e o resultado vira um proxy rotativo.
 
 <a id="pool-api"></a>
 
-## API de pool de proxies: substituto direto do jhao104/proxy_pool
+## API de pool de proxies: compatível com o jhao104/proxy_pool
 
-Usa o [jhao104/proxy_pool](https://github.com/jhao104/proxy_pool)? Os endpoints, o parâmetro `type=https` e os campos JSON (`proxy`, `https`, `region`, `anonymous`, `check_count`, `fail_count`, …) são os mesmos – aponte seu código para a porta 8899 e ele continua funcionando. **Sem Redis**, e cada proxy passou nas verificações de honeypot e de adulteração; os marcados como HTTPS passaram também na de TLS.
+Usa o [jhao104/proxy_pool](https://github.com/jhao104/proxy_pool)? Os endpoints, o parâmetro `type=https` e a maioria dos campos JSON (`proxy`, `https`, `region`, `check_count`, `fail_count`, …) são os mesmos – aponte seu código para a porta 8899 e quase tudo continua funcionando (três diferenças: não existe `last_time`, `anonymous` é true/false, não uma string, e `source` é sempre `proxy-scraper`). **Sem Redis**, e cada proxy passou na verificação da segunda requisição e na de conteúdo; os marcados como HTTPS passaram também na de TLS.
 
 ```bash
 proxy-scraper --recheck live --serve   # começa com a lista de hora em hora, pronto em ~30 s
@@ -204,9 +220,9 @@ Todas as opções: `proxy-scraper --help` ou o [README em inglês](README.md#opt
 
 | Ferramenta | O que faz |
 |---|---|
-| `get_proxies` | proxies funcionando da lista de hora em hora – filtráveis por protocolo, país, HTTPS, elite, datacenter, estabilidade, latência |
+| `get_proxies` | proxies da lista de hora em hora, como foram verificados na última execução dela – filtráveis por protocolo, país, HTTPS, elite, datacenter, estabilidade, latência |
 | `check_proxies` | verifica proxies a partir da sua rede, para que funcionem onde seu código roda |
-| `fetch_url` | carrega uma página por um proxy verificado, troca sozinho em caso de erro e devolve texto legível |
+| `fetch_url` | carrega uma página por um proxy da lista verificada, troca sozinho em caso de erro e devolve texto legível |
 
 **Claude Code:**
 
@@ -234,10 +250,10 @@ Não quer Python? A imagem Docker traz tudo: `"command": "docker"`, `"args": ["r
 ## FAQ
 
 **Quem mantém proxies gratuitos – e dá para usá-los?**
-Quase ninguém mantém um proxy gratuito para você. O que aparece nas listas públicas costuma ser: servidores mal configurados com uma porta aberta sem querer; alguns proxies abertos de propósito; computadores e dispositivos IoT infectados, sem que os donos saibam; e armadilhas que registram o tráfego ou reescrevem páginas. O proxy-scraper não distingue um roteador doméstico infectado de um proxy de escritório aberto, mas filtra o que dá para medir: duas requisições independentes precisam devolver o mesmo IP de saída (honeypots que só respondem a scanners caem), uma página conhecida precisa chegar byte a byte (injetores caem), e HTTPS só conta com certificado verificado de ponta a ponta. Bom para dados públicos, para ver um site a partir de outro país, para testar os próprios bloqueios e para pesquisa. Nunca envie senhas, cookies, dados de pagamento ou pessoais por um proxy gratuito.
+Quase ninguém mantém um proxy gratuito para você. O que aparece nas listas públicas costuma ser: servidores mal configurados com uma porta aberta sem querer; alguns proxies abertos de propósito; computadores e dispositivos IoT infectados, sem que os donos saibam; e armadilhas – honeypots que registram o tráfego e proxies que reescrevem páginas. Isso é contexto geral, não algo que este projeto mediu: uma verificação não enxerga quem mantém um proxy nem por quê. O proxy-scraper não distingue um roteador doméstico infectado de um proxy de escritório aberto, mas filtra o que dá para medir: duas requisições independentes precisam mostrar o mesmo IP de saída, uma página conhecida precisa chegar byte a byte, e HTTPS só conta com um certificado válido para o host de teste. Bom para dados públicos, para ver um site a partir de outro país, para testar os próprios bloqueios e para pesquisa. Nunca envie senhas, cookies, dados de pagamento ou pessoais por um proxy gratuito.
 
 **Por que encontra menos proxies do que outras listas prometem?**
-Porque só ficam os proxies que passam em todas as verificações. Muitas listas contam qualquer coisa que aceite uma conexão TCP; aqui um proxy precisa carregar duas páginas independentes e mostrar um IP estranho. Costuma dar algumas centenas ou milhares em um milhão de candidatos – mas funcionam.
+Porque só ficam os proxies que passam em todas as verificações: duas requisições independentes que mostram o mesmo IP de saída, diferente do seu, e uma página de teste que chega sem alterações. Nas execuções de hora em hora, isso dá cerca de 1 % dos 150.000 candidatos verificados. Eles passaram a partir da rede que os verificou, naquele momento.
 
 **Quase nada passa?**
 Muitas redes de empresas, escolas e universidades bloqueiam conexões de proxy. A ferramenta nota uma taxa de acerto abaixo de 0,2 % e avisa – outra rede, como o hotspot do celular, ajuda.
@@ -246,7 +262,7 @@ Muitas redes de empresas, escolas e universidades bloqueiam conexões de proxy. 
 Sim, no PowerShell e no Windows Terminal. O `uvloop` não existe lá e é pulado automaticamente.
 
 **Quão recente é a lista?**
-É refeita a cada hora. Proxies gratuitos vêm e vão rápido – para qualquer coisa importante, rode `proxy-scraper --recheck` logo antes de usar.
+É refeita mais ou menos a cada hora. Proxies gratuitos vêm e vão rápido – para qualquer coisa importante, rode `proxy-scraper --recheck` logo antes de usar.
 
 **Proxies gratuitos são seguros?**
 Só para o que não importa. Proxies públicos são mantidos por desconhecidos, que podem ler tudo o que não está criptografado. Não envie senhas nem dados pessoais por eles, e use só onde for permitido.

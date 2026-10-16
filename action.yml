@@ -13,10 +13,10 @@ inputs:
     description: "Two-letter country codes, comma separated, e.g. DE,NL – empty for any"
     default: ""
   https:
-    description: "Only proxies that tunnel HTTPS with verified TLS"
+    description: "Only proxies that passed the HTTPS test: a tunnel to one test host with a TLS certificate that verifies"
     default: "false"
   min-uptime:
-    description: "Only proxies that were on the list in at least this share (percent) of the week's hourly checks"
+    description: "Only proxies that were on the list in at least this share (percent) of the week's runs"
     default: "0"
   min-speed:
     description: "Only proxies that downloaded at least this many KB/s in the last check (HTTPS-capable ones are measured)"

@@ -173,3 +173,61 @@ def test_old_6_hour_streaks_are_converted_once(tmp_path):
     again = tmp_path / "again"
     publish.publish(run_dir(tmp_path), again, minimum=2, history=out / "history.json", streaks=out / "streaks.json")
     assert json.loads((again / "streaks.json").read_text())["socks5://2.2.2.2:1080"] == converted + 1
+
+
+def _checked(i: int, confirm: str = "passed", content: str = "passed", https: str = "passed") -> CheckResult:
+    from proxyscraper.checkstate import Check
+
+    r = CheckResult(f"http 3.3.3.{i}:80", "http", f"3.3.3.{i}:80", 100 + i, "9.9.9.9", https == "passed", "elite", "DE")
+    r.checks = {"basic": Check("passed"), "confirm": Check(confirm), "content": Check(content), "https": Check(https)}
+    return r
+
+
+def test_only_proxies_whose_checks_were_measured_and_passed_are_listed(tmp_path):
+    """Listed means passed – a second request or content check that could not run is not enough."""
+    rows = [_checked(1), _checked(2, confirm="unavailable"), _checked(3, content="unavailable"),
+            _checked(4, https="unavailable"), _checked(5, https="failed")]
+    ResultWriter(run_dir=tmp_path / "run").finalize(rows)
+    (tmp_path / "run" / "run.json").write_text(json.dumps({"schema": 1, "candidates": 900, "checked": 800,
+                                                           "not_checked": 100, "working": 5,
+                                                           "checks": {"confirm": {"passed": 4}}}))
+    out = tmp_path / "public"
+    assert publish.publish(tmp_path / "run", out, minimum=1) == 0
+    assert (out / "all.txt").read_text().splitlines() == ["http://3.3.3.1:80", "http://3.3.3.4:80", "http://3.3.3.5:80"]
+    assert (out / "https.txt").read_text().splitlines() == ["http://3.3.3.1:80"]  # HTTPS measured and passed
+    stats = json.loads((out / "stats.json").read_text())
+    assert stats["held_back"] == 2 and stats["total"] == 3
+    assert stats["requires"]["all.txt"] == ["basic", "confirm", "content"]
+    assert stats["requires"]["https.txt"] == ["basic", "confirm", "content", "https"]
+    listed = json.loads((out / "proxies.json").read_text())
+    assert all(r["checks"]["confirm"]["state"] == "passed" for r in listed)
+    # the run's denominators travel with the list and into the history
+    assert json.loads((out / "run.json").read_text())["not_checked"] == 100
+    last = json.loads((out / "history.json").read_text())[-1]
+    assert (last["candidates"], last["checked"], last["not_checked"]) == (900, 800, 100)
+
+
+def test_a_run_without_confirmation_publishes_nothing_and_the_old_list_stays(tmp_path):
+    ResultWriter(run_dir=tmp_path / "run").finalize([_checked(i, confirm="unavailable") for i in range(1, 30)])
+    out = tmp_path / "public"
+    assert publish.publish(tmp_path / "run", out, minimum=20) == publish.SKIP_EXIT_CODE
+    assert not out.exists()
+
+
+def test_rows_from_before_checks_were_recorded_are_published_as_before(tmp_path):
+    out = tmp_path / "public"
+    assert publish.publish(run_dir(tmp_path), out, minimum=2) == 0
+    stats = json.loads((out / "stats.json").read_text())
+    assert stats["total"] == 4 and stats["held_back"] == 0 and not (out / "run.json").exists()
+
+
+def test_the_published_csv_keeps_its_old_columns_in_place_and_adds_the_new_ones_last(tmp_path):
+    import csv
+
+    ResultWriter(run_dir=tmp_path / "run").finalize([_checked(i) for i in range(1, 4)])
+    out = tmp_path / "public"
+    assert publish.publish(tmp_path / "run", out, minimum=1) == 0
+    with (out / "proxies.csv").open(newline="", encoding="utf-8") as fh:
+        header = next(csv.reader(fh))
+    assert header[13:18] == ["url", "first_seen", "uptime_24h", "uptime_7d", "works_with"]  # where 1.28 had them
+    assert header[-5:] == ["checked_at", "check_basic", "check_confirm", "check_content", "check_https"]

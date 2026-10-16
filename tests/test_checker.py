@@ -94,9 +94,11 @@ def test_honeypot_passes_first_check_but_not_confirmation():
     assert confirmed is False     # … the confirmation doesn't
 
 
-def test_without_confirm_target_everything_is_confirmed():
+def test_without_confirm_target_proxies_are_kept_but_not_called_confirmed():
     result, confirmed = run_check(honeypot, "http", confirm_ip=None)
-    assert confirmed is True and result.anonymity == ""
+    assert confirmed is True and result.anonymity == ""  # kept: the target is missing, not the proxy bad
+    check = result.checks["confirm"]
+    assert (check.state, check.reason) == ("unavailable", "target_not_configured")  # … and that is what it says
 
 
 def test_socks4_rejection_is_not_working():

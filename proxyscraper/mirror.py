@@ -132,7 +132,7 @@ Many free proxies are blocked or sent to a captcha by the big sites. These got a
 
 # Free Proxy List
 
-**HTTP, SOCKS4 and SOCKS5 proxies that worked less than an hour ago – checked, not just scraped.**
+**HTTP, SOCKS4 and SOCKS5 proxies that passed every check in the last run – rebuilt about every hour.**
 
 {badges}
 
@@ -145,9 +145,10 @@ Many free proxies are blocked or sent to a captcha by the big sites. These got a
 
 ---
 
-Updated **every hour** by [proxy-scraper]({REPO_URL}). It pulls candidates from 700+ public sources and keeps only the \
-ones that pass every check – a real handshake, two sites through the same exit IP, nothing injected into the page, \
-TLS that verifies. Most free lists are 95 % dead; this one is re-checked from scratch every run.
+Updated **about every hour** by [proxy-scraper]({REPO_URL}). It pulls candidates from hundreds of public lists, checks \
+150,000 of them per run and keeps only the ones that pass every check – a real handshake, the same exit IP on a second \
+request to another site, and a test page that arrives unchanged. HTTPS counts only with a certificate that verifies \
+on the test host.
 
 **Last run:** {updated} · {" · ".join(facts)} · {n_countries} countries
 
@@ -271,8 +272,9 @@ Or let [proxy-scraper]({REPO_URL}) do the rotating and retrying for you:
 
 ```bash
 pip install proxy-scraper-cli
-proxy-scraper --recheck live          # re-check this list from your own network (~30 s)
-proxy-scraper --recheck live --serve  # ... and run it as one rotating local proxy
+proxy-scraper --pick 3 --verify       # three entries of this list that pass right now, from your network
+proxy-scraper --diagnose HOST:PORT    # why one entry works for you or doesn't: every check and what it found
+proxy-scraper --recheck live --serve  # re-check the whole list from here and run it as one rotating local proxy
 ```
 
 ```python
@@ -295,13 +297,14 @@ with ProxyRotator(country="DE") as rotator:
 
 - **Checked, not collected.** Every proxy had to complete a real protocol handshake and load two different sites \
 through the same exit IP in the last run.
-- **No honeypots, no injected scripts.** Pages that come back modified are thrown out; HTTPS counts only with a \
-certificate that verifies.
+- **A test page has to arrive unchanged.** Entries that return a changed test page are left out; HTTPS counts only \
+with a certificate that verifies on the test host.
 - **Best first.** Sorted by how fast pages actually load, not by a single ping.
-- **Details for every proxy** in `proxies.json`: exit IP, country, ASN and provider, datacenter or not, anonymity, \
-latency, download speed, uptime over 24 hours and 7 days, first seen, and which big sites it gets through to.
-- **Honest about uptime.** `stable.txt` holds only proxies that were on the list in {STABLE_UPTIME} %+ of this \
-week's hourly runs.
+- **Details for every proxy** in `proxies.json`: exit IP, country, ASN and provider, whether the provider looks like a \
+hosting company, anonymity, latency, download speed, share of runs on the list over 24 hours and 7 days, \
+first seen, and which big sites it gets through to.
+- **Share of runs on the list.** `stable.txt` holds only proxies that were on the list in {STABLE_UPTIME} %+ of this \
+week's runs. Not being on the list is not a measured failure.
 - **Used by other tools.** [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) \
 and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list) pull these lists as a built-in source.
 
@@ -311,7 +314,7 @@ agents. If this list saves you time, a ⭐ on [the tool]({REPO_URL}) helps other
 
 ## Good to know
 
-- **Updates:** every hour, about 20 minutes past. A run with too few hits is skipped – the last good list stays.
+- **Updates:** about every hour, around 20 minutes past. A run with too few hits is skipped – the last good list stays.
 - **History:** the git history is squashed at the start of every month so clones stay small. A daily archive of \
 `proxies.json` lives in the [snapshot releases]({REPO_URL}/releases?q=snapshots).
 - **Found a problem?** Please open an issue in the [tool repository]({REPO_URL}/issues).

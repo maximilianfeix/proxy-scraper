@@ -30,9 +30,10 @@ import certifi
 
 from .api import find_proxies_async
 from .checker import CheckResult
+from .checkstate import STATES
 from .netio import http_get
 from .pages import SITE_URL
-from .parsing import PROXY_TYPES, make_key
+from .parsing import PROXY_TYPES, make_key, normalize_proxy
 from .publish import RAW_BASE
 from .ranking import best_first
 from .server import ProxyPool, RotatingServer
@@ -74,6 +75,7 @@ class LiveList:
     rows: List[dict]
     stats: dict
     loaded_at: float
+    refresh_failed: bool = False  # the last attempt to reload it failed – this is the copy from before
 
     @property
     def updated(self) -> str:
@@ -86,13 +88,37 @@ class LiveList:
 
     def age_minutes(self, now: Optional[datetime] = None) -> Optional[int]:
         try:
-            updated = datetime.fromisoformat(self.updated)
+            updated = datetime.fromisoformat(self.updated.replace("Z", "+00:00"))  # "Z" needs Python 3.11
         except ValueError:
             return None
+        if updated.tzinfo is None:  # the list writes UTC; a time without a zone is read as that
+            updated = updated.replace(tzinfo=timezone.utc)
         return max(0, round(((now or datetime.now(timezone.utc)) - updated).total_seconds() / 60))
+
+    def stale(self, now: Optional[datetime] = None) -> bool:
+        """Older than it should be: a reload failed, or the hourly run hasn't published for more than its
+        interval plus half an hour. The proxies in it were checked at `updated`, not later."""
+        age = self.age_minutes(now)
+        if age is None:  # no readable time: nobody can say it is fresh
+            return True
+        return self.refresh_failed or age > min(self.run_hours, 24) * 60 + 30
 
 
 Fetch = Callable[..., Awaitable[bytes]]
+
+
+def listable(proxy: object) -> bool:
+    """Is this what the hourly list holds – a public IPv4 address and a port, nothing else? The list is
+    downloaded: a row with a login, a host name, a local or private address, spaces or control characters is
+    not handed to anyone (--pick, the Python API, the MCP tools, the rotating fetcher), and nothing connects
+    to it."""
+    if not isinstance(proxy, str):
+        return False
+    ip, sep, port = proxy.rpartition(":")
+    try:
+        return bool(sep) and port.isascii() and port.isdigit() and normalize_proxy(ip.encode(), port.encode()) == proxy
+    except (ValueError, UnicodeError):
+        return False
 
 
 class LiveSource:
@@ -136,14 +162,18 @@ class LiveSource:
                     error = e
                     continue
                 if isinstance(rows, list) and isinstance(stats, dict):
-                    self._cache = LiveList([r for r in rows if isinstance(r, dict)], stats, self.clock())
+                    self._cache = LiveList([r for r in rows if isinstance(r, dict) and listable(r.get("proxy"))],
+                                           stats, self.clock())
                     self._expires = self.clock() + self._keep_for(self._cache)
                     return self._cache
             if self._cache:  # GitHub is unreachable: the old list, and don't wait for it again on every call
                 self._retry_at = self.clock() + RETRY_AFTER
+                self._cache.refresh_failed = True
                 return self._cache
-            raise AgentError(f"The live proxy list couldn't be loaded ({error}). check_proxies can still find "
-                             "working proxies by checking them from this machine.")
+            failure = AgentError(f"The live proxy list couldn't be loaded ({error}). check_proxies can still "
+                                 "find working proxies by checking them from this machine.")
+            failure.cause = str(error)  # for callers that aren't agents and have no check_proxies tool
+            raise failure
 
     async def _json(self, url: str):
         return json.loads(await self.fetch(url, timeout=20))
@@ -216,7 +246,8 @@ def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) ->
     if isinstance(item, CheckResult):
         item = {"ptype": item.ptype, "proxy": item.proxy, "country": item.country, "latency": item.latency,
                 "https": item.https, "anonymity": item.anonymity, "org": item.org, "hosting": item.hosting,
-                "blocklisted": item.blocklisted}
+                "blocklisted": item.blocklisted, "checked_at": item.checked_at,
+                "checks": {name: check.as_dict() for name, check in item.checks.items()}}
     streak = item.get("streak")
     return {
         "url": f"{item['ptype']}://{item['proxy']}",
@@ -233,6 +264,12 @@ def describe(item: Union[dict, CheckResult], run_hours: Optional[int] = None) ->
         "uptime_7d_percent": item.get("uptime_7d"),
         "works_on": [name for name, ok in (item.get("sites") or {}).items() if ok],
         "speed_kbps": item.get("speed_kbps"),
+        # when this proxy itself was checked and how each check ended (lists from before 1.30 have neither)
+        "checked_at": item["checked_at"] if isinstance(item.get("checked_at"), str) and item["checked_at"] else None,
+        # the list comes from the network: only checks that are objects with a known state get through
+        "checks": {name: check for name, check in (item.get("checks") if isinstance(item.get("checks"), dict)
+                                                   else {}).items()
+                   if isinstance(name, str) and isinstance(check, dict) and check.get("state") in STATES},
     }
 
 

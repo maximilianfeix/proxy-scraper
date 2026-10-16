@@ -175,10 +175,10 @@ def _faq(path: str, facts: Dict[str, object], when: str) -> List[Tuple[str, str]
         got = "In the last check, none of them got through to Google search without a captcha."
     return [
         (f"How many free {short} work right now?",
-         f"{facts['total']:,} passed every check in the last run ({when}): a real handshake, a honeypot check on two "
-         f"sites and a content check. {facts['https']:,} of them tunnel HTTPS with verified TLS, and "
-         f"{facts['stable']:,} were on the list in 90 % or more of this week's hourly checks. The list is checked "
-         "again every hour."),
+         f"{facts['total']:,} passed every check in the last run ({when}): a basic check, a second request to "
+         f"another site and a content check. {facts['https']:,} of them tunnel HTTPS with verified TLS to one test "
+         f"host, and {facts['stable']:,} were on the list in 90 % or more of this week's runs. The list is checked "
+         "again about every hour."),
         (f"Which free {short} get through to Google?",
          f"{got} The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list "
          "on the website can be filtered by it."),
@@ -195,10 +195,10 @@ def _render(path: str, title: str, what: str, rows: List[dict], updated: datetim
     total = len(rows)
     when = updated.strftime("%d %b %Y, %H:%M UTC")
     if total:
-        lede = (f"{total:,} {what} that worked in the last check ({when}). Each one passed a real handshake, "
-                "a honeypot check on two sites and a content check, so none of them rewrite the pages you load.")
+        lede = (f"{total:,} {what} that passed every check in the last run ({when}): a basic check, "
+                "a second request to another site and a test page that has to arrive unchanged.")
     else:
-        lede = (f"No {what} passed every check in the last run ({when}). The list is checked again every hour, "
+        lede = (f"No {what} passed every check in the last run ({when}). The list is checked again about every hour, "
                 "so look again later or try the full list.")
     def cells(r: dict) -> str:
         through = ", ".join(SITE_NAMES.get(n, n.title()) for n, ok in (r.get("sites") or {}).items() if ok) or "–"
@@ -243,7 +243,7 @@ def _render(path: str, title: str, what: str, rows: List[dict], updated: datetim
     faq_ld = json.dumps({"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [
         {"@type": "Question", "name": q, "acceptedAnswer": {"@type": "Answer", "text": a}} for q, a in faq]},
         ensure_ascii=False).replace("</", "<\\/")
-    description = (f"{total:,} free {what}, checked every hour: real handshake, honeypot and content check. "
+    description = (f"{total:,} free {what}, checked about every hour: basic check, second request and content check. "
                    "Download as text or filter the full list.")
     return f"""<!doctype html>
 <html lang="en">

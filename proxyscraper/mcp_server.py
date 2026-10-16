@@ -9,7 +9,7 @@ import contextlib
 import logging
 import sys
 import time
-from typing import Annotated, List, Literal, Optional
+from typing import Annotated, Dict, List, Literal, Optional
 
 from mcp.server.mcpserver import Context, MCPServer
 from mcp.server.mcpserver.exceptions import ToolError
@@ -23,12 +23,12 @@ REPO = "https://github.com/maximilianfeix/proxy-scraper"
 
 INSTRUCTIONS = """\
 Free HTTP, SOCKS4 and SOCKS5 proxies that passed real checks: a protocol handshake, the same exit IP on two \
-unrelated sites (drops honeypots), a byte-for-byte content check (drops proxies that inject scripts) and, for \
-HTTPS, a verified TLS handshake.
+unrelated sites, a static page that has to arrive byte for byte and, for HTTPS, a verified TLS handshake to one \
+test host. Every proxy carries how each check ended (checks: passed, failed, unavailable, skipped) and when.
 
 - get_proxies: instant, from a list re-checked every hour. Start here.
-- check_proxies: checks from this machine's network, so the results work from here right now. Takes 30-90 s.
-- fetch_url: loads a page through a verified proxy and switches proxies by itself if one fails.
+- check_proxies: checks from this machine's network, so the results passed from here seconds ago. Takes 30-90 s.
+- fetch_url: loads a page through a proxy from the checked list and switches proxies by itself if one fails.
 
 Free proxies are run by strangers: never send passwords, cookies, API keys or personal data through them, \
 and expect some of them to stop working at any time."""
@@ -59,6 +59,13 @@ class Proxy(BaseModel):
                                                                 "(HTTPS-capable proxies, live list only)")
     uptime_7d_percent: Optional[int] = Field(default=None, description="Share of the last 7 days' hourly checks it "
                                                                        "passed (live list only)")
+    checked_at: Optional[str] = Field(default=None, description="When this proxy itself was last checked (ISO 8601, "
+                                                                "UTC) – for the live list: by the hourly run, not now")
+    checks: Dict[str, dict] = Field(default_factory=dict,
+                                    description="How each check ended: basic, confirm, content, https -> state "
+                                                "(passed, failed, unavailable = could not run, skipped = left out) "
+                                                "with a reason code, the target and the time. Empty for lists from "
+                                                "before these were recorded")
 
 
 class ProxyList(BaseModel):
@@ -66,6 +73,9 @@ class ProxyList(BaseModel):
     matched: int = Field(description="How many proxies in the list pass the filters (limit cuts the rest)")
     list_updated: Optional[str] = Field(description="When the list was last checked (ISO 8601, UTC)")
     list_age_minutes: Optional[int] = Field(description="Minutes since that check")
+    list_stale: bool = Field(default=False, description="True if the list is older than it should be (the hourly "
+                                                        "run missed, or reloading it failed): its proxies were "
+                                                        "checked at list_updated – use check_proxies for fresh ones")
     note: Optional[str] = Field(description="What to do if fewer proxies matched than asked for")
 
 
@@ -148,6 +158,7 @@ def build_server(live: Optional[agent.LiveSource] = None, fetcher: Optional[agen
             _fail(e)
         return ProxyList(proxies=[Proxy(**agent.describe(r, data.run_hours)) for r in rows[:limit]],
                          matched=len(rows), list_updated=data.updated or None, list_age_minutes=data.age_minutes(),
+                         list_stale=data.stale(),
                          note=agent.shortage_note(data.rows, limit, len(rows), countries))
 
     @server.tool(title="Check proxies from this machine",
@@ -169,7 +180,7 @@ def build_server(live: Optional[agent.LiveSource] = None, fetcher: Optional[agen
     ) -> FreshProxies:
         """Find proxies that work from this machine's network right now.
 
-        Runs the same checks as the public list – handshake, honeypot test, byte-for-byte content check, verified
+        Runs the same checks as the public list – handshake, second request, byte-for-byte content check, verified
         TLS – but from here, so the results were verified seconds ago from the network your code runs on. Slower
         than get_proxies: 30-90 s in live mode, and progress is reported while it runs. It also updates the local
         statistics proxy-scraper learns from."""

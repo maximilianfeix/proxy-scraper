@@ -22,7 +22,7 @@ Running from the clone, learned state stays in `data/` and results in `results/`
 ## Before you open a pull request
 
 ```bash
-python3 -m pytest          # 360+ tests, offline, a few seconds
+python3 -m pytest          # 1,100+ tests, offline, under a minute
 ruff check .
 ```
 

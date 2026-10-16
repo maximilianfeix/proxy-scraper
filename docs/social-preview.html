@@ -2,18 +2,27 @@
 <html>
 <head>
 <meta charset="utf-8">
-<!-- preview image for links (1280×640), as PNG: repo settings → Social preview -->
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400&display=swap" rel="stylesheet">
+<!-- preview image for links (1280×640), as PNG: repo settings → Social preview.
+     The card on the right is the shape of real `proxy-scraper --diagnose` output (states and reason codes from
+     docs/check-states.md); the address is a documentation address (RFC 5737), not a real proxy -->
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap" rel="stylesheet">
 <style>
   html, body { margin: 0; width: 1280px; height: 640px; overflow: hidden; }
   body { background: #121113; color: #EDEBE6; font-family: "Geist", sans-serif; box-sizing: border-box; padding: 64px 72px; position: relative; }
   .brand { display: flex; align-items: center; gap: 16px; font-size: 32px; font-weight: 600; letter-spacing: -1px; }
   .brand svg { width: 60px; height: 60px; }
-  h1 { margin: 58px 0 0; font-size: 112px; line-height: .92; font-weight: 600; letter-spacing: -6px; }
-  .sub { position: absolute; left: 72px; bottom: 60px; font-size: 26px; color: #9A97A0; }
-  .route { position: absolute; right: 40px; bottom: 150px; width: 560px; }
-  .addr { position: absolute; right: 72px; top: 80px; font-family: "Geist Mono", monospace; font-size: 22px; color: #9A97A0; }
-  .addr b { color: #D4F77A; font-weight: 400; }
+  h1 { margin: 52px 0 0; font-size: 92px; line-height: .95; font-weight: 600; letter-spacing: -4.5px; width: 600px; }
+  h1 em { font-style: normal; color: #D4F77A; }
+  .sub { position: absolute; left: 72px; bottom: 60px; font-size: 25px; color: #9A97A0; }
+  .sub code { font-family: "Geist Mono", monospace; font-size: 23px; color: #EDEBE6; }
+  .card { position: absolute; right: 64px; top: 150px; width: 520px; background: #1C1B1E; border: 1px solid #2E2C31; border-radius: 18px;
+          padding: 26px 28px; font-family: "Geist Mono", monospace; font-size: 19px; line-height: 1.7; }
+  .cmd { color: #9A97A0; margin-bottom: 14px; }
+  .cmd b { color: #EDEBE6; font-weight: 500; }
+  .row { display: grid; grid-template-columns: 26px 170px 1fr; }
+  .ok { color: #D4F77A; } .no { color: #FF8A7A; } .na { color: #9A97A0; }
+  .why { color: #77747C; font-size: 16px; margin: -4px 0 6px 26px; }
+  .verdict { margin-top: 14px; padding-top: 14px; border-top: 1px solid #2E2C31; color: #EDEBE6; }
 </style>
 </head>
 <body>
@@ -21,13 +30,16 @@
     <svg viewBox="0 0 64 64"><rect width="64" height="64" rx="18" fill="#D4F77A"/><path d="M13 31.5 26.5 44.5 51 18" fill="none" stroke="#121113" stroke-width="5.5" stroke-linecap="round" stroke-linejoin="round"/><circle cx="13" cy="31.5" r="4.6" fill="#121113"/><circle cx="51" cy="18" r="4.6" fill="#121113"/><circle cx="26.5" cy="44.5" r="7.6" fill="#D4F77A" stroke="#121113" stroke-width="5"/></svg>
     proxy-scraper
   </div>
-  <h1>Free proxies<br>that actually<br>work.</h1>
-  <svg class="route" viewBox="0 0 600 180">
-    <path d="M10 130 C 60 130 80 60 150 60 S 240 150 300 150 S 380 50 450 60 S 540 120 590 100" fill="none" stroke="#D4F77A" stroke-width="4" stroke-linecap="round"/>
-    <circle cx="150" cy="60" r="12" fill="#D4F77A"/><circle cx="300" cy="150" r="12" fill="#D4F77A"/><circle cx="450" cy="60" r="12" fill="#D4F77A"/>
-    <circle cx="590" cy="100" r="9" fill="#EDEBE6"/>
-  </svg>
-  <div class="sub">700+ sources, five checks, a fresh list every hour.</div>
-  <div class="addr"><b>●</b> maximilianfeix.github.io/proxy-scraper</div>
+  <h1>Free proxies, with <em>every check</em> on the record.</h1>
+  <div class="card">
+    <div class="cmd">$ <b>proxy-scraper --diagnose</b> 203.0.113.7:8080</div>
+    <div class="row"><span class="ok">✔</span><span>Reach</span><span class="ok">passed</span></div>
+    <div class="row"><span class="ok">✔</span><span>Second request</span><span class="ok">passed</span></div>
+    <div class="row"><span class="no">✘</span><span>Content</span><span class="no">failed</span></div>
+    <div class="why">content_mismatch: the test page arrived with different bytes</div>
+    <div class="row"><span class="na">–</span><span>HTTPS</span><span class="na">skipped</span></div>
+    <div class="verdict">passed · failed · unavailable · skipped</div>
+  </div>
+  <div class="sub">Hourly list · <code>--pick 3 --verify</code> · rotating proxy · Python API · MCP</div>
 </body>
 </html>

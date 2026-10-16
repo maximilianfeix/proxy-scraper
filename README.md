@@ -36,18 +36,18 @@ https://github.com/user-attachments/assets/b99c1d8f-5bce-4a52-a8a9-b9c2c726301b
 
 <sub>21 seconds · real interface, example numbers, documentation IPs · <a href="docs/video/proxy-scraper.mp4">mp4</a></sub>
 
-<div align="center">
-<img src="docs/demo/checks.gif" alt="Terminal recording: proxy-scraper --pick 2 --verify --https-only prints two proxies and says on stderr why the other four were left out; proxy-scraper --diagnose shows each check of one proxy with its result" width="880">
-</div>
-
-<sub>A real terminal recording, made against six simulated proxies on localhost ([reproduce it](docs/demo/)). It shows how results are reported. It measures nothing about public proxies.</sub>
-
 **Try it** – no install needed, `uvx` comes with [uv](https://docs.astral.sh/uv/) (`pipx run` does the same):
 
 ```bash
 uvx proxy-scraper-cli --pick 3 --verify               # up to 3 proxies from the hourly list that pass right now, from your network
 uvx proxy-scraper-cli --diagnose socks5://HOST:PORT   # one proxy, check by check: what it did and what it didn't
 ```
+
+<div align="center">
+<img src="docs/demo/checks.gif" alt="Terminal recording: proxy-scraper --pick 2 --verify --https-only prints two proxies and says on stderr why the other four were left out; proxy-scraper --diagnose shows each check of one proxy with its result" width="880">
+</div>
+
+<sub>A real terminal recording, made against six simulated proxies on localhost ([reproduce it](docs/demo/)). It shows how results are reported. It measures nothing about public proxies.</sub>
 
 The package is `proxy-scraper-cli` on PyPI (the plain name is taken). Once [installed](#install), the command is `proxy-scraper`. `--verify` and `--diagnose` need version 1.30 or newer.
 

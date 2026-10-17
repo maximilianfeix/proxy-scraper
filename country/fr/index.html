@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free proxies in France – checked every hour | proxy-scraper</title>
+<meta name="description" content="148 free proxies in France, checked about every hour: basic check, second request and content check. Download as text or filter the full list.">
+<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/country/fr/">
+<meta property="og:title" content="Free proxies in France">
+<meta property="og:description" content="148 free proxies in France, checked about every hour: basic check, second request and content check. Download as text or filter the full list.">
+<meta property="og:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<meta property="og:url" content="https://maximilianfeix.github.io/proxy-scraper/country/fr/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../../logo.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+<style>
+:root { --bg: #121113; --panel: #1A191C; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0; --signal: #D4F77A;
+        --signal-ink: #D4F77A; --on-signal: #121113; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root { --bg: #EFEFEC; --panel: #FFFFFF; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
+          --signal-ink: #3F5A00; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.55 "Geist", ui-sans-serif, system-ui,
+       sans-serif; padding-inline: 16px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 36px; }
+a { color: var(--signal-ink); }
+:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 6px; }
+.mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 600;
+         letter-spacing: -.03em; font-size: 18px; }
+.brand img { width: 30px; height: 30px; border-radius: 9px; }
+h1 { margin: 0; font-size: clamp(36px, 6vw, 72px); line-height: 1; letter-spacing: -.05em; font-weight: 600;
+     text-wrap: balance; }
+.lede { margin: 16px 0 0; color: var(--muted); font-size: 18px; max-width: 62ch; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.btn { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 99px; text-decoration: none;
+       font-weight: 500; border: 1px solid var(--line); color: var(--text); }
+.btn.primary { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+.table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+caption { text-align: left; padding: 14px 16px 0; color: var(--muted); font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 12px 16px;
+     border-bottom: 1px solid var(--line); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+     white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.empty { padding: 28px 16px; color: var(--muted); }
+nav h2 { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 10px; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+nav a { display: inline-block; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px;
+        text-decoration: none; color: var(--text); font-size: 14px; }
+nav a[aria-current] { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+
+.wrap > * { min-width: 0; }  /* grid items default to their content's width: the wide table would push the page */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+         background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.facts div { background: var(--panel); padding: 16px 18px; }
+.facts dt { font-size: 26px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.facts dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+.use pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+           overflow-x: auto; font-size: 14px; margin: 0 0 10px; }
+.note { color: var(--muted); font-size: 14px; }
+.faq h3 { font-size: 18px; font-weight: 500; margin: 22px 0 6px; }
+.faq p { margin: 0; color: var(--muted); max-width: 70ch; }
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How many free proxies in France work right now?", "acceptedAnswer": {"@type": "Answer", "text": "148 passed every check in the last run (17 Oct 2026, 21:30 UTC): a basic check, a second request to another site and a content check. 123 of them tunnel HTTPS with verified TLS to one test host, and 1 were on the list in 90 % or more of this week's runs. The list is checked again about every hour."}}, {"@type": "Question", "name": "Which free proxies in France get through to Google?", "acceptedAnswer": {"@type": "Answer", "text": "In the last check, 31 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list on the website can be filtered by it."}}, {"@type": "Question", "name": "How do I get working proxies in France in code or the terminal?", "acceptedAnswer": {"@type": "Answer", "text": "Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country FR prints five from the hourly list. From Python, live_proxies() takes the same filters."}}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../../"><img src="../../logo.png" alt="">proxy-scraper</a>
+    <a href="../../">All proxies</a>
+  </header>
+  <main>
+    <h1>Free proxies in France</h1>
+    <p class="lede">148 proxies in France that passed every check in the last run (17 Oct 2026, 21:30 UTC): a basic check, a second request to another site and a test page that has to arrive unchanged.</p>
+    <div class="actions">
+      <a class="btn primary" href="proxies.txt" download>Download 148 as .txt</a>
+      <a class="btn" href="../../?country=FR#list">Filter the full list</a>
+      <a class="btn" href="https://github.com/maximilianfeix/proxy-scraper">Check them from your network</a>
+    </div>
+  </main>
+  <dl class="facts"><div><dt>148</dt><dd>working right now</dd></div><div><dt>123</dt><dd>tunnel HTTPS</dd></div><div><dt>1</dt><dd>on the list 90 %+ of the week</dd></div><div><dt>31</dt><dd>get through to Google</dd></div><div><dt>65 KB/s</dt><dd>median download speed</dd></div></dl>
+  <div class="table"><table><caption>The 148 fastest to load a page, as ip:port. The download has all 148 as type://ip:port.</caption><thead><tr><th scope="col">Proxy</th><th scope="col">Type</th><th scope="col">Country</th><th scope="col">Latency</th><th scope="col">Speed</th><th scope="col">Uptime</th><th scope="col">HTTPS</th><th scope="col">Gets through</th><th scope="col">Provider</th></tr></thead><tbody><tr><td class="mono"><a href="../../proxy/45.74.31.47-15171/">45.74.31.47:15171</a></td><td>SOCKS5</td><td>FR</td><td>932 ms</td><td>110 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-12342/">45.74.31.47:12342</a></td><td>SOCKS5</td><td>FR</td><td>1,000 ms</td><td>118 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-8838/">45.74.31.47:8838</a></td><td>SOCKS5</td><td>FR</td><td>1,217 ms</td><td>142 KB/s</td><td>5 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-8219/">45.74.31.47:8219</a></td><td>SOCKS5</td><td>FR</td><td>926 ms</td><td>94 KB/s</td><td>8 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/46.35.9.110-80/">46.35.9.110:80</a></td><td>HTTP</td><td>FR</td><td>553 ms</td><td>–</td><td>97 %</td><td>no</td><td>–</td><td>Societe Francaise Du Radiotelephone - SF</td></tr>
+<tr><td class="mono"><a href="../../proxy/51.75.206.209-80/">51.75.206.209:80</a></td><td>HTTP</td><td>FR</td><td>569 ms</td><td>–</td><td>70 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-12521/">45.74.31.47:12521</a></td><td>SOCKS5</td><td>FR</td><td>992 ms</td><td>81 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-14181/">45.74.31.47:14181</a></td><td>SOCKS5</td><td>FR</td><td>1,644 ms</td><td>151 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-11551/">45.74.31.42:11551</a></td><td>SOCKS5</td><td>FR</td><td>1,077 ms</td><td>78 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-9096/">45.74.31.41:9096</a></td><td>SOCKS5</td><td>FR</td><td>1,060 ms</td><td>69 KB/s</td><td>7 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-12900/">45.74.31.47:12900</a></td><td>SOCKS5</td><td>FR</td><td>1,151 ms</td><td>68 KB/s</td><td>4 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/188.165.199.207-80/">188.165.199.207:80</a></td><td>HTTP</td><td>FR</td><td>546 ms</td><td>–</td><td>63 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/37.187.74.125-80/">37.187.74.125:80</a></td><td>HTTP</td><td>FR</td><td>555 ms</td><td>–</td><td>64 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/51.159.28.39-80/">51.159.28.39:80</a></td><td>HTTP</td><td>FR</td><td>569 ms</td><td>–</td><td>66 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-16900/">45.74.31.47:16900</a></td><td>SOCKS5</td><td>FR</td><td>1,992 ms</td><td>118 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-14929/">45.74.31.40:14929</a></td><td>SOCKS5</td><td>FR</td><td>627 ms</td><td>169 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-12467/">45.74.31.42:12467</a></td><td>SOCKS5</td><td>FR</td><td>2,001 ms</td><td>88 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-7864/">45.74.31.47:7864</a></td><td>SOCKS5</td><td>FR</td><td>1,952 ms</td><td>82 KB/s</td><td>5 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-8060/">45.74.31.40:8060</a></td><td>SOCKS5</td><td>FR</td><td>2,589 ms</td><td>141 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9888/">45.74.31.47:9888</a></td><td>SOCKS5</td><td>FR</td><td>1,229 ms</td><td>47 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-13696/">45.74.31.47:13696</a></td><td>SOCKS5</td><td>FR</td><td>2,485 ms</td><td>108 KB/s</td><td>8 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-13119/">45.74.31.42:13119</a></td><td>SOCKS5</td><td>FR</td><td>1,070 ms</td><td>39 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-17639/">45.74.31.42:17639</a></td><td>SOCKS5</td><td>FR</td><td>797 ms</td><td>129 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-6821/">45.74.31.47:6821</a></td><td>SOCKS5</td><td>FR</td><td>867 ms</td><td>138 KB/s</td><td>5 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-13042/">45.74.31.41:13042</a></td><td>SOCKS5</td><td>FR</td><td>1,638 ms</td><td>43 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-15329/">45.74.31.40:15329</a></td><td>SOCKS5</td><td>FR</td><td>1,178 ms</td><td>186 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-15095/">45.74.31.47:15095</a></td><td>SOCKS5</td><td>FR</td><td>632 ms</td><td>89 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-13925/">45.74.31.41:13925</a></td><td>SOCKS5</td><td>FR</td><td>1,254 ms</td><td>33 KB/s</td><td>4 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-9707/">45.74.31.41:9707</a></td><td>SOCKS5</td><td>FR</td><td>1,446 ms</td><td>35 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-9202/">45.74.31.41:9202</a></td><td>SOCKS5</td><td>FR</td><td>2,933 ms</td><td>72 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-6692/">45.74.31.47:6692</a></td><td>SOCKS5</td><td>FR</td><td>1,009 ms</td><td>129 KB/s</td><td>10 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-8812/">45.74.31.41:8812</a></td><td>SOCKS5</td><td>FR</td><td>2,099 ms</td><td>76 KB/s</td><td>10 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-13212/">45.74.31.47:13212</a></td><td>SOCKS5</td><td>FR</td><td>3,952 ms</td><td>152 KB/s</td><td>8 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-14157/">45.74.31.40:14157</a></td><td>SOCKS5</td><td>FR</td><td>2,767 ms</td><td>121 KB/s</td><td>1 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-5896/">45.74.31.41:5896</a></td><td>SOCKS5</td><td>FR</td><td>1,487 ms</td><td>30 KB/s</td><td>5 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-5000/">45.74.31.46:5000</a></td><td>SOCKS5</td><td>FR</td><td>2,882 ms</td><td>132 KB/s</td><td>1 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-13647/">45.74.31.47:13647</a></td><td>SOCKS5</td><td>FR</td><td>849 ms</td><td>85 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-5544/">45.74.31.47:5544</a></td><td>SOCKS5</td><td>FR</td><td>686 ms</td><td>74 KB/s</td><td>4 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-10726/">45.74.31.41:10726</a></td><td>SOCKS5</td><td>FR</td><td>1,363 ms</td><td>27 KB/s</td><td>4 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-5762/">45.74.31.47:5762</a></td><td>SOCKS5</td><td>FR</td><td>1,025 ms</td><td>95 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-16394/">45.74.31.40:16394</a></td><td>SOCKS5</td><td>FR</td><td>1,056 ms</td><td>97 KB/s</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-16518/">45.74.31.41:16518</a></td><td>SOCKS5</td><td>FR</td><td>2,151 ms</td><td>56 KB/s</td><td>4 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-12527/">45.74.31.47:12527</a></td><td>SOCKS5</td><td>FR</td><td>2,710 ms</td><td>39 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-10596/">45.74.31.46:10596</a></td><td>SOCKS5</td><td>FR</td><td>3,934 ms</td><td>73 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-4563/">45.74.31.42:4563</a></td><td>SOCKS5</td><td>FR</td><td>962 ms</td><td>32 KB/s</td><td>5 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-8316/">45.74.31.46:8316</a></td><td>SOCKS5</td><td>FR</td><td>3,995 ms</td><td>69 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/156.67.110.124-10808/">156.67.110.124:10808</a></td><td>HTTP</td><td>FR</td><td>859 ms</td><td>72 KB/s</td><td>20 %</td><td>yes</td><td>Google, Discord</td><td>Contabo Asia Private Limited</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-11908/">45.74.31.40:11908</a></td><td>SOCKS5</td><td>FR</td><td>3,365 ms</td><td>45 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/95.178.108.189-5678/">95.178.108.189:5678</a></td><td>SOCKS4</td><td>FR</td><td>1,556 ms</td><td>136 KB/s</td><td>14 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Eurofiber France SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-11259/">45.74.31.41:11259</a></td><td>SOCKS5</td><td>FR</td><td>1,497 ms</td><td>36 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7852/">45.74.31.42:7852</a></td><td>SOCKS5</td><td>FR</td><td>742 ms</td><td>61 KB/s</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-11872/">45.74.31.40:11872</a></td><td>SOCKS5</td><td>FR</td><td>971 ms</td><td>–</td><td>4 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-7065/">45.74.31.41:7065</a></td><td>SOCKS5</td><td>FR</td><td>1,317 ms</td><td>31 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/62.210.215.36-80/">62.210.215.36:80</a></td><td>HTTP</td><td>FR</td><td>2,406 ms</td><td>–</td><td>86 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-11048/">45.74.31.42:11048</a></td><td>SOCKS5</td><td>FR</td><td>1,913 ms</td><td>37 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-11264/">45.74.31.47:11264</a></td><td>SOCKS5</td><td>FR</td><td>1,235 ms</td><td>75 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-10523/">45.74.31.41:10523</a></td><td>SOCKS5</td><td>FR</td><td>1,076 ms</td><td>65 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-8982/">45.74.31.47:8982</a></td><td>SOCKS5</td><td>FR</td><td>3,288 ms</td><td>32 KB/s</td><td>10 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-9143/">45.74.31.41:9143</a></td><td>SOCKS5</td><td>FR</td><td>1,066 ms</td><td>63 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-12695/">45.74.31.41:12695</a></td><td>SOCKS5</td><td>FR</td><td>4,079 ms</td><td>40 KB/s</td><td>5 %</td><td>yes</td><td>TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7270/">45.74.31.42:7270</a></td><td>SOCKS5</td><td>FR</td><td>1,939 ms</td><td>126 KB/s</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7539/">45.74.31.42:7539</a></td><td>SOCKS5</td><td>FR</td><td>621 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-12336/">45.74.31.47:12336</a></td><td>SOCKS5</td><td>FR</td><td>1,229 ms</td><td>62 KB/s</td><td>5 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9775/">45.74.31.47:9775</a></td><td>SOCKS5</td><td>FR</td><td>1,286 ms</td><td>64 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, Instagram, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-15312/">45.74.31.42:15312</a></td><td>SOCKS5</td><td>FR</td><td>936 ms</td><td>52 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-10668/">45.74.31.40:10668</a></td><td>SOCKS5</td><td>FR</td><td>1,113 ms</td><td>17 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-13660/">45.74.31.41:13660</a></td><td>SOCKS5</td><td>FR</td><td>1,442 ms</td><td>26 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7556/">45.74.31.42:7556</a></td><td>SOCKS5</td><td>FR</td><td>1,818 ms</td><td>93 KB/s</td><td>4 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9093/">45.74.31.47:9093</a></td><td>SOCKS5</td><td>FR</td><td>2,111 ms</td><td>114 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-7938/">45.74.31.40:7938</a></td><td>SOCKS5</td><td>FR</td><td>2,226 ms</td><td>131 KB/s</td><td>4 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-9107/">45.74.31.40:9107</a></td><td>SOCKS5</td><td>FR</td><td>2,029 ms</td><td>103 KB/s</td><td>3 %</td><td>yes</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-8976/">45.74.31.47:8976</a></td><td>SOCKS5</td><td>FR</td><td>3,584 ms</td><td>49 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-14108/">45.74.31.42:14108</a></td><td>SOCKS5</td><td>FR</td><td>1,998 ms</td><td>17 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-8876/">45.74.31.46:8876</a></td><td>SOCKS5</td><td>FR</td><td>2,937 ms</td><td>–</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-16513/">45.74.31.41:16513</a></td><td>SOCKS5</td><td>FR</td><td>763 ms</td><td>40 KB/s</td><td>1 %</td><td>yes</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-14434/">45.74.31.42:14434</a></td><td>SOCKS5</td><td>FR</td><td>2,307 ms</td><td>104 KB/s</td><td>8 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-8543/">45.74.31.47:8543</a></td><td>SOCKS5</td><td>FR</td><td>3,002 ms</td><td>–</td><td>9 %</td><td>yes</td><td>Google, Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-8111/">45.74.31.41:8111</a></td><td>SOCKS5</td><td>FR</td><td>2,077 ms</td><td>23 KB/s</td><td>7 %</td><td>yes</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-9566/">45.74.31.41:9566</a></td><td>SOCKS5</td><td>FR</td><td>1,430 ms</td><td>–</td><td>14 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-13769/">45.74.31.47:13769</a></td><td>SOCKS5</td><td>FR</td><td>1,576 ms</td><td>–</td><td>10 %</td><td>yes</td><td>Amazon, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7692/">45.74.31.42:7692</a></td><td>SOCKS5</td><td>FR</td><td>1,499 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-13629/">45.74.31.46:13629</a></td><td>SOCKS5</td><td>FR</td><td>2,206 ms</td><td>68 KB/s</td><td>5 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-15731/">45.74.31.41:15731</a></td><td>SOCKS5</td><td>FR</td><td>1,595 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7939/">45.74.31.42:7939</a></td><td>SOCKS5</td><td>FR</td><td>2,052 ms</td><td>59 KB/s</td><td>1 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-9702/">45.74.31.46:9702</a></td><td>SOCKS5</td><td>FR</td><td>1,703 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-10755/">45.74.31.46:10755</a></td><td>SOCKS5</td><td>FR</td><td>1,803 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-14152/">45.74.31.42:14152</a></td><td>SOCKS5</td><td>FR</td><td>2,531 ms</td><td>68 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-8139/">45.74.31.42:8139</a></td><td>SOCKS5</td><td>FR</td><td>2,191 ms</td><td>55 KB/s</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-13835/">45.74.31.41:13835</a></td><td>SOCKS5</td><td>FR</td><td>2,511 ms</td><td>64 KB/s</td><td>6 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-22407/">45.74.31.42:22407</a></td><td>SOCKS5</td><td>FR</td><td>3,769 ms</td><td>26 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/163.172.167.48-80/">163.172.167.48:80</a></td><td>HTTP</td><td>FR</td><td>2,033 ms</td><td>–</td><td>60 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-14214/">45.74.31.41:14214</a></td><td>SOCKS5</td><td>FR</td><td>2,198 ms</td><td>50 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-6387/">45.74.31.47:6387</a></td><td>SOCKS5</td><td>FR</td><td>2,804 ms</td><td>–</td><td>4 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-8116/">45.74.31.47:8116</a></td><td>SOCKS5</td><td>FR</td><td>941 ms</td><td>30 KB/s</td><td>5 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7786/">45.74.31.42:7786</a></td><td>SOCKS5</td><td>FR</td><td>2,689 ms</td><td>62 KB/s</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-9044/">45.74.31.42:9044</a></td><td>SOCKS5</td><td>FR</td><td>1,403 ms</td><td>34 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/176.191.124.3-80/">176.191.124.3:80</a></td><td>HTTP</td><td>FR</td><td>2,214 ms</td><td>–</td><td>45 %</td><td>no</td><td>–</td><td>Bouygues Telecom SA</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-16124/">45.74.31.40:16124</a></td><td>SOCKS5</td><td>FR</td><td>3,468 ms</td><td>109 KB/s</td><td>1 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-5289/">45.74.31.40:5289</a></td><td>SOCKS5</td><td>FR</td><td>3,273 ms</td><td>87 KB/s</td><td>4 %</td><td>yes</td><td>Google, Reddit</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-24081/">45.74.31.40:24081</a></td><td>SOCKS5</td><td>FR</td><td>2,325 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>O2SWITCH SARL</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-14956/">45.74.31.40:14956</a></td><td>SOCKS5</td><td>FR</td><td>3,281 ms</td><td>83 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-6291/">45.74.31.40:6291</a></td><td>SOCKS5</td><td>FR</td><td>2,421 ms</td><td>–</td><td>8 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-13488/">45.74.31.41:13488</a></td><td>SOCKS5</td><td>FR</td><td>2,453 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-11843/">45.74.31.42:11843</a></td><td>SOCKS5</td><td>FR</td><td>2,615 ms</td><td>48 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-15500/">45.74.31.42:15500</a></td><td>SOCKS5</td><td>FR</td><td>2,653 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-15988/">45.74.31.40:15988</a></td><td>SOCKS5</td><td>FR</td><td>2,306 ms</td><td>39 KB/s</td><td>4 %</td><td>yes</td><td>Google, Amazon, TikTok, Discord</td><td>IONOS SE</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-9029/">45.74.31.46:9029</a></td><td>SOCKS5</td><td>FR</td><td>2,771 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-7622/">45.74.31.40:7622</a></td><td>SOCKS5</td><td>FR</td><td>4,216 ms</td><td>–</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-12327/">45.74.31.47:12327</a></td><td>SOCKS5</td><td>FR</td><td>1,962 ms</td><td>32 KB/s</td><td>4 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-22700/">45.74.31.42:22700</a></td><td>SOCKS5</td><td>FR</td><td>1,574 ms</td><td>28 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-15967/">45.74.31.42:15967</a></td><td>SOCKS5</td><td>FR</td><td>3,079 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7290/">45.74.31.42:7290</a></td><td>SOCKS5</td><td>FR</td><td>3,838 ms</td><td>69 KB/s</td><td>4 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-5584/">45.74.31.47:5584</a></td><td>SOCKS5</td><td>FR</td><td>1,453 ms</td><td>26 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-12859/">45.74.31.42:12859</a></td><td>SOCKS5</td><td>FR</td><td>3,938 ms</td><td>73 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-12289/">45.74.31.40:12289</a></td><td>SOCKS5</td><td>FR</td><td>2,575 ms</td><td>35 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-22520/">45.74.31.42:22520</a></td><td>SOCKS5</td><td>FR</td><td>4,380 ms</td><td>89 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-16968/">45.74.31.42:16968</a></td><td>SOCKS5</td><td>FR</td><td>3,527 ms</td><td>50 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-17834/">45.74.31.46:17834</a></td><td>SOCKS5</td><td>FR</td><td>3,429 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/91.107.153.123-9083/">91.107.153.123:9083</a></td><td>SOCKS4</td><td>FR</td><td>610 ms</td><td>–</td><td>7 %</td><td>yes</td><td>–</td><td>MOJI SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-6682/">45.74.31.42:6682</a></td><td>SOCKS5</td><td>FR</td><td>687 ms</td><td>–</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/91.107.153.123-9083/">91.107.153.123:9083</a></td><td>SOCKS5</td><td>FR</td><td>771 ms</td><td>–</td><td>6 %</td><td>yes</td><td>–</td><td>MOJI SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-17379/">45.74.31.46:17379</a></td><td>SOCKS5</td><td>FR</td><td>4,906 ms</td><td>111 KB/s</td><td>6 %</td><td>yes</td><td>TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-16104/">45.74.31.47:16104</a></td><td>SOCKS5</td><td>FR</td><td>3,789 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-14977/">45.74.31.42:14977</a></td><td>SOCKS5</td><td>FR</td><td>4,091 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-6099/">45.74.31.42:6099</a></td><td>SOCKS5</td><td>FR</td><td>1,282 ms</td><td>–</td><td>4 %</td><td>yes</td><td>Google, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-14201/">45.74.31.42:14201</a></td><td>SOCKS5</td><td>FR</td><td>4,521 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-12253/">45.74.31.41:12253</a></td><td>SOCKS5</td><td>FR</td><td>1,672 ms</td><td>–</td><td>5 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-9623/">45.74.31.46:9623</a></td><td>SOCKS5</td><td>FR</td><td>1,686 ms</td><td>–</td><td>4 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9805/">45.74.31.47:9805</a></td><td>SOCKS5</td><td>FR</td><td>1,687 ms</td><td>–</td><td>2 %</td><td>yes</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-5845/">45.74.31.42:5845</a></td><td>SOCKS5</td><td>FR</td><td>4,722 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/217.151.230.186-9055/">217.151.230.186:9055</a></td><td>SOCKS5</td><td>FR</td><td>1,921 ms</td><td>–</td><td>1 %</td><td>yes</td><td>–</td><td>MOJI SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-6548/">45.74.31.46:6548</a></td><td>SOCKS5</td><td>FR</td><td>2,217 ms</td><td>–</td><td>1 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-5612/">45.74.31.42:5612</a></td><td>SOCKS5</td><td>FR</td><td>3,218 ms</td><td>25 KB/s</td><td>4 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-5899/">45.74.31.41:5899</a></td><td>SOCKS5</td><td>FR</td><td>5,461 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7581/">45.74.31.42:7581</a></td><td>SOCKS5</td><td>FR</td><td>2,845 ms</td><td>–</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-8427/">45.74.31.41:8427</a></td><td>SOCKS5</td><td>FR</td><td>1,292 ms</td><td>14 KB/s</td><td>5 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-6603/">45.74.31.42:6603</a></td><td>SOCKS5</td><td>FR</td><td>3,559 ms</td><td>–</td><td>4 %</td><td>yes</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-12918/">45.74.31.41:12918</a></td><td>SOCKS5</td><td>FR</td><td>3,560 ms</td><td>–</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-8440/">45.74.31.41:8440</a></td><td>SOCKS5</td><td>FR</td><td>3,861 ms</td><td>–</td><td>6 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-13179/">45.74.31.46:13179</a></td><td>SOCKS5</td><td>FR</td><td>3,869 ms</td><td>–</td><td>4 %</td><td>yes</td><td>Google, Amazon, TikTok, Discord</td><td>O2SWITCH SARL</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-7737/">45.74.31.41:7737</a></td><td>SOCKS5</td><td>FR</td><td>4,062 ms</td><td>–</td><td>8 %</td><td>yes</td><td>Amazon, TikTok</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-10165/">45.74.31.41:10165</a></td><td>SOCKS5</td><td>FR</td><td>4,087 ms</td><td>–</td><td>8 %</td><td>yes</td><td>Google, Reddit, TikTok</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-10557/">45.74.31.46:10557</a></td><td>SOCKS5</td><td>FR</td><td>4,450 ms</td><td>–</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-5639/">45.74.31.42:5639</a></td><td>SOCKS5</td><td>FR</td><td>701 ms</td><td>11 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-15551/">45.74.31.42:15551</a></td><td>SOCKS5</td><td>FR</td><td>1,218 ms</td><td>11 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-11077/">45.74.31.41:11077</a></td><td>SOCKS5</td><td>FR</td><td>5,281 ms</td><td>16 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-6513/">45.74.31.42:6513</a></td><td>SOCKS5</td><td>FR</td><td>3,475 ms</td><td>12 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-15216/">45.74.31.40:15216</a></td><td>SOCKS5</td><td>FR</td><td>1,968 ms</td><td>9 KB/s</td><td>2 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr></tbody></table></div>
+  <section class="use"><h2>In the terminal or in code</h2><pre class="mono">pipx install proxy-scraper-cli
+proxy-scraper --pick 5 --country FR
+curl -x "$(proxy-scraper --pick --country FR --https-only)" https://api.ipify.org</pre><p class="note">--pick takes proxies from the same hourly list in about half a second. From Python: <code>live_proxies()</code>, see the <a href="https://github.com/maximilianfeix/proxy-scraper#from-python">README</a>.</p></section>
+  <section class="faq"><h2>Questions</h2><h3>How many free proxies in France work right now?</h3><p>148 passed every check in the last run (17 Oct 2026, 21:30 UTC): a basic check, a second request to another site and a content check. 123 of them tunnel HTTPS with verified TLS to one test host, and 1 were on the list in 90 % or more of this week&#x27;s runs. The list is checked again about every hour.</p><h3>Which free proxies in France get through to Google?</h3><p>In the last check, 31 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list on the website can be filtered by it.</p><h3>How do I get working proxies in France in code or the terminal?</h3><p>Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country FR prints five from the hourly list. From Python, live_proxies() takes the same filters.</p></section>
+  <nav aria-label="More lists"><h2>By protocol</h2><ul><li><a href="../../http/">HTTP (204)</a></li><li><a href="../../socks4/">SOCKS4 (109)</a></li><li><a href="../../socks5/">SOCKS5 (676)</a></li><li><a href="../../https/">HTTPS (652)</a></li><li><a href="../../elite/">elite (963)</a></li></ul></nav><nav aria-label="By country"><h2>By country</h2><ul><li><a href="../../country/us/">United States (246)</a></li><li><a href="../../country/fr/" aria-current="page">France (148)</a></li><li><a href="../../country/de/">Germany (129)</a></li><li><a href="../../country/id/">Indonesia (58)</a></li><li><a href="../../country/in/">India (54)</a></li><li><a href="../../country/vn/">Vietnam (46)</a></li><li><a href="../../country/cn/">China (34)</a></li><li><a href="../../country/nl/">Netherlands (32)</a></li><li><a href="../../country/ru/">Russia (25)</a></li><li><a href="../../country/sg/">Singapore (19)</a></li><li><a href="../../country/hk/">Hong Kong (17)</a></li><li><a href="../../country/gb/">United Kingdom (14)</a></li><li><a href="../../country/ca/">Canada (12)</a></li><li><a href="../../country/kr/">South Korea (11)</a></li><li><a href="../../country/br/">Brazil (9)</a></li><li><a href="../../country/co/">Colombia (9)</a></li><li><a href="../../country/jp/">Japan (9)</a></li><li><a href="../../country/kh/">Cambodia (7)</a></li><li><a href="../../country/pl/">Poland (7)</a></li><li><a href="../../country/fi/">Finland (6)</a></li><li><a href="../../country/ua/">Ukraine (6)</a></li><li><a href="../../country/bd/">Bangladesh (5)</a></li><li><a href="../../country/il/">Israel (5)</a></li><li><a href="../../country/lv/">Latvia (5)</a></li><li><a href="../../country/lt/">Lithuania (5)</a></li><li><a href="../../country/tw/">Taiwan (5)</a></li><li><a href="../../country/cl/">Chile (4)</a></li><li><a href="../../country/ph/">Philippines (4)</a></li><li><a href="../../country/bg/">Bulgaria (3)</a></li><li><a href="../../country/my/">Malaysia (3)</a></li><li><a href="../../country/sn/">Senegal (3)</a></li><li><a href="../../country/za/">South Africa (3)</a></li><li><a href="../../country/se/">Sweden (3)</a></li><li><a href="../../country/ch/">Switzerland (3)</a></li><li><a href="../../country/au/">Australia (2)</a></li><li><a href="../../country/at/">Austria (2)</a></li><li><a href="../../country/dk/">Denmark (2)</a></li><li><a href="../../country/ee/">Estonia (2)</a></li><li><a href="../../country/ir/">Iran (2)</a></li><li><a href="../../country/it/">Italy (2)</a></li><li><a href="../../country/mo/">Macao (2)</a></li><li><a href="../../country/ml/">Mali (2)</a></li><li><a href="../../country/mx/">Mexico (2)</a></li><li><a href="../../country/py/">Paraguay (2)</a></li><li><a href="../../country/th/">Thailand (2)</a></li><li><a href="../../country/al/">Albania (1)</a></li><li><a href="../../country/be/">Belgium (1)</a></li><li><a href="../../country/bf/">Burkina Faso (1)</a></li><li><a href="../../country/cz/">Czechia (1)</a></li><li><a href="../../country/ec/">Ecuador (1)</a></li><li><a href="../../country/gh/">Ghana (1)</a></li><li><a href="../../country/hu/">Hungary (1)</a></li><li><a href="../../country/ie/">Ireland (1)</a></li><li><a href="../../country/nz/">New Zealand (1)</a></li><li><a href="../../country/pk/">Pakistan (1)</a></li><li><a href="../../country/rs/">Serbia (1)</a></li><li><a href="../../country/es/">Spain (1)</a></li><li><a href="../../country/sy/">Syria (1)</a></li><li><a href="../../country/tr/">Turkey (1)</a></li></ul></nav>
+  <footer>
+    <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>
+    <span>Collected and checked by <a href="https://github.com/maximilianfeix/proxy-scraper">proxy-scraper</a>, open source, MIT licensed.</span>
+  </footer>
+</div>
+</body>
+</html>

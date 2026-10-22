@@ -17,7 +17,10 @@ keywords = ["proxy", "proxy-list", "proxy-checker", "proxy-scraper", "socks5", "
 classifiers = [
     "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
+    "Framework :: AsyncIO",
     "Intended Audience :: Developers",
+    "Intended Audience :: Information Technology",
+    "Intended Audience :: System Administrators",
     "Operating System :: MacOS",
     "Operating System :: Microsoft :: Windows",
     "Operating System :: POSIX :: Linux",
@@ -30,7 +33,12 @@ classifiers = [
     "Programming Language :: Python :: 3.13",
     "Programming Language :: Python :: 3.14",
     "Topic :: Internet :: Proxy Servers",
+    "Topic :: Internet :: WWW/HTTP",
+    "Topic :: Security",
+    "Topic :: Software Development :: Libraries :: Python Modules",
     "Topic :: System :: Networking",
+    "Topic :: System :: Networking :: Monitoring",
+    "Topic :: Utilities",
 ]
 
 [project.optional-dependencies]
@@ -56,6 +64,8 @@ proxy-scraper-mcp = "proxyscraper.mcp_entry:main"
 
 [project.urls]
 Homepage = "https://github.com/maximilianfeix/proxy-scraper"
+Documentation = "https://maximilianfeix.github.io/proxy-scraper/"
+Source = "https://github.com/maximilianfeix/proxy-scraper"
 Issues = "https://github.com/maximilianfeix/proxy-scraper/issues"
 Changelog = "https://github.com/maximilianfeix/proxy-scraper/releases"
 "Live proxy list" = "https://github.com/maximilianfeix/proxy-scraper/tree/proxy-list"

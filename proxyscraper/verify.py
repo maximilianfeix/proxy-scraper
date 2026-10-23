@@ -67,7 +67,7 @@ async def prepare(timeout: float, connect_timeout: float) -> Checker:
     checker.controls = direct_controls(checker, confirm_ip)
     # a scan watches its first check target and switches when it goes down; here there is no watcher, so a
     # failed first request asks the target directly, like the later checks do
-    checker.controls[BASIC] = lambda: probe_judge(checker.judge)
+    checker.controls[BASIC] = lambda: probe_judge(checker.judge, ip=checker.judge_ip)  # the pinned address
     return checker
 
 

@@ -23,7 +23,7 @@ from .compat import on_interrupt
 from .fetchcache import FetchCache
 from .geo import GeoResolver
 from .history import ProxyHistory
-from .judges import JudgeWatch
+from .judges import JudgeWatch, switch_label
 from .netio import http_get, http_request
 from .netpolicy import TargetPolicy
 from .options import RunOptions
@@ -362,7 +362,7 @@ async def run_checks(
         if failed:
             run.checked[:] = [k for k in run.checked if k not in failed]
         requeue(sorted(failed))
-        run.judge_switches.append(f"{old.judge.host} → {new.judge.host}")
+        run.judge_switches.append(switch_label(old, new))
         dashboard.judge_changed(new.judge.host)
 
     if watch:
@@ -482,8 +482,9 @@ async def run_checks(
         raise asyncio.CancelledError
     # wait for open country lookups (briefly at most)
     geo.stop()
-    if geo.pending and not geo.failed:
-        message = f"[bold {ACCENT}]Looking up countries for {fmt(len(geo.pending))} exit IPs …"
+    # `outstanding` includes a batch the worker already took off the queue – its request may still be running
+    if geo.outstanding and not geo.failed:
+        message = f"[bold {ACCENT}]Looking up countries for {fmt(geo.outstanding)} exit IPs …"
         spinner = contextlib.nullcontext() if quiet else widgets.console.status(message, spinner="dots")
         with spinner, contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(asyncio.shield(geo_task), 30)

@@ -29,7 +29,7 @@ from typing import List, Optional
 
 from .geodb import _months
 from .netio import http_get
-from .paths import DATA_DIR
+from .paths import DATA_DIR, atomic_writer
 
 DB_FILE = DATA_DIR / "geo" / "dbip-asn-ipv4.bin"
 URL = "https://download.db-ip.com/free/dbip-asn-lite-{month}.csv.gz"
@@ -107,15 +107,12 @@ class AsnDB:
         return cls(starts, ends, asns, org_index, orgs, month)
 
     def save(self, path: Path = DB_FILE) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
         table = json.dumps(self.orgs, ensure_ascii=False).encode("utf-8")
-        tmp = path.with_suffix(".tmp")
-        with tmp.open("wb") as fh:
+        with atomic_writer(path) as fh:
             fh.write(MAGIC + self.month.encode("ascii").ljust(7) + struct.pack("!II", len(self.starts), len(table)))
             for arr in (self.starts, self.ends, self.asns, self.org_index):
                 arr.tofile(fh)
             fh.write(table)
-        tmp.replace(path)
 
     @classmethod
     def load(cls, path: Path = DB_FILE) -> Optional["AsnDB"]:

@@ -8,10 +8,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
+import secrets
 import sys
+import time
 from pathlib import Path
-from typing import Optional
+from typing import BinaryIO, Iterator, Optional
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = PACKAGE_DIR.parent
@@ -48,8 +51,58 @@ RESULTS_DIR = results_dir()
 
 
 def atomic_write(path: Path, text: str) -> None:
-    # write to a temporary file first, then rename – an interruption leaves no half-written file
+    """Replace `path` with `text` in one step – an interruption leaves no half-written file."""
+    with atomic_writer(path) as fh:
+        fh.write(text.encode("utf-8"))
+
+
+def atomic_write_bytes(path: Path, data: bytes) -> None:
+    with atomic_writer(path) as fh:
+        fh.write(data)
+
+
+@contextlib.contextmanager
+def atomic_writer(path: Path) -> Iterator[BinaryIO]:
+    """Binary file handle whose content replaces `path` once the block ends without an error.
+
+    Every writer gets its own temporary file next to the target, so overlapping writers (threads, or a CLI
+    run and the MCP server sharing the data folder) never collide: each rename is atomic and the target is
+    always one complete version. That is not a merge – with two writers of the same state file the last one
+    wins (see "State files" in docs/ARCHITECTURE.md). On any error the temporary file is removed again."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, path)
+    fd, tmp = _create_temp(path)
+    try:
+        with os.fdopen(fd, "wb") as fh:
+            yield fh
+            fh.flush()
+            os.fsync(fh.fileno())
+        _replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def _create_temp(path: Path) -> tuple[int, str]:
+    # Like mkstemp, but with mode 0666 so the OS applies the umask in effect now (mkstemp forces 0600)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    for _ in range(100):
+        tmp = str(path.parent / f".{path.name}.{secrets.token_hex(4)}.tmp")
+        try:
+            return os.open(tmp, flags, 0o666), tmp
+        except FileExistsError:
+            continue
+    raise FileExistsError(f"no free temporary name next to {path}")
+
+
+def _replace(src: str, dst: Path, attempts: int = 5) -> None:
+    for attempt in range(attempts):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            # Windows: the target is briefly open in another process (a reader, or another writer's rename) –
+            # wait a moment instead of failing. Elsewhere a PermissionError is final.
+            if os.name != "nt" or attempt == attempts - 1:
+                raise
+            time.sleep(0.05 * (attempt + 1))

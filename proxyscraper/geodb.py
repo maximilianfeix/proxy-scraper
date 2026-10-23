@@ -21,7 +21,7 @@ from pathlib import Path
 from typing import Optional
 
 from .netio import http_get
-from .paths import DATA_DIR
+from .paths import DATA_DIR, atomic_writer
 
 DB_FILE = DATA_DIR / "geo" / "dbip-country-ipv4.bin"
 URL = "https://download.db-ip.com/free/dbip-country-lite-{month}.csv.gz"
@@ -79,14 +79,11 @@ class CountryDB:
         return cls(starts, ends, bytes(codes), month)
 
     def save(self, path: Path = DB_FILE) -> None:
-        path.parent.mkdir(parents=True, exist_ok=True)
-        tmp = path.with_suffix(".tmp")
-        with tmp.open("wb") as fh:
+        with atomic_writer(path) as fh:
             fh.write(MAGIC + self.month.encode("ascii").ljust(7) + struct.pack("!I", len(self.starts)))
             self.starts.tofile(fh)
             self.ends.tofile(fh)
             fh.write(self.codes)
-        tmp.replace(path)
 
     @classmethod
     def load(cls, path: Path = DB_FILE) -> Optional["CountryDB"]:

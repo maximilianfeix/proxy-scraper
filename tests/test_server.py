@@ -327,9 +327,34 @@ def test_post_body_reaches_the_target(kind, handler):
     assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(b"name=wert&x=1")
 
 
-def test_post_body_is_replayed_after_a_silent_proxy():
+def test_post_body_is_not_replayed_after_a_silent_proxy():
+    """The silent proxy got the whole POST and may have delivered it – a second proxy must not run it again."""
     answer, pool, stats = run_server([("http", silent_proxy), ("http", http_forward_proxy)], post_echo(b"daten"))
-    assert answer.endswith(b"daten")
+    assert answer.startswith(b"HTTP/1.1 502") and b"no-retry-after-send" in answer
+    assert (pool.entries[0].fail, pool.entries[1].ok, pool.entries[1].fail) == (1, 0, 0)
+    assert stats.recent[-1].attempts == 1 and stats.failed == 1
+
+
+def test_post_body_goes_to_the_next_proxy_when_the_first_is_dead():
+    """Nothing could be sent to a proxy that refuses the connection: the buffered body goes to the next one."""
+    answer, pool, stats = run_server([("http", None), ("http", http_forward_proxy)], post_echo(b"daten"))
+    assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(b"daten")
+    assert (pool.entries[0].fail, pool.entries[1].ok) == (1, 1) and stats.recent[-1].attempts == 2
+
+
+def test_get_body_is_replayed_after_a_silent_proxy():
+    """Safe methods keep the switch – with the buffered body and its framing unchanged."""
+    async def send(server_port, target_port):
+        reader, writer = await asyncio.open_connection("127.0.0.1", server_port)
+        writer.write((f"GET http://127.0.0.1:{target_port}/echo HTTP/1.1\r\nHost: 127.0.0.1:{target_port}\r\n"
+                      "Content-Length: 5\r\n\r\ndaten").encode())
+        await writer.drain()
+        answer = await asyncio.wait_for(reader.read(65536), 5)
+        writer.close()
+        return answer
+
+    answer, pool, stats = run_server([("http", silent_proxy), ("http", http_forward_proxy)], send)
+    assert answer.startswith(b"HTTP/1.1 200") and answer.endswith(b"Content-Length: 5\r\n\r\ndaten")
     assert (pool.entries[0].fail, pool.entries[1].ok) == (1, 1) and stats.recent[-1].attempts == 2
 
 

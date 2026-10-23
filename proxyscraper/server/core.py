@@ -19,12 +19,14 @@ from ..handshake import parse_endpoint, with_proxy_auth
 from . import api
 from .api import API_PREFIX
 from .http import (
+    SAFE_METHODS,
     TLS_HANDSHAKE,
     ResponseScreen,
     forward_request,
     origin_request,
     parse_request_head,
     plausible_answer,
+    replay_safe_first_packet,
     request_body_length,
     valid_hostname,
 )
@@ -49,7 +51,7 @@ from .upstream import TargetError, Unsupported, UpstreamError, open_upstream
 
 MAX_ATTEMPTS = 3            # this many proxies per request before the client gets an error
 FIRST_CHUNK_WAIT = 5.0      # how long to wait for the client's first packet in the tunnel
-MAX_REPLAY_BODY = 1024 * 1024  # request bodies up to this size are buffered for switching proxies
+MAX_REPLAY_BODY = 1024 * 1024  # request bodies up to this size are buffered (switching proxies: safe methods only)
 HTTP_ESTABLISHED = b"HTTP/1.1 200 Connection established\r\n\r\n"
 HEAD_LIMIT = 64 * 1024
 # one side of a relay hung up. uvloop reports a write to a closed connection as RuntimeError ("the handler is
@@ -188,7 +190,8 @@ class RotatingServer:
         """CONNECT: open a tunnel first, then "200" to the client – if none works, it gets a 502.
 
         After that a proxy only counts as successful once it answers. The client's first packet (for HTTPS
-        the start of the TLS handshake) is buffered and goes to the next proxy unnoticed if needed.
+        the start of the TLS handshake) is buffered and goes to the next proxy unnoticed if needed – but only
+        if repeating it can't run anything twice (replay_safe_first_packet).
         """
         if not valid_hostname(host):  # the client's mistake: no proxy is tried, none is blamed
             self._log(client, host, port, None, False, started, 0)
@@ -220,6 +223,8 @@ class RotatingServer:
                                   up_reader, up_writer, first_out, first_in)
                 return True
             self._give_up(entry, up_writer)
+            if not replay_safe_first_packet(first_out):
+                break  # the first proxy may have passed it on – it goes out once, never twice
             opened = await self._open_next(tried, host, port, tls=tls, tunnel=True, selection=selection)
         self._log(client, host, port, None, False, started, len(tried))
         return False  # after "200 Connection established" all that's left is to close the connection
@@ -227,7 +232,11 @@ class RotatingServer:
     async def _serve_http(self, reader, writer, client, method, host, port, path, headers, started,
                           selection: Selection = ANY) -> bool:
         """Plain HTTP request. HTTP upstreams get it as a classic proxy request (without CONNECT),
-        SOCKS upstreams in the form for the target server. Small bodies are buffered for a switch."""
+        SOCKS upstreams in the form for the target server. Small bodies are buffered for a switch.
+
+        Switching after the request went out (the proxy then hung up or stayed silent) is only allowed for safe
+        methods: the first proxy may have delivered it, and a POST must not run twice. If the connection to a
+        proxy can't even be opened, nothing was sent and any method goes to the next one."""
         if not valid_hostname(host):
             self._log(client, host, port, None, False, started, 0)
             await self._bad_gateway(writer)
@@ -261,6 +270,10 @@ class RotatingServer:
                                   up_reader, up_writer, first_out, first_in, upload=0)
                 return True
             self._give_up(entry, up_writer)
+            if method not in SAFE_METHODS:
+                self._log(client, host, port, None, False, started, len(tried))
+                await self._not_retried(writer)
+                return False
         self._log(client, host, port, None, False, started, len(tried))
         await self._bad_gateway(writer)
         return False
@@ -412,6 +425,15 @@ class RotatingServer:
         writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
                      b"X-Proxy-Scraper: no-proxy-answered\r\n"
                      b"Connection: close\r\n\r\nNo proxy from the pool answered.\n")
+        await writer.drain()
+
+    @staticmethod
+    async def _not_retried(writer) -> None:
+        # unlike no-proxy-answered the request may have reached the target – the client decides about a retry
+        writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
+                     b"X-Proxy-Scraper: no-retry-after-send\r\n"
+                     b"Connection: close\r\n\r\nThe proxy failed after the request may have reached the target. "
+                     b"It was not repeated through another proxy because its method is not safe to repeat.\n")
         await writer.drain()
 
     async def _send_body(self, reader, writer, body) -> int:

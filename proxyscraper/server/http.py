@@ -13,6 +13,12 @@ PROXY_AUTH_REQUIRED = re.compile(rb"HTTP/1\.[01] 407\b")
 STATUS_LEN = len(b"HTTP/1.1 407 ")
 STATUS_RE = re.compile(rb"HTTP/1\.[01] (\d{3})[ \r\n]")  # exactly three digits – "4070" is not a 407
 SCREEN_LIMIT = 16384
+# methods that may go to a second proxy after the first one could already have passed them on. Only the safe
+# methods of RFC 9110 9.2.1: PUT and DELETE are idempotent by definition, but whether a target really behaves
+# that way is its promise, not ours, and a proxy must not retry on its behalf (RFC 9110 9.2.2) – one lost
+# response would otherwise run a payment, an upload or a delete twice. An Idempotency-Key header is no
+# guarantee either: nothing tells us the target deduplicates on it.
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
 
 
 def parse_request_head(head: bytes) -> Tuple[str, str, int, bytes, List[Tuple[bytes, bytes]]]:
@@ -169,6 +175,30 @@ class ResponseScreen:
     def _flush(self) -> bytes:
         data, self.buf = self.buf, b""
         return data
+
+
+def replay_safe_first_packet(data: bytes) -> bool:
+    """May the client's first packet in a tunnel go to another proxy after the first one perhaps passed it on?
+
+    Yes for nothing at all (the server talks first), for TLS handshake records only (a ClientHello carries no
+    application data – but 0-RTT early data in the same packet would, so every record has to be a handshake)
+    and for exactly one request head with a safe method (plain HTTP through CONNECT). Anything else could be
+    a POST or a command of some other protocol: it is sent once."""
+    if not data:
+        return True
+    if data[:1] == TLS_HANDSHAKE:
+        i = 0
+        while i < len(data):
+            if data[i:i + 1] != TLS_HANDSHAKE:
+                return False
+            if len(data) - i < 5:
+                return True
+            i += 5 + int.from_bytes(data[i + 3:i + 5], "big")
+        return True
+    method, _, rest = data.partition(b" ")
+    end = data.find(b"\r\n\r\n")
+    return (method.decode("ascii", "replace") in SAFE_METHODS and b" HTTP/1." in rest.split(b"\r\n", 1)[0]
+            and end == len(data) - 4)
 
 
 def plausible_answer(first_out: bytes, first_in: bytes) -> bool:

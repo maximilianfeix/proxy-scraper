@@ -2,6 +2,8 @@
 
 import asyncio
 
+import pytest
+
 from proxyscraper import publish
 from proxyscraper.blocklist import NOT_LISTED, Blocklist, query_name
 from proxyscraper.checker import CheckResult
@@ -127,3 +129,105 @@ def test_system_resolver_tells_nxdomain_from_errors(monkeypatch):
 
     assert asyncio.run(go(socket.EAI_NONAME)) == NOT_LISTED
     assert asyncio.run(go(socket.EAI_AGAIN)) is None
+
+
+# --------------------------------------------------------------------------- #
+# parallel lookups of the same exit IP share one resolver call
+# --------------------------------------------------------------------------- #
+
+def gated_resolver(calls, gate, fail=None):
+    """Answers like `resolver`, but every lookup of a proxy IP waits for `gate` – so callers really overlap.
+    fail: IPs whose lookup raises."""
+    async def resolve(name):
+        ip = ".".join(reversed(name.split(".")[:4]))
+        if ip.startswith("127.0.0."):  # the probe
+            return "127.0.0.2" if ip == "127.0.0.2" else NOT_LISTED
+        calls.append(ip)
+        await gate.wait()
+        if fail and ip in fail:
+            raise RuntimeError("resolver broke")
+        return "127.0.0.2" if ip in LISTED else NOT_LISTED
+    return resolve
+
+
+def test_parallel_lookups_of_one_ip_share_one_query():
+    calls = []
+
+    async def go():
+        gate = asyncio.Event()
+        bl = Blocklist(gated_resolver(calls, gate))
+        assert await bl.probe()
+        waiting = [asyncio.ensure_future(bl.lookup("1.1.1.1")) for _ in range(100)]
+        waiting += [asyncio.ensure_future(bl.lookup("8.8.8.8")) for _ in range(50)]
+        await asyncio.sleep(0.01)
+        gate.set()
+        results = await asyncio.gather(*waiting)
+        return results, bl
+
+    results, bl = asyncio.run(go())
+    assert sorted(calls) == ["1.1.1.1", "8.8.8.8"]  # one query per IP, not one per caller
+    assert results == [True] * 100 + [False] * 50
+    assert bl.listed == 1  # counted once, not per caller
+    assert not bl._inflight
+
+
+def test_a_failing_shared_lookup_reaches_every_caller_and_is_retried_later():
+    calls = []
+
+    async def go():
+        gate = asyncio.Event()
+        bl = Blocklist(gated_resolver(calls, gate, fail={"1.1.1.1"}))
+        assert await bl.probe()
+        waiting = [asyncio.ensure_future(bl.lookup("1.1.1.1")) for _ in range(10)]
+        await asyncio.sleep(0.01)
+        gate.set()
+        results = await asyncio.gather(*waiting, return_exceptions=True)
+        assert not bl._inflight and "1.1.1.1" not in bl._cache  # an error isn't cached, no entry hangs
+        with pytest.raises(RuntimeError):
+            await bl.lookup("1.1.1.1")
+        return results
+
+    results = asyncio.run(go())
+    assert all(isinstance(r, RuntimeError) for r in results)
+    assert calls == ["1.1.1.1", "1.1.1.1"]  # one shared query, then one fresh retry
+
+
+def test_one_caller_cancelling_doesnt_cancel_the_lookup_for_the_others():
+    calls = []
+
+    async def go():
+        gate = asyncio.Event()
+        bl = Blocklist(gated_resolver(calls, gate))
+        assert await bl.probe()
+        first = asyncio.ensure_future(bl.lookup("1.1.1.1"))
+        second = asyncio.ensure_future(bl.lookup("1.1.1.1"))
+        await asyncio.sleep(0.01)
+        first.cancel()
+        await asyncio.sleep(0)
+        gate.set()
+        result = await second
+        assert first.cancelled()
+        return result, bl
+
+    result, bl = asyncio.run(go())
+    assert result is True and calls == ["1.1.1.1"]
+    assert bl._cache == {"1.1.1.1": True} and not bl._inflight
+
+
+def test_a_lookup_every_caller_abandoned_still_finishes_and_cleans_up():
+    calls = []
+
+    async def go():
+        gate = asyncio.Event()
+        bl = Blocklist(gated_resolver(calls, gate))
+        assert await bl.probe()
+        only = asyncio.ensure_future(bl.lookup("1.1.1.1"))
+        await asyncio.sleep(0.01)
+        only.cancel()
+        gate.set()
+        for _ in range(5):
+            await asyncio.sleep(0)
+        return bl
+
+    bl = asyncio.run(go())
+    assert calls == ["1.1.1.1"] and not bl._inflight and bl._cache == {"1.1.1.1": True}

@@ -1,6 +1,7 @@
 """Is the exit IP on a spam blocklist? Sites that use such lists answer those proxies with captchas or not at all.
 
-One DNS lookup per exit IP against SpamCop (bl.spamcop.net), cached for the run. Measured on the live
+One DNS lookup per exit IP against SpamCop (bl.spamcop.net), cached for the run; parallel lookups of the
+same IP share one query. Measured on the live
 list: 29 % of exit IPs were listed there. DroneBL lists 59 % (it is essentially a list of open proxies),
 too many to be useful as a filter, so it isn't used.
 
@@ -53,6 +54,8 @@ class Blocklist:
         self.usable: Optional[bool] = None  # None until probed
         self.listed = 0
         self._cache: Dict[str, Optional[bool]] = {}
+        # lookups still running, one per IP: parallel checks of proxies with the same exit IP share it
+        self._inflight: Dict[str, "asyncio.Future[Optional[bool]]"] = {}
         self._slots: Optional[asyncio.Semaphore] = None
 
     async def probe(self) -> bool:
@@ -74,9 +77,25 @@ class Blocklist:
             return None
         if ip in self._cache:
             return self._cache[ip]
-        name = query_name(ip, self.zone)
-        if name is None:
+        if query_name(ip, self.zone) is None:
             return None
+        task = self._inflight.get(ip)
+        if task is None:
+            task = asyncio.ensure_future(self._lookup(ip))
+            self._inflight[ip] = task
+            task.add_done_callback(lambda t: self._finished(ip, t))
+        # shield: a caller that gets cancelled (its check timed out) must not cancel the query the
+        # others are waiting for. The query itself always ends – _ask has a timeout.
+        return await asyncio.shield(task)
+
+    def _finished(self, ip: str, task: "asyncio.Future[Optional[bool]]") -> None:
+        if self._inflight.get(ip) is task:
+            del self._inflight[ip]
+        if not task.cancelled():
+            task.exception()  # retrieved: no "never retrieved" warning when every caller gave up
+
+    async def _lookup(self, ip: str) -> Optional[bool]:
+        name = query_name(ip, self.zone)
         if self._slots is None:  # created here: before Python 3.10 a semaphore is bound to the event loop
             self._slots = asyncio.Semaphore(CONCURRENT_LOOKUPS)
         async with self._slots:

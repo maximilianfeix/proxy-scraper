@@ -92,8 +92,10 @@ def parse_ip_literal(host: str) -> Optional[IPAddress]:
     parts = host.split(".")
     if not host or not all(_NUMERIC_PART_RE.fullmatch(p) for p in parts):
         return None  # a name (at least one label isn't a number)
-    if len(parts) > 4:
-        raise BlockedTarget(f"invalid address: {host}")
+    # 12 characters hold any 32-bit value in every spelling (0x + 8 hex, 0 + 11 octal, 10 decimal); longer
+    # parts are refused before int() – huge decimal strings hit Python's int conversion limit (ValueError)
+    if len(parts) > 4 or any(len(p) > 12 for p in parts):
+        raise BlockedTarget(f"invalid address: {host[:64]}")
     values = []
     for p in parts:
         if p[:2].lower() == "0x":

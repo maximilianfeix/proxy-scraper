@@ -62,7 +62,8 @@ def test_names_are_not_ip_literals(host):
     assert parse_ip_literal(host) is None
 
 
-@pytest.mark.parametrize("host", ["08.0.0.1", "1.2.3.4.5", "256.1.1.1", "4294967296", "1.2.70000", "fe80::1%eth0"])
+@pytest.mark.parametrize("host", ["08.0.0.1", "1.2.3.4.5", "256.1.1.1", "4294967296", "1.2.70000", "fe80::1%eth0",
+                                  "9" * 5000 + ".1", "0x" + "f" * 5000, "0" + "7" * 5000])
 def test_numeric_hosts_that_are_no_valid_address_are_rejected(host):
     with pytest.raises(BlockedTarget):
         parse_ip_literal(host)

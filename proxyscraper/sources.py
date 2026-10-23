@@ -12,7 +12,6 @@ from __future__ import annotations
 
 import asyncio
 import hashlib
-import ipaddress
 import json
 import os
 import re
@@ -27,6 +26,7 @@ from typing import Awaitable, Callable, Dict, Iterable, List, Optional, Set, Tup
 from urllib.parse import quote, urlencode, urlsplit
 from urllib.request import url2pathname
 
+from .netpolicy import BlockedTarget, is_public_address, parse_ip_literal
 from .parsing import PROXY_TYPES, TYPE_ALIASES, extract_candidates, validate_candidates
 from .paths import DATA_DIR, PACKAGE_DIR, atomic_write
 
@@ -369,9 +369,14 @@ def _public_host(parts) -> bool:
     if parts.scheme not in ("http", "https") or port not in (None, 80, 443) or not host or _LOCAL_HOST_RE.search(host):
         return False
     try:
-        return ipaddress.ip_address(host).is_global
-    except ValueError:
-        return "." in host  # a name – single labels only resolve on a local network
+        ip = parse_ip_literal(host)  # also 127.1, 0x7f.1, 2130706433, ::ffff:127.0.0.1 …
+    except BlockedTarget:
+        return False
+    if ip is not None:
+        return is_public_address(ip)
+    # a name – single labels only resolve on a local network. Where a name resolves to is checked when it is
+    # fetched (netio.public_get), for every redirect hop and without a second lookup before connecting.
+    return "." in host
 
 
 def _mined_type(url: str) -> str:
@@ -397,9 +402,13 @@ async def discover_github(
     days: int = 3,
     on_progress: Optional[Callable[[str], None]] = None,
     known: Iterable[str] = (),
+    untrusted_get: Optional[Getter] = None,
 ) -> SourceMap:
     """Looks for actively maintained proxy list repos and their list files – and for the source lists of other
-    scrapers, whose URLs are kept if they really hold proxies. `known`: sources that needn't be tried again."""
+    scrapers, whose URLs are kept if they really hold proxies. `known`: sources that needn't be tried again.
+
+    `get` loads GitHub's API and raw files; `untrusted_get` the URLs mined from other scrapers' files – by
+    default netio.public_get, which only reaches public addresses (see netpolicy)."""
     headers = {"Accept": "application/vnd.github+json", "X-GitHub-Api-Version": "2022-11-28"}
     if token:
         headers["Authorization"] = f"Bearer {token}"
@@ -481,19 +490,24 @@ async def discover_github(
     found: SourceMap = {}
     for res in await asyncio.gather(*(scan(n, b) for n, b in chosen)):
         found.update(res)
-    found.update(await _mine(get, configs_found, set(known) | set(found), on_progress))
+    found.update(await _mine(get, configs_found, set(known) | set(found), on_progress, untrusted_get))
     return found
 
 
 async def _mine(get: Getter, configs: List[str], known: Set[str],
-                on_progress: Optional[Callable[[str], None]] = None) -> SourceMap:
-    """Read other scrapers' source files, then fetch each new URL once: only real proxy lists are kept."""
+                on_progress: Optional[Callable[[str], None]] = None,
+                untrusted_get: Optional[Getter] = None) -> SourceMap:
+    """Read other scrapers' source files, then fetch each new URL once: only real proxy lists are kept.
+    The configs are our own raw.githubusercontent URLs (`get`); the URLs in them are someone else's
+    (`untrusted_get`, public addresses only by default)."""
+    if untrusted_get is None:
+        from .netio import public_get as untrusted_get
     sem = asyncio.Semaphore(32)
 
-    async def fetch(url: str) -> bytes:
+    async def fetch(url: str, getter: Getter = get) -> bytes:
         async with sem:
             try:
-                return await get(url, timeout=MINE_TIMEOUT)
+                return await getter(url, timeout=MINE_TIMEOUT)
             except Exception:
                 return b""
 
@@ -507,7 +521,7 @@ async def _mine(get: Getter, configs: List[str], known: Set[str],
 
     async def check(url: str) -> Tuple[str, Optional[str]]:
         nonlocal checked
-        data = await fetch(url)
+        data = await fetch(url, untrusted_get)
         ptype = await asyncio.to_thread(_readable_type, url, data) if data else None
         checked += 1
         if on_progress and checked % 50 == 0:

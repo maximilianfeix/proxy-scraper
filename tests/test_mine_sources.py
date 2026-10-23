@@ -41,8 +41,9 @@ def fake_get(fetched):
 
 def test_urls_from_scraper_configs_are_checked_before_they_count():
     fetched = []
-    found = asyncio.run(srcs.discover_github(fake_get(fetched), token=None, max_repos=10,
-                                             known={"https://known.example/http.txt"}))
+    get = fake_get(fetched)
+    found = asyncio.run(srcs.discover_github(get, token=None, max_repos=10, known={"https://known.example/http.txt"},
+                                             untrusted_get=get))  # the fake also answers for the mined URLs
     assert found == {
         "https://raw.githubusercontent.com/someone/lists/main/socks5.txt": "socks5",
         "https://example.org/api/proxies?format=text": "auto",   # plain ip:port lines: auto reads them as http
@@ -63,7 +64,7 @@ def test_mined_urls_are_capped():
             return many
         return await base(url, timeout, headers)
 
-    found = asyncio.run(srcs.discover_github(get, token=None, max_repos=10))
+    found = asyncio.run(srcs.discover_github(get, token=None, max_repos=10, untrusted_get=get))
     assert len(found) == srcs.MAX_MINED_CHECKS
 
 
@@ -129,7 +130,7 @@ def test_discovery_survives_malformed_urls_in_remote_configs():
             return b"https://[broken/proxy.txt\nhttps://good.example/socks5.txt"
         return await base(url, timeout, headers)
 
-    found = asyncio.run(srcs.discover_github(get, token=None, max_repos=10))
+    found = asyncio.run(srcs.discover_github(get, token=None, max_repos=10, untrusted_get=get))
     assert found == {"https://good.example/socks5.txt": "socks5"}
     assert "https://good.example/socks5.txt" in fetched
     assert not any("[broken" in url for url in fetched)
@@ -152,7 +153,7 @@ def test_slow_hosts_cant_stall_discovery(monkeypatch):
         return config if url == "cfg" else LIST
 
     async def go():
-        return await asyncio.wait_for(srcs._mine(get, ["cfg"], set()), 5)
+        return await asyncio.wait_for(srcs._mine(get, ["cfg"], set(), untrusted_get=get), 5)
     assert asyncio.run(go()) == {"https://fast.example/proxy.txt": "auto"}
 
 

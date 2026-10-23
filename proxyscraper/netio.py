@@ -8,6 +8,8 @@ from functools import lru_cache
 from typing import Dict, Optional, Set, Tuple
 from urllib.parse import urljoin, urlsplit
 
+from .httpframing import ChunkedDecoder
+
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
     "(KHTML, like Gecko) Chrome/128.0 Safari/537.36"
@@ -137,7 +139,7 @@ async def read_response(reader) -> Tuple[int, Dict[bytes, bytes], bytes]:
     # respect Content-Length: servers with keep-alive (e.g. checkip.amazonaws.com) don't close
     # the connection otherwise, and reading to the end would run into the timeout.
     if headers.get(b"transfer-encoding", b"").lower() == b"chunked":
-        body = dechunk(await read_all(reader))
+        body = await read_chunked(reader)
     elif headers.get(b"content-length", b"").isdigit():
         length = int(headers[b"content-length"])
         if length > MAX_BODY:
@@ -162,7 +164,23 @@ async def read_all(reader, limit: int = MAX_BODY) -> bytes:
     return bytes(buf)
 
 
+async def read_chunked(reader, limit: Optional[int] = None) -> bytes:
+    """A chunked body, read only up to its end – not to EOF, which a keep-alive server never sends."""
+    decoder = ChunkedDecoder(MAX_BODY if limit is None else limit)
+    while True:
+        try:
+            chunk = await reader.read(65536)
+        except ConnectionResetError:
+            chunk = b""
+        if not chunk:
+            return decoder.finish()  # FramingError if cut off
+        if decoder.feed(chunk):
+            return bytes(decoder.body)
+
+
 def dechunk(data: bytes) -> bytes:
+    """Lenient decoding of a complete, already read chunked body (kept for callers outside the package);
+    readers use ChunkedDecoder, which also knows where the body ends."""
     out, i = bytearray(), 0
     while i < len(data):
         j = data.find(b"\r\n", i)

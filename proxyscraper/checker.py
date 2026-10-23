@@ -47,8 +47,9 @@ from .checkstate import (
     state_for,
 )
 from .handshake import Endpoint, parse_endpoint, socks4, socks5, socks5_ipv4, stream_io, with_proxy_auth
+from .httpframing import ChunkedDecoder, FramingError
 from .judges import DEFAULT_JUDGE, Judge
-from .netio import USER_AGENT, authority, dechunk, host_header, http_request, read_response, ssl_context
+from .netio import USER_AGENT, authority, host_header, http_request, read_response, ssl_context
 from .parsing import normalize_public_ip, split_key
 from .targets import Target
 
@@ -69,6 +70,9 @@ INTEGRITY_REQUEST = f"GET /html HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 HTTP_PROXY_INTEGRITY_REQUEST = f"GET http://{CONFIRM_HOST}/html HTTP/1.1\r\n{_CONFIRM_HEADERS}".encode()
 
 CONTENT_LENGTH_RE = re.compile(rb"(?im)^content-length:\s*(\d+)")
+# chunked as the (last) transfer coding – not just the word somewhere in the header block
+CHUNKED_RE = re.compile(rb"(?im)^transfer-encoding:[^\r\n]*\bchunked[ \t]*\r?$")
+READ_LIMIT = 16384  # _read_http_200 reads at most this much: the answers of check targets are small
 # At most this many HTTPS/target-site connections at once. Every hit opens 1 + target-site connections
 # in parallel – without a limit that quickly adds up to thousands with 2000 workers (EMFILE).
 DETAIL_CONNECTIONS = 256
@@ -770,10 +774,15 @@ def classify_anonymity(body: bytes, own_ips: Iterable[str]) -> Optional[str]:
 
 
 async def _read_http_200(reader) -> Optional[bytes]:
-    """Read a small HTTP response; the body only for status 200, otherwise None."""
+    """Read a small HTTP response; the body only for status 200, otherwise None.
+
+    Stops at the end of the body (Content-Length, or the last chunk of a chunked one), so a proxy that keeps
+    the connection open doesn't cost the whole timeout. A broken or cut-off chunked body -> None."""
     data = bytearray()
     want = None  # total length from Content-Length, once the header is there
-    while len(data) < 16384:
+    chunked: Optional[ChunkedDecoder] = None
+    complete = False
+    while len(data) < READ_LIMIT:
         try:
             chunk = await reader.read(4096)
         except ConnectionResetError:
@@ -783,17 +792,30 @@ async def _read_http_200(reader) -> Optional[bytes]:
         data += chunk
         if want is None:
             end = data.find(b"\r\n\r\n")
-            if end >= 0:
-                if not data.startswith(b"HTTP/") or b" 200" not in data[: data.find(b"\r\n")]:
-                    return None  # bail out early, the rest of the response doesn't matter
+            if end < 0:
+                continue
+            if not data.startswith(b"HTTP/") or b" 200" not in data[: data.find(b"\r\n")]:
+                return None  # bail out early, the rest of the response doesn't matter
+            if CHUNKED_RE.search(data, 0, end):
+                want = -1
+                chunked = ChunkedDecoder(READ_LIMIT)
+                chunk = bytes(data[end + 4:])
+            else:
                 m = CONTENT_LENGTH_RE.search(data, 0, end)
                 want = end + 4 + int(m.group(1)) if m else -1
-        if want is not None and 0 <= want <= len(data):
+        if chunked is not None:
+            try:
+                complete = chunked.feed(chunk)
+            except FramingError:
+                return None
+            if complete:
+                break
+        elif 0 <= want <= len(data):
             break
 
     head, _, body = bytes(data).partition(b"\r\n\r\n")
     if not head.startswith(b"HTTP/") or b" 200" not in head.split(b"\r\n", 1)[0]:
         return None
-    if b"chunked" in head.lower():
-        body = dechunk(body)
+    if chunked is not None:
+        return bytes(chunked.body) if complete else None  # cut off or larger than READ_LIMIT
     return body

@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+import os
 
 import pytest
 
@@ -158,14 +159,13 @@ def test_the_run_file_is_replaced_in_one_go(tmp_path, monkeypatch):
     d = run_dir(tmp_path, [row(1)])
     before = (d / "proxies.json").read_text()
 
-    def half_then_killed(self, text, *a, **k):
-        with open(self, "w", encoding="utf-8") as fh:
-            fh.write(text[:10])
+    def killed_before_the_rename(fd):  # the new content is in the temporary file, not yet in place
         raise KeyboardInterrupt
-    monkeypatch.setattr(type(d), "write_text", half_then_killed)
+    monkeypatch.setattr(os, "fsync", killed_before_the_rename)
     with pytest.raises(KeyboardInterrupt):
         asyncio.run(sites.fill_run(d, probe=probe, resolve=lambda host: "10.0.0.1"))
     assert (d / "proxies.json").read_text() == before
+    assert not [p for p in d.iterdir() if p.name.endswith(".tmp")]
 
 
 def test_a_cut_off_page_is_no_verdict():

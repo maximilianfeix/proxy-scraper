@@ -52,6 +52,7 @@ from .upstream import TargetError, Unsupported, UpstreamError, open_upstream
 MAX_ATTEMPTS = 3            # this many proxies per request before the client gets an error
 FIRST_CHUNK_WAIT = 5.0      # how long to wait for the client's first packet in the tunnel
 MAX_REPLAY_BODY = 1024 * 1024  # request bodies up to this size are buffered (switching proxies: safe methods only)
+MAX_CLIENTS = 1024          # connections handled at once; more get a 503 (each one also holds an upstream socket)
 HTTP_ESTABLISHED = b"HTTP/1.1 200 Connection established\r\n\r\n"
 HEAD_LIMIT = 64 * 1024
 # one side of a relay hung up. uvloop reports a write to a closed connection as RuntimeError ("the handler is
@@ -83,8 +84,10 @@ class ServerStats:
 
 class RotatingServer:
     def __init__(self, pool: ProxyPool, host: str = "127.0.0.1", port: int = 8899, timeout: float = 10.0,
-                 password: str = "", max_attempts: int = MAX_ATTEMPTS, public_targets_only: bool = False):
+                 password: str = "", max_attempts: int = MAX_ATTEMPTS, public_targets_only: bool = False,
+                 max_clients: int = MAX_CLIENTS):
         self.pool = pool
+        self.max_clients = max_clients  # connections served at once; the next one gets a 503 and is closed
         # names this machine resolves for SOCKS4 upstreams must not lead to private addresses (DNS rebinding)
         self.public_targets_only = public_targets_only
         self.max_attempts = max_attempts  # proxies per request before the client gets a 502
@@ -136,6 +139,13 @@ class RotatingServer:
             task.add_done_callback(self._handlers.discard)
         peer = writer.get_extra_info("peername") or ("?", 0)
         client = f"{peer[0]}:{peer[1]}"
+        if self.stats.active >= self.max_clients:
+            # overloaded: refuse right away instead of letting connections (and file descriptors) pile up
+            with contextlib.suppress(*HANG_UP):
+                writer.write(b"HTTP/1.1 503 Service Unavailable\r\nX-Proxy-Scraper: too-many-clients\r\n"
+                             b"Retry-After: 1\r\nContent-Length: 0\r\nConnection: close\r\n\r\n")
+            writer.close()
+            return
         self.stats.active += 1
         try:
             try:
@@ -205,29 +215,34 @@ class RotatingServer:
             self._log(client, host, port, None, False, started, len(tried))
             await (refuse or self._bad_gateway)(writer)
             return False
+        # `opened` holds the reservation until _relay or _give_up takes it over; the finally releases it on every
+        # other way out – the client leaving, and cancellation (close(), abort_session()) at any await
         try:
-            writer.write(established)
-            await writer.drain()
-            first_out = await self._first_client_chunk(reader)
-        except (*HANG_UP, asyncio.IncompleteReadError):  # the client left – not the proxy's fault: release it
-            opened[0].active -= 1
-            opened[2].close()
-            return False
-        tls = first_out[:1] == TLS_HANDSHAKE
+            try:
+                writer.write(established)
+                await writer.drain()
+                first_out = await self._first_client_chunk(reader)
+            except (*HANG_UP, asyncio.IncompleteReadError):  # the client left – not the proxy's fault
+                return False
+            tls = first_out[:1] == TLS_HANDSHAKE
 
-        while opened is not None:
-            entry, up_reader, up_writer = opened
-            first_in = await self._exchange(up_reader, up_writer, first_out)
-            if first_in is not None:
-                await self._relay(reader, writer, client, host, port, started, len(tried), entry,
-                                  up_reader, up_writer, first_out, first_in)
-                return True
-            self._give_up(entry, up_writer)
-            if not replay_safe_first_packet(first_out):
-                break  # the first proxy may have passed it on – it goes out once, never twice
-            opened = await self._open_next(tried, host, port, tls=tls, tunnel=True, selection=selection)
-        self._log(client, host, port, None, False, started, len(tried))
-        return False  # after "200 Connection established" all that's left is to close the connection
+            while opened is not None:
+                entry, up_reader, up_writer = opened
+                first_in = await self._exchange(up_reader, up_writer, first_out)
+                opened = None  # handed on right here, without an await in between
+                if first_in is not None:
+                    await self._relay(reader, writer, client, host, port, started, len(tried), entry,
+                                      up_reader, up_writer, first_out, first_in)
+                    return True
+                self._give_up(entry, up_writer)
+                if not replay_safe_first_packet(first_out):
+                    break  # the first proxy may have passed it on – it goes out once, never twice
+                opened = await self._open_next(tried, host, port, tls=tls, tunnel=True, selection=selection)
+            self._log(client, host, port, None, False, started, len(tried))
+            return False  # after "200 Connection established" all that's left is to close the connection
+        finally:
+            if opened is not None:
+                self._release(opened[0], opened[2])
 
     async def _serve_http(self, reader, writer, client, method, host, port, path, headers, started,
                           selection: Selection = ANY) -> bool:
@@ -241,39 +256,53 @@ class RotatingServer:
             self._log(client, host, port, None, False, started, 0)
             await self._bad_gateway(writer)
             return False
-        body, replayable = await self._read_body(reader, headers)
+        try:
+            body, buffered = await self._read_body(reader, headers)
+        except asyncio.TimeoutError:  # the client stopped sending its (small) body half-way
+            self._log(client, host, port, None, False, started, 0)
+            await self._request_timeout(writer)
+            return False
         tried: Set[str] = set()
-        while True:
-            opened = await self._open_next(tried, host, port, tls=False, tunnel=False, selection=selection)
-            if opened is None:
-                break
-            entry, up_reader, up_writer = opened
-            if entry.result.ptype == "http":
-                head = with_proxy_auth(forward_request(method, path, host, port, headers),
-                                       parse_endpoint(entry.result.proxy))
-            else:
-                head = origin_request(method, path, host, port, headers)
-            first_out = head + body
-            if not replayable:
-                # large or streamed body: no switch possible once it's under way – send the head, pass the rest
-                try:
-                    up_writer.write(first_out)
-                    await up_writer.drain()
-                except HANG_UP:  # hung up before anything went through: nothing sent yet, try the next one
-                    self._give_up(entry, up_writer)
-                    continue
-                return await self._relay(reader, writer, client, host, port, started, len(tried), entry,
-                                         up_reader, up_writer, first_out, b"", upload=request_body_length(headers))
-            first_in = await self._exchange(up_reader, up_writer, first_out)
-            if first_in is not None:
-                await self._relay(reader, writer, client, host, port, started, len(tried), entry,
-                                  up_reader, up_writer, first_out, first_in, upload=0)
-                return True
-            self._give_up(entry, up_writer)
-            if method not in SAFE_METHODS:
-                self._log(client, host, port, None, False, started, len(tried))
-                await self._not_retried(writer)
-                return False
+        opened = None  # the current reservation until _relay or _give_up takes it over (see _serve_tunnel)
+        try:
+            while True:
+                opened = await self._open_next(tried, host, port, tls=False, tunnel=False, selection=selection)
+                if opened is None:
+                    break
+                entry, up_reader, up_writer = opened
+                if entry.result.ptype == "http":
+                    head = with_proxy_auth(forward_request(method, path, host, port, headers),
+                                           parse_endpoint(entry.result.proxy))
+                else:
+                    head = origin_request(method, path, host, port, headers)
+                first_out = head + body
+                if not buffered:
+                    # large or streamed body: no switch possible once it's under way – send the head, pass the rest
+                    try:
+                        up_writer.write(first_out)
+                        await up_writer.drain()
+                    except HANG_UP:  # hung up before anything went through: nothing sent yet, try the next one
+                        opened = None
+                        self._give_up(entry, up_writer)
+                        continue
+                    opened = None
+                    return await self._relay(reader, writer, client, host, port, started, len(tried), entry,
+                                             up_reader, up_writer, first_out, b"",
+                                             upload=request_body_length(headers))
+                first_in = await self._exchange(up_reader, up_writer, first_out)
+                opened = None
+                if first_in is not None:
+                    await self._relay(reader, writer, client, host, port, started, len(tried), entry,
+                                      up_reader, up_writer, first_out, first_in, upload=0)
+                    return True
+                self._give_up(entry, up_writer)
+                if method not in SAFE_METHODS:
+                    self._log(client, host, port, None, False, started, len(tried))
+                    await self._not_retried(writer)
+                    return False
+        finally:
+            if opened is not None:
+                self._release(opened[0], opened[2])
         self._log(client, host, port, None, False, started, len(tried))
         await self._bad_gateway(writer)
         return False
@@ -307,6 +336,9 @@ class RotatingServer:
                 entry.active -= 1
                 self.pool.report(entry, False)
                 continue
+            except BaseException:  # cancelled while connecting: give the reservation back, then go on cancelling
+                entry.active -= 1
+                raise
             for other in refused:  # the target is reachable after all – those proxies were the problem
                 self.pool.report(other, False)
             return entry, up_reader, up_writer
@@ -328,11 +360,18 @@ class RotatingServer:
         return first_in
 
     async def _screen_first_answer(self, up_reader, first_in: bytes) -> bytes:
-        """Read up to the final status line (past 100 Continue and the like). b"" = the proxy wants a login."""
+        """Read up to the final status line (past 100 Continue and the like). b"" = the proxy wants a login.
+
+        The final status line has to come within one timeout in total – interim responses (count and size are
+        capped by ResponseScreen) don't restart the clock."""
         screen = ResponseScreen()
         out, verdict = screen.feed(first_in)
+        deadline = asyncio.get_running_loop().time() + self.timeout
         while verdict is None:
-            more = await asyncio.wait_for(up_reader.read(65536), self.timeout)
+            left = deadline - asyncio.get_running_loop().time()
+            if left <= 0:
+                raise asyncio.TimeoutError
+            more = await asyncio.wait_for(up_reader.read(65536), left)
             if not more:
                 return b""  # hung up before a final response came – that's not a success
             data, verdict = screen.feed(more)
@@ -362,16 +401,20 @@ class RotatingServer:
                 self._pipe(up_reader, writer, up=False, reject_proxy_auth=not first_in),
             )
         finally:
-            entry.active -= 1
-            up_writer.close()
+            self._release(entry, up_writer)
         if not first_in:
             self._account(client, host, port, entry, received > 0, started, attempts)
         return bool(first_in) or received > 0
 
     def _give_up(self, entry, up_writer) -> None:
         """This proxy didn't deliver: count it as a failure, close the connection, release the reservation."""
-        entry.active -= 1
         self.pool.report(entry, False)
+        self._release(entry, up_writer)
+
+    @staticmethod
+    def _release(entry, up_writer) -> None:
+        """End the reservation _open_next made – the caller makes sure it happens exactly once."""
+        entry.active -= 1
         up_writer.close()
 
     def _account(self, client, host, port, entry, ok: bool, started, attempts) -> None:
@@ -381,7 +424,10 @@ class RotatingServer:
         self._log(client, host, port, entry, ok, started, attempts)
 
     async def _read_body(self, reader, headers) -> Tuple[bytes, bool]:
-        """Read the request body if it's small enough to buffer -> (body, repeatable?)."""
+        """Read the request body if it's small enough to buffer -> (body, buffered?). Whether it may go to a
+        second proxy is the method's business (SAFE_METHODS), not the size's.
+
+        The client has to keep sending: a pause longer than the timeout raises asyncio.TimeoutError."""
         values = {name.lower(): value for name, value in headers}
         if b"chunked" in values.get(b"transfer-encoding", b"").lower():
             return b"", False
@@ -390,7 +436,17 @@ class RotatingServer:
         length = values.get(b"content-length", b"0").strip()
         if not length.isdigit() or int(length) > MAX_REPLAY_BODY:
             return b"", False
-        return (await reader.readexactly(int(length)) if int(length) else b""), True
+        return await self._read_exactly(reader, int(length)), True
+
+    async def _read_exactly(self, reader, size: int) -> bytes:
+        parts, left = [], size
+        while left:
+            data = await asyncio.wait_for(reader.read(min(left, 65536)), self.timeout)
+            if not data:
+                raise asyncio.IncompleteReadError(b"".join(parts), size)
+            parts.append(data)
+            left -= len(data)
+        return b"".join(parts)
 
     async def _first_client_chunk(self, reader) -> bytes:
         """The client's first packet in the tunnel (for HTTPS: TLS ClientHello). Empty if the server is
@@ -428,6 +484,12 @@ class RotatingServer:
         await writer.drain()
 
     @staticmethod
+    async def _request_timeout(writer) -> None:
+        writer.write(b"HTTP/1.1 408 Request Timeout\r\nX-Proxy-Scraper: request-timeout\r\n"
+                     b"Content-Length: 0\r\nConnection: close\r\n\r\n")
+        await writer.drain()
+
+    @staticmethod
     async def _not_retried(writer) -> None:
         # unlike no-proxy-answered the request may have reached the target – the client decides about a retry
         writer.write(b"HTTP/1.1 502 Bad Gateway\r\nContent-Type: text/plain; charset=utf-8\r\n"
@@ -437,11 +499,19 @@ class RotatingServer:
         await writer.drain()
 
     async def _send_body(self, reader, writer, body) -> int:
-        """Pass exactly the rest of one request body upstream, then stop reading from the client."""
+        """Pass exactly the rest of one request body upstream, then stop reading from the client.
+
+        If the client pauses for longer than the timeout half-way, the upstream connection is closed: the
+        target would otherwise wait for the rest forever, and with it this request's proxy reservation."""
         total = 0
         with contextlib.suppress(*HANG_UP, ValueError):
             while body:
-                data = await reader.read(min(body, 65536) if isinstance(body, int) else 65536)
+                try:
+                    data = await asyncio.wait_for(reader.read(min(body, 65536) if isinstance(body, int) else 65536),
+                                                  self.timeout)
+                except asyncio.TimeoutError:
+                    writer.close()  # ends the other direction too: its reader sees the connection go
+                    break
                 if not data:
                     break
                 if isinstance(body, int):

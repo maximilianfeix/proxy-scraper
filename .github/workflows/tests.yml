@@ -10,7 +10,9 @@ permissions:
 
 jobs:
   pytest:
-    runs-on: ${{ matrix.os }}
+    # ubuntu-latest is 26.04 now and setup-python has no 3.9 build for it; 3.9 stays supported, so it runs
+    # on 24.04 – the job keeps its name (pytest (ubuntu-latest, 3.9))
+    runs-on: ${{ matrix.os == 'ubuntu-latest' && matrix.python == '3.9' && 'ubuntu-24.04' || matrix.os }}
     strategy:
       fail-fast: false
       matrix:

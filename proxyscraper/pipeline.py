@@ -482,8 +482,9 @@ async def run_checks(
         raise asyncio.CancelledError
     # wait for open country lookups (briefly at most)
     geo.stop()
-    if geo.pending and not geo.failed:
-        message = f"[bold {ACCENT}]Looking up countries for {fmt(len(geo.pending))} exit IPs …"
+    # `outstanding` includes a batch the worker already took off the queue – its request may still be running
+    if geo.outstanding and not geo.failed:
+        message = f"[bold {ACCENT}]Looking up countries for {fmt(geo.outstanding)} exit IPs …"
         spinner = contextlib.nullcontext() if quiet else widgets.console.status(message, spinner="dots")
         with spinner, contextlib.suppress(asyncio.TimeoutError):
             await asyncio.wait_for(asyncio.shield(geo_task), 30)

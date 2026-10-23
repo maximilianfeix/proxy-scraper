@@ -45,6 +45,7 @@ class GeoResolver:
         self.on_resolved = on_resolved
         self.cache: Dict[str, List] = {}  # ip -> [country, timestamp]
         self.pending: List[str] = []
+        self.in_flight = 0  # IPs of the batch request currently under way (already taken off `pending`)
         self._queued = set()
         self._stop = asyncio.Event()
         self.failed = False
@@ -106,9 +107,13 @@ class GeoResolver:
                 continue
             batch, self.pending = self.pending[:BATCH_SIZE], self.pending[BATCH_SIZE:]
             started = time.monotonic()
-            wait = await self._resolve(batch)
-            if self.failed:
-                return
+            self.in_flight = len(batch)
+            try:
+                wait = await self._resolve(batch)
+            finally:
+                self.in_flight = 0
+            if self.failed or (self._stop.is_set() and not self.pending):
+                return  # nothing left after the end of the scan: no need to respect the rate limit pause
             await asyncio.sleep(max(wait, MIN_INTERVAL - (time.monotonic() - started)))
 
     async def _resolve(self, batch: List[str]) -> float:
@@ -141,6 +146,11 @@ class GeoResolver:
         if headers.get(b"x-rl", b"1") == b"0":
             return float(headers.get(b"x-ttl", b"60") or 60)
         return 0.0
+
+    @property
+    def outstanding(self) -> int:
+        """IPs still waiting for a country: queued ones plus the batch request currently running."""
+        return len(self.pending) + self.in_flight
 
     def stop(self) -> None:
         self._stop.set()

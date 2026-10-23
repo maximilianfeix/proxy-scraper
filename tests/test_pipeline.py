@@ -245,3 +245,113 @@ def test_run_checks_skips_https_test_when_filters_already_fail(tmp_path):
     stats = asyncio.run(go())
     assert enriched == ["http 1.1.1.1:80"]   # the proxy that is only "anonymous" needs no HTTPS test
     assert stats.details_saved == 1 and stats.found == 2
+
+
+def test_country_lookup_in_flight_at_scan_end_is_awaited(tmp_path, monkeypatch):
+    """The geo worker already took the batch off the queue when the last check ends: the scan must
+    still wait for that request, otherwise the hit keeps country='' and --country DE drops it."""
+    import asyncio
+    import contextlib
+
+    from proxyscraper import geo as geo_module
+    from proxyscraper.geo import GeoResolver
+    from proxyscraper.options import Filters, RunOptions
+    from proxyscraper.ui import CheckDashboard, LiveStats
+
+    monkeypatch.setattr(geo_module, "GEO_CACHE_FILE", tmp_path / "geo_cache.json")
+
+    async def go():
+        lookup_started = asyncio.Event()
+        release_lookup = asyncio.Event()
+
+        async def slow_batch(url, timeout, method, body, headers):
+            lookup_started.set()
+            await release_lookup.wait()
+            ips = json.loads(body)
+            return 200, {}, json.dumps([{"status": "success", "query": ip, "countryCode": "DE"} for ip in ips]).encode()
+
+        monkeypatch.setattr(geo_module, "http_request", slow_batch)
+
+        class StubChecker:
+            async def check(self, key):
+                ptype, proxy = key.split(" ")
+                if proxy.startswith("2."):
+                    # the last check only finishes once the country request is under way, then the
+                    # request is answered a moment later – with nothing left in geo.pending
+                    await lookup_started.wait()
+                    asyncio.get_running_loop().call_later(0.05, release_lookup.set)
+                    return None
+                return CheckResult(key, ptype, proxy, 100, "9.9.9.9", anonymity="elite")
+
+            async def confirm(self, r):
+                return True
+
+            async def tampers(self, r):
+                return False
+
+            async def enrich(self, r):
+                r.https = True
+
+        stats = LiveStats({"http": 2})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        opts = RunOptions(filters=Filters(countries=["DE"]), concurrency=2)
+        run = await asyncio.wait_for(
+            pipeline.run_checks(["http 1.1.1.1:80", "http 2.2.2.2:80"], StubChecker(), opts,
+                                CheckDashboard(stats, writer.live_path, 2, True), writer, GeoResolver(),
+                                live_factory=lambda _: contextlib.nullcontext()),
+            10)
+        return run, opts, writer
+
+    run, opts, writer = asyncio.run(go())
+    assert [r.country for r in run.results] == ["DE"]
+    assert opts.filters.accepts(run.results[0])
+    assert writer.live_path.read_text(encoding="utf-8") == "http://1.1.1.1:80\n"
+
+
+def test_scan_end_does_not_wait_for_a_broken_country_service(tmp_path, monkeypatch):
+    import asyncio
+    import contextlib
+    import time
+
+    from proxyscraper import geo as geo_module
+    from proxyscraper.geo import GeoResolver
+    from proxyscraper.options import RunOptions
+    from proxyscraper.ui import CheckDashboard, LiveStats
+
+    monkeypatch.setattr(geo_module, "GEO_CACHE_FILE", tmp_path / "geo_cache.json")
+
+    async def broken(*args, **kwargs):
+        raise OSError("unreachable")
+
+    monkeypatch.setattr(geo_module, "http_request", broken)
+
+    class StubChecker:
+        async def check(self, key):
+            ptype, proxy = key.split(" ")
+            await asyncio.sleep(0.7)  # the geo worker polls every 0.5 s – let it fail first
+            return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
+
+        async def confirm(self, r):
+            return True
+
+        async def tampers(self, r):
+            return False
+
+        async def enrich(self, r):
+            r.https = True
+
+    async def go():
+        stats = LiveStats({"http": 1})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        geo = GeoResolver()
+        geo.request("8.8.8.8")  # something for the worker to fail on
+        started = time.monotonic()
+        run = await pipeline.run_checks(["http 1.1.1.1:80"], StubChecker(), RunOptions(),
+                                        CheckDashboard(stats, writer.live_path, 1, True), writer, geo,
+                                        live_factory=lambda _: contextlib.nullcontext())
+        return run, geo, time.monotonic() - started
+
+    run, geo, took = asyncio.run(go())
+    assert geo.failed
+    assert run.results[0].country == ""
+    assert took < 3

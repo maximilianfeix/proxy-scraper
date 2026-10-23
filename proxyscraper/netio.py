@@ -5,8 +5,11 @@ from __future__ import annotations
 import asyncio
 import ssl
 from functools import lru_cache
-from typing import Dict, Optional, Set, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 from urllib.parse import urljoin, urlsplit
+
+from .httpframing import ChunkedDecoder
+from .netpolicy import PUBLIC_ONLY, TargetPolicy
 
 USER_AGENT = (
     "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 "
@@ -48,6 +51,7 @@ async def http_request(
     body: Optional[bytes] = None,
     max_redirects: int = 3,
     insecure_fallback: bool = True,
+    policy: Optional[TargetPolicy] = None,
 ) -> Tuple[int, Dict[bytes, bytes], bytes]:
     """One HTTP/1.1 request -> (status, headers, body). Follows redirects for GET.
 
@@ -55,11 +59,15 @@ async def http_request(
     custom headers – so for public proxy lists, never with API tokens or sent data. The only headers
     allowed are If-None-Match / If-Modified-Since (ETag cache), which carry no secret.
     The lists are public, and every proxy from them gets checked on its own anyway.
+
+    policy: for URLs nobody chose by hand (see netpolicy) – the URL and every redirect hop are checked, and
+    the connection goes to an address the check approved. None: unrestricted (curated/own sources, APIs).
     """
     extra = "".join(f"{k}: {v}\r\n" for k, v in (headers or {}).items())
     if body is not None:
         extra += f"Content-Length: {len(body)}\r\n"
     for _ in range(max_redirects + 1):
+        target = await policy.resolve(url) if policy is not None else None
         u = urlsplit(url)
         https = u.scheme == "https"
         port = u.port or (443 if https else 80)
@@ -68,7 +76,8 @@ async def http_request(
         # they carry no secret). Never tokens or sent data over an unverified connection.
         insecure_ok = insecure_fallback and method == "GET" and body is None and \
             set(headers or ()) <= CONDITIONAL_HEADERS
-        reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout)
+        pinned = {"addresses": target.addresses} if target is not None else {}
+        reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout, **pinned)
         try:
             writer.write(
                 f"{method} {path} HTTP/1.1\r\nHost: {host_header(u.hostname, port, https)}\r\n"
@@ -100,27 +109,56 @@ def authority(hostname: str, port: int) -> str:
 
 
 async def http_get(
-    url: str, timeout: float = 15.0, max_redirects: int = 3, headers: Optional[Dict[str, str]] = None
+    url: str, timeout: float = 15.0, max_redirects: int = 3, headers: Optional[Dict[str, str]] = None,
+    policy: Optional[TargetPolicy] = None,
 ) -> bytes:
     """GET that raises an exception for anything but 200."""
-    status, _, body = await http_request(url, timeout, headers, max_redirects=max_redirects)
+    status, _, body = await http_request(url, timeout, headers, max_redirects=max_redirects, policy=policy)
     if status != 200:
         raise ConnectionError(f"HTTP {status}")
     return body
 
 
-async def _connect(host: str, port: int, https: bool, allow_insecure: bool, timeout: float):
+async def public_get(
+    url: str, timeout: float = 15.0, max_redirects: int = 3, headers: Optional[Dict[str, str]] = None
+) -> bytes:
+    """http_get restricted to public addresses – for URLs found automatically in files others wrote."""
+    return await http_get(url, timeout, max_redirects, headers, policy=PUBLIC_ONLY)
+
+
+async def _connect(host: str, port: int, https: bool, allow_insecure: bool, timeout: float,
+                   addresses: Optional[List[str]] = None):
+    """Connects to host – or, if given, to one of the already checked addresses of host (tried in order),
+    while TLS still verifies the certificate for host and sends it as SNI."""
+    if addresses is None:
+        return await _open(host, host, port, https, allow_insecure, timeout)
+    deadline = asyncio.get_running_loop().time() + timeout
+    error: Optional[BaseException] = None
+    for address in addresses:
+        left = deadline - asyncio.get_running_loop().time()
+        if left <= 0:
+            break
+        try:
+            return await _open(address, host, port, https, allow_insecure, left)
+        except ssl.SSLError:
+            raise  # the server answered: another address of the same name won't have another certificate
+        except (OSError, asyncio.TimeoutError) as e:
+            error = e
+    raise error or asyncio.TimeoutError()
+
+
+async def _open(dial: str, host: str, port: int, https: bool, allow_insecure: bool, timeout: float):
     if not https:
-        return await asyncio.wait_for(asyncio.open_connection(host, port), timeout)
+        return await asyncio.wait_for(asyncio.open_connection(dial, port), timeout)
     ctx = _insecure_ssl_context() if allow_insecure and host in INSECURE_HOSTS else ssl_context()
     try:
-        return await asyncio.wait_for(asyncio.open_connection(host, port, ssl=ctx, server_hostname=host), timeout)
+        return await asyncio.wait_for(asyncio.open_connection(dial, port, ssl=ctx, server_hostname=host), timeout)
     except ssl.SSLCertVerificationError:
         if not allow_insecure:
             raise
         INSECURE_HOSTS.add(host)
         return await asyncio.wait_for(
-            asyncio.open_connection(host, port, ssl=_insecure_ssl_context(), server_hostname=host), timeout
+            asyncio.open_connection(dial, port, ssl=_insecure_ssl_context(), server_hostname=host), timeout
         )
 
 
@@ -137,7 +175,7 @@ async def read_response(reader) -> Tuple[int, Dict[bytes, bytes], bytes]:
     # respect Content-Length: servers with keep-alive (e.g. checkip.amazonaws.com) don't close
     # the connection otherwise, and reading to the end would run into the timeout.
     if headers.get(b"transfer-encoding", b"").lower() == b"chunked":
-        body = dechunk(await read_all(reader))
+        body = await read_chunked(reader)
     elif headers.get(b"content-length", b"").isdigit():
         length = int(headers[b"content-length"])
         if length > MAX_BODY:
@@ -162,7 +200,23 @@ async def read_all(reader, limit: int = MAX_BODY) -> bytes:
     return bytes(buf)
 
 
+async def read_chunked(reader, limit: Optional[int] = None) -> bytes:
+    """A chunked body, read only up to its end – not to EOF, which a keep-alive server never sends."""
+    decoder = ChunkedDecoder(MAX_BODY if limit is None else limit)
+    while True:
+        try:
+            chunk = await reader.read(65536)
+        except ConnectionResetError:
+            chunk = b""
+        if not chunk:
+            return decoder.finish()  # FramingError if cut off
+        if decoder.feed(chunk):
+            return bytes(decoder.body)
+
+
 def dechunk(data: bytes) -> bytes:
+    """Lenient decoding of a complete, already read chunked body (kept for callers outside the package);
+    readers use ChunkedDecoder, which also knows where the body ends."""
     out, i = bytearray(), 0
     while i < len(data):
         j = data.find(b"\r\n", i)

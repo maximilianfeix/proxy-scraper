@@ -66,7 +66,7 @@ def test_without_the_cache_other_types_still_count_as_content(tmp_path, monkeypa
     from proxyscraper.fetchcache import FetchCache
     from proxyscraper.ui import CollectView
 
-    async def fake_request(url, timeout=None, headers=None):
+    async def fake_request(url, timeout=None, headers=None, policy=None):
         return 200, {}, b"socks5://1.2.3.4:1080\n"
 
     monkeypatch.setattr(pipeline, "http_request", fake_request)

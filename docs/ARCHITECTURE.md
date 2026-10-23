@@ -124,6 +124,8 @@ flowchart LR
 
 Installed with pip/pipx, `data/` lives in the user data folder (`PROXY_SCRAPER_HOME` overrides it) and `results/` in the current directory.
 
+Every state file is written through `paths.atomic_writer`: a temporary file of its own next to the target, flushed to disk, then renamed over it. Several writers at once – threads, or a CLI run next to the MCP server on the same data folder – therefore never collide and never leave a half-written file; a reader always sees one complete version. There is deliberately no lock and no merge: a run loads the learned state when it starts and saves it when it ends, so with two overlapping runs **the one that saves last wins** and the other run's update to that file is lost. That is acceptable for every file here – `source_stats.json` and `proxy_history.json` only steer the order of the next checks (the next run learns again), and `geo_cache.json`, `fetch-cache/` and `data/geo/` are caches that are refilled on a miss. A lock held for a whole scan would make a second run wait for minutes instead. If you need every run's learning, don't run scans in parallel on one data folder, or give each its own `PROXY_SCRAPER_HOME`.
+
 ## Decisions we measured
 
 Some things look like obvious improvements and turned out not to be. Where an issue is linked, it has the numbers, unless noted.

@@ -20,7 +20,7 @@ from pathlib import Path
 from typing import Dict, Optional
 
 from . import parsing
-from .paths import DATA_DIR, atomic_write
+from .paths import DATA_DIR, atomic_write, atomic_write_bytes
 
 CACHE_DIR = DATA_DIR / "fetch-cache"
 FORGET_AFTER = 14 * 86400  # lists that haven't been loaded for this long are dropped
@@ -90,10 +90,7 @@ class FetchCache:
                 (self.dir / old["file"]).unlink(missing_ok=True)
             return
         name = hashlib.sha1(url.encode()).hexdigest() + ".txt.gz"
-        self.dir.mkdir(parents=True, exist_ok=True)
-        tmp = self.dir / (name + ".tmp")
-        tmp.write_bytes(gzip.compress(keys.encode("utf-8"), compresslevel=5))
-        tmp.replace(self.dir / name)
+        atomic_write_bytes(self.dir / name, gzip.compress(keys.encode("utf-8"), compresslevel=5))
         self.entries[url] = {"etag": etag, "modified": modified, "type": ptype, "file": name, "used": time.time(),
                              "parser": parsing.PARSER_VERSION}
 

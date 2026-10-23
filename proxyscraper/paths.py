@@ -8,10 +8,13 @@
 
 from __future__ import annotations
 
+import contextlib
 import os
 import sys
+import tempfile
+import time
 from pathlib import Path
-from typing import Optional
+from typing import BinaryIO, Iterator, Optional
 
 PACKAGE_DIR = Path(__file__).resolve().parent
 PROJECT_DIR = PACKAGE_DIR.parent
@@ -46,10 +49,53 @@ def results_dir() -> Path:
 DATA_DIR = data_dir()
 RESULTS_DIR = results_dir()
 
+# mkstemp creates 0600 files; written files get the usual permissions instead (read once, at import time)
+_UMASK = os.umask(0o022)
+os.umask(_UMASK)
+
 
 def atomic_write(path: Path, text: str) -> None:
-    # write to a temporary file first, then rename – an interruption leaves no half-written file
+    """Replace `path` with `text` in one step – an interruption leaves no half-written file."""
+    with atomic_writer(path) as fh:
+        fh.write(text.encode("utf-8"))
+
+
+def atomic_write_bytes(path: Path, data: bytes) -> None:
+    with atomic_writer(path) as fh:
+        fh.write(data)
+
+
+@contextlib.contextmanager
+def atomic_writer(path: Path) -> Iterator[BinaryIO]:
+    """Binary file handle whose content replaces `path` once the block ends without an error.
+
+    Every writer gets its own temporary file next to the target, so overlapping writers (threads, or a CLI
+    run and the MCP server sharing the data folder) never collide: each rename is atomic and the target is
+    always one complete version. That is not a merge – with two writers of the same state file the last one
+    wins (see "State files" in docs/ARCHITECTURE.md). On any error the temporary file is removed again."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    tmp = path.with_suffix(path.suffix + ".tmp")
-    tmp.write_text(text, encoding="utf-8")
-    os.replace(tmp, path)
+    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    try:
+        os.chmod(tmp, 0o666 & ~_UMASK)
+        with os.fdopen(fd, "wb") as fh:
+            yield fh
+            fh.flush()
+            os.fsync(fh.fileno())
+        _replace(tmp, path)
+    except BaseException:
+        with contextlib.suppress(OSError):
+            os.unlink(tmp)
+        raise
+
+
+def _replace(src: str, dst: Path, attempts: int = 5) -> None:
+    for attempt in range(attempts):
+        try:
+            os.replace(src, dst)
+            return
+        except PermissionError:
+            # Windows: the target is briefly open in another process (a reader, or another writer's rename) –
+            # wait a moment instead of failing. Elsewhere a PermissionError is final.
+            if os.name != "nt" or attempt == attempts - 1:
+                raise
+            time.sleep(0.05 * (attempt + 1))

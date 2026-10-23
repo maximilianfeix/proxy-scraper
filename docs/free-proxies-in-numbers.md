@@ -108,6 +108,8 @@ The gaps above are gaps in what was recorded. From 1.30 on:
 
 A follow-up with a few weeks of that data can answer what this page can't: how the second request fails, and how often the page differs for a reason that matters.
 
+**The follow-up is here:** [Free proxies rarely fake their exit IP: 19.8 million checks](why-free-proxies-fail.md) — 132 published runs with reason codes. The short version: a different exit IP on the second request is 1.81 % of that step, and timeouts are 27.9 %. The "answers the scanner and nothing else" story, the one withdrawn above, is not what the data shows.
+
 ## Try it
 
 - The current list with filters: https://maximilianfeix.github.io/proxy-scraper/

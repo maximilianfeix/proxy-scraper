@@ -63,8 +63,8 @@ class FakeProbes:
     def __init__(self, down=()):
         self.down = set(down)
 
-    async def __call__(self, judge, timeout=5.0):
-        return None if judge.host in self.down else JudgeProbe(judge, "2.2.2.2", 100)
+    async def __call__(self, judge, timeout=5.0, ip=None):
+        return None if judge.host in self.down else JudgeProbe(judge, ip or "2.2.2.2", 100)
 
 
 def make_watch(probes, hosts=("a", "b", "c")):
@@ -99,6 +99,81 @@ def test_watch_recovers_after_a_single_hiccup():
     asyncio.run(watch.check_once())
     asyncio.run(watch.check_once())
     assert used == [] and watch.failures == 0
+
+
+class MovedBackend:
+    """One hostname, the DNS now points to a new backend: the pinned old address is dead, the new one works."""
+
+    def __init__(self, dead=("1.1.1.1",), fresh="2.2.2.2"):
+        self.dead, self.fresh = set(dead), fresh
+        self.calls = []
+
+    async def __call__(self, judge, timeout=5.0, ip=None):
+        self.calls.append((judge.host, ip))
+        if ip is None:  # fresh DNS resolution
+            return JudgeProbe(judge, self.fresh, 100)
+        return None if ip in self.dead else JudgeProbe(judge, ip, 100)
+
+
+def test_watch_probes_the_pinned_ip_and_follows_a_moved_backend():
+    """A healthy new backend under the same hostname must not hide that the pinned path is dead."""
+    probes = MovedBackend()
+    c = ck.Checker("1.1.1.1", set(), timeout=1, connect_timeout=1, judge=Judge("a"))
+    ranked = [JudgeProbe(Judge("a"), "1.1.1.1", 100), JudgeProbe(Judge("b"), "3.3.3.3", 100)]
+    watch = JudgeWatch(ranked, lambda new: c.use_judge(new.judge, new.ip), probe=probes)
+    switched, oks = [], []
+    watch.on_switch = lambda old, new: switched.append((old.ip, new.ip))
+    watch.on_ok = lambda: oks.append(1)
+    asyncio.run(watch.check_once())
+    assert oks == [] and watch.failures == 1 and c.judge_ip == "1.1.1.1"
+    asyncio.run(watch.check_once())
+    # same host, new address: watch and checker move together, and it counts as a switch (recheck logic)
+    assert watch.current.judge.host == "a" and watch.current.ip == "2.2.2.2"
+    assert c.judge_ip == "2.2.2.2" and c.judge_ip_bytes == bytes([2, 2, 2, 2])
+    assert switched == [("1.1.1.1", "2.2.2.2")]
+    assert watch.switches == ["a (1.1.1.1 → 2.2.2.2)"]
+    assert [r.judge.host for r in watch.reserve] == ["b"]
+    asyncio.run(watch.check_once())
+    assert oks == [1] and probes.calls[-1] == ("a", "2.2.2.2")  # from now on the new address is watched
+
+
+def test_watch_stays_on_a_working_pinned_ip_when_dns_rotates():
+    probes = MovedBackend(dead=())  # DNS hands out another address each time, the pinned one keeps working
+    watch, used = make_watch(probes)
+    for _ in range(3):
+        asyncio.run(watch.check_once())
+    assert used == [] and watch.current.ip == "1.1.1.1" and watch.failures == 0
+    assert all(ip == "1.1.1.1" for _, ip in probes.calls)
+
+
+def test_watch_switches_to_a_reserve_when_the_host_is_down_everywhere():
+    class Down(MovedBackend):
+        async def __call__(self, judge, timeout=5.0, ip=None):
+            if judge.host == "a":
+                return None
+            return await super().__call__(judge, timeout, ip)
+
+    watch, used = make_watch(Down())
+    for _ in range(2):
+        asyncio.run(watch.check_once())
+    assert [p.judge.host for p in used] == ["b"] and watch.switches == ["a → b"]
+
+
+def test_probe_can_ask_exactly_the_pinned_ip(monkeypatch):
+    async def no_dns(self, host, port, family=0, **kw):
+        raise AssertionError("must not resolve again")
+
+    async def go():
+        srv = await asyncio.start_server(ip_echo, "127.0.0.1", 0)
+        port = srv.sockets[0].getsockname()[1]
+        monkeypatch.setattr(asyncio.BaseEventLoop, "getaddrinfo", no_dns)
+        try:
+            return await probe_judge(Judge("judge.example", "/ip", port), timeout=2, ip="127.0.0.1")
+        finally:
+            srv.close()
+
+    pinned = asyncio.run(go())
+    assert pinned is not None and pinned.ip == "127.0.0.1" and pinned.seen_ip == "203.0.113.7"
 
 
 def test_checker_can_switch_judge_mid_run():
@@ -344,3 +419,36 @@ def test_own_ip_falls_back_to_what_the_judges_saw(monkeypatch):
     monkeypatch.setattr(app, "confirm_target", no_confirm)
     run = app.Run(RunOptions(no_geo=True), show_banner=False)
     assert asyncio.run(run.prepare_network()) and run.own_ips == ["87.150.19.11"]
+
+
+def test_verify_control_asks_the_pinned_judge_address(monkeypatch):
+    """--pick --verify / --diagnose have no JudgeWatch: their direct control must check the pinned address too."""
+    from proxyscraper import app, verify
+    from proxyscraper.checker import BASIC
+
+    asked = []
+
+    async def ranked():
+        return [JudgeProbe(Judge("a"), "1.1.1.1", 100, "5.5.5.5")]
+
+    async def own_ips():
+        return ["5.5.5.5"]
+
+    async def nothing(*args, **kwargs):
+        return None
+
+    async def fake_probe(judge, timeout=5.0, ip=None):
+        asked.append(ip)
+        return None
+
+    monkeypatch.setattr(verify, "rank_judges", ranked)
+    monkeypatch.setattr(app, "get_own_ips", own_ips)
+    monkeypatch.setattr(app, "confirm_target", nothing)
+    monkeypatch.setattr(verify, "probe_judge", fake_probe)
+
+    async def go():
+        checker = await verify.prepare(1, 1)
+        await checker.controls[BASIC]()
+
+    asyncio.run(go())
+    assert asked == ["1.1.1.1"]

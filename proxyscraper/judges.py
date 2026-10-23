@@ -67,14 +67,21 @@ class JudgeProbe:
     seen_ip: str = ""  # what the target saw as our IP (fallback in case get_own_ips fails)
 
 
-async def probe_judge(judge: Judge, timeout: float = 5.0) -> Optional[JudgeProbe]:
-    """Query the target directly (without a proxy). None = unreachable, wrong answer or Cloudflare."""
-    loop = asyncio.get_running_loop()
-    try:
-        infos = await asyncio.wait_for(loop.getaddrinfo(judge.host, judge.port, family=socket.AF_INET), timeout)
-    except Exception:
-        return None
-    addresses = list(dict.fromkeys(info[4][0] for info in infos))
+async def probe_judge(judge: Judge, timeout: float = 5.0, ip: Optional[str] = None) -> Optional[JudgeProbe]:
+    """Query the target directly (without a proxy). None = unreachable, wrong answer or Cloudflare.
+
+    ip: ask exactly this address instead of resolving the host again – the health check of the address the
+    checker has pinned (a fresh lookup may land on another, healthy backend and hide a dead pinned one)."""
+    if ip is not None:
+        addresses = [ip]
+    else:
+        loop = asyncio.get_running_loop()
+        try:
+            infos = await asyncio.wait_for(loop.getaddrinfo(judge.host, judge.port, family=socket.AF_INET),
+                                           timeout)
+        except Exception:
+            return None
+        addresses = list(dict.fromkeys(info[4][0] for info in infos))
     if any(behind_cloudflare(ip) for ip in addresses):
         return None  # being behind Cloudflare even partially is enough to exclude it
     for ip in addresses:  # first working address – exactly that one is used by the checker later
@@ -139,21 +146,44 @@ class JudgeWatch:
             await self.check_once()
 
     async def check_once(self) -> None:
-        if await self.probe(self.current.judge):
-            self.failures = 0
-            self.on_ok()
+        # exactly the address the checker uses – not a fresh DNS answer that may point to another backend
+        if await self.probe(self.current.judge, ip=self.current.ip):
+            self._ok()
             return
         self.failures += 1
         if self.failures < self.failures_before_switch:
             return
+        # the same host first: its DNS may simply point to a new backend now
+        fresh = await self.probe(self.current.judge)
+        if fresh and fresh.ip == self.current.ip:
+            self._ok()  # the pinned address answers again
+            return
+        if fresh:
+            self._switch_to(fresh)
+            return
         for candidate in list(self.reserve):
             fresh = await self.probe(candidate.judge)
             if fresh:
-                old = self.current
                 self.reserve.remove(candidate)
-                self.reserve.append(old)  # maybe it comes back later
-                self.current, self.failures = fresh, 0
-                self.switch(fresh)
-                self.switches.append(f"{old.judge.host} → {fresh.judge.host}")
-                self.on_switch(old, fresh)
+                self.reserve.append(self.current)  # maybe it comes back later
+                self._switch_to(fresh)
                 return
+
+    def _ok(self) -> None:
+        self.failures = 0
+        self.on_ok()
+
+    def _switch_to(self, fresh: JudgeProbe) -> None:
+        """Watch and checker always move together; the caller treats it as an outage of the old path."""
+        old = self.current
+        self.current, self.failures = fresh, 0
+        self.switch(fresh)
+        self.switches.append(switch_label(old, fresh))
+        self.on_switch(old, fresh)
+
+
+def switch_label(old: JudgeProbe, new: JudgeProbe) -> str:
+    """'a → b', or 'a (1.2.3.4 → 5.6.7.8)' when the same host moved to another address."""
+    if old.judge.host == new.judge.host:
+        return f"{old.judge.host} ({old.ip} → {new.ip})"
+    return f"{old.judge.host} → {new.judge.host}"

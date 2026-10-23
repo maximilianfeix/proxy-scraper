@@ -23,9 +23,14 @@ def replace_together(monkeypatch):
     without relying on timing."""
     barrier = threading.Barrier(WRITERS, timeout=10)
     real_replace = os.replace
+    waited = threading.local()
 
     def replace(src, dst, *args, **kwargs):
-        barrier.wait()
+        # only a thread's first rename waits: on Windows overlapping renames onto one target fail with
+        # PermissionError and are retried (paths._replace), and a retry must not wait for writers that are done
+        if not getattr(waited, "done", False):
+            waited.done = True
+            barrier.wait()
         return real_replace(src, dst, *args, **kwargs)
 
     monkeypatch.setattr(os, "replace", replace)  # pathlib's Path.replace goes through os.replace too

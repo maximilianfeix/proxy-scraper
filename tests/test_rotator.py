@@ -219,3 +219,83 @@ def test_the_refresh_survives_a_surprise(monkeypatch):
             await asyncio.sleep(0.2)
     asyncio.run(go())
     assert len(calls) > 2  # kept trying after the first failure
+
+
+def _no_unawaited_coroutines(record):
+    import gc
+
+    gc.collect()
+    return [w for w in record if "never awaited" in str(w.message)] == []
+
+
+def test_close_twice_and_context_exit_after_manual_close(monkeypatch):
+    import warnings
+
+    from proxyscraper import api
+
+    async def fake_aget(self, url):
+        return response([], b"ok")
+    monkeypatch.setattr(api.ProxyRotator, "_aget", fake_aget)
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        with api.ProxyRotator() as rotator:
+            assert rotator.get("http://x/").content == b"ok"
+            thread = rotator._thread
+            rotator.close()
+            assert rotator._loop is None and rotator._thread is None and not thread.is_alive()
+        rotator.close()  # a third time: still nothing happens
+        assert _no_unawaited_coroutines(record)
+
+
+def test_use_after_close_says_so(monkeypatch):
+    import warnings
+
+    from proxyscraper import api
+
+    async def fake_aget(self, url):
+        return response([])
+    monkeypatch.setattr(api.ProxyRotator, "_aget", fake_aget)
+    rotator = api.ProxyRotator()
+    rotator.get("http://x/")
+    rotator.close()
+    with warnings.catch_warnings(record=True) as record:
+        warnings.simplefilter("always")
+        with pytest.raises(RuntimeError, match="closed"):
+            rotator.get("http://x/")
+        with pytest.raises(RuntimeError, match="closed"):
+            rotator.proxy_url()
+        assert _no_unawaited_coroutines(record)
+    assert rotator._loop is None  # no new loop was started for it
+
+
+def test_close_ends_a_get_still_running_in_another_thread(monkeypatch):
+    import concurrent.futures as cf
+    import threading
+
+    from proxyscraper import api
+
+    started = threading.Event()
+
+    async def hanging_aget(self, url):
+        started.set()
+        await asyncio.sleep(3600)
+    monkeypatch.setattr(api.ProxyRotator, "_aget", hanging_aget)
+    rotator = api.ProxyRotator()
+    with cf.ThreadPoolExecutor(1) as pool:
+        pending = pool.submit(rotator.get, "http://x/")
+        assert started.wait(5)
+        rotator.close()
+        with pytest.raises(RuntimeError, match="closed"):
+            pending.result(timeout=5)
+    assert rotator._loop is None and rotator._thread is None
+
+
+def test_async_close_twice_and_use_after_close():
+    async def go():
+        async with ProxyRotator(_source=source_for([row(1)]), _allow_private=True) as rotator:
+            await rotator.aclose()
+        await rotator.aclose()
+        with pytest.raises(RuntimeError, match="closed"):
+            await rotator.aget("http://x/")
+
+    asyncio.run(go())

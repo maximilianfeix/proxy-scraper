@@ -24,6 +24,7 @@ the call therefore belongs behind `if __name__ == "__main__":`.
 from __future__ import annotations
 
 import asyncio
+import concurrent.futures
 import contextlib
 import email.message
 import io
@@ -33,7 +34,7 @@ import re
 import tempfile
 import threading
 from dataclasses import dataclass, field
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, Iterable, List, Optional, Set, Tuple
 from urllib.parse import urlsplit
 
 from rich.console import Console
@@ -355,6 +356,9 @@ class ProxyRotator:
     Behind it runs the same rotating server as `proxy-scraper --serve`, on 127.0.0.1 with a random password.
     Use it either sync (`get()`, safe from several threads) or async (`aget()` with `async with`) – not both on
     the same rotator. Private and local addresses are refused. Bodies are cut at 2 MB (`truncated`).
+
+    Closing (`close()`, `aclose()` or leaving the `with` block) is final and may be repeated; calls still running
+    in other threads are cancelled and raise RuntimeError, like any use after closing – make a new rotator.
     """
 
     def __init__(self, *, protocol: str = "any", country: str = "", timeout: float = 20.0,
@@ -367,8 +371,12 @@ class ProxyRotator:
         self._thread: Optional[threading.Thread] = None
         self._start_lock = threading.Lock()
         self._refresher: Optional[asyncio.Task] = None
+        self._closed = False
+        self._running: Set["asyncio.Future"] = set()  # sync calls in progress on the background loop
 
     def _use(self, mode: str) -> None:
+        if self._closed:
+            raise RuntimeError("this ProxyRotator is closed – make a new one")
         if self._mode is None:
             self._mode = mode
         elif self._mode != mode:
@@ -438,6 +446,7 @@ class ProxyRotator:
                 log.warning("proxy-scraper: could not refresh the proxy list: %s", e)
 
     async def aclose(self) -> None:
+        self._closed = True
         if self._refresher is not None:
             self._refresher.cancel()
             self._refresher = None
@@ -466,7 +475,22 @@ class ProxyRotator:
                 self._loop = asyncio.new_event_loop()
                 self._thread = threading.Thread(target=self._loop.run_forever, name="proxy-rotator", daemon=True)
                 self._thread.start()
-        return asyncio.run_coroutine_threadsafe(coro, self._loop).result()
+            # submitted under the lock: close() either sees this call (and cancels it) or comes before it
+            future = asyncio.run_coroutine_threadsafe(self._tracked(coro), self._loop)
+        try:
+            return future.result()
+        except concurrent.futures.CancelledError:
+            if self._closed:
+                raise RuntimeError("this ProxyRotator was closed while the call was running") from None
+            raise
+
+    async def _tracked(self, coro):
+        task = asyncio.current_task()
+        self._running.add(task)
+        try:
+            return await coro
+        finally:
+            self._running.discard(task)
 
     def proxy_url(self) -> str:
         """A local proxy URL for any library – requests, httpx, aiohttp, Playwright, Scrapy, curl:
@@ -486,14 +510,29 @@ class ProxyRotator:
         return _playwright(self.proxy_url())
 
     def close(self) -> None:
+        """Stop the proxy server and the background loop. Repeating it does nothing."""
         with self._start_lock:
-            if self._loop is None:
+            if self._closed and self._loop is None:
                 return
-            asyncio.run_coroutine_threadsafe(self.aclose(), self._loop).result()
-            self._loop.call_soon_threadsafe(self._loop.stop)
-            self._thread.join(timeout=5)
-            self._loop.close()
-            self._thread = None
+            self._closed = True
+            loop, thread = self._loop, self._thread
+            self._loop = self._thread = None
+            if loop is None:
+                return
+            try:
+                asyncio.run_coroutine_threadsafe(self._shutdown(), loop).result()
+            finally:
+                loop.call_soon_threadsafe(loop.stop)
+                thread.join(timeout=5)
+                if not thread.is_alive():  # closing a loop that still runs would raise
+                    loop.close()
+
+    async def _shutdown(self) -> None:
+        running = list(self._running)
+        for task in running:
+            task.cancel()
+        await asyncio.gather(*running, return_exceptions=True)
+        await self.aclose()
 
     def __enter__(self) -> "ProxyRotator":
         return self

@@ -8,7 +8,7 @@ import pytest
 from proxyscraper.checker import CheckResult
 from proxyscraper.server import ProxyPool, RotatingServer
 
-from .fakes import _http_forward, http_forward_proxy, serve, target_server
+from .fakes import _http_forward, handlers_done, http_forward_proxy, serve, target_server
 
 
 class OrderedPool(ProxyPool):
@@ -76,6 +76,7 @@ def run(request, effects_first, effects_second):
             await writer.drain()
             answer = await read_all(reader)
             writer.close()
+            await handlers_done(rotating)
             return answer, pool
         finally:
             await rotating.close()
@@ -125,6 +126,7 @@ def test_post_still_fails_over_when_the_first_proxy_is_unreachable():
             await writer.drain()
             answer = await read_all(reader)
             writer.close()
+            await handlers_done(rotating)
             return answer, pool
         finally:
             await rotating.close()

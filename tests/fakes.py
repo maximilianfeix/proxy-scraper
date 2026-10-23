@@ -90,6 +90,14 @@ async def _socks5_connect(reader, writer):
     await asyncio.gather(pipe(reader, up_writer), pipe(up_reader, writer))
 
 
+async def handlers_done(rotating, timeout=5):
+    """Wait until the server finished every connection – it does its accounting (pool and stats) only once
+    both directions ended, which can be after the client already got its full answer and EOF (a streamed
+    upload is still being read, for example). close() would cancel the handler before it counts."""
+    if rotating._handlers:
+        await asyncio.wait(set(rotating._handlers), timeout=timeout)
+
+
 async def serve(handler):
     server = await asyncio.start_server(handler, "127.0.0.1", 0)
     return server, server.sockets[0].getsockname()[1]

@@ -22,12 +22,10 @@ def result(port):
     return CheckResult(f"http 127.0.0.1:{port}", "http", f"127.0.0.1:{port}", 100, "9.9.9.9", https=True)
 
 
-async def settle(server, rounds=40):
-    """Give cancelled handlers a moment to run their cleanup."""
-    for _ in range(rounds):
-        if not server._handlers:
-            break
-        await asyncio.sleep(0.01)
+async def settle(server, timeout=2):
+    """Wait for the (cancelled) handlers to finish their cleanup."""
+    if server._handlers:
+        await asyncio.wait(set(server._handlers), timeout=timeout)
 
 
 # ------------------------------------------------------------------ partial uploads and the client cap

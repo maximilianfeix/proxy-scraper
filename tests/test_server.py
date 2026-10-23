@@ -17,6 +17,7 @@ from .fakes import (
     echo_server,
     error_page_proxy,
     forward_only_proxy,
+    handlers_done,
     http_forward_proxy,
     serve,
     silent_proxy,
@@ -66,6 +67,7 @@ def run_server(upstreams, client_request, pool_cls=OrderedPool):
         await rotating.start()
         try:
             answer = await client_request(rotating.port, target_port)
+            await handlers_done(rotating)
         finally:
             await rotating.close()
             for srv in servers:

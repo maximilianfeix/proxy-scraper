@@ -30,3 +30,5 @@ with ProxyRotator(country="DE") as rotator:
 ```
 
 It runs on 127.0.0.1 with a random password, takes over each new hourly list by itself and stops with the `with` block.
+
+Closing is final: `close()` / `aclose()` may be called more than once, a call still running in another thread ends with a `RuntimeError`, and using a closed rotator raises `RuntimeError` – make a new one instead.

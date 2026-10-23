@@ -4,6 +4,23 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Security
+- **Lists found automatically are only downloaded from public addresses.** The GitHub search took any host name with a dot, and neither the addresses it resolved to nor redirects were checked: a config naming `127.0.0.1.nip.io`, `0x7f.1` or `[64:ff9b::7f00:1]` made the scan send a request to this machine or the local network. Mined URLs, the lists saved by earlier searches and the URLs in third-party meta lists are now checked on every redirect hop (every resolved address, all IPv4 spellings, IPv4-mapped and NAT64 IPv6), and the connection goes to the address that was checked, with Host header, SNI and certificate check on the name. Curated lists and `--source` are unchanged (#356)
+- **The rotating server no longer sends a request twice when that could do something twice.** A small `POST` was repeated through the next proxy if the first one delivered it and then dropped the connection. After a request may have gone out, only `GET`, `HEAD`, `OPTIONS` and `TRACE` go to another proxy; everything else gets a `502` with `X-Proxy-Scraper: no-retry-after-send`. Before sending, failover works for every method as before (#352)
+
+### Fixed
+- Rotating server: a request body that stops arriving ends with `408` instead of holding the connection forever; at most 1,024 clients at once (`503`, `Retry-After: 1`); a proxy's interim answers (`100`, `103`) are capped in number, size and time; a cancelled connection always gives its proxy back to the pool (it stayed counted as busy). Tunnels keep no idle limit (#352)
+- A country lookup still running when the last check ended was cancelled, so the proxy kept no country and `--country` dropped it (#353)
+- The check target's health check asked a fresh DNS answer instead of the address the checker was pinned to, so a healthy new backend could hide a dead one; the checker now follows a moved backend together with the watch (#353)
+- Two processes or threads writing the same state file at once could fail with `FileNotFoundError` (one fixed temporary name); each write now has its own temporary file and is fsynced. With overlapping runs the last one to save wins – all such files are caches or ordering hints (#353)
+- `ProxyRotator.close()` twice raised `RuntimeError: Event loop is closed`; closing is now idempotent and final, and using a closed rotator says so (#353)
+- A chunked response that wasn't followed by the connection closing ran into the timeout; bodies end at the last chunk now, and cut-off or malformed ones are an error instead of a silent partial body (#356)
+- Parallel blocklist lookups of the same exit IP each asked DNS; they share one lookup now (#356)
+
+### Changed
+- README cut to the essentials (install, first command, the check states, quick starts); recipes, options, FAQ, how it works and the full server, MCP and Python docs moved to [docs/](docs/README.md). All old anchors still work (#351)
+- CI: the merge checks no longer depend on free proxies being up (fixtures and the localhost lab instead); the real internet checks run daily as `live-smoke`. New jobs build a wheel from the sdist and install it outside the checkout, and run the Parquet round-trip with PyArrow for real. Python 3.9 tests run on Ubuntu 24.04 (#354, #357)
+
 ## [1.30.0] – 2026-10-16
 
 ### Added

@@ -10,7 +10,7 @@ from collections import Counter
 from concurrent.futures import ProcessPoolExecutor
 from dataclasses import dataclass, field
 from pathlib import Path
-from typing import Callable, Dict, Iterable, List, Optional, Set, Tuple
+from typing import AbstractSet, Callable, Dict, Iterable, List, Optional, Set, Tuple
 from urllib.parse import urlsplit
 from urllib.request import url2pathname
 
@@ -25,6 +25,7 @@ from .geo import GeoResolver
 from .history import ProxyHistory
 from .judges import JudgeWatch
 from .netio import http_get, http_request
+from .netpolicy import TargetPolicy
 from .options import RunOptions
 from .output import ResultWriter
 from .parsing import PROXY_TYPES, parse_blob, split_key
@@ -52,6 +53,8 @@ class SourcePlan:
     n_own: int = 0
     discovery_ran: bool = False
     discovery_token: bool = False
+    # found by discovery or listed in a third-party meta list: their names are someone else's to point anywhere
+    untrusted: Set[str] = field(default_factory=set)
 
 
 async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> SourcePlan:
@@ -63,6 +66,7 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
         return SourcePlan(own, Counter(), 0, 0, 0, 0, 0, n_own=len(own))
     sources, meta = srcs.load_source_file()
     n_curated = len(sources)
+    curated = set(sources)
 
     age = srcs.discovered_age_days()
     due = not opts.no_discover and (age is None or age > AUTO_DISCOVER_AFTER_DAYS)
@@ -99,9 +103,10 @@ async def collect_sources(opts: RunOptions, quality: srcs.SourceStats) -> Source
                 active[url] = ptype
         sources = active
     sources.update(own)  # asked for by name – never skipped, and the given type wins
+    untrusted = (set(meta_found) | set(discovered)) & set(sources) - curated - set(own)
     return SourcePlan(
         sources, skipped, n_curated, len(meta_found), meta_ok, len(meta), len(discovered), n_own=len(own),
-        discovery_ran=run_discovery, discovery_token=token is not None,
+        discovery_ran=run_discovery, discovery_token=token is not None, untrusted=untrusted,
     )
 
 
@@ -113,8 +118,13 @@ class ScrapeResult:
     ok_sources: int = 0
 
 
+# Public addresses on every redirect hop, any port: a discovered list's host may resolve to this machine or
+# the local network by now, and that must not turn a scan into requests against internal services.
+UNTRUSTED_SOURCE_POLICY = TargetPolicy(ports=None)
+
+
 async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view: CollectView,
-                 cache: Optional[FetchCache] = None) -> ScrapeResult:
+                 cache: Optional[FetchCache] = None, untrusted: AbstractSet[str] = frozenset()) -> ScrapeResult:
     """Loads every source and parses large lists in parallel on all CPU cores.
 
     That keeps the event loop free for more downloads instead of working through regexes for minutes.
@@ -137,14 +147,16 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
             if url.startswith("file://"):  # own list from --source
                 return await asyncio.to_thread(Path(url2pathname(urlsplit(url).path)).read_bytes), {}, None
             conditional = cache.conditional_headers(url, sources[url])
+            policy = UNTRUSTED_SOURCE_POLICY if url in untrusted else None
             async with sem:
-                status, headers, body = await http_request(url, timeout=30, headers=conditional or None)
+                status, headers, body = await http_request(url, timeout=30, headers=conditional or None,
+                                                           policy=policy)
             if status == 304 and conditional:
                 cached = cache.load(url)
                 if cached is not None:
                     return None, headers, cached
                 async with sem:  # cache file broken -> just load it again
-                    status, headers, body = await http_request(url, timeout=30)
+                    status, headers, body = await http_request(url, timeout=30, policy=policy)
             if status != 200:
                 raise ConnectionError(f"HTTP {status}")
             return body, headers, None

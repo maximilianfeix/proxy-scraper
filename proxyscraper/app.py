@@ -487,7 +487,8 @@ class Run:
         view = CollectView(len(plan.sources), self.started)
         with Live(view, console=widgets.console, refresh_per_second=10, transient=True):
             cache = FetchCache(enabled=not self.opts.no_cache)
-            self.scraped = await scrape(plan.sources, self.opts.types, self.quality, view, cache)
+            self.scraped = await scrape(plan.sources, self.opts.types, self.quality, view, cache,
+                                         untrusted=plan.untrusted)
         self.quality.save()
         cache.save()
         res = self.scraped

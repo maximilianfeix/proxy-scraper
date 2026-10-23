@@ -31,12 +31,18 @@ jobs:
       - run: python proxy_scraper.py --list-sources 5
 
   action:
-    # the GitHub Action the way others use it (uses: maximilianfeix/proxy-scraper@v1), on every OS
+    # the GitHub Action the way others use it (uses: maximilianfeix/proxy-scraper@v1), on every OS – with a fixture
+    # list instead of the live one, so a pull request never fails because GitHub Pages or the list had a bad hour.
+    # sitecustomize.py in live_fixture/ swaps only the download of proxies.json/stats.json; the install, the
+    # filters and the outputs are the real ones. live-smoke.yml runs the same step against the real list.
     strategy:
       fail-fast: false
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
     runs-on: ${{ matrix.os }}
+    env:
+      PROXY_SCRAPER_LIVE_FIXTURE: "1"
+      PYTHONPATH: ${{ github.workspace }}/.github/scripts/live_fixture
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - id: proxies
@@ -52,6 +58,21 @@ jobs:
           test "${{ steps.proxies.outputs.count }}" -ge 1
           test -s "${{ steps.proxies.outputs.file }}"
           head -3 "${{ steps.proxies.outputs.file }}"
+
+  parquet:
+    # the Hugging Face mirror's Parquet round-trip (tests/test_hf_parquet.py) needs PyArrow, which the matrix above
+    # doesn't install – there those tests skip. Here PyArrow comes from the hf lock and a missing one fails.
+    runs-on: ubuntu-latest
+    env:
+      PROXY_SCRAPER_REQUIRE_PYARROW: "1"
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+      - run: pip install --require-hashes -r .github/requirements/test.txt
+      - run: pip install --require-hashes -r .github/requirements/hf.txt
+      - run: python -m pytest -q -rs tests/test_hf_parquet.py
 
   package:
     # builds wheel + sdist and installs the wheel fresh – the way users get it with pipx
@@ -90,3 +111,34 @@ jobs:
 
           anyio.run(main)
           PY
+
+  sdist:
+    # what a source install gets (installing from the sdist, distro packagers): unpack the sdist, build the wheel
+    # from it – not from the checkout – install that into a fresh venv and check, from outside the checkout, that
+    # every file pyproject's package-data names arrived and loads (sources.json, the site and dashboard pages)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: actions/setup-python@5fda3b95a4ea91299a34e894583c3862153e4b97 # v7
+        with:
+          python-version: "3.13"
+      - run: pip install --require-hashes -r .github/requirements/test.txt
+      - run: python -m build --sdist --outdir "$RUNNER_TEMP/sdist"
+      - name: Build the wheel from the unpacked sdist
+        run: |
+          mkdir "$RUNNER_TEMP/from-sdist"
+          tar -xzf "$RUNNER_TEMP"/sdist/*.tar.gz -C "$RUNNER_TEMP/from-sdist"
+          python -m build --wheel --outdir "$RUNNER_TEMP/dist" "$RUNNER_TEMP"/from-sdist/*/
+      - name: Install it into a clean environment and check the package assets
+        working-directory: ${{ runner.temp }}
+        run: |
+          python -m venv "$RUNNER_TEMP/clean"
+          "$RUNNER_TEMP/clean/bin/pip" install dist/*.whl
+          "$RUNNER_TEMP/clean/bin/python" -I "$GITHUB_WORKSPACE/.github/scripts/package_assets.py" "$GITHUB_WORKSPACE"
+          "$RUNNER_TEMP/clean/bin/proxy-scraper" --list-sources 3
+      - name: The command line against the localhost lab, from the installed package
+        working-directory: ${{ runner.temp }}
+        env:
+          PROXY_SCRAPER_SMOKE_INSTALLED: "1"
+        run: |
+          "$RUNNER_TEMP/clean/bin/python" "$GITHUB_WORKSPACE/.github/scripts/lab_smoke.py"

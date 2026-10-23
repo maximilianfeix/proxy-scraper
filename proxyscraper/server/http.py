@@ -12,7 +12,15 @@ HOP_BY_HOP = {b"proxy-connection", b"connection", b"keep-alive", b"proxy-authori
 PROXY_AUTH_REQUIRED = re.compile(rb"HTTP/1\.[01] 407\b")
 STATUS_LEN = len(b"HTTP/1.1 407 ")
 STATUS_RE = re.compile(rb"HTTP/1\.[01] (\d{3})[ \r\n]")  # exactly three digits – "4070" is not a 407
-SCREEN_LIMIT = 16384
+SCREEN_LIMIT = 16384            # bytes of one interim response
+MAX_INTERIM = 8                 # interim responses (100 Continue, 103 Early Hints, ...) before the final one
+MAX_INTERIM_BYTES = 64 * 1024   # all interim responses of one request together
+# methods that may go to a second proxy after the first one could already have passed them on. Only the safe
+# methods of RFC 9110 9.2.1: PUT and DELETE are idempotent by definition, but whether a target really behaves
+# that way is its promise, not ours, and a proxy must not retry on its behalf (RFC 9110 9.2.2) – one lost
+# response would otherwise run a payment, an upload or a delete twice. An Idempotency-Key header is no
+# guarantee either: nothing tells us the target deduplicates on it.
+SAFE_METHODS = frozenset({"GET", "HEAD", "OPTIONS", "TRACE"})
 
 
 def parse_request_head(head: bytes) -> Tuple[str, str, int, bytes, List[Tuple[bytes, bytes]]]:
@@ -136,10 +144,12 @@ class ResponseScreen:
     Interim responses (100 Continue and the like) go to the client right away; if a 407 follows,
     the client should never see it. feed() returns what may already go on, and the decision:
     None = still open, "ok" = just pass everything else through, "407" = the proxy wants a login
-    (or sends an implausibly long interim response – both mean: don't use this upstream)."""
+    (or sends implausibly long or many interim responses – both mean: don't use this upstream)."""
 
     def __init__(self):
         self.buf = b""
+        self.interim = 0        # interim responses seen so far
+        self.interim_bytes = 0
 
     def feed(self, data: bytes):
         self.buf += data
@@ -161,6 +171,10 @@ class ResponseScreen:
                 if len(head) > SCREEN_LIMIT:
                     return out, "407"  # huge interim response – better count it as failed than let it through blindly
                 return out, None  # interim response not complete yet
+            self.interim += 1
+            self.interim_bytes += end + 4
+            if self.interim > MAX_INTERIM or self.interim_bytes > MAX_INTERIM_BYTES:
+                return out, "407"  # an endless stream of interim responses is no answer either
             out += head[:end + 4]
             self.buf = head[end + 4:]
             if not self.buf:
@@ -169,6 +183,30 @@ class ResponseScreen:
     def _flush(self) -> bytes:
         data, self.buf = self.buf, b""
         return data
+
+
+def replay_safe_first_packet(data: bytes) -> bool:
+    """May the client's first packet in a tunnel go to another proxy after the first one perhaps passed it on?
+
+    Yes for nothing at all (the server talks first), for TLS handshake records only (a ClientHello carries no
+    application data – but 0-RTT early data in the same packet would, so every record has to be a handshake)
+    and for exactly one request head with a safe method (plain HTTP through CONNECT). Anything else could be
+    a POST or a command of some other protocol: it is sent once."""
+    if not data:
+        return True
+    if data[:1] == TLS_HANDSHAKE:
+        i = 0
+        while i < len(data):
+            if data[i:i + 1] != TLS_HANDSHAKE:
+                return False
+            if len(data) - i < 5:
+                return True
+            i += 5 + int.from_bytes(data[i + 3:i + 5], "big")
+        return True
+    method, _, rest = data.partition(b" ")
+    end = data.find(b"\r\n\r\n")
+    return (method.decode("ascii", "replace") in SAFE_METHODS and b" HTTP/1." in rest.split(b"\r\n", 1)[0]
+            and end == len(data) - 4)
 
 
 def plausible_answer(first_out: bytes, first_in: bytes) -> bool:

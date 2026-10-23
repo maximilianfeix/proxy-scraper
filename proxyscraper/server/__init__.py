@@ -6,9 +6,18 @@
   core.py      the server itself: accept clients, relay, switch on errors
 """
 
-from .core import FIRST_CHUNK_WAIT, MAX_ATTEMPTS, MAX_REPLAY_BODY, RequestLog, RotatingServer, ServerStats
+from .core import (
+    FIRST_CHUNK_WAIT,
+    MAX_ATTEMPTS,
+    MAX_CLIENTS,
+    MAX_REPLAY_BODY,
+    RequestLog,
+    RotatingServer,
+    ServerStats,
+)
 from .http import (
     PROXY_AUTH_REQUIRED,
+    SAFE_METHODS,
     SCREEN_LIMIT,
     ResponseScreen,
     forward_request,
@@ -23,8 +32,10 @@ __all__ = [
     "DISABLE_AFTER",
     "FIRST_CHUNK_WAIT",
     "MAX_ATTEMPTS",
+    "MAX_CLIENTS",
     "MAX_REPLAY_BODY",
     "PROXY_AUTH_REQUIRED",
+    "SAFE_METHODS",
     "SCREEN_LIMIT",
     "PoolEntry",
     "ProxyPool",

@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.31.0] – 2026-10-23
+
 ### Security
 - **Lists found automatically are only downloaded from public addresses.** The GitHub search took any host name with a dot, and neither the addresses it resolved to nor redirects were checked: a config naming `127.0.0.1.nip.io`, `0x7f.1` or `[64:ff9b::7f00:1]` made the scan send a request to this machine or the local network. Mined URLs, the lists saved by earlier searches and the URLs in third-party meta lists are now checked on every redirect hop (every resolved address, all IPv4 spellings, IPv4-mapped and NAT64 IPv6), and the connection goes to the address that was checked, with Host header, SNI and certificate check on the name. Curated lists and `--source` are unchanged (#356)
 - **The rotating server no longer sends a request twice when that could do something twice.** A small `POST` was repeated through the next proxy if the first one delivered it and then dropped the connection. After a request may have gone out, only `GET`, `HEAD`, `OPTIONS` and `TRACE` go to another proxy; everything else gets a `502` with `X-Proxy-Scraper: no-retry-after-send`. Before sending, failover works for every method as before (#352)
@@ -393,7 +395,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.30.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.31.0...HEAD
+[1.31.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.29.0...v1.30.0
 [1.29.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.28.0...v1.29.0
 [1.28.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.27.0...v1.28.0

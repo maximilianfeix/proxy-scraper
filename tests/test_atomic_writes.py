@@ -111,7 +111,13 @@ def test_failed_rename_leaves_nothing_behind(tmp_path, monkeypatch):
 
 
 @pytest.mark.skipif(os.name == "nt", reason="POSIX permissions")
-def test_written_files_get_the_usual_permissions(tmp_path):
+@pytest.mark.parametrize("umask", [0o022, 0o077])
+def test_written_files_follow_the_current_umask(tmp_path, umask):
+    # the mask in effect at write time, not the one at import time – a caller that tightens it gets private files
     target = tmp_path / "summary.json"
-    paths.atomic_write(target, "{}")
-    assert target.stat().st_mode & 0o777 == 0o666 & ~paths._UMASK
+    old = os.umask(umask)
+    try:
+        paths.atomic_write(target, "{}")
+    finally:
+        os.umask(old)
+    assert target.stat().st_mode & 0o777 == 0o666 & ~umask

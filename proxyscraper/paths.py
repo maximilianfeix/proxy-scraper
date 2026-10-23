@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import contextlib
 import os
+import secrets
 import sys
-import tempfile
 import time
 from pathlib import Path
 from typing import BinaryIO, Iterator, Optional
@@ -49,10 +49,6 @@ def results_dir() -> Path:
 DATA_DIR = data_dir()
 RESULTS_DIR = results_dir()
 
-# mkstemp creates 0600 files; written files get the usual permissions instead (read once, at import time)
-_UMASK = os.umask(0o022)
-os.umask(_UMASK)
-
 
 def atomic_write(path: Path, text: str) -> None:
     """Replace `path` with `text` in one step – an interruption leaves no half-written file."""
@@ -74,9 +70,8 @@ def atomic_writer(path: Path) -> Iterator[BinaryIO]:
     always one complete version. That is not a merge – with two writers of the same state file the last one
     wins (see "State files" in docs/ARCHITECTURE.md). On any error the temporary file is removed again."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    fd, tmp = tempfile.mkstemp(dir=path.parent, prefix=f".{path.name}.", suffix=".tmp")
+    fd, tmp = _create_temp(path)
     try:
-        os.chmod(tmp, 0o666 & ~_UMASK)
         with os.fdopen(fd, "wb") as fh:
             yield fh
             fh.flush()
@@ -86,6 +81,18 @@ def atomic_writer(path: Path) -> Iterator[BinaryIO]:
         with contextlib.suppress(OSError):
             os.unlink(tmp)
         raise
+
+
+def _create_temp(path: Path) -> tuple[int, str]:
+    # Like mkstemp, but with mode 0666 so the OS applies the umask in effect now (mkstemp forces 0600)
+    flags = os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, "O_BINARY", 0)
+    for _ in range(100):
+        tmp = str(path.parent / f".{path.name}.{secrets.token_hex(4)}.tmp")
+        try:
+            return os.open(tmp, flags, 0o666), tmp
+        except FileExistsError:
+            continue
+    raise FileExistsError(f"no free temporary name next to {path}")
 
 
 def _replace(src: str, dst: Path, attempts: int = 5) -> None:

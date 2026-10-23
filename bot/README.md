@@ -44,20 +44,39 @@ Answers to commands are only visible to whoever asked, so `#commands` doesn't fi
    If the server does not allow `root` to log in, add the secret `DEPLOY_USER`: a user that may run `sudo` without
    a password. The workflow then logs in as that user and runs the same steps through `sudo`.
 
-4. **Deploy**: every push to `main` that changes `bot/` runs [`.github/workflows/bot.yml`](../.github/workflows/bot.yml): tests, then the code goes to `/opt/proxybot/app`, the token to `/etc/proxybot.env` (mode 600) and [`deploy/install.sh`](deploy/install.sh) sets up a system user, a venv and a hardened systemd service. *Run workflow* on the Actions page redeploys by hand.
+4. **Deploy**: every push to `main` that changes `bot/` runs [`.github/workflows/bot.yml`](../.github/workflows/bot.yml): tests, then the code goes to a new directory `/opt/proxybot/releases/<time>-<commit>`, the token to `/etc/proxybot.env` (mode 600) and [`deploy/install.sh`](deploy/install.sh) sets up a system user, the release's own venv and a hardened systemd service. *Run workflow* on the Actions page redeploys by hand.
+
+The venv is installed with `pip install --require-hashes -r requirements.lock`: the exact versions the bot's tests ran with ([`.github/requirements/bot.txt`](../.github/requirements/bot.txt) is the same lock plus pytest). `requirements.txt` only says which versions are acceptable; after changing it run `sh .github/requirements/compile.sh` (needs [uv](https://docs.astral.sh/uv/)) to update both locks.
+
+### Releases and rolling back
+
+```
+/opt/proxybot/releases/<id>/   code + venv of one deploy (the newest three are kept)
+/opt/proxybot/current          -> the release that runs (the systemd unit starts current/venv/bin/python)
+/opt/proxybot/previous         -> the one before
+```
+
+`install.sh` switches `current` only after the new venv imports the bot. If the bot isn't running a few seconds after the restart, it points `current` back at the previous release, restarts that and fails the workflow – the bot log lines are in the workflow log. To go back by hand, e.g. after a release that starts but misbehaves:
+
+```bash
+sudo sh /opt/proxybot/current/deploy/install.sh --rollback   # current <-> previous, then restart
+```
+
+The first deploy with this layout leaves an older `/opt/proxybot/app` and `/opt/proxybot/venv` untouched (it goes back to them if the new release doesn't start); delete them once the bot runs from `/opt/proxybot/current`.
 
 On the server:
 
 ```bash
 systemctl status proxybot
 journalctl -u proxybot -f
+readlink /opt/proxybot/current /opt/proxybot/previous
 ```
 
 ## Running it locally
 
 ```bash
 cd bot
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.lock
 DISCORD_TOKEN=... .venv/bin/python -m proxybot
 ```
 

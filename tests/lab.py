@@ -64,6 +64,7 @@ class Lab:
         self.exit_ips: Dict[int, str] = {}  # local port of a proxy's upstream connection -> that proxy's exit IP
         self.servers: List[asyncio.AbstractServer] = []
         self._handlers: Set[asyncio.Task] = set()  # running connection handlers, held so they aren't collected
+        self._closed_ports: Set[int] = set()  # handed out by closed_port() – never given to a server afterwards
         self.confirm_down = False  # the second target stops answering (directly and through proxies)
         self.page = PAGE           # what /html returns at its source
         self.https_status = b"200 OK"  # what the TLS target answers with
@@ -93,9 +94,16 @@ class Lab:
             finally:
                 self._handlers.discard(task)
 
-        server = await asyncio.start_server(held, "127.0.0.1", port, ssl=context)
+        while True:
+            server = await asyncio.start_server(held, "127.0.0.1", port, ssl=context)
+            got = server.sockets[0].getsockname()[1]
+            if port or got not in self._closed_ports:
+                break
+            # the OS may hand out a port closed_port() just released – the "dead" proxy would answer then
+            server.close()
+            await server.wait_closed()
         self.servers.append(server)
-        return server.sockets[0].getsockname()[1]
+        return got
 
     # ------------------------------------------------------------------ targets
 
@@ -224,6 +232,7 @@ class Lab:
         port = server.sockets[0].getsockname()[1]
         server.close()
         await server.wait_closed()
+        self._closed_ports.add(port)
         return f"127.0.0.1:{port}"
 
     # ------------------------------------------------------------------ a checker that uses the lab

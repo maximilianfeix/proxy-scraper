@@ -7,7 +7,7 @@ on:
     paths-ignore: ["**.md", "docs/**"]
   pull_request:
     paths: ["Dockerfile", ".dockerignore", "pyproject.toml", "proxyscraper/**", ".github/workflows/docker.yml",
-            ".github/scripts/mcp_smoke.py"]
+            ".github/scripts/mcp_smoke.py", ".github/scripts/lab_smoke.py", "tests/lab.py", "tests/data/**"]
 
 permissions:
   contents: read
@@ -43,16 +43,13 @@ jobs:
         run: |
           python .github/scripts/mcp_smoke.py docker run -i --rm -v "$PWD:/src:ro" "$UV_IMAGE" \
             sh -c 'cp -r /src /app && cd /app && uv sync --quiet && exec uv run --quiet proxy-scraper-mcp'
-      - name: Real run inside the container (same command as in the README)
+      # a pull request must not depend on public proxies being up: the checks run against the localhost lab
+      # (tests/lab.py) with the container's own installation. The real scan with volumes runs in live-smoke.yml
+      - name: The command line inside the container against the localhost lab
+        timeout-minutes: 3
         run: |
-          mkdir -p proxy-data results
-          timeout 600 docker run --rm --user "$(id -u):$(id -g)" --ulimit nofile=65535:65535 \
-            -v "$PWD/proxy-data:/data" -v "$PWD/results:/work/results" \
-            proxy-scraper:test --want 5 --limit 5000 --no-discover
-          run=$(cat results/latest.txt)
-          echo "found $(wc -l < "results/$run/all.txt") proxies"
-          test -s "results/$run/all.txt"
-          test -f proxy-data/source_stats.json
+          docker run --rm -e PROXY_SCRAPER_SMOKE_INSTALLED=1 -v "$PWD:/src:ro" --entrypoint python \
+            proxy-scraper:test /src/.github/scripts/lab_smoke.py
       - uses: docker/setup-qemu-action@99012661954931238ded8c8b007157a8430204e1 # v4
       - name: Build for arm64 too (what the release publishes)
         uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7

@@ -1,0 +1,61 @@
+name: live smoke
+
+# The checks that need the real internet: the live list from GitHub Pages and public proxies that happen to work
+# right now. They can fail for reasons no pull request caused, so they are not merge checks – tests.yml and
+# docker.yml run the same steps against fixtures and the localhost lab. This runs once a day and by hand; a red
+# run here shows up on the Actions page without blocking anyone.
+on:
+  schedule:
+    - cron: "37 6 * * *"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  action:
+    # the GitHub Action the way others use it (uses: maximilianfeix/proxy-scraper@v1), with the real hourly list
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, macos-latest, windows-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - id: proxies
+        uses: ./
+        with:
+          types: socks5,http
+          https: "true"
+          limit: "5"
+      - name: The outputs are there
+        shell: bash
+        run: |
+          echo "count=${{ steps.proxies.outputs.count }} fastest=${{ steps.proxies.outputs.proxy }}"
+          test "${{ steps.proxies.outputs.count }}" -ge 1
+          test -s "${{ steps.proxies.outputs.file }}"
+          head -3 "${{ steps.proxies.outputs.file }}"
+
+  docker-scan:
+    # a real scan inside the container (same command as in the README): public sources, public proxies, volumes
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: docker/setup-buildx-action@f87e5991a6d7451dcb8d9637bfbc97413f497069 # v4
+      - name: Build
+        uses: docker/build-push-action@c3c9e263c25d99ce0380d002d59b67737d91b0dc # v7
+        with:
+          context: .
+          load: true
+          tags: proxy-scraper:test
+          cache-from: type=gha
+      - name: Real run inside the container
+        run: |
+          mkdir -p proxy-data results
+          timeout 600 docker run --rm --user "$(id -u):$(id -g)" --ulimit nofile=65535:65535 \
+            -v "$PWD/proxy-data:/data" -v "$PWD/results:/work/results" \
+            proxy-scraper:test --want 5 --limit 5000 --no-discover
+          run=$(cat results/latest.txt)
+          echo "found $(wc -l < "results/$run/all.txt") proxies"
+          test -s "results/$run/all.txt"
+          test -f proxy-data/source_stats.json

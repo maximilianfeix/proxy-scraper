@@ -3,6 +3,8 @@
 import gzip
 import importlib.util
 import json
+import os
+import sys
 from pathlib import Path
 
 import pytest
@@ -13,6 +15,16 @@ hf_parquet = importlib.util.module_from_spec(spec)
 spec.loader.exec_module(hf_parquet)
 
 NAMES = [name for name, _ in hf_parquet.COLUMNS]
+
+
+def parquet():
+    """pyarrow.parquet – skipped without PyArrow, except where PROXY_SCRAPER_REQUIRE_PYARROW=1 says it must be
+    there: the parquet job in tests.yml installs the hf lock, and a missing PyArrow fails the job instead of
+    quietly skipping the round-trip."""
+    if os.environ.get("PROXY_SCRAPER_REQUIRE_PYARROW") == "1":
+        import pyarrow.parquet as pq
+        return pq
+    return pytest.importorskip("pyarrow.parquet")
 
 TODAY = {"ptype": "http", "proxy": "1.2.3.4:80", "latency": 120, "exit_ip": "1.2.3.4", "https": True,
          "anonymity": "elite", "country": "DE", "targets": {}, "asn": 3320, "org": "Telekom", "hosting": False,
@@ -63,7 +75,7 @@ def test_the_workflows_use_the_script():
 
 
 def test_days_with_different_fields_write_the_same_schema(tmp_path):
-    pq = pytest.importorskip("pyarrow.parquet")
+    pq = parquet()
     schemas = []
     for day, row in (("2026-09-27", FIRST_DAYS), ("2026-10-06", TODAY)):
         src = tmp_path / f"proxies-{day}.json.gz"
@@ -96,3 +108,17 @@ def test_unknown_country_anonymity_and_exit_ip_are_null():
 def test_the_rebuild_never_runs_next_to_the_hourly_job():
     rebuild = (ROOT / ".github" / "workflows" / "hf-rebuild.yml").read_text()
     assert "group: proxy-list" in rebuild
+
+
+@pytest.mark.parametrize("required", [False, True])
+def test_missing_pyarrow_skips_locally_but_fails_where_it_is_required(monkeypatch, required):
+    monkeypatch.setitem(sys.modules, "pyarrow", None)  # import pyarrow raises ImportError
+    monkeypatch.setitem(sys.modules, "pyarrow.parquet", None)
+    if required:
+        monkeypatch.setenv("PROXY_SCRAPER_REQUIRE_PYARROW", "1")
+        with pytest.raises(ImportError):
+            parquet()
+    else:
+        monkeypatch.delenv("PROXY_SCRAPER_REQUIRE_PYARROW", raising=False)
+        with pytest.raises(pytest.skip.Exception):
+            parquet()

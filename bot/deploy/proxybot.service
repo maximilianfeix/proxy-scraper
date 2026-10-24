@@ -8,12 +8,13 @@ Wants=network-online.target
 Type=simple
 User=proxybot
 Group=proxybot
-WorkingDirectory=/opt/proxybot/app
+# the release deploy/install.sh switched to last; the one before is /opt/proxybot/previous
+WorkingDirectory=/opt/proxybot/current
 # DISCORD_TOKEN, written by the deploy workflow (root only, mode 600)
 EnvironmentFile=/etc/proxybot.env
 Environment=PROXYBOT_STATE=/var/lib/proxybot/state.json
 Environment=PYTHONUNBUFFERED=1
-ExecStart=/opt/proxybot/venv/bin/python -m proxybot
+ExecStart=/opt/proxybot/current/venv/bin/python -m proxybot
 Restart=always
 RestartSec=10
 

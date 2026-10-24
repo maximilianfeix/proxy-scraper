@@ -20,7 +20,8 @@ jobs:
         with:
           python-version: "3.12"
           cache: pip
-          cache-dependency-path: bot/requirements.txt
+          cache-dependency-path: .github/requirements/bot.txt
+      # the runtime versions of bot/requirements.lock – what the server installs – plus pytest
       - run: pip install --require-hashes -r .github/requirements/bot.txt
       - run: python -m pytest -q tests
         working-directory: bot
@@ -72,14 +73,18 @@ jobs:
           # pinned host key: a server that suddenly presents a different key gets no token
           printf '%s\n' "$KNOWN" > ~/.ssh/known_hosts
 
+      # every deploy goes into a fresh release directory; install.sh gives it its own venv and switches
+      # /opt/proxybot/current to it only when it imports and starts (bot/README.md: "Rolling back")
       - name: Copy the bot
         if: steps.secrets.outputs.ready == 'true'
         run: |
+          # UTC time first: install.sh prunes the oldest by name. A new name each time, so mkdir (not -p) fails
+          # instead of unpacking over an existing release
+          release="$(date -u +%Y%m%dT%H%M%SZ)-${GITHUB_SHA::12}"
+          echo "RELEASE=/opt/proxybot/releases/$release" >> "$GITHUB_ENV"
           tar -C bot --exclude tests --exclude '__pycache__' -czf - . | ssh -o BatchMode=yes "$USER_AT_HOST" \
-            "$SUDO sh -c 'set -e; rm -rf /opt/proxybot/app.new; mkdir -p /opt/proxybot/app.new;
-             tar -xzf - --no-same-owner -C /opt/proxybot/app.new;
-             rm -rf /opt/proxybot/app.old; [ -d /opt/proxybot/app ] && mv /opt/proxybot/app /opt/proxybot/app.old;
-             mv /opt/proxybot/app.new /opt/proxybot/app'"
+            "$SUDO sh -c 'set -e; mkdir -p /opt/proxybot/releases; mkdir /opt/proxybot/releases/$release;
+             tar -xzf - --no-same-owner -C /opt/proxybot/releases/$release'"
 
       - name: Write the tokens
         if: steps.secrets.outputs.ready == 'true'
@@ -92,4 +97,4 @@ jobs:
 
       - name: Install and restart
         if: steps.secrets.outputs.ready == 'true'
-        run: ssh -o BatchMode=yes "$USER_AT_HOST" "$SUDO bash /opt/proxybot/app/deploy/install.sh"
+        run: ssh -o BatchMode=yes "$USER_AT_HOST" "$SUDO sh $RELEASE/deploy/install.sh $RELEASE"

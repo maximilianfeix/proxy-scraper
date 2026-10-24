@@ -1,0 +1,81 @@
+{
+ "updated": "2026-10-24T20:33:48+00:00",
+ "total": 1181,
+ "by_type": {
+  "http": 186,
+  "socks4": 101,
+  "socks5": 894
+ },
+ "https": 665,
+ "elite": 1170,
+ "datacenter": 666,
+ "blocklisted": 266,
+ "stable": 74,
+ "sites": {
+  "google": 210,
+  "reddit": 127,
+  "amazon": 62,
+  "instagram": 83,
+  "tiktok": 311,
+  "discord": 344
+ },
+ "run_hours": 1,
+ "countries": {
+  "US": 326,
+  "FR": 137,
+  "IN": 104,
+  "ID": 72,
+  "DE": 70,
+  "BR": 35,
+  "JP": 35,
+  "CO": 33,
+  "AT": 33,
+  "VN": 28,
+  "CN": 26,
+  "NL": 24,
+  "SG": 23,
+  "CH": 22,
+  "TH": 21
+ },
+ "median_latency": 2110,
+ "median_speed_kbps": 50,
+ "requires": {
+  "all.txt": [
+   "basic",
+   "confirm",
+   "content"
+  ],
+  "http.txt": [
+   "basic",
+   "confirm",
+   "content"
+  ],
+  "socks4.txt": [
+   "basic",
+   "confirm",
+   "content"
+  ],
+  "socks5.txt": [
+   "basic",
+   "confirm",
+   "content"
+  ],
+  "elite.txt": [
+   "basic",
+   "confirm",
+   "content"
+  ],
+  "stable.txt": [
+   "basic",
+   "confirm",
+   "content"
+  ],
+  "https.txt": [
+   "basic",
+   "confirm",
+   "content",
+   "https"
+  ]
+ },
+ "held_back": 438
+}

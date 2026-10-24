@@ -1,0 +1,173 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free proxies in Germany – checked every hour | proxy-scraper</title>
+<meta name="description" content="70 free proxies in Germany, checked about every hour: basic check, second request and content check. Download as text or filter the full list.">
+<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/country/de/">
+<meta property="og:title" content="Free proxies in Germany">
+<meta property="og:description" content="70 free proxies in Germany, checked about every hour: basic check, second request and content check. Download as text or filter the full list.">
+<meta property="og:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<meta property="og:url" content="https://maximilianfeix.github.io/proxy-scraper/country/de/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../../logo.png">
+<link rel="apple-touch-icon" href="../../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+<style>
+:root { --bg: #121113; --panel: #1A191C; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0; --signal: #D4F77A;
+        --signal-ink: #D4F77A; --on-signal: #121113; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root { --bg: #EFEFEC; --panel: #FFFFFF; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
+          --signal-ink: #3F5A00; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.55 "Geist", ui-sans-serif, system-ui,
+       sans-serif; padding-inline: 16px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 36px; }
+a { color: var(--signal-ink); }
+:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 6px; }
+.mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 600;
+         letter-spacing: -.03em; font-size: 18px; }
+.brand img { width: 30px; height: 30px; border-radius: 9px; }
+h1 { margin: 0; font-size: clamp(36px, 6vw, 72px); line-height: 1; letter-spacing: -.05em; font-weight: 600;
+     text-wrap: balance; }
+.lede { margin: 16px 0 0; color: var(--muted); font-size: 18px; max-width: 62ch; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.btn { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 99px; text-decoration: none;
+       font-weight: 500; border: 1px solid var(--line); color: var(--text); }
+.btn.primary { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+.table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+caption { text-align: left; padding: 14px 16px 0; color: var(--muted); font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 12px 16px;
+     border-bottom: 1px solid var(--line); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+     white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.empty { padding: 28px 16px; color: var(--muted); }
+nav h2 { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 10px; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+nav a { display: inline-block; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px;
+        text-decoration: none; color: var(--text); font-size: 14px; }
+nav a[aria-current] { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+
+.wrap > * { min-width: 0; }  /* grid items default to their content's width: the wide table would push the page */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+         background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.facts div { background: var(--panel); padding: 16px 18px; }
+.facts dt { font-size: 26px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.facts dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+.use pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+           overflow-x: auto; font-size: 14px; margin: 0 0 10px; }
+.note { color: var(--muted); font-size: 14px; }
+.faq h3 { font-size: 18px; font-weight: 500; margin: 22px 0 6px; }
+.faq p { margin: 0; color: var(--muted); max-width: 70ch; }
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How many free proxies in Germany work right now?", "acceptedAnswer": {"@type": "Answer", "text": "70 passed every check in the last run (24 Oct 2026, 20:33 UTC): a basic check, a second request to another site and a content check. 38 of them tunnel HTTPS with verified TLS to one test host, and 4 were on the list in 90 % or more of this week's runs. The list is checked again about every hour."}}, {"@type": "Question", "name": "Which free proxies in Germany get through to Google?", "acceptedAnswer": {"@type": "Answer", "text": "In the last check, 6 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list on the website can be filtered by it."}}, {"@type": "Question", "name": "How do I get working proxies in Germany in code or the terminal?", "acceptedAnswer": {"@type": "Answer", "text": "Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country DE prints five from the hourly list. From Python, live_proxies() takes the same filters."}}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../../"><img src="../../logo.png" alt="">proxy-scraper</a>
+    <a href="../../">All proxies</a>
+  </header>
+  <main>
+    <h1>Free proxies in Germany</h1>
+    <p class="lede">70 proxies in Germany that passed every check in the last run (24 Oct 2026, 20:33 UTC): a basic check, a second request to another site and a test page that has to arrive unchanged.</p>
+    <div class="actions">
+      <a class="btn primary" href="proxies.txt" download>Download 70 as .txt</a>
+      <a class="btn" href="../../?country=DE#list">Filter the full list</a>
+      <a class="btn" href="https://github.com/maximilianfeix/proxy-scraper">Check them from your network</a>
+    </div>
+  </main>
+  <dl class="facts"><div><dt>70</dt><dd>working right now</dd></div><div><dt>38</dt><dd>tunnel HTTPS</dd></div><div><dt>4</dt><dd>on the list 90 %+ of the week</dd></div><div><dt>6</dt><dd>get through to Google</dd></div><div><dt>76 KB/s</dt><dd>median download speed</dd></div></dl>
+  <div class="table"><table><caption>The 70 fastest to load a page, as ip:port. The download has all 70 as type://ip:port.</caption><thead><tr><th scope="col">Proxy</th><th scope="col">Type</th><th scope="col">Country</th><th scope="col">Latency</th><th scope="col">Speed</th><th scope="col">Uptime</th><th scope="col">HTTPS</th><th scope="col">Gets through</th><th scope="col">Provider</th></tr></thead><tbody><tr><td class="mono"><a href="../../proxy/103.237.102.191-11111/">103.237.102.191:11111</a></td><td>HTTP</td><td>DE</td><td>326 ms</td><td>173 KB/s</td><td>98 %</td><td>yes</td><td>Reddit, TikTok</td><td>Zenlayer Inc</td></tr>
+<tr><td class="mono"><a href="../../proxy/109.199.119.160-80/">109.199.119.160:80</a></td><td>HTTP</td><td>DE</td><td>263 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/89.58.42.118-3129/">89.58.42.118:3129</a></td><td>SOCKS5</td><td>DE</td><td>777 ms</td><td>130 KB/s</td><td>78 %</td><td>yes</td><td>TikTok, Discord</td><td>netcup GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/141.98.153.86-80/">141.98.153.86:80</a></td><td>HTTP</td><td>DE</td><td>1,078 ms</td><td>–</td><td>97 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/213.199.47.140-1080/">213.199.47.140:1080</a></td><td>SOCKS5</td><td>DE</td><td>1,791 ms</td><td>66 KB/s</td><td>86 %</td><td>yes</td><td>Reddit, Instagram, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/80.74.54.148-3128/">80.74.54.148:3128</a></td><td>HTTP</td><td>DE</td><td>318 ms</td><td>–</td><td>83 %</td><td>no</td><td>–</td><td>Deutsche Glasfaser Wholesale GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-5928/">45.74.31.47:5928</a></td><td>SOCKS5</td><td>DE</td><td>1,108 ms</td><td>81 KB/s</td><td>3 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/116.202.108.111-3128/">116.202.108.111:3128</a></td><td>HTTP</td><td>DE</td><td>351 ms</td><td>–</td><td>91 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/93.236.17.141-80/">93.236.17.141:80</a></td><td>HTTP</td><td>DE</td><td>336 ms</td><td>149 KB/s</td><td>1 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, TikTok, Discord</td><td>Deutsche Telekom AG</td></tr>
+<tr><td class="mono"><a href="../../proxy/212.132.112.231-80/">212.132.112.231:80</a></td><td>HTTP</td><td>DE</td><td>660 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>IONOS SE</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.58.144.19-1080/">31.58.144.19:1080</a></td><td>SOCKS5</td><td>DE</td><td>745 ms</td><td>153 KB/s</td><td>38 %</td><td>yes</td><td>–</td><td>dataforest GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/89.191.226.64-1080/">89.191.226.64:1080</a></td><td>SOCKS5</td><td>DE</td><td>817 ms</td><td>155 KB/s</td><td>15 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Timeweb, LLP</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9218/">45.74.31.47:9218</a></td><td>SOCKS5</td><td>DE</td><td>2,215 ms</td><td>64 KB/s</td><td>4 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7291/">45.74.31.42:7291</a></td><td>SOCKS5</td><td>DE</td><td>1,000 ms</td><td>107 KB/s</td><td>2 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, TikTok, Discord</td><td>Deutsche Telekom AG</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-5667/">45.74.31.46:5667</a></td><td>SOCKS5</td><td>DE</td><td>2,103 ms</td><td>62 KB/s</td><td>5 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-10264/">45.74.31.47:10264</a></td><td>SOCKS5</td><td>DE</td><td>1,793 ms</td><td>49 KB/s</td><td>2 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/188.68.52.45-80/">188.68.52.45:80</a></td><td>HTTP</td><td>DE</td><td>2,136 ms</td><td>–</td><td>57 %</td><td>no</td><td>–</td><td>netcup GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-4089/">45.74.31.46:4089</a></td><td>SOCKS5</td><td>DE</td><td>3,516 ms</td><td>–</td><td>9 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.220.168.10-10808/">31.220.168.10:10808</a></td><td>SOCKS4</td><td>DE</td><td>895 ms</td><td>71 KB/s</td><td>1 %</td><td>yes</td><td>Google, Amazon, Instagram, TikTok, Discord</td><td>SEALLY LTD</td></tr>
+<tr><td class="mono"><a href="../../proxy/91.107.143.251-80/">91.107.143.251:80</a></td><td>HTTP</td><td>DE</td><td>336 ms</td><td>–</td><td>86 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.220.168.10-10808/">31.220.168.10:10808</a></td><td>SOCKS5</td><td>DE</td><td>1,122 ms</td><td>80 KB/s</td><td>1 %</td><td>yes</td><td>Google, Amazon, Instagram, TikTok, Discord</td><td>SEALLY LTD</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-5731/">45.74.31.40:5731</a></td><td>SOCKS5</td><td>DE</td><td>1,668 ms</td><td>103 KB/s</td><td>4 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-6077/">45.74.31.40:6077</a></td><td>SOCKS5</td><td>DE</td><td>1,983 ms</td><td>126 KB/s</td><td>2 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-10859/">45.74.31.42:10859</a></td><td>SOCKS5</td><td>DE</td><td>5,441 ms</td><td>74 KB/s</td><td>5 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-28884/">45.74.31.40:28884</a></td><td>SOCKS5</td><td>DE</td><td>2,116 ms</td><td>112 KB/s</td><td>3 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-5602/">45.74.31.42:5602</a></td><td>SOCKS5</td><td>DE</td><td>2,247 ms</td><td>110 KB/s</td><td>4 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-7586/">45.74.31.41:7586</a></td><td>SOCKS5</td><td>DE</td><td>3,818 ms</td><td>–</td><td>7 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7725/">45.74.31.42:7725</a></td><td>SOCKS5</td><td>DE</td><td>1,823 ms</td><td>62 KB/s</td><td>4 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-10855/">45.74.31.47:10855</a></td><td>SOCKS5</td><td>DE</td><td>1,538 ms</td><td>–</td><td>8 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-10227/">45.74.31.47:10227</a></td><td>SOCKS5</td><td>DE</td><td>5,304 ms</td><td>76 KB/s</td><td>2 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-6534/">45.74.31.41:6534</a></td><td>SOCKS5</td><td>DE</td><td>2,044 ms</td><td>63 KB/s</td><td>2 %</td><td>yes</td><td>TikTok, Discord</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-6635/">45.74.31.47:6635</a></td><td>SOCKS5</td><td>DE</td><td>2,946 ms</td><td>131 KB/s</td><td>1 %</td><td>yes</td><td>TikTok, Discord</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9764/">45.74.31.47:9764</a></td><td>SOCKS5</td><td>DE</td><td>1,739 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Deutsche Telekom AG</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-12191/">45.74.31.42:12191</a></td><td>SOCKS5</td><td>DE</td><td>2,211 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-12547/">45.74.31.47:12547</a></td><td>SOCKS5</td><td>DE</td><td>2,997 ms</td><td>81 KB/s</td><td>3 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-5756/">45.74.31.40:5756</a></td><td>SOCKS5</td><td>DE</td><td>2,931 ms</td><td>76 KB/s</td><td>4 %</td><td>yes</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9710/">45.74.31.47:9710</a></td><td>SOCKS5</td><td>DE</td><td>2,888 ms</td><td>71 KB/s</td><td>2 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-5640/">45.74.31.42:5640</a></td><td>SOCKS5</td><td>DE</td><td>2,519 ms</td><td>56 KB/s</td><td>5 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-5920/">45.74.31.47:5920</a></td><td>SOCKS5</td><td>DE</td><td>2,348 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-5610/">45.74.31.40:5610</a></td><td>SOCKS5</td><td>DE</td><td>3,321 ms</td><td>88 KB/s</td><td>2 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9970/">45.74.31.47:9970</a></td><td>SOCKS5</td><td>DE</td><td>2,521 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9226/">45.74.31.47:9226</a></td><td>SOCKS5</td><td>DE</td><td>2,590 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9238/">45.74.31.47:9238</a></td><td>SOCKS5</td><td>DE</td><td>1,731 ms</td><td>34 KB/s</td><td>1 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-5035/">45.74.31.41:5035</a></td><td>SOCKS5</td><td>DE</td><td>2,777 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-7556/">45.74.31.42:7556</a></td><td>SOCKS5</td><td>DE</td><td>2,880 ms</td><td>–</td><td>6 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-17182/">45.74.31.42:17182</a></td><td>SOCKS5</td><td>DE</td><td>3,990 ms</td><td>106 KB/s</td><td>5 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-5595/">45.74.31.42:5595</a></td><td>SOCKS5</td><td>DE</td><td>2,970 ms</td><td>–</td><td>6 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-7351/">45.74.31.41:7351</a></td><td>SOCKS5</td><td>DE</td><td>3,108 ms</td><td>–</td><td>6 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-4907/">45.74.31.47:4907</a></td><td>SOCKS5</td><td>DE</td><td>3,236 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-9931/">45.74.31.47:9931</a></td><td>SOCKS5</td><td>DE</td><td>3,257 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-5753/">45.74.31.40:5753</a></td><td>SOCKS5</td><td>DE</td><td>3,510 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/31.220.168.10-10808/">31.220.168.10:10808</a></td><td>HTTP</td><td>DE</td><td>551 ms</td><td>–</td><td>1 %</td><td>yes</td><td>Google, Amazon, Instagram, TikTok, Discord</td><td>SEALLY LTD</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-9896/">45.74.31.42:9896</a></td><td>SOCKS5</td><td>DE</td><td>4,699 ms</td><td>108 KB/s</td><td>8 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-4871/">45.74.31.46:4871</a></td><td>SOCKS5</td><td>DE</td><td>3,721 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-4803/">45.74.31.42:4803</a></td><td>SOCKS5</td><td>DE</td><td>3,836 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-12545/">45.74.31.47:12545</a></td><td>SOCKS5</td><td>DE</td><td>4,097 ms</td><td>50 KB/s</td><td>2 %</td><td>yes</td><td>TikTok, Discord</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-7059/">45.74.31.40:7059</a></td><td>SOCKS5</td><td>DE</td><td>4,127 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-9538/">45.74.31.40:9538</a></td><td>SOCKS5</td><td>DE</td><td>4,199 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-9886/">45.74.31.42:9886</a></td><td>SOCKS5</td><td>DE</td><td>4,295 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-17054/">45.74.31.41:17054</a></td><td>SOCKS5</td><td>DE</td><td>4,377 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/158.101.8.92-1080/">158.101.8.92:1080</a></td><td>SOCKS4</td><td>DE</td><td>1,468 ms</td><td>–</td><td>9 %</td><td>yes</td><td>Google, Reddit, TikTok, Discord</td><td>Stiftung Erneuerbare Freiheit</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-4898/">45.74.31.42:4898</a></td><td>SOCKS5</td><td>DE</td><td>3,731 ms</td><td>34 KB/s</td><td>2 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-14072/">45.74.31.41:14072</a></td><td>SOCKS5</td><td>DE</td><td>4,861 ms</td><td>–</td><td>1 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.42-6996/">45.74.31.42:6996</a></td><td>SOCKS5</td><td>DE</td><td>4,937 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-15539/">45.74.31.41:15539</a></td><td>SOCKS5</td><td>DE</td><td>4,947 ms</td><td>–</td><td>3 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.40-8326/">45.74.31.40:8326</a></td><td>SOCKS5</td><td>DE</td><td>5,765 ms</td><td>57 KB/s</td><td>5 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.41-7626/">45.74.31.41:7626</a></td><td>SOCKS5</td><td>DE</td><td>5,525 ms</td><td>–</td><td>7 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-10297/">45.74.31.47:10297</a></td><td>SOCKS5</td><td>DE</td><td>4,160 ms</td><td>29 KB/s</td><td>1 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.47-5754/">45.74.31.47:5754</a></td><td>SOCKS5</td><td>DE</td><td>4,918 ms</td><td>27 KB/s</td><td>2 %</td><td>yes</td><td>TikTok</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../../proxy/45.74.31.46-4909/">45.74.31.46:4909</a></td><td>SOCKS5</td><td>DE</td><td>4,254 ms</td><td>–</td><td>6 %</td><td>yes</td><td>Discord</td><td>Contabo GmbH</td></tr></tbody></table></div>
+  <section class="use"><h2>In the terminal or in code</h2><pre class="mono">pipx install proxy-scraper-cli
+proxy-scraper --pick 5 --country DE
+curl -x "$(proxy-scraper --pick --country DE --https-only)" https://api.ipify.org</pre><p class="note">--pick takes proxies from the same hourly list in about half a second. From Python: <code>live_proxies()</code>, see the <a href="https://github.com/maximilianfeix/proxy-scraper#from-python">README</a>.</p></section>
+  <section class="faq"><h2>Questions</h2><h3>How many free proxies in Germany work right now?</h3><p>70 passed every check in the last run (24 Oct 2026, 20:33 UTC): a basic check, a second request to another site and a content check. 38 of them tunnel HTTPS with verified TLS to one test host, and 4 were on the list in 90 % or more of this week&#x27;s runs. The list is checked again about every hour.</p><h3>Which free proxies in Germany get through to Google?</h3><p>In the last check, 6 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list on the website can be filtered by it.</p><h3>How do I get working proxies in Germany in code or the terminal?</h3><p>Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --country DE prints five from the hourly list. From Python, live_proxies() takes the same filters.</p></section>
+  <nav aria-label="More lists"><h2>By protocol</h2><ul><li><a href="../../http/">HTTP (186)</a></li><li><a href="../../socks4/">SOCKS4 (101)</a></li><li><a href="../../socks5/">SOCKS5 (894)</a></li><li><a href="../../https/">HTTPS (665)</a></li><li><a href="../../elite/">elite (1,170)</a></li></ul></nav><nav aria-label="By country"><h2>By country</h2><ul><li><a href="../../country/us/">United States (326)</a></li><li><a href="../../country/fr/">France (137)</a></li><li><a href="../../country/in/">India (104)</a></li><li><a href="../../country/id/">Indonesia (72)</a></li><li><a href="../../country/de/" aria-current="page">Germany (70)</a></li><li><a href="../../country/br/">Brazil (35)</a></li><li><a href="../../country/jp/">Japan (35)</a></li><li><a href="../../country/at/">Austria (33)</a></li><li><a href="../../country/co/">Colombia (33)</a></li><li><a href="../../country/vn/">Vietnam (28)</a></li><li><a href="../../country/cn/">China (26)</a></li><li><a href="../../country/nl/">Netherlands (24)</a></li><li><a href="../../country/sg/">Singapore (23)</a></li><li><a href="../../country/ch/">Switzerland (22)</a></li><li><a href="../../country/th/">Thailand (21)</a></li><li><a href="../../country/ru/">Russia (20)</a></li><li><a href="../../country/ml/">Mali (18)</a></li><li><a href="../../country/kr/">South Korea (16)</a></li><li><a href="../../country/ca/">Canada (13)</a></li><li><a href="../../country/hk/">Hong Kong (12)</a></li><li><a href="../../country/kh/">Cambodia (11)</a></li><li><a href="../../country/my/">Malaysia (10)</a></li><li><a href="../../country/pl/">Poland (10)</a></li><li><a href="../../country/gb/">United Kingdom (7)</a></li><li><a href="../../country/ua/">Ukraine (6)</a></li><li><a href="../../country/pk/">Pakistan (5)</a></li><li><a href="../../country/se/">Sweden (5)</a></li><li><a href="../../country/bd/">Bangladesh (4)</a></li><li><a href="../../country/it/">Italy (4)</a></li><li><a href="../../country/fi/">Finland (3)</a></li><li><a href="../../country/sn/">Senegal (3)</a></li><li><a href="../../country/za/">South Africa (3)</a></li><li><a href="../../country/tw/">Taiwan (3)</a></li><li><a href="../../country/tr/">Turkey (3)</a></li><li><a href="../../country/bi/">Burundi (2)</a></li><li><a href="../../country/cz/">Czechia (2)</a></li><li><a href="../../country/ir/">Iran (2)</a></li><li><a href="../../country/mk/">North Macedonia (2)</a></li><li><a href="../../country/py/">Paraguay (2)</a></li><li><a href="../../country/rs/">Serbia (2)</a></li><li><a href="../../country/es/">Spain (2)</a></li><li><a href="../../country/ar/">Argentina (1)</a></li><li><a href="../../country/au/">Australia (1)</a></li><li><a href="../../country/bg/">Bulgaria (1)</a></li><li><a href="../../country/dk/">Denmark (1)</a></li><li><a href="../../country/ec/">Ecuador (1)</a></li><li><a href="../../country/ee/">Estonia (1)</a></li><li><a href="../../country/gh/">Ghana (1)</a></li><li><a href="../../country/hn/">Honduras (1)</a></li><li><a href="../../country/hu/">Hungary (1)</a></li><li><a href="../../country/iq/">Iraq (1)</a></li><li><a href="../../country/ie/">Ireland (1)</a></li><li><a href="../../country/kz/">Kazakhstan (1)</a></li><li><a href="../../country/mo/">Macao (1)</a></li><li><a href="../../country/md/">Moldova (1)</a></li><li><a href="../../country/mz/">Mozambique (1)</a></li><li><a href="../../country/np/">Nepal (1)</a></li><li><a href="../../country/ng/">Nigeria (1)</a></li></ul></nav>
+  <footer>
+    <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>
+    <span>Collected and checked by <a href="https://github.com/maximilianfeix/proxy-scraper">proxy-scraper</a>, open source, MIT licensed.</span>
+  </footer>
+</div>
+</body>
+</html>

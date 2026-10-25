@@ -115,11 +115,13 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SITE_SSH_KEY" > ~/.ssh/site && chmod 600 ~/.ssh/site
           printf '%s\n' "$SITE_KNOWN_HOSTS" > ~/.ssh/site_known_hosts
-          # --delay-updates: the new files replace the old ones together at the end, so visitors see no half-updated list
-          rsync -rlt --checksum --delete-after --delay-updates --exclude .git \
+          # --delay-updates: the new files replace the old ones together at the end, so visitors see no half-updated list.
+          # No -t: every file here was just written, so -t would stamp the new time on unchanged files too and give
+          # each of them a new ETag/Last-Modified every hour; --checksum decides what changed, unchanged files keep theirs.
+          rsync -rl --checksum --delete-after --delay-updates --exclude .git \
             -e "ssh -i $HOME/.ssh/site -o IdentitiesOnly=yes -o BatchMode=yes -o UserKnownHostsFile=$HOME/.ssh/site_known_hosts" \
             public/ "proxysite@${SITE_HOST}:/"
-          echo "uploaded $(find public -type f | wc -l) files to the server"
+          echo "uploaded $(find public -path public/.git -prune -o -type f -print | wc -l) files to the server"
 
       # The lists alone in a repository of their own – easier to find and to bookmark than a branch (mirror.py).
       # One commit per run, squashed at the start of every month so clones stay small.

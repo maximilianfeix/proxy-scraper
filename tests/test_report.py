@@ -146,6 +146,19 @@ def test_the_feed_gets_one_frozen_entry_per_finished_week():
     assert "63 %" in ET.fromstring(second).find(f"{ATOM}entry").find(f"{ATOM}content").text
 
 
+def test_entries_from_before_the_site_moved_are_not_repeated():
+    monday = datetime(2026, 9, 28, 0, 17, tzinfo=timezone.utc)
+    old_base = "https://maximilianfeix.github.io/proxy-scraper/report/"
+    before = report.feed(at(monday), None).replace(report.REPORT_URL, old_base)
+    assert report.feed(at(monday + timedelta(days=3)), before) == before  # same week under the old URL: no new entry
+    # a feed that already got the week twice (once per URL) keeps it only once
+    old_entry = "<entry>" + before.split("<entry>", 1)[1].split("</entry>", 1)[0] + "</entry>"
+    twice = report.feed(at(monday), None).replace("</entry>", "</entry>\n  " + old_entry, 1)
+    assert [i.rsplit("/", 1)[1] for i, _ in entries(twice)] == ["2026-W39", "2026-W39"]
+    later = report.feed(at(monday + timedelta(days=7)), twice)
+    assert [i.rsplit("/", 1)[1] for i, _ in entries(later)] == ["2026-W40", "2026-W39"]
+
+
 def test_the_feed_keeps_twelve_weeks_and_survives_garbage():
     xml = None
     for week in range(15):

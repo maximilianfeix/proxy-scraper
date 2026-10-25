@@ -6,6 +6,12 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ### Changed
 - The website moved from GitHub Pages to its own domain, https://proxy-scraper.de/ (own server). The hourly run uploads it there; canonical links, sitemap, feeds, the bookmarklet and the docs point to the new address. The `proxy-list` branch and its raw files stay as they are
+- The Discord/Telegram bot links to and reads from https://proxy-scraper.de; `CITATION.cff` and the PyPI documentation link point there too
+
+### Fixed
+- The weekly report feed got a second entry for the same week after the move, because entries were matched by their full id (which contained the old address). Entries are matched by week now and only one per week is kept
+- The live list for the MCP tools and the Python API came only from the website, which is uploaded separately and may lag behind; when the website's copy is out of date the `proxy-list` branch is asked too and the newer list wins
+- The website upload gave every unchanged file a new timestamp each hour, so browsers and crawlers never got a `304`; unchanged files keep their time now
 
 ## [1.31.0] – 2026-10-23
 

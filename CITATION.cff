@@ -7,7 +7,7 @@ authors:
     given-names: Maximilian
 license: MIT
 repository-code: "https://github.com/maximilianfeix/proxy-scraper"
-url: "https://maximilianfeix.github.io/proxy-scraper/"
+url: "https://proxy-scraper.de/"
 abstract: >-
   proxy-scraper collects public HTTP, SOCKS4 and SOCKS5 proxies from hundreds of public lists and keeps only the
   ones that pass every check: a protocol handshake with a first request that returns a public exit IP, a second

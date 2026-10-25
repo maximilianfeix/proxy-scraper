@@ -16,7 +16,7 @@ from typing import Callable, Dict, List, Sequence, Tuple
 
 from .ranking import best_first
 
-SITE_URL = "https://maximilianfeix.github.io/proxy-scraper/"
+SITE_URL = "https://proxy-scraper.de/"
 REPO_URL = "https://github.com/maximilianfeix/proxy-scraper"
 ROWS_PER_PAGE = 200
 SITEMAP_MIN = 3  # countries with fewer proxies still get their page, but aren't advertised in the sitemap

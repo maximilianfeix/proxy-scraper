@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- The website moved from GitHub Pages to its own domain, https://proxy-scraper.de/ (own server). The hourly run uploads it there; canonical links, sitemap, feeds, the bookmarklet and the docs point to the new address. The `proxy-list` branch and its raw files stay as they are
+
 ## [1.31.0] – 2026-10-23
 
 ### Security

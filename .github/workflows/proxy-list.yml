@@ -98,6 +98,29 @@ jobs:
           # a single commit that gets replaced every time – the history doesn't grow
           git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" proxy-list
 
+      # The website itself lives on the own server (proxy-scraper.de, Caddy). The key may only rsync into the
+      # site directory (rrsync on the server); a pinned host key, like the bot deploy. Without the secrets this
+      # does nothing, and a failed upload leaves the last site online – the branch above is already published.
+      - name: Upload the website to the server
+        if: steps.prepare.outputs.publish == 'true'
+        continue-on-error: true
+        env:
+          SITE_HOST: ${{ secrets.SITE_HOST }}
+          SITE_SSH_KEY: ${{ secrets.SITE_SSH_KEY }}
+          SITE_KNOWN_HOSTS: ${{ secrets.SITE_KNOWN_HOSTS }}
+        run: |
+          if [ -z "$SITE_HOST" ] || [ -z "$SITE_SSH_KEY" ] || [ -z "$SITE_KNOWN_HOSTS" ]; then
+            echo "SITE_HOST, SITE_SSH_KEY or SITE_KNOWN_HOSTS isn't set – skipped"; exit 0
+          fi
+          install -m 700 -d ~/.ssh
+          printf '%s\n' "$SITE_SSH_KEY" > ~/.ssh/site && chmod 600 ~/.ssh/site
+          printf '%s\n' "$SITE_KNOWN_HOSTS" > ~/.ssh/site_known_hosts
+          # --delay-updates: the new files replace the old ones together at the end, so visitors see no half-updated list
+          rsync -rlt --checksum --delete-after --delay-updates --exclude .git \
+            -e "ssh -i $HOME/.ssh/site -o IdentitiesOnly=yes -o BatchMode=yes -o UserKnownHostsFile=$HOME/.ssh/site_known_hosts" \
+            public/ "proxysite@${SITE_HOST}:/"
+          echo "uploaded $(find public -type f | wc -l) files to the server"
+
       # The lists alone in a repository of their own – easier to find and to bookmark than a branch (mirror.py).
       # One commit per run, squashed at the start of every month so clones stay small.
       # Needs the secret LIST_REPO_KEY, a deploy key with write access there; without it this does nothing.

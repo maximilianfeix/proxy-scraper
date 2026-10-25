@@ -38,5 +38,5 @@ def test_translations_keep_the_shared_anchors(name):
 def test_translations_use_the_real_commands_and_urls(name):
     text = (ROOT / name).read_text(encoding="utf-8")
     for needle in ("pipx install proxy-scraper-cli", "proxy-scraper-cli[mcp]", "ghcr.io/maximilianfeix/proxy-scraper",
-                   "https://maximilianfeix.github.io/proxy-scraper/"):
+                   "https://proxy-scraper.de/"):
         assert needle in text, f"{name} lost {needle!r}"

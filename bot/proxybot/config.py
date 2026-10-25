@@ -6,7 +6,7 @@ import os
 from dataclasses import dataclass
 from pathlib import Path
 
-SITE = "https://maximilianfeix.github.io/proxy-scraper"
+SITE = "https://proxy-scraper.de"
 REPO = "https://github.com/maximilianfeix/proxy-scraper"
 
 

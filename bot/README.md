@@ -1,6 +1,6 @@
 # Discord and Telegram bot
 
-Posts every run of the [live proxy list](https://maximilianfeix.github.io/proxy-scraper/) into a Discord server and answers slash commands. It sets up its own channels, so after inviting it there is nothing to click.
+Posts every run of the [live proxy list](https://proxy-scraper.de/) into a Discord server and answers slash commands. It sets up its own channels, so after inviting it there is nothing to click.
 
 | Channel | What's in it |
 |---|---|

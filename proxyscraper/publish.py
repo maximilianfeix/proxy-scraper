@@ -3,7 +3,7 @@
     python -m proxyscraper.publish results/<run> public/ --min 20
 
 Writes lists per protocol, HTTPS and elite lists, JSON/CSV, badge files for shields.io,
-a README and the website for GitHub Pages (site/index.html plus history.json for the trend).
+a README and the website (site/index.html plus history.json for the trend).
 If there are fewer than `--min` hits (e.g. because the runner was unlucky), it exits with
 code 78 and writes nothing – the old list then stays online.
 """
@@ -25,7 +25,7 @@ from typing import Dict, List, Optional
 from .charts import THEMES, countries_svg, trend_svg
 from .checkstate import BASIC, CONFIRM, CONTENT, HTTPS, PASSED
 from .exporters import pac
-from .pages import write_pages
+from .pages import SITE_URL, write_pages
 from .parsing import PROXY_TYPES
 from .proxypages import write_proxy_pages
 from .ranking import best_first
@@ -153,7 +153,7 @@ Generated automatically by [proxy-scraper](https://github.com/maximilianfeix/pro
 Every proxy here passed the first request, the second request and the content check in the last run.
 Best first: by first answer plus the download speed measured
 right after the run, and by how long it has been on the list (entries that have been listed longer tend to stay).
-Browse and filter it on the [website](https://proxy-scraper.de/), or get the lists alone,
+Browse and filter it on the [website]({SITE_URL}), or get the lists alone,
 one per country too, from [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list).
 
 **Updated:** {updated} · **{num(stats["total"])} proxies** · median latency {num(stats["median_latency"])} ms
@@ -362,7 +362,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     for asset in SITE.iterdir():
         if asset.suffix in (".html", ".png"):
             (out / asset.name).write_bytes(asset.read_bytes())
-    (out / ".nojekyll").write_text("", encoding="utf-8")  # Pages should serve the files unchanged
+    (out / ".nojekyll").write_text("", encoding="utf-8")  # GitHub Pages (the branch) should serve the files unchanged
     # a page per proxy (with its week as a timeline), then the pages per protocol and country plus sitemap.xml
     try:
         run_times = [datetime.fromisoformat(run["updated"]) for run in runs[-UPTIME_RUNS:]]
@@ -379,7 +379,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     write_json(out / "history.json", runs)
     # the weekly report: lifetimes, sites, countries – a page, markdown and a short post (report.py)
     write_report(weekly_facts(rows, runs, {url: e["bits"] for url, e in listed.items()}, now), out, previous_feed=feed)
-    for theme in THEMES:  # charts for the README, which embeds them from GitHub Pages
+    for theme in THEMES:  # charts for the README, which embeds them from the website
         (out / f"chart-{theme}.svg").write_text(trend_svg(runs, now, theme), encoding="utf-8")
         (out / f"countries-{theme}.svg").write_text(countries_svg(stats["countries"], theme), encoding="utf-8")
     write_json(out / "seen.json", {"last_run": runs[-1]["updated"],

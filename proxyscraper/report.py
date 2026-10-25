@@ -282,7 +282,8 @@ def feed(f: dict, previous: Optional[str]) -> str:
     now = f["now"]
     monday = (now - timedelta(days=now.weekday())).replace(hour=0, minute=0, second=0, microsecond=0)
     year, week, _ = (monday - timedelta(days=1)).isocalendar()
-    entry_id = f"{REPORT_URL}{year}-W{week:02d}"
+    week_key = f"{year}-W{week:02d}"
+    entry_id = f"{REPORT_URL}{week_key}"
     kept: List[str] = []
     if previous:
         try:
@@ -290,10 +291,16 @@ def feed(f: dict, previous: Optional[str]) -> str:
             old = root.findall(f"{_ATOM}entry")
         except ET.ParseError:
             old = []
-        if any((e.findtext(f"{_ATOM}id") or "") == entry_id for e in old):
+
+        def key(e) -> str:  # by week, not the whole id: the site moved once, the ids of older entries kept its URL
+            return (e.findtext(f"{_ATOM}id") or "").rsplit("/", 1)[-1]
+
+        if any(key(e) == week_key for e in old):
             return previous  # this week's entry is out already – leave it exactly as it is
         ET.register_namespace("", _ATOM[1:-1])
-        kept = [ET.tostring(e, encoding="unicode") for e in old][:FEED_WEEKS - 1]
+        seen = set()
+        unique = [e for e in old if not (key(e) in seen or seen.add(key(e)))]  # one entry per week, the newest
+        kept = [ET.tostring(e, encoding="unicode") for e in unique][:FEED_WEEKS - 1]
     stamp = monday.strftime("%Y-%m-%dT%H:%M:%SZ")
     text = "\n\n".join(_lines(f))
     new = f"""<entry>

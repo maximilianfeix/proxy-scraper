@@ -78,7 +78,7 @@ def test_markdown_page_and_post(tmp_path):
     html = (tmp_path / "report" / "index.html").read_text(encoding="utf-8")
     assert "<h1>" in html and "63 %" in html
     post = (tmp_path / "report" / "post.txt").read_text(encoding="utf-8").strip()
-    assert len(post) <= 280 and "maximilianfeix.github.io/proxy-scraper/report/" in post
+    assert len(post) <= 280 and "proxy-scraper.de/report/" in post
     for theme in ("dark", "light"):
         ET.fromstring((tmp_path / "report" / f"lifetimes-{theme}.svg").read_text(encoding="utf-8"))
 

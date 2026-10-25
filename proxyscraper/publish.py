@@ -153,7 +153,7 @@ Generated automatically by [proxy-scraper](https://github.com/maximilianfeix/pro
 Every proxy here passed the first request, the second request and the content check in the last run.
 Best first: by first answer plus the download speed measured
 right after the run, and by how long it has been on the list (entries that have been listed longer tend to stay).
-Browse and filter it on the [website](https://maximilianfeix.github.io/proxy-scraper/), or get the lists alone,
+Browse and filter it on the [website](https://proxy-scraper.de/), or get the lists alone,
 one per country too, from [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list).
 
 **Updated:** {updated} · **{num(stats["total"])} proxies** · median latency {num(stats["median_latency"])} ms

@@ -112,7 +112,7 @@ A follow-up with a few weeks of that data can answer what this page can't: how t
 
 ## Try it
 
-- The current list with filters: https://maximilianfeix.github.io/proxy-scraper/
+- The current list with filters: https://proxy-scraper.de/
 - The lists alone, per protocol and country: https://github.com/maximilianfeix/free-proxy-list
 - Check one proxy and see what each check found: `uvx proxy-scraper-cli --diagnose socks5://HOST:PORT`
 - Source, MIT licensed: https://github.com/maximilianfeix/proxy-scraper

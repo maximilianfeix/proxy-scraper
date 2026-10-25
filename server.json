@@ -4,7 +4,7 @@
   "title": "proxy-scraper",
   "description": "Free proxies that actually work: checked HTTP/SOCKS proxies, and pages fetched through them",
   "version": "1.31.0",
-  "websiteUrl": "https://maximilianfeix.github.io/proxy-scraper/",
+  "websiteUrl": "https://proxy-scraper.de/",
   "repository": {
     "url": "https://github.com/maximilianfeix/proxy-scraper",
     "source": "github"

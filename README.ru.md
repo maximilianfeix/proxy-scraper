@@ -55,7 +55,7 @@ uvx proxy-scraper-cli --diagnose socks5://HOST:PORT   # один прокси, �
 
 **Чего он не умеет.** Бесплатные прокси держат незнакомцы, и из часового списка через сутки снова в списке оказывается лишь около четверти. Пройденная проверка — одно измерение из одной сети по тестовым целям: она ничего не обещает ни на следующий час, ни для сайта, который вам нужен. Проверка HTTPS — это проверенное TLS-соединение с одним тестовым хостом, а не оценка безопасности. Используйте бесплатные прокси для публичных данных и тестов — и никогда для входа в аккаунты, платежей и всего личного. → [Что показывают цифры и чего не показывают (англ.)](docs/free-proxies-in-numbers.md) · [Сравнение с другими проектами (англ.)](docs/comparison.md) · [Кто держит бесплатные прокси](#faq)
 
-**Нужны только списки?** Тогда этот инструмент не обязателен: в [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) они лежат обычными файлами по протоколам и странам и пересобираются примерно раз в час. Или прямо отсюда: [all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [другие форматы](#live-list)
+**Нужны только списки?** Тогда этот инструмент не обязателен: в [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) они лежат обычными файлами по протоколам и странам и пересобираются примерно раз в час. Или прямо отсюда: [all.txt](https://proxy-scraper.de/all.txt) · [http.txt](https://proxy-scraper.de/http.txt) · [socks4.txt](https://proxy-scraper.de/socks4.txt) · [socks5.txt](https://proxy-scraper.de/socks5.txt) · [proxies.json](https://proxy-scraper.de/proxies.json) · [другие форматы](#live-list)
 
 **Кто использует:** ежечасный список — встроенный источник в [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) и [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).
 
@@ -100,12 +100,12 @@ docker run --rm ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
 
 Не хотите сканировать сами? GitHub Actions запускает инструмент примерно раз в час и публикует результат. Каждый прокси в списке в последнем запуске прошёл первый запрос, второй запрос и проверку содержимого (тест HTTPS для каждой записи пишется, но не обязателен); список отсортирован «лучшие сверху»: быстрые и с большей вероятностью ещё живые — в начале.
 
-- **Сайт** (фильтры по протоколу, стране, HTTPS, провайдеру, задержке): https://maximilianfeix.github.io/proxy-scraper/
+- **Сайт** (фильтры по протоколу, стране, HTTPS, провайдеру, задержке): https://proxy-scraper.de/
 - **Только списки** (TXT по протоколу, стране и сайту, плюс JSON/CSV): [maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)
 
 | Список | Формат | Адрес |
 |---|---|---|
-| Все | `socks5://1.2.3.4:1080` | `https://maximilianfeix.github.io/proxy-scraper/all.txt` |
+| Все | `socks5://1.2.3.4:1080` | `https://proxy-scraper.de/all.txt` |
 | HTTP · SOCKS4 · SOCKS5 | `1.2.3.4:8080` | `…/http.txt` · `…/socks4.txt` · `…/socks5.txt` |
 | Только с поддержкой HTTPS | `type://ip:port` | `…/https.txt` |
 | Только elite | `type://ip:port` | `…/elite.txt` |
@@ -113,10 +113,10 @@ docker run --rm ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
 | Стабильные (в 90 %+ запусков этой недели) | `type://ip:port` | `…/stable.txt` |
 | Со всеми полями | задержка, страна, HTTPS, анонимность, exit-IP, аптайм | `…/proxies.json` · `…/proxies.csv` |
 
-У каждого протокола и каждой страны есть своя страница с удобной загрузкой, например [SOCKS5](https://maximilianfeix.github.io/proxy-scraper/socks5/) или [Россия](https://maximilianfeix.github.io/proxy-scraper/country/ru/) (`country/ru/proxies.txt`).
+У каждого протокола и каждой страны есть своя страница с удобной загрузкой, например [SOCKS5](https://proxy-scraper.de/socks5/) или [Россия](https://proxy-scraper.de/country/ru/) (`country/ru/proxies.txt`).
 
 ```bash
-curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
+curl -s https://proxy-scraper.de/socks5.txt | head
 ```
 
 > [!TIP]

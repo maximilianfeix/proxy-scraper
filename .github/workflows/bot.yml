@@ -69,7 +69,7 @@ jobs:
         uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
         with:
           authkey: ${{ secrets.TS_AUTHKEY }}
-          args: --login-server=https://vpn.aquaris.dev --accept-dns=false --accept-routes=false
+          args: --login-server=https://vpn.aquaris.dev --accept-dns=false
           hostname: gh-proxy-scraper-${{ github.run_id }}
           timeout: 1m
           retry: 3

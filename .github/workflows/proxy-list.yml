@@ -98,14 +98,31 @@ jobs:
           # a single commit that gets replaced every time – the history doesn't grow
           git push -q -f "https://x-access-token:${GITHUB_TOKEN}@github.com/${GITHUB_REPOSITORY}.git" proxy-list
 
+      # The server is reached through the own Headscale VPN, not public SSH. TS_AUTHKEY: reusable, ephemeral
+      # pre-auth key with tag:ci, which may only reach port 22 on tag:server. Optional like the upload below:
+      # if the VPN is down, the run goes on (mirror, snapshot) and the error shows up as an annotation.
+      - name: Connect to the VPN
+        id: vpn
+        if: steps.prepare.outputs.publish == 'true'
+        continue-on-error: true
+        timeout-minutes: 5
+        uses: tailscale/github-action@064b10558093f38325e838ddea35486bdc6b1d5c # v4.4.0
+        with:
+          authkey: ${{ secrets.TS_AUTHKEY }}
+          args: --login-server=https://vpn.aquaris.dev --accept-dns=false
+          hostname: gh-proxy-scraper-${{ github.run_id }}
+          timeout: 1m
+          retry: 3
+          ping: 100.64.0.1
+
       # The website itself lives on the own server (proxy-scraper.de, Caddy). The key may only rsync into the
       # site directory (rrsync on the server); a pinned host key, like the bot deploy. Without the secrets this
       # does nothing, and a failed upload leaves the last site online – the branch above is already published.
       - name: Upload the website to the server
-        if: steps.prepare.outputs.publish == 'true'
+        if: steps.prepare.outputs.publish == 'true' && steps.vpn.outcome == 'success'
         continue-on-error: true
         env:
-          SITE_HOST: ${{ secrets.SITE_HOST }}
+          SITE_HOST: 100.64.0.1   # aquaris in the tailnet
           SITE_SSH_KEY: ${{ secrets.SITE_SSH_KEY }}
           SITE_KNOWN_HOSTS: ${{ secrets.SITE_KNOWN_HOSTS }}
         run: |
@@ -115,6 +132,7 @@ jobs:
           install -m 700 -d ~/.ssh
           printf '%s\n' "$SITE_SSH_KEY" > ~/.ssh/site && chmod 600 ~/.ssh/site
           printf '%s\n' "$SITE_KNOWN_HOSTS" > ~/.ssh/site_known_hosts
+          echo "$SITE_HOST ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIF47uy20XdCvmXD/IQ652p473NilBsfvrnZ0lztxb/Az" >> ~/.ssh/site_known_hosts
           # --delay-updates: the new files replace the old ones together at the end, so visitors see no half-updated list.
           # No -t: every file here was just written, so -t would stamp the new time on unchanged files too and give
           # each of them a new ETag/Last-Modified every hour; --checksum decides what changed, unchanged files keep theirs.

@@ -1,0 +1,3 @@
+32,113 free proxy entries passed every check at some point this week. Of the ones that left the list, 89 % were not on the next list. 50 have been listed for about a day straight. In the last run Amazon let 27 % through.
+
+The week in numbers: proxy-scraper.de/report/

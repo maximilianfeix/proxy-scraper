@@ -1,0 +1,303 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Free elite proxy list – checked every hour | proxy-scraper</title>
+<meta name="description" content="803 free elite proxies (no forwarded IP, no Via header), checked about every hour: basic check, second request and content check. Download as text or filter the full list.">
+<link rel="canonical" href="https://proxy-scraper.de/elite/">
+<meta property="og:title" content="Free elite proxy list">
+<meta property="og:description" content="803 free elite proxies (no forwarded IP, no Via header), checked about every hour: basic check, second request and content check. Download as text or filter the full list.">
+<meta property="og:image" content="https://proxy-scraper.de/og.png">
+<meta property="og:url" content="https://proxy-scraper.de/elite/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../logo.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
+      rel="stylesheet">
+<style>
+:root { --bg: #121113; --panel: #1A191C; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0; --signal: #D4F77A;
+        --signal-ink: #D4F77A; --on-signal: #121113; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root { --bg: #EFEFEC; --panel: #FFFFFF; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
+          --signal-ink: #3F5A00; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.55 "Geist", ui-sans-serif, system-ui,
+       sans-serif; padding-inline: 16px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 36px; }
+a { color: var(--signal-ink); }
+:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 6px; }
+.mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 600;
+         letter-spacing: -.03em; font-size: 18px; }
+.brand img { width: 30px; height: 30px; border-radius: 9px; }
+h1 { margin: 0; font-size: clamp(36px, 6vw, 72px); line-height: 1; letter-spacing: -.05em; font-weight: 600;
+     text-wrap: balance; }
+.lede { margin: 16px 0 0; color: var(--muted); font-size: 18px; max-width: 62ch; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.btn { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 99px; text-decoration: none;
+       font-weight: 500; border: 1px solid var(--line); color: var(--text); }
+.btn.primary { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+.table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+caption { text-align: left; padding: 14px 16px 0; color: var(--muted); font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 12px 16px;
+     border-bottom: 1px solid var(--line); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+     white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.empty { padding: 28px 16px; color: var(--muted); }
+nav h2 { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 10px; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+nav a { display: inline-block; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px;
+        text-decoration: none; color: var(--text); font-size: 14px; }
+nav a[aria-current] { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+
+.wrap > * { min-width: 0; }  /* grid items default to their content's width: the wide table would push the page */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+         background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.facts div { background: var(--panel); padding: 16px 18px; }
+.facts dt { font-size: 26px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.facts dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+.use pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+           overflow-x: auto; font-size: 14px; margin: 0 0 10px; }
+.note { color: var(--muted); font-size: 14px; }
+.faq h3 { font-size: 18px; font-weight: 500; margin: 22px 0 6px; }
+.faq p { margin: 0; color: var(--muted); max-width: 70ch; }
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "FAQPage", "mainEntity": [{"@type": "Question", "name": "How many free elite proxies work right now?", "acceptedAnswer": {"@type": "Answer", "text": "803 passed every check in the last run (31 Oct 2026, 22:26 UTC): a basic check, a second request to another site and a content check. 495 of them tunnel HTTPS with verified TLS to one test host, and 53 were on the list in 90 % or more of this week's runs. The list is checked again about every hour."}}, {"@type": "Question", "name": "Which free elite proxies get through to Google?", "acceptedAnswer": {"@type": "Answer", "text": "In the last check, 176 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list on the website can be filtered by it."}}, {"@type": "Question", "name": "How do I get working elite proxies in code or the terminal?", "acceptedAnswer": {"@type": "Answer", "text": "Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --anonymity elite prints five from the hourly list. From Python, live_proxies() takes the same filters."}}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../"><img src="../logo.png" alt="">proxy-scraper</a>
+    <a href="../">All proxies</a>
+  </header>
+  <main>
+    <h1>Free elite proxy list</h1>
+    <p class="lede">803 elite proxies (no forwarded IP, no Via header) that passed every check in the last run (31 Oct 2026, 22:26 UTC): a basic check, a second request to another site and a test page that has to arrive unchanged.</p>
+    <div class="actions">
+      <a class="btn primary" href="proxies.txt" download>Download 803 as .txt</a>
+      <a class="btn" href="../?elite=1#list">Filter the full list</a>
+      <a class="btn" href="https://github.com/maximilianfeix/proxy-scraper">Check them from your network</a>
+    </div>
+  </main>
+  <dl class="facts"><div><dt>803</dt><dd>working right now</dd></div><div><dt>495</dt><dd>tunnel HTTPS</dd></div><div><dt>53</dt><dd>on the list 90 %+ of the week</dd></div><div><dt>176</dt><dd>get through to Google</dd></div><div><dt>83 KB/s</dt><dd>median download speed</dd></div></dl>
+  <div class="table"><table><caption>The 200 fastest to load a page, as ip:port. The download has all 803 as type://ip:port.</caption><thead><tr><th scope="col">Proxy</th><th scope="col">Type</th><th scope="col">Country</th><th scope="col">Latency</th><th scope="col">Speed</th><th scope="col">Uptime</th><th scope="col">HTTPS</th><th scope="col">Gets through</th><th scope="col">Provider</th></tr></thead><tbody><tr><td class="mono"><a href="../proxy/107.174.30.92-1080/">107.174.30.92:1080</a></td><td>SOCKS5</td><td>US</td><td>237 ms</td><td>368 KB/s</td><td>100 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>DataWagon LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/45.61.188.134-44499/">45.61.188.134:44499</a></td><td>SOCKS5</td><td>US</td><td>296 ms</td><td>255 KB/s</td><td>90 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>FranTech Solutions</td></tr>
+<tr><td class="mono"><a href="../proxy/45.61.188.134-44499/">45.61.188.134:44499</a></td><td>SOCKS4</td><td>US</td><td>220 ms</td><td>206 KB/s</td><td>92 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>FranTech Solutions</td></tr>
+<tr><td class="mono"><a href="../proxy/103.237.102.191-11111/">103.237.102.191:11111</a></td><td>HTTP</td><td>DE</td><td>324 ms</td><td>149 KB/s</td><td>97 %</td><td>yes</td><td>Reddit, Amazon, TikTok, Discord</td><td>Zenlayer Inc</td></tr>
+<tr><td class="mono"><a href="../proxy/193.25.215.182-22222/">193.25.215.182:22222</a></td><td>SOCKS5</td><td>US</td><td>497 ms</td><td>162 KB/s</td><td>99 %</td><td>yes</td><td>Reddit, Amazon, TikTok, Discord</td><td>ReadyDedis, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/67.207.92.87-1088/">67.207.92.87:1088</a></td><td>SOCKS5</td><td>US</td><td>208 ms</td><td>132 KB/s</td><td>76 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/34.170.15.20-80/">34.170.15.20:80</a></td><td>HTTP</td><td>US</td><td>220 ms</td><td>–</td><td>100 %</td><td>no</td><td>–</td><td>Google LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/198.98.59.12-31280/">198.98.59.12:31280</a></td><td>HTTP</td><td>US</td><td>148 ms</td><td>–</td><td>10 %</td><td>no</td><td>–</td><td>FranTech Solutions</td></tr>
+<tr><td class="mono"><a href="../proxy/184.75.221.82-3118/">184.75.221.82:3118</a></td><td>HTTP</td><td>CA</td><td>141 ms</td><td>128 KB/s</td><td>89 %</td><td>yes</td><td>Discord</td><td>Amanah Tech Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/206.245.131.160-80/">206.245.131.160:80</a></td><td>HTTP</td><td>FR</td><td>272 ms</td><td>–</td><td>92 %</td><td>no</td><td>–</td><td>Baxet Group Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/72.56.73.23-80/">72.56.73.23:80</a></td><td>HTTP</td><td>NL</td><td>303 ms</td><td>–</td><td>100 %</td><td>no</td><td>–</td><td>Timeweb, LLP</td></tr>
+<tr><td class="mono"><a href="../proxy/141.11.1.75-80/">141.11.1.75:80</a></td><td>HTTP</td><td>NL</td><td>321 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/79.110.192.44-8081/">79.110.192.44:8081</a></td><td>HTTP</td><td>PL</td><td>346 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Korbank S. A.</td></tr>
+<tr><td class="mono"><a href="../proxy/185.49.31.205-8080/">185.49.31.205:8080</a></td><td>HTTP</td><td>PL</td><td>348 ms</td><td>–</td><td>92 %</td><td>no</td><td>–</td><td>Korbank S. A.</td></tr>
+<tr><td class="mono"><a href="../proxy/109.199.119.160-80/">109.199.119.160:80</a></td><td>HTTP</td><td>DE</td><td>259 ms</td><td>–</td><td>96 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/199.66.183.251-4145/">199.66.183.251:4145</a></td><td>SOCKS4</td><td>US</td><td>361 ms</td><td>–</td><td>96 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/216.105.143.146-4145/">216.105.143.146:4145</a></td><td>SOCKS4</td><td>US</td><td>361 ms</td><td>–</td><td>96 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/212.127.95.235-8081/">212.127.95.235:8081</a></td><td>HTTP</td><td>PL</td><td>361 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Korbank S. A.</td></tr>
+<tr><td class="mono"><a href="../proxy/83.168.74.163-8080/">83.168.74.163:8080</a></td><td>HTTP</td><td>PL</td><td>362 ms</td><td>–</td><td>98 %</td><td>no</td><td>–</td><td>Korbank S. A.</td></tr>
+<tr><td class="mono"><a href="../proxy/79.110.200.27-8000/">79.110.200.27:8000</a></td><td>HTTP</td><td>PL</td><td>365 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Korbank S. A.</td></tr>
+<tr><td class="mono"><a href="../proxy/186.225.149.81-4145/">186.225.149.81:4145</a></td><td>SOCKS4</td><td>BR</td><td>747 ms</td><td>112 KB/s</td><td>100 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, Discord</td><td>Sinal Br Telecom Ltda</td></tr>
+<tr><td class="mono"><a href="../proxy/91.107.248.7-80/">91.107.248.7:80</a></td><td>HTTP</td><td>DE</td><td>310 ms</td><td>–</td><td>73 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/80.74.54.148-3128/">80.74.54.148:3128</a></td><td>HTTP</td><td>DE</td><td>316 ms</td><td>–</td><td>84 %</td><td>no</td><td>–</td><td>Deutsche Glasfaser Wholesale GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/45.195.104.6-80/">45.195.104.6:80</a></td><td>HTTP</td><td>CO</td><td>418 ms</td><td>–</td><td>100 %</td><td>no</td><td>–</td><td>IN QUALITY TELECOMUNICATIONS S.A.S. ZOMA</td></tr>
+<tr><td class="mono"><a href="../proxy/184.185.2.12-4145/">184.185.2.12:4145</a></td><td>SOCKS4</td><td>US</td><td>419 ms</td><td>–</td><td>100 %</td><td>no</td><td>–</td><td>Cox Communications Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/184.182.240.12-4145/">184.182.240.12:4145</a></td><td>SOCKS4</td><td>US</td><td>422 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cox Communications Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/184.182.240.211-4145/">184.182.240.211:4145</a></td><td>SOCKS4</td><td>US</td><td>426 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cox Communications Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/159.65.221.25-80/">159.65.221.25:80</a></td><td>HTTP</td><td>US</td><td>146 ms</td><td>–</td><td>48 %</td><td>no</td><td>–</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/84.8.248.36-8686/">84.8.248.36:8686</a></td><td>HTTP</td><td>CZ</td><td>444 ms</td><td>–</td><td>61 %</td><td>no</td><td>–</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/186.225.132.10-4145/">186.225.132.10:4145</a></td><td>SOCKS4</td><td>BR</td><td>749 ms</td><td>106 KB/s</td><td>100 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, Discord</td><td>Sinal Br Telecom Ltda</td></tr>
+<tr><td class="mono"><a href="../proxy/34.43.46.91-80/">34.43.46.91:80</a></td><td>HTTP</td><td>US</td><td>176 ms</td><td>392 KB/s</td><td>52 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Google LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/220.116.142.217-80/">220.116.142.217:80</a></td><td>HTTP</td><td>KR</td><td>478 ms</td><td>–</td><td>95 %</td><td>no</td><td>–</td><td>Korea Telecom</td></tr>
+<tr><td class="mono"><a href="../proxy/66.42.224.229-41679/">66.42.224.229:41679</a></td><td>SOCKS4</td><td>US</td><td>492 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/184.182.240.12-4145/">184.182.240.12:4145</a></td><td>SOCKS5</td><td>US</td><td>494 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cox Communications Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/208.102.51.6-58208/">208.102.51.6:58208</a></td><td>SOCKS4</td><td>US</td><td>496 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/120.232.115.170-17981/">120.232.115.170:17981</a></td><td>HTTP</td><td>CN</td><td>647 ms</td><td>102 KB/s</td><td>91 %</td><td>yes</td><td>–</td><td>China Mobile Communications Group Co., L</td></tr>
+<tr><td class="mono"><a href="../proxy/112.184.234.229-80/">112.184.234.229:80</a></td><td>HTTP</td><td>KR</td><td>498 ms</td><td>–</td><td>96 %</td><td>no</td><td>–</td><td>Korea Telecom</td></tr>
+<tr><td class="mono"><a href="../proxy/72.49.49.11-31034/">72.49.49.11:31034</a></td><td>SOCKS4</td><td>US</td><td>500 ms</td><td>–</td><td>100 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/216.68.128.121-4145/">216.68.128.121:4145</a></td><td>SOCKS4</td><td>US</td><td>500 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/184.185.2.12-4145/">184.185.2.12:4145</a></td><td>SOCKS5</td><td>US</td><td>504 ms</td><td>–</td><td>100 %</td><td>no</td><td>–</td><td>Cox Communications Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/184.182.240.211-4145/">184.182.240.211:4145</a></td><td>SOCKS5</td><td>US</td><td>504 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cox Communications Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/87.226.22.225-80/">87.226.22.225:80</a></td><td>HTTP</td><td>LV</td><td>405 ms</td><td>–</td><td>68 %</td><td>no</td><td>–</td><td>SIA &quot;BITE Latvija&quot;</td></tr>
+<tr><td class="mono"><a href="../proxy/186.225.132.13-4145/">186.225.132.13:4145</a></td><td>SOCKS4</td><td>BR</td><td>752 ms</td><td>100 KB/s</td><td>100 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, Discord</td><td>Sinal Br Telecom Ltda</td></tr>
+<tr><td class="mono"><a href="../proxy/216.105.143.146-4145/">216.105.143.146:4145</a></td><td>SOCKS5</td><td>US</td><td>412 ms</td><td>–</td><td>89 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/5.42.127.131-80/">5.42.127.131:80</a></td><td>HTTP</td><td>DE</td><td>525 ms</td><td>–</td><td>50 %</td><td>no</td><td>–</td><td>Timeweb, LLP</td></tr>
+<tr><td class="mono"><a href="../proxy/97.74.87.226-80/">97.74.87.226:80</a></td><td>HTTP</td><td>JP</td><td>422 ms</td><td>–</td><td>94 %</td><td>no</td><td>–</td><td>GoDaddy.com, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/203.95.196.30-8080/">203.95.196.30:8080</a></td><td>HTTP</td><td>KH</td><td>541 ms</td><td>–</td><td>46 %</td><td>no</td><td>–</td><td>Today Communication Co.,Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/37.110.147.13-80/">37.110.147.13:80</a></td><td>HTTP</td><td>RU</td><td>448 ms</td><td>–</td><td>76 %</td><td>no</td><td>–</td><td>PJSC Rostelecom</td></tr>
+<tr><td class="mono"><a href="../proxy/218.252.100.222-80/">218.252.100.222:80</a></td><td>HTTP</td><td>HK</td><td>455 ms</td><td>–</td><td>82 %</td><td>no</td><td>–</td><td>Hong Kong Cable Television Limited</td></tr>
+<tr><td class="mono"><a href="../proxy/203.95.198.134-8080/">203.95.198.134:8080</a></td><td>HTTP</td><td>KH</td><td>571 ms</td><td>–</td><td>15 %</td><td>no</td><td>–</td><td>Today Communication Co.,Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/218.252.192.228-80/">218.252.192.228:80</a></td><td>HTTP</td><td>HK</td><td>462 ms</td><td>–</td><td>83 %</td><td>no</td><td>–</td><td>Hong Kong Cable Television Limited</td></tr>
+<tr><td class="mono"><a href="../proxy/195.114.209.50-80/">195.114.209.50:80</a></td><td>HTTP</td><td>ES</td><td>463 ms</td><td>–</td><td>86 %</td><td>no</td><td>–</td><td>GIGAS HOSTING S.A.</td></tr>
+<tr><td class="mono"><a href="../proxy/195.26.224.135-80/">195.26.224.135:80</a></td><td>HTTP</td><td>NL</td><td>263 ms</td><td>–</td><td>64 %</td><td>no</td><td>–</td><td>SERVERS TECH FZCO</td></tr>
+<tr><td class="mono"><a href="../proxy/203.95.198.159-8080/">203.95.198.159:8080</a></td><td>HTTP</td><td>KH</td><td>582 ms</td><td>–</td><td>29 %</td><td>no</td><td>–</td><td>Today Communication Co.,Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/72.49.49.11-31034/">72.49.49.11:31034</a></td><td>SOCKS5</td><td>US</td><td>583 ms</td><td>–</td><td>100 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/216.68.128.121-4145/">216.68.128.121:4145</a></td><td>SOCKS5</td><td>US</td><td>586 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/66.42.224.229-41679/">66.42.224.229:41679</a></td><td>SOCKS5</td><td>US</td><td>589 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/208.102.51.6-58208/">208.102.51.6:58208</a></td><td>SOCKS5</td><td>US</td><td>592 ms</td><td>–</td><td>100 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/69.61.200.104-36181/">69.61.200.104:36181</a></td><td>SOCKS4</td><td>US</td><td>492 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/103.118.44.79-8080/">103.118.44.79:8080</a></td><td>HTTP</td><td>KH</td><td>615 ms</td><td>–</td><td>39 %</td><td>no</td><td>–</td><td>Today Communication Co.,Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/186.225.149.90-4145/">186.225.149.90:4145</a></td><td>SOCKS4</td><td>BR</td><td>752 ms</td><td>91 KB/s</td><td>100 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, Discord</td><td>Sinal Br Telecom Ltda</td></tr>
+<tr><td class="mono"><a href="../proxy/119.194.72.67-80/">119.194.72.67:80</a></td><td>HTTP</td><td>KR</td><td>507 ms</td><td>–</td><td>44 %</td><td>no</td><td>–</td><td>Korea Telecom</td></tr>
+<tr><td class="mono"><a href="../proxy/115.127.31.66-8080/">115.127.31.66:8080</a></td><td>HTTP</td><td>BD</td><td>624 ms</td><td>–</td><td>95 %</td><td>no</td><td>–</td><td>BRACNet Limited</td></tr>
+<tr><td class="mono"><a href="../proxy/31.148.207.153-80/">31.148.207.153:80</a></td><td>HTTP</td><td>UA</td><td>514 ms</td><td>–</td><td>87 %</td><td>no</td><td>–</td><td>MAGICOM Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/27.109.158.122-80/">27.109.158.122:80</a></td><td>HTTP</td><td>MO</td><td>530 ms</td><td>–</td><td>80 %</td><td>no</td><td>–</td><td>Companhia de Telecomunicacoes de Macau</td></tr>
+<tr><td class="mono"><a href="../proxy/116.202.108.111-3128/">116.202.108.111:3128</a></td><td>HTTP</td><td>DE</td><td>329 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/120.232.115.57-17981/">120.232.115.57:17981</a></td><td>HTTP</td><td>CN</td><td>653 ms</td><td>109 KB/s</td><td>88 %</td><td>yes</td><td>–</td><td>China Mobile Communications Group Co., L</td></tr>
+<tr><td class="mono"><a href="../proxy/103.118.44.135-8080/">103.118.44.135:8080</a></td><td>HTTP</td><td>KH</td><td>673 ms</td><td>–</td><td>74 %</td><td>no</td><td>–</td><td>Today Communication Co.,Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/194.150.110.134-80/">194.150.110.134:80</a></td><td>HTTP</td><td>DK</td><td>356 ms</td><td>–</td><td>51 %</td><td>no</td><td>–</td><td>Rackhosting.com ApS</td></tr>
+<tr><td class="mono"><a href="../proxy/103.51.223.133-8080/">103.51.223.133:8080</a></td><td>HTTP</td><td>IN</td><td>693 ms</td><td>–</td><td>89 %</td><td>no</td><td>–</td><td>Galaxynet Connections Private Limited</td></tr>
+<tr><td class="mono"><a href="../proxy/103.118.47.205-8080/">103.118.47.205:8080</a></td><td>HTTP</td><td>KH</td><td>579 ms</td><td>–</td><td>75 %</td><td>no</td><td>–</td><td>Today Communication Co.,Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/101.132.222.120-80/">101.132.222.120:80</a></td><td>HTTP</td><td>CN</td><td>608 ms</td><td>–</td><td>82 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/216.105.130.131-4145/">216.105.130.131:4145</a></td><td>SOCKS5</td><td>US</td><td>422 ms</td><td>–</td><td>89 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/199.66.183.226-4145/">199.66.183.226:4145</a></td><td>SOCKS5</td><td>US</td><td>426 ms</td><td>–</td><td>88 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/46.35.9.110-80/">46.35.9.110:80</a></td><td>HTTP</td><td>FR</td><td>659 ms</td><td>–</td><td>70 %</td><td>no</td><td>–</td><td>Societe Francaise Du Radiotelephone - SF</td></tr>
+<tr><td class="mono"><a href="../proxy/5.45.126.128-8080/">5.45.126.128:8080</a></td><td>HTTP</td><td>EE</td><td>437 ms</td><td>–</td><td>74 %</td><td>no</td><td>–</td><td>P.A.G.M. OU</td></tr>
+<tr><td class="mono"><a href="../proxy/170.155.2.119-80/">170.155.2.119:80</a></td><td>HTTP</td><td>AR</td><td>664 ms</td><td>–</td><td>43 %</td><td>no</td><td>–</td><td>Gobernacion de la Provincia de Buenos Ai</td></tr>
+<tr><td class="mono"><a href="../proxy/45.239.175.60-8080/">45.239.175.60:8080</a></td><td>HTTP</td><td>BR</td><td>667 ms</td><td>–</td><td>76 %</td><td>no</td><td>–</td><td>ESTARNET LTDA-ME</td></tr>
+<tr><td class="mono"><a href="../proxy/31.10.83.158-8080/">31.10.83.158:8080</a></td><td>HTTP</td><td>RU</td><td>446 ms</td><td>–</td><td>68 %</td><td>no</td><td>–</td><td>JSC &quot;AVIEL&quot;</td></tr>
+<tr><td class="mono"><a href="../proxy/176.106.241.50-80/">176.106.241.50:80</a></td><td>HTTP</td><td>RU</td><td>473 ms</td><td>–</td><td>73 %</td><td>no</td><td>–</td><td>NPF SOFTVIDEO Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/91.202.185.69-80/">91.202.185.69:80</a></td><td>HTTP</td><td>RU</td><td>475 ms</td><td>–</td><td>64 %</td><td>no</td><td>–</td><td>Globalcom Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/175.210.254.155-80/">175.210.254.155:80</a></td><td>HTTP</td><td>KR</td><td>477 ms</td><td>–</td><td>69 %</td><td>no</td><td>–</td><td>Korea Telecom</td></tr>
+<tr><td class="mono"><a href="../proxy/69.61.200.104-36181/">69.61.200.104:36181</a></td><td>SOCKS5</td><td>US</td><td>714 ms</td><td>–</td><td>99 %</td><td>no</td><td>–</td><td>Cincinnati Bell Telephone Company LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/122.116.125.115-8888/">122.116.125.115:8888</a></td><td>HTTP</td><td>TW</td><td>493 ms</td><td>–</td><td>71 %</td><td>no</td><td>–</td><td>Chunghwa Telecom Co., Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/51.75.206.209-80/">51.75.206.209:80</a></td><td>HTTP</td><td>FR</td><td>531 ms</td><td>–</td><td>56 %</td><td>no</td><td>–</td><td>OVH SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/217.71.230.103-1080/">217.71.230.103:1080</a></td><td>SOCKS4</td><td>RU</td><td>772 ms</td><td>–</td><td>49 %</td><td>no</td><td>–</td><td>Computer information technology Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/131.108.232.201-8080/">131.108.232.201:8080</a></td><td>HTTP</td><td>HN</td><td>546 ms</td><td>–</td><td>82 %</td><td>no</td><td>–</td><td>ASOCIACION DE SERVICIO DE INTERNET S. DE</td></tr>
+<tr><td class="mono"><a href="../proxy/46.150.9.111-8123/">46.150.9.111:8123</a></td><td>HTTP</td><td>UA</td><td>552 ms</td><td>–</td><td>86 %</td><td>no</td><td>–</td><td>FOP Zubenko Volodimir Oleksandrovich</td></tr>
+<tr><td class="mono"><a href="../proxy/39.109.113.97-4090/">39.109.113.97:4090</a></td><td>HTTP</td><td>HK</td><td>812 ms</td><td>–</td><td>73 %</td><td>no</td><td>–</td><td>YISU CLOUD LTD</td></tr>
+<tr><td class="mono"><a href="../proxy/151.185.58.17-80/">151.185.58.17:80</a></td><td>HTTP</td><td>IN</td><td>571 ms</td><td>–</td><td>64 %</td><td>no</td><td>–</td><td>E2E Networks Limited</td></tr>
+<tr><td class="mono"><a href="../proxy/77.242.177.57-3128/">77.242.177.57:3128</a></td><td>HTTP</td><td>IT</td><td>608 ms</td><td>–</td><td>59 %</td><td>no</td><td>–</td><td>CITTA&#x27; STUDI S.P.A.</td></tr>
+<tr><td class="mono"><a href="../proxy/121.40.189.171-8000/">121.40.189.171:8000</a></td><td>HTTP</td><td>CN</td><td>615 ms</td><td>–</td><td>81 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/5.161.103.41-88/">5.161.103.41:88</a></td><td>HTTP</td><td>US</td><td>153 ms</td><td>–</td><td>45 %</td><td>no</td><td>–</td><td>Hetzner Online GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/217.71.230.103-1080/">217.71.230.103:1080</a></td><td>SOCKS5</td><td>RU</td><td>881 ms</td><td>–</td><td>46 %</td><td>no</td><td>–</td><td>Computer information technology Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/103.63.190.72-8080/">103.63.190.72:8080</a></td><td>HTTP</td><td>KH</td><td>631 ms</td><td>–</td><td>64 %</td><td>no</td><td>–</td><td>Today Communication Co.,Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/174.138.119.88-80/">174.138.119.88:80</a></td><td>HTTP</td><td>US</td><td>156 ms</td><td>–</td><td>72 %</td><td>no</td><td>–</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/103.216.50.11-8080/">103.216.50.11:8080</a></td><td>HTTP</td><td>KH</td><td>640 ms</td><td>–</td><td>71 %</td><td>no</td><td>–</td><td>Today Communication Co.,Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/69.55.49.177-38182/">69.55.49.177:38182</a></td><td>SOCKS4</td><td>US</td><td>1,092 ms</td><td>326 KB/s</td><td>98 %</td><td>yes</td><td>TikTok, Discord</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/39.106.165.196-8080/">39.106.165.196:8080</a></td><td>HTTP</td><td>CN</td><td>677 ms</td><td>–</td><td>52 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/156.38.112.11-80/">156.38.112.11:80</a></td><td>HTTP</td><td>GH</td><td>733 ms</td><td>–</td><td>46 %</td><td>no</td><td>–</td><td>THE UNIVERSITY OF CAPE COAST</td></tr>
+<tr><td class="mono"><a href="../proxy/62.84.245.79-80/">62.84.245.79:80</a></td><td>HTTP</td><td>NL</td><td>286 ms</td><td>–</td><td>33 %</td><td>no</td><td>–</td><td>Your Hosting B.V.</td></tr>
+<tr><td class="mono"><a href="../proxy/27.185.218.213-17981/">27.185.218.213:17981</a></td><td>HTTP</td><td>CN</td><td>673 ms</td><td>70 KB/s</td><td>86 %</td><td>yes</td><td>–</td><td>Shijiazhuang IDC network, CHINANET Hebei</td></tr>
+<tr><td class="mono"><a href="../proxy/216.105.128.144-4145/">216.105.128.144:4145</a></td><td>SOCKS4</td><td>US</td><td>337 ms</td><td>–</td><td>83 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/199.66.183.226-4145/">199.66.183.226:4145</a></td><td>SOCKS4</td><td>US</td><td>346 ms</td><td>–</td><td>98 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/199.66.182.232-4145/">199.66.182.232:4145</a></td><td>SOCKS4</td><td>US</td><td>361 ms</td><td>–</td><td>98 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/199.66.182.243-4145/">199.66.182.243:4145</a></td><td>SOCKS4</td><td>US</td><td>361 ms</td><td>–</td><td>96 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/216.105.130.131-4145/">216.105.130.131:4145</a></td><td>SOCKS4</td><td>US</td><td>361 ms</td><td>–</td><td>98 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/66.151.34.89-80/">66.151.34.89:80</a></td><td>HTTP</td><td>FI</td><td>395 ms</td><td>–</td><td>72 %</td><td>no</td><td>–</td><td>HOSTKEY B.V.</td></tr>
+<tr><td class="mono"><a href="../proxy/47.238.126.208-1080/">47.238.126.208:1080</a></td><td>SOCKS5</td><td>HK</td><td>1,105 ms</td><td>92 KB/s</td><td>89 %</td><td>yes</td><td>Reddit, Discord</td><td>–</td></tr>
+<tr><td class="mono"><a href="../proxy/199.66.183.251-4145/">199.66.183.251:4145</a></td><td>SOCKS5</td><td>US</td><td>400 ms</td><td>–</td><td>89 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/24.249.199.4-4145/">24.249.199.4:4145</a></td><td>SOCKS4</td><td>US</td><td>482 ms</td><td>–</td><td>15 %</td><td>no</td><td>–</td><td>Cox Communications Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/24.249.199.12-4145/">24.249.199.12:4145</a></td><td>SOCKS4</td><td>US</td><td>484 ms</td><td>–</td><td>8 %</td><td>no</td><td>–</td><td>Cox Communications Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/203.19.38.114-1080/">203.19.38.114:1080</a></td><td>HTTP</td><td>HK</td><td>520 ms</td><td>–</td><td>92 %</td><td>no</td><td>–</td><td>China Telecom Global Limited</td></tr>
+<tr><td class="mono"><a href="../proxy/152.230.215.123-80/">152.230.215.123:80</a></td><td>HTTP</td><td>CL</td><td>555 ms</td><td>–</td><td>52 %</td><td>no</td><td>–</td><td>Gtd Internet S.A.</td></tr>
+<tr><td class="mono"><a href="../proxy/207.180.254.198-8080/">207.180.254.198:8080</a></td><td>HTTP</td><td>DE</td><td>556 ms</td><td>–</td><td>29 %</td><td>no</td><td>–</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/80.74.30.136-31286/">80.74.30.136:31286</a></td><td>HTTP</td><td>NL</td><td>1,802 ms</td><td>155 KB/s</td><td>15 %</td><td>yes</td><td>TikTok, Discord</td><td>CLODO CLOUD SERVICE CO. L.L.C</td></tr>
+<tr><td class="mono"><a href="../proxy/143.246.138.227-80/">143.246.138.227:80</a></td><td>HTTP</td><td>CL</td><td>142 ms</td><td>–</td><td>61 %</td><td>no</td><td>–</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/120.26.0.11-8880/">120.26.0.11:8880</a></td><td>HTTP</td><td>CN</td><td>600 ms</td><td>–</td><td>79 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/34.81.160.132-80/">34.81.160.132:80</a></td><td>HTTP</td><td>TW</td><td>600 ms</td><td>–</td><td>41 %</td><td>no</td><td>–</td><td>Google LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/153.0.171.163-8085/">153.0.171.163:8085</a></td><td>HTTP</td><td>CN</td><td>612 ms</td><td>–</td><td>81 %</td><td>no</td><td>–</td><td>CHINA UNICOM China169 Backbone</td></tr>
+<tr><td class="mono"><a href="../proxy/47.115.187.208-10086/">47.115.187.208:10086</a></td><td>HTTP</td><td>CN</td><td>626 ms</td><td>–</td><td>80 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/154.65.39.8-80/">154.65.39.8:80</a></td><td>HTTP</td><td>GB</td><td>643 ms</td><td>–</td><td>48 %</td><td>no</td><td>–</td><td>SAGA AFRICA HOLDINGS LIMITED</td></tr>
+<tr><td class="mono"><a href="../proxy/120.27.224.64-3129/">120.27.224.64:3129</a></td><td>HTTP</td><td>CN</td><td>646 ms</td><td>–</td><td>85 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/143.198.135.176-80/">143.198.135.176:80</a></td><td>HTTP</td><td>US</td><td>1,311 ms</td><td>–</td><td>30 %</td><td>no</td><td>–</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/118.31.43.236-80/">118.31.43.236:80</a></td><td>HTTP</td><td>CN</td><td>660 ms</td><td>–</td><td>47 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/39.106.170.168-8080/">39.106.170.168:8080</a></td><td>HTTP</td><td>CN</td><td>684 ms</td><td>–</td><td>60 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/41.184.92.220-80/">41.184.92.220:80</a></td><td>HTTP</td><td>NG</td><td>687 ms</td><td>–</td><td>39 %</td><td>no</td><td>–</td><td>Vodacom Business Nigeria</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-15943/">45.74.31.47:15943</a></td><td>SOCKS5</td><td>FR</td><td>736 ms</td><td>140 KB/s</td><td>9 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/207.180.217.98-1088/">207.180.217.98:1088</a></td><td>SOCKS5</td><td>DE</td><td>1,628 ms</td><td>98 KB/s</td><td>34 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-13272/">45.74.31.47:13272</a></td><td>SOCKS5</td><td>FR</td><td>757 ms</td><td>136 KB/s</td><td>2 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/34.150.120.78-1080/">34.150.120.78:1080</a></td><td>SOCKS4</td><td>HK</td><td>2,243 ms</td><td>102 KB/s</td><td>19 %</td><td>yes</td><td>Discord</td><td>Google LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-10093/">45.74.31.47:10093</a></td><td>SOCKS5</td><td>FR</td><td>752 ms</td><td>134 KB/s</td><td>4 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/201.222.50.218-80/">201.222.50.218:80</a></td><td>HTTP</td><td>PY</td><td>755 ms</td><td>–</td><td>46 %</td><td>no</td><td>–</td><td>TECNOLOGIA EN ELECTRONICA E INFORMATICA </td></tr>
+<tr><td class="mono"><a href="../proxy/190.110.226.122-80/">190.110.226.122:80</a></td><td>HTTP</td><td>PY</td><td>759 ms</td><td>–</td><td>45 %</td><td>no</td><td>–</td><td>TECNOLOGIA EN ELECTRONICA E INFORMATICA </td></tr>
+<tr><td class="mono"><a href="../proxy/140.238.243.61-1080/">140.238.243.61:1080</a></td><td>SOCKS4</td><td>IN</td><td>1,259 ms</td><td>70 KB/s</td><td>54 %</td><td>yes</td><td>Discord</td><td>Oracle Corporation</td></tr>
+<tr><td class="mono"><a href="../proxy/188.68.52.45-80/">188.68.52.45:80</a></td><td>HTTP</td><td>DE</td><td>1,464 ms</td><td>–</td><td>42 %</td><td>no</td><td>–</td><td>netcup GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/77.38.244.214-80/">77.38.244.214:80</a></td><td>HTTP</td><td>LV</td><td>800 ms</td><td>–</td><td>74 %</td><td>no</td><td>–</td><td>SIA &quot;BITE Latvija&quot;</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-9726/">45.74.31.47:9726</a></td><td>SOCKS5</td><td>FR</td><td>722 ms</td><td>123 KB/s</td><td>2 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/62.210.215.36-80/">62.210.215.36:80</a></td><td>HTTP</td><td>FR</td><td>308 ms</td><td>–</td><td>51 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/103.149.75.82-1080/">103.149.75.82:1080</a></td><td>SOCKS4</td><td>BD</td><td>1,218 ms</td><td>65 KB/s</td><td>91 %</td><td>yes</td><td>Reddit, Amazon, Instagram, Discord</td><td>Race Online Limited</td></tr>
+<tr><td class="mono"><a href="../proxy/178.62.79.141-3129/">178.62.79.141:3129</a></td><td>HTTP</td><td>GB</td><td>238 ms</td><td>165 KB/s</td><td>1 %</td><td>yes</td><td>Google, Amazon, TikTok, Discord</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/140.238.243.61-1080/">140.238.243.61:1080</a></td><td>SOCKS5</td><td>IN</td><td>1,504 ms</td><td>74 KB/s</td><td>54 %</td><td>yes</td><td>Discord</td><td>Oracle Corporation</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-10037/">45.74.31.47:10037</a></td><td>SOCKS5</td><td>DE</td><td>1,010 ms</td><td>86 KB/s</td><td>9 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/216.105.128.144-4145/">216.105.128.144:4145</a></td><td>SOCKS5</td><td>US</td><td>415 ms</td><td>–</td><td>71 %</td><td>no</td><td>–</td><td>NET2ATLANTA.COM LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/195.170.193.170-10808/">195.170.193.170:10808</a></td><td>SOCKS5</td><td>NL</td><td>879 ms</td><td>127 KB/s</td><td>4 %</td><td>yes</td><td>Google, Instagram, Discord</td><td>Serverside.com</td></tr>
+<tr><td class="mono"><a href="../proxy/196.1.97.198-80/">196.1.97.198:80</a></td><td>HTTP</td><td>SN</td><td>1,030 ms</td><td>–</td><td>68 %</td><td>no</td><td>–</td><td>Universite Cheikh Anta DIOP de DAKAR</td></tr>
+<tr><td class="mono"><a href="../proxy/98.170.57.241-4145/">98.170.57.241:4145</a></td><td>SOCKS4</td><td>US</td><td>477 ms</td><td>–</td><td>10 %</td><td>no</td><td>–</td><td>Cox Communications Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/45.149.92.160-1080/">45.149.92.160:1080</a></td><td>SOCKS5</td><td>HK</td><td>1,076 ms</td><td>–</td><td>44 %</td><td>no</td><td>–</td><td>HGC Global Communications Limited</td></tr>
+<tr><td class="mono"><a href="../proxy/113.249.111.67-1080/">113.249.111.67:1080</a></td><td>SOCKS5</td><td>CN</td><td>1,469 ms</td><td>47 KB/s</td><td>83 %</td><td>yes</td><td>–</td><td>Chongqing Telecom</td></tr>
+<tr><td class="mono"><a href="../proxy/190.181.26.194-80/">190.181.26.194:80</a></td><td>HTTP</td><td>BO</td><td>557 ms</td><td>–</td><td>30 %</td><td>no</td><td>–</td><td>AXS Bolivia S. A.</td></tr>
+<tr><td class="mono"><a href="../proxy/202.38.111.75-80/">202.38.111.75:80</a></td><td>HTTP</td><td>US</td><td>1,154 ms</td><td>–</td><td>47 %</td><td>no</td><td>–</td><td>The Constant Company, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/196.251.131.82-8080/">196.251.131.82:8080</a></td><td>HTTP</td><td>ZA</td><td>1,170 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Accelerit Technologies PTY LTD</td></tr>
+<tr><td class="mono"><a href="../proxy/47.107.108.142-8080/">47.107.108.142:8080</a></td><td>HTTP</td><td>CN</td><td>590 ms</td><td>–</td><td>40 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/120.55.240.71-8647/">120.55.240.71:8647</a></td><td>HTTP</td><td>CN</td><td>594 ms</td><td>–</td><td>88 %</td><td>no</td><td>–</td><td>Hangzhou Alibaba Advertising Co.,Ltd.</td></tr>
+<tr><td class="mono"><a href="../proxy/69.55.49.177-38182/">69.55.49.177:38182</a></td><td>SOCKS5</td><td>US</td><td>2,203 ms</td><td>415 KB/s</td><td>97 %</td><td>yes</td><td>TikTok, Discord</td><td>DigitalOcean, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/109.194.34.246-8082/">109.194.34.246:8082</a></td><td>HTTP</td><td>RU</td><td>633 ms</td><td>–</td><td>81 %</td><td>no</td><td>–</td><td>JSC &quot;ER-Telecom Holding&quot;</td></tr>
+<tr><td class="mono"><a href="../proxy/123.58.219.171-10808/">123.58.219.171:10808</a></td><td>SOCKS5</td><td>HK</td><td>1,292 ms</td><td>–</td><td>69 %</td><td>no</td><td>–</td><td>UCLOUD INFORMATION TECHNOLOGY (HK) LIMIT</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-13344/">45.74.31.47:13344</a></td><td>SOCKS5</td><td>DE</td><td>1,481 ms</td><td>95 KB/s</td><td>3 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-6069/">45.74.31.47:6069</a></td><td>SOCKS5</td><td>US</td><td>1,351 ms</td><td>83 KB/s</td><td>2 %</td><td>yes</td><td>Google, TikTok, Discord</td><td>New Dream Network, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/119.188.131.55-17981/">119.188.131.55:17981</a></td><td>HTTP</td><td>CN</td><td>625 ms</td><td>35 KB/s</td><td>73 %</td><td>yes</td><td>–</td><td>CHINA UNICOM China169 Backbone</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.41-7748/">45.74.31.41:7748</a></td><td>SOCKS5</td><td>FR</td><td>1,820 ms</td><td>129 KB/s</td><td>2 %</td><td>yes</td><td>TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-4095/">45.74.31.47:4095</a></td><td>SOCKS5</td><td>DE</td><td>822 ms</td><td>87 KB/s</td><td>2 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.41-11560/">45.74.31.41:11560</a></td><td>SOCKS5</td><td>FR</td><td>1,251 ms</td><td>136 KB/s</td><td>1 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.46-4072/">45.74.31.46:4072</a></td><td>SOCKS5</td><td>DE</td><td>1,070 ms</td><td>108 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/202.133.88.173-80/">202.133.88.173:80</a></td><td>HTTP</td><td>FR</td><td>776 ms</td><td>–</td><td>79 %</td><td>no</td><td>–</td><td>BitCommand LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/82.180.146.251-10800/">82.180.146.251:10800</a></td><td>SOCKS5</td><td>NL</td><td>3,094 ms</td><td>79 KB/s</td><td>71 %</td><td>yes</td><td>Reddit, Instagram, Discord</td><td>Contabo Asia Private Limited</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.41-11986/">45.74.31.41:11986</a></td><td>SOCKS5</td><td>CH</td><td>1,342 ms</td><td>146 KB/s</td><td>5 %</td><td>yes</td><td>Google, TikTok, Discord</td><td>Infomaniak Network SA</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.46-4137/">45.74.31.46:4137</a></td><td>SOCKS5</td><td>DE</td><td>937 ms</td><td>90 KB/s</td><td>1 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-10552/">45.74.31.47:10552</a></td><td>SOCKS5</td><td>ML</td><td>1,287 ms</td><td>65 KB/s</td><td>3 %</td><td>yes</td><td>–</td><td>IKATEL SA</td></tr>
+<tr><td class="mono"><a href="../proxy/202.5.50.151-1080/">202.5.50.151:1080</a></td><td>SOCKS4</td><td>BD</td><td>1,243 ms</td><td>63 KB/s</td><td>86 %</td><td>yes</td><td>Google, Reddit, Amazon, Instagram, Discord</td><td>Broad Band Telecom Services Ltd</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-14021/">45.74.31.47:14021</a></td><td>SOCKS5</td><td>FR</td><td>1,021 ms</td><td>89 KB/s</td><td>5 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/104.225.220.233-80/">104.225.220.233:80</a></td><td>HTTP</td><td>US</td><td>1,611 ms</td><td>–</td><td>36 %</td><td>no</td><td>–</td><td>HIVELOCITY, Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/85.214.107.177-80/">85.214.107.177:80</a></td><td>HTTP</td><td>DE</td><td>1,723 ms</td><td>–</td><td>23 %</td><td>no</td><td>–</td><td>Strato AG</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-11185/">45.74.31.47:11185</a></td><td>SOCKS5</td><td>JP</td><td>1,383 ms</td><td>62 KB/s</td><td>2 %</td><td>yes</td><td>Google, Discord</td><td>GoDaddy.com, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-11344/">45.74.31.47:11344</a></td><td>SOCKS5</td><td>ML</td><td>1,063 ms</td><td>51 KB/s</td><td>2 %</td><td>yes</td><td>Google, Reddit, Instagram, Discord</td><td>The AS will be use to connect our two li</td></tr>
+<tr><td class="mono"><a href="../proxy/34.150.120.78-1080/">34.150.120.78:1080</a></td><td>SOCKS5</td><td>HK</td><td>3,919 ms</td><td>99 KB/s</td><td>18 %</td><td>yes</td><td>Discord</td><td>Google LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.42-6168/">45.74.31.42:6168</a></td><td>SOCKS5</td><td>FR</td><td>748 ms</td><td>64 KB/s</td><td>1 %</td><td>yes</td><td>TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/163.172.167.48-80/">163.172.167.48:80</a></td><td>HTTP</td><td>FR</td><td>1,877 ms</td><td>–</td><td>45 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-13273/">45.74.31.47:13273</a></td><td>SOCKS5</td><td>FR</td><td>1,115 ms</td><td>–</td><td>2 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-13780/">45.74.31.47:13780</a></td><td>SOCKS5</td><td>CH</td><td>1,121 ms</td><td>–</td><td>5 %</td><td>no</td><td>–</td><td>Infomaniak Network SA</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.41-10789/">45.74.31.41:10789</a></td><td>SOCKS5</td><td>ML</td><td>1,846 ms</td><td>73 KB/s</td><td>4 %</td><td>yes</td><td>Google, Reddit, Discord</td><td>The AS will be use to connect our two li</td></tr>
+<tr><td class="mono"><a href="../proxy/196.0.113.10-31651/">196.0.113.10:31651</a></td><td>SOCKS4</td><td>UG</td><td>2,013 ms</td><td>–</td><td>11 %</td><td>no</td><td>–</td><td>Uganda Telecom</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.41-8518/">45.74.31.41:8518</a></td><td>SOCKS5</td><td>FR</td><td>1,798 ms</td><td>148 KB/s</td><td>1 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.40-17162/">45.74.31.40:17162</a></td><td>SOCKS5</td><td>NL</td><td>665 ms</td><td>146 KB/s</td><td>3 %</td><td>yes</td><td>Google, Amazon, TikTok, Discord</td><td>Microsoft Corporation</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.41-7505/">45.74.31.41:7505</a></td><td>SOCKS5</td><td>FR</td><td>1,891 ms</td><td>155 KB/s</td><td>1 %</td><td>yes</td><td>Reddit, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.40-5780/">45.74.31.40:5780</a></td><td>SOCKS5</td><td>FR</td><td>689 ms</td><td>144 KB/s</td><td>2 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/12.50.107.219-80/">12.50.107.219:80</a></td><td>HTTP</td><td>US</td><td>150 ms</td><td>–</td><td>27 %</td><td>no</td><td>–</td><td>AT&amp;T Enterprises, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-16818/">45.74.31.47:16818</a></td><td>SOCKS5</td><td>FR</td><td>1,332 ms</td><td>–</td><td>4 %</td><td>no</td><td>–</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-16740/">45.74.31.47:16740</a></td><td>SOCKS5</td><td>FR</td><td>696 ms</td><td>139 KB/s</td><td>8 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/12.50.107.217-80/">12.50.107.217:80</a></td><td>HTTP</td><td>US</td><td>182 ms</td><td>–</td><td>24 %</td><td>no</td><td>–</td><td>AT&amp;T Enterprises, LLC</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-11011/">45.74.31.47:11011</a></td><td>SOCKS5</td><td>ML</td><td>1,205 ms</td><td>67 KB/s</td><td>1 %</td><td>yes</td><td>Google, Reddit, Discord</td><td>IKATEL SA</td></tr>
+<tr><td class="mono"><a href="../proxy/135.125.179.41-3128/">135.125.179.41:3128</a></td><td>HTTP</td><td>KR</td><td>239 ms</td><td>–</td><td>30 %</td><td>no</td><td>–</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.47-12018/">45.74.31.47:12018</a></td><td>SOCKS5</td><td>CH</td><td>756 ms</td><td>135 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok, Discord</td><td>Infomaniak Network SA</td></tr>
+<tr><td class="mono"><a href="../proxy/122.246.4.30-17981/">122.246.4.30:17981</a></td><td>HTTP</td><td>CN</td><td>602 ms</td><td>–</td><td>88 %</td><td>yes</td><td>–</td><td>NINGBO, ZHEJIANG Province, P.R.China.</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.41-16339/">45.74.31.41:16339</a></td><td>SOCKS5</td><td>CH</td><td>763 ms</td><td>134 KB/s</td><td>1 %</td><td>yes</td><td>Google, TikTok, Discord</td><td>Infomaniak Network SA</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.41-8963/">45.74.31.41:8963</a></td><td>SOCKS5</td><td>FR</td><td>707 ms</td><td>122 KB/s</td><td>1 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.41-10585/">45.74.31.41:10585</a></td><td>SOCKS5</td><td>FR</td><td>713 ms</td><td>122 KB/s</td><td>1 %</td><td>yes</td><td>Reddit, TikTok, Discord</td><td>Scaleway SAS</td></tr>
+<tr><td class="mono"><a href="../proxy/45.74.31.40-5781/">45.74.31.40:5781</a></td><td>SOCKS5</td><td>DE</td><td>746 ms</td><td>125 KB/s</td><td>3 %</td><td>yes</td><td>Amazon, TikTok, Discord</td><td>Contabo GmbH</td></tr>
+<tr><td class="mono"><a href="../proxy/91.107.179.68-10809/">91.107.179.68:10809</a></td><td>SOCKS5</td><td>CZ</td><td>803 ms</td><td>133 KB/s</td><td>22 %</td><td>yes</td><td>Google, Reddit, Instagram, TikTok, Discord</td><td>Cloudflare, Inc.</td></tr>
+<tr><td class="mono"><a href="../proxy/176.191.124.3-80/">176.191.124.3:80</a></td><td>HTTP</td><td>FR</td><td>2,569 ms</td><td>–</td><td>31 %</td><td>no</td><td>–</td><td>Bouygues Telecom SA</td></tr></tbody></table></div>
+  <section class="use"><h2>In the terminal or in code</h2><pre class="mono">pipx install proxy-scraper-cli
+proxy-scraper --pick 5 --anonymity elite
+curl -x "$(proxy-scraper --pick --anonymity elite --https-only)" https://api.ipify.org</pre><p class="note">--pick takes proxies from the same hourly list in about half a second. From Python: <code>live_proxies()</code>, see the <a href="https://github.com/maximilianfeix/proxy-scraper#from-python">README</a>.</p></section>
+  <section class="faq"><h2>Questions</h2><h3>How many free elite proxies work right now?</h3><p>803 passed every check in the last run (31 Oct 2026, 22:26 UTC): a basic check, a second request to another site and a content check. 495 of them tunnel HTTPS with verified TLS to one test host, and 53 were on the list in 90 % or more of this week&#x27;s runs. The list is checked again about every hour.</p><h3>Which free elite proxies get through to Google?</h3><p>In the last check, 176 of them got through to Google search without a captcha. The site check also tries Reddit, Amazon, Instagram, TikTok and Discord – the full list on the website can be filtered by it.</p><h3>How do I get working elite proxies in code or the terminal?</h3><p>Without installing anything, download proxies.txt from this page. With the tool: pipx install proxy-scraper-cli, then proxy-scraper --pick 5 --anonymity elite prints five from the hourly list. From Python, live_proxies() takes the same filters.</p></section>
+  <nav aria-label="More lists"><h2>By protocol</h2><ul><li><a href="../http/">HTTP (221)</a></li><li><a href="../socks4/">SOCKS4 (92)</a></li><li><a href="../socks5/">SOCKS5 (503)</a></li><li><a href="../https/">HTTPS (504)</a></li><li><a href="../elite/" aria-current="page">elite (803)</a></li></ul></nav><nav aria-label="By country"><h2>By country</h2><ul><li><a href="../country/us/">United States (127)</a></li><li><a href="../country/fr/">France (117)</a></li><li><a href="../country/de/">Germany (89)</a></li><li><a href="../country/in/">India (76)</a></li><li><a href="../country/cn/">China (75)</a></li><li><a href="../country/jp/">Japan (60)</a></li><li><a href="../country/ml/">Mali (46)</a></li><li><a href="../country/nl/">Netherlands (23)</a></li><li><a href="../country/ch/">Switzerland (21)</a></li><li><a href="../country/ru/">Russia (18)</a></li><li><a href="../country/kr/">South Korea (16)</a></li><li><a href="../country/id/">Indonesia (13)</a></li><li><a href="../country/hk/">Hong Kong (11)</a></li><li><a href="../country/vn/">Vietnam (10)</a></li><li><a href="../country/kh/">Cambodia (9)</a></li><li><a href="../country/br/">Brazil (7)</a></li><li><a href="../country/co/">Colombia (7)</a></li><li><a href="../country/za/">South Africa (6)</a></li><li><a href="../country/bd/">Bangladesh (5)</a></li><li><a href="../country/pl/">Poland (5)</a></li><li><a href="../country/gb/">United Kingdom (5)</a></li><li><a href="../country/bi/">Burundi (4)</a></li><li><a href="../country/ca/">Canada (4)</a></li><li><a href="../country/se/">Sweden (4)</a></li><li><a href="../country/tw/">Taiwan (4)</a></li><li><a href="../country/iq/">Iraq (3)</a></li><li><a href="../country/pk/">Pakistan (3)</a></li><li><a href="../country/sg/">Singapore (3)</a></li><li><a href="../country/ar/">Argentina (2)</a></li><li><a href="../country/cl/">Chile (2)</a></li><li><a href="../country/cz/">Czechia (2)</a></li><li><a href="../country/it/">Italy (2)</a></li><li><a href="../country/lv/">Latvia (2)</a></li><li><a href="../country/py/">Paraguay (2)</a></li><li><a href="../country/ph/">Philippines (2)</a></li><li><a href="../country/es/">Spain (2)</a></li><li><a href="../country/th/">Thailand (2)</a></li><li><a href="../country/ua/">Ukraine (2)</a></li><li><a href="../country/at/">Austria (1)</a></li><li><a href="../country/bg/">Bulgaria (1)</a></li><li><a href="../country/dk/">Denmark (1)</a></li><li><a href="../country/ee/">Estonia (1)</a></li><li><a href="../country/fi/">Finland (1)</a></li><li><a href="../country/gh/">Ghana (1)</a></li><li><a href="../country/hn/">Honduras (1)</a></li><li><a href="../country/ie/">Ireland (1)</a></li><li><a href="../country/kz/">Kazakhstan (1)</a></li><li><a href="../country/mo/">Macao (1)</a></li><li><a href="../country/np/">Nepal (1)</a></li><li><a href="../country/ng/">Nigeria (1)</a></li><li><a href="../country/ro/">Romania (1)</a></li><li><a href="../country/sn/">Senegal (1)</a></li><li><a href="../country/sk/">Slovakia (1)</a></li><li><a href="../country/sy/">Syria (1)</a></li></ul></nav>
+  <footer>
+    <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>
+    <span>Collected and checked by <a href="https://github.com/maximilianfeix/proxy-scraper">proxy-scraper</a>, open source, MIT licensed.</span>
+  </footer>
+</div>
+</body>
+</html>

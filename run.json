@@ -1,0 +1,68 @@
+{
+ "schema": 1,
+ "version": "1.31.0",
+ "started": "2026-11-07T20:21:49+00:00",
+ "finished": "2026-11-07T20:24:32+00:00",
+ "targets": {
+  "basic": "checkip.amazonaws.com",
+  "basic_switches": [],
+  "confirm": "httpbin.org",
+  "content_reference": true
+ },
+ "candidates": 150000,
+ "checked": 150000,
+ "not_checked": 0,
+ "no_verdict_local": 0,
+ "stopped": null,
+ "working": 541,
+ "kept": 541,
+ "checks": {
+  "basic": {
+   "passed": 1567,
+   "failed:bad_status": 18727,
+   "failed:connect_failed": 4,
+   "failed:connect_refused": 19540,
+   "failed:connect_timeout": 55253,
+   "failed:connection_closed": 2444,
+   "failed:handshake_refused": 2663,
+   "failed:invalid_response": 491,
+   "failed:known_unreachable": 39602,
+   "failed:own_ip_exposed": 849,
+   "failed:private_exit_ip": 12,
+   "failed:timeout": 8848
+  },
+  "confirm": {
+   "failed:bad_status": 254,
+   "failed:connect_refused": 13,
+   "failed:connect_timeout": 434,
+   "failed:connection_closed": 46,
+   "failed:exit_ip_mismatch": 19,
+   "failed:handshake_refused": 7,
+   "failed:invalid_response": 52,
+   "failed:timeout": 119,
+   "passed": 623
+  },
+  "content": {
+   "failed:content_mismatch": 82,
+   "passed": 349,
+   "unavailable:bad_status": 49,
+   "unavailable:connect_refused": 28,
+   "unavailable:connect_timeout": 68,
+   "unavailable:connection_closed": 12,
+   "unavailable:handshake_refused": 1,
+   "unavailable:timeout": 34
+  },
+  "https": {
+   "failed:connect_refused": 28,
+   "failed:connection_closed": 13,
+   "failed:timeout": 163,
+   "failed:tls_certificate_invalid": 32,
+   "failed:tunnel_refused": 85,
+   "passed": 220
+  }
+ },
+ "changed_pages": {
+  "with_script_tag": 81,
+  "without_script_tag": 1
+ }
+}

@@ -292,14 +292,16 @@ def test_a_token_is_not_sent_to_another_host_after_a_redirect():
     secret = {"Authorization": "Bearer ghp_secret", "Cookie": "session=1", "Accept": "application/json"}
 
     async def go():
+        # 127.0.0.1 and localhost are two hosts for the redirect rule and need no DNS (uvloop resolves names
+        # itself, past a stubbed getaddrinfo)
         async with Server(ok(b"same")) as same, Server(ok(b"other")) as other, \
-                Server(redirect(f"http://api.test:{same.port}/a")) as hop1, \
-                Server(redirect(f"http://elsewhere.test:{other.port}/b")) as hop2:
-            assert await netio.http_get(f"http://api.test:{hop1.port}/x", headers=secret) == b"same"
-            assert await netio.http_get(f"http://api.test:{hop2.port}/x", headers=secret) == b"other"
+                Server(redirect(f"http://127.0.0.1:{same.port}/a")) as hop1, \
+                Server(redirect(f"http://localhost:{other.port}/b")) as hop2:
+            assert await netio.http_get(f"http://127.0.0.1:{hop1.port}/x", headers=secret) == b"same"
+            assert await netio.http_get(f"http://127.0.0.1:{hop2.port}/x", headers=secret) == b"other"
             return hop1.requests + hop2.requests, same.requests, other.requests
 
-    first, same, other = run_with_dns({"api.test": ["127.0.0.1"], "elsewhere.test": ["127.0.0.1"]}, go)
+    first, same, other = asyncio.run(go())
     assert all(b"Bearer ghp_secret" in head and b"session=1" in head for head in first)
     assert b"Bearer ghp_secret" in same[0]  # the same host keeps it
     assert b"ghp_secret" not in other[0] and b"session=1" not in other[0]

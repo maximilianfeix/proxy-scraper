@@ -22,11 +22,11 @@ Running from the clone, learned state stays in `data/` and results in `results/`
 ## Before you open a pull request
 
 ```bash
-python3 -m pytest          # 1,100+ tests, offline, under a minute
+python3 -m pytest          # 1,400+ tests, offline, about a minute
 ruff check .
 ```
 
-- **Tests run without internet.** They start real mini proxies, honeypots and target sites on `localhost` (see `tests/`). New checks or handshakes should come with a test like that.
+- **Tests run without internet.** They start real mini proxies, proxies with known flaws and target sites on `localhost` (see `tests/`). New checks or handshakes should come with a test like that.
 - **UI changes:** attach a screenshot, and regenerate the README images with `python3 docs/make_demo.py`.
 - **Python 3.9 compatible:** CI runs 3.9, 3.11, 3.13 and 3.14 on Linux, macOS and Windows.
 - **Dependencies:** the runtime only needs `rich` and `certifi`. Please discuss new ones in an issue first.
@@ -36,7 +36,7 @@ ruff check .
 
 - One topic per pull request, linked to its issue (`Closes #123`).
 - Commit messages in the imperative: “Add ETag cache for sources”, not “added …”.
-- Every pull request gets an automatic review; please answer or resolve the comments.
+- If a pull request gets review comments, please answer or resolve them.
 
 ## Releases
 

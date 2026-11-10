@@ -24,7 +24,13 @@
 | `--no-geo` | skip the country lookup |
 | `-c`, `--concurrency N` | simultaneous checks (default: 2000) |
 | `-t`, `--timeout S` | timeout per proxy (default: 8 s) |
+| `--connect-timeout S` | maximum time for the TCP connect (default: 4 s) |
 | `--discover` | search GitHub for new sources right now |
+| `--no-discover` | no automatic GitHub search |
+| `--discover-repos N` | at most N repos per search (default: 400, 40 without a token) |
+| `--all-sources` | also load sources that were skipped as dead, outdated or unreachable |
+| `--source URL\|FILE` | also load this list (repeatable); `socks5=…` fixes the type, see [your own lists](recipes.md#your-own-lists) |
+| `--only-sources` | only the lists given with `--source` |
 | `--no-cache` | download every list again (unchanged ones are normally skipped via ETag) |
 | `--list-sources [N]` | show the source ranking (add `--json` for scripts: url, status, hit rate, checks, last change) |
 | `--pick [N]` | print N proxies (default 1) from the hourly checked list and exit – no scan, same filters, plus `--min-uptime PERCENT`, `--min-speed KBPS` and `--works-on google,reddit,…` |
@@ -40,6 +46,7 @@
 | `-o FILE` | also write all hits to this file; `-o -` prints them to stdout |
 | `--export FORMATS` | extra files for other tools: `proxychains`, `clash`, `singbox`, `curl`, `pac`, `proxifier` or `all` |
 | `-V`, `--version` | print the version |
+| `--mcp` | run as an MCP server over stdio, the same as `proxy-scraper-mcp` ([MCP](../README.md#mcp)) |
 | `--completion SHELL` | print the tab completion script for bash, zsh, fish or PowerShell |
 
 Everything else: `proxy-scraper --help`

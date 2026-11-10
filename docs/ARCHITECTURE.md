@@ -36,7 +36,7 @@ flowchart LR
 | `sources.py` | source lists, meta sources, GitHub discovery, per-source hit statistics |
 | `fetchcache.py` | conditional downloads; parsed keys of unchanged lists come from `data/fetch-cache` |
 | `parsing.py` | finds proxies in any format, drops private/reserved ranges, keys are `"type ip:port"` strings |
-| `pipeline.py` | collect in parallel (process pool for big lists), prioritise, run the check workers |
+| `pipeline.py` | collect in parallel (process pool for big lists), prioritise (history first, then learned source hit rates; with a limit, 15 % of the slots sample barely-checked sources round-robin), run the check workers |
 | `checker.py` | the checks themselves, see below |
 | `checkstate.py` | the outcome of a check: four states, reason codes, what goes into JSON |
 | `verify.py` | checking a handful of proxies with every outcome kept: `--pick --verify` (bounded attempts, a few at a time, a time limit) and `--diagnose` |
@@ -104,13 +104,13 @@ Failures come in three kinds. A proxy that doesn't answer, times out or speaks g
 ```mermaid
 flowchart LR
     GA[GitHub Actions<br/>every hour] -->|run + publish.py| PL[proxy-list branch<br/>lists · JSON · website]
-    PL --> WEB[GitHub Pages<br/>live list website]
+    PL -->|rsync over the VPN| WEB[proxy-scraper.de<br/>live list website]
     PL -->|stats.json · proxies.json| BOT[bot/<br/>Discord bot]
     PL -->|all.txt| RL[--recheck live]
     PL -->|mirror.py| FPL[free-proxy-list repo<br/>lists only · per country]
 ```
 
-`bot/` is a separate package with its own requirements (discord.py). It only reads the published JSON files, so it knows nothing about the tool's internals. `.github/workflows/bot.yml` tests it and deploys it to a server over SSH.
+`bot/` is a separate package with its own requirements (discord.py). It only reads the published JSON files, so it knows nothing about the tool's internals. `.github/workflows/bot.yml` tests it and deploys it to a server over SSH inside the project's own VPN.
 
 ## State on disk
 

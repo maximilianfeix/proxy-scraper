@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlsplit
 
+from .benchmark import write_benchmark
 from .pages import CSS, PAGE_CSS, REPO_URL, SITE_URL
 from .sources import DECAY, GH_RAW, SourceRecord, SourceStats
 
@@ -160,6 +161,7 @@ def page(ranking: List[dict], updated: datetime) -> str:
     <p class="lede">{escape(lede)}</p>
     <div class="actions">
       <a class="btn primary" href="{root}#list">The proxies that passed</a>
+      <a class="btn" href="{root}benchmark/">The popular GitHub lists compared</a>
       <a class="btn" href="{root}sources.json">All sources as JSON</a>
       <a class="btn" href="{REPO_URL}/issues/new?template=new_source.yml">Add a list</a>
     </div>
@@ -180,7 +182,7 @@ def page(ranking: List[dict], updated: datetime) -> str:
     "Passed every check" is the number of proxies from a source that got through all of that in an average recent
     run, "Share" is that number against the proxies checked from it.</p>
     <p>A proxy that several lists carry counts for each of them. The files of one repository are one source.
-    A run checks the most promising 150,000 candidates, so of a very large list only a part is checked each time.
+    A run checks the most promising 300,000 candidates, so of a very large list only a part is checked each time.
     The lists published by proxy-scraper itself are left out: they are the result of these checks.</p>
     <p>The same ranking from your own network: <code class="mono">proxy-scraper --list-sources</code>.
     A list is missing? <a href="{REPO_URL}/issues/new?template=new_source.yml">Add it as a source</a>.</p>
@@ -196,7 +198,8 @@ def page(ranking: List[dict], updated: datetime) -> str:
 
 
 def write_source_pages(quality: Optional[SourceStats], out: Path, updated: datetime) -> List[str]:
-    """Writes sources/index.html and sources.json -> the paths for the sitemap (none without statistics)."""
+    """Writes sources/index.html and sources.json, plus the comparison of the popular GitHub lists (benchmark.py)
+    -> the paths for the sitemap (none without statistics)."""
     ranking = rank(quality, updated) if quality is not None else []
     if not ranking:
         return []
@@ -206,4 +209,4 @@ def write_source_pages(quality: Optional[SourceStats], out: Path, updated: datet
     (out / "sources.json").write_text(json.dumps(
         {"updated": updated.isoformat(timespec="seconds"), "sources": ranking}, indent=1, ensure_ascii=False),
         encoding="utf-8")
-    return ["sources/"]
+    return ["sources/", *write_benchmark(ranking, out, updated)]

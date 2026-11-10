@@ -1,4 +1,6 @@
 import json
+import random
+from collections import Counter
 
 import pytest
 
@@ -355,3 +357,89 @@ def test_scan_end_does_not_wait_for_a_broken_country_service(tmp_path, monkeypat
     assert geo.failed
     assert run.results[0].country == ""
     assert took < 3
+
+
+def _explore_setup(tmp_path, n_tail=40):
+    """One well-known good source with many proxies, plus n_tail never-checked sources with 3 proxies each."""
+    quality = srcs.SourceStats(tmp_path / "stats.json")
+    quality.record_checks({"good": (1000, 300)})
+    urls = ["good"] + [f"tail{i}" for i in range(n_tail)]
+    index = {f"http 10.0.{i // 250}.{i % 250}:80": [0] for i in range(500)}
+    for s in range(1, n_tail + 1):
+        for j in range(3):
+            index[f"http 20.{s}.0.{j}:80"] = [s]
+    return pipeline.ScrapeResult(urls, index), quality
+
+
+def test_prioritize_explores_under_checked_sources(tmp_path):
+    res, quality = _explore_setup(tmp_path)
+    history = ProxyHistory(tmp_path / "h.json")
+    history.record_ok("http 7.7.7.7:80", 100, "7.7.7.7")
+    limit = 201
+    order = pipeline.prioritize(res, quality, history, ["http"], limit=limit, explore=0.2,
+                                rng=random.Random(1))
+    assert order[0] == "http 7.7.7.7:80"  # history still first
+    assert len(order) == len(set(order)) == len(res.index) + 1  # full order, no duplicates
+    picked = order[:limit]
+    tail = [k for k in picked if k.startswith("http 20.")]
+    assert len(tail) == 40  # 20 % of the 200 slots after the history
+    assert {k.split(".")[1] for k in tail} == {str(s) for s in range(1, 41)}  # one from every tail source
+    assert picked[1:161] == [k for k in order if k.startswith("http 10.")][:160]  # exploitation before
+
+
+def test_prioritize_without_exploration_never_reaches_the_tail(tmp_path):
+    res, quality = _explore_setup(tmp_path)
+    history = ProxyHistory(tmp_path / "h.json")
+    order = pipeline.prioritize(res, quality, history, ["http"], limit=200, explore=0, rng=random.Random(1))
+    assert not [k for k in order[:200] if k.startswith("http 20.")]
+
+
+def test_prioritize_exploration_is_seeded_and_rotates(tmp_path):
+    res, quality = _explore_setup(tmp_path, n_tail=100)
+    history = ProxyHistory(tmp_path / "h.json")
+
+    def tail(seed):
+        order = pipeline.prioritize(res, quality, history, ["http"], limit=100, explore=0.2,
+                                    rng=random.Random(seed))
+        return [k for k in order[:100] if k.startswith("http 20.")]
+
+    assert tail(5) == tail(5)
+    assert len(tail(5)) == 20 and len({k.split(".")[1] for k in tail(5)}) == 20  # 20 different sources
+    assert set(tail(5)) != set(tail(6))  # another run samples another part of the long tail
+
+
+def test_prioritize_exploration_round_robin_takes_more_per_source(tmp_path):
+    res, quality = _explore_setup(tmp_path, n_tail=10)
+    history = ProxyHistory(tmp_path / "h.json")
+    order = pipeline.prioritize(res, quality, history, ["http"], limit=100, explore=0.25, rng=random.Random(2))
+    tail = [k for k in order[:100] if k.startswith("http 20.")]
+    assert len(tail) == 25  # 30 tail proxies in 10 sources: two rounds for all, a third for five
+    per = Counter(k.split(".")[1] for k in tail)
+    assert sorted(per.values()) == [2] * 5 + [3] * 5
+
+
+def test_prioritize_without_limit_or_with_room_keeps_the_plain_order(tmp_path):
+    res, quality = _explore_setup(tmp_path)
+    history = ProxyHistory(tmp_path / "h.json")
+    plain = pipeline.prioritize(res, quality, history, ["http"], explore=0, rng=random.Random(3))
+    assert pipeline.prioritize(res, quality, history, ["http"], limit=0, rng=random.Random(3)) == plain
+    # fewer candidates than the limit: everything is checked anyway
+    assert pipeline.prioritize(res, quality, history, ["http"], limit=10_000, rng=random.Random(3)) == plain
+
+
+def test_prioritize_explores_nothing_when_all_sources_are_known(tmp_path):
+    quality = srcs.SourceStats(tmp_path / "stats.json")
+    quality.record_checks({"a": (500, 50), "b": (500, 5)})
+    res = pipeline.ScrapeResult(["a", "b"], {f"http 1.1.1.{i}:80": [i % 2] for i in range(100)})
+    history = ProxyHistory(tmp_path / "h.json")
+    plain = pipeline.prioritize(res, quality, history, ["http"], explore=0, rng=random.Random(4))
+    assert pipeline.prioritize(res, quality, history, ["http"], limit=50, rng=random.Random(4)) == plain
+
+
+def test_prioritize_history_larger_than_limit(tmp_path):
+    res, quality = _explore_setup(tmp_path)
+    history = ProxyHistory(tmp_path / "h.json")
+    for i in range(5):
+        history.record_ok(f"http 7.7.7.{i}:80", 100, "7.7.7.7")
+    order = pipeline.prioritize(res, quality, history, ["http"], limit=3, rng=random.Random(5))
+    assert all(k.startswith("http 7.7.7.") for k in order[:5])

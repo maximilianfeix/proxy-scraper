@@ -3,7 +3,14 @@
 A short, current record of maintenance work: what was verified, what is open, what comes next. Check it against
 GitHub (PRs, issues, releases, CI) before relying on it – it describes the state when it was last written.
 
-_Last updated: 2026-10-23_
+_Last updated: 2026-10-23, with a short status of 2026-11-10 below_
+
+## Status (2026-11-10)
+
+- `main` at `9edab6d` (#367), latest release **v1.31.0** (2026-10-23; wheel, sdist and their Sigstore bundles), also on PyPI and in the Homebrew tap
+- Tests on `main`, local: 1404 passed, 2 skipped; ruff clean
+- Merged since the baseline below: the review fixes (#351–#359, released in 1.31.0: at most 1,024 clients at once on the rotating server, public-only downloads for discovered sources), the website on its own server at proxy-scraper.de (#360, #361) and the deploy over the project's VPN (#367)
+- Still as described below: the 64 MiB download cap per list, and no idle limit inside established tunnels (documented in [the proxy server](proxy-server.md))
 
 ## Baseline (2026-10-23)
 

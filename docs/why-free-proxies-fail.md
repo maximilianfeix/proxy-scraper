@@ -10,7 +10,7 @@ for anything else and it is gone.
 
 I wrote that in September, in an article about my own tool, and I had no evidence for it. In
 [the audit of my own numbers](free-proxies-in-numbers.md) I withdrew it: a proxy failing a second
-request is a measurement, and "honeypot" is a motive. The measurement cannot see motive.
+request is a measurement, and "bait" is a motive. The measurement cannot see motive.
 
 Since release 1.30.0 every published run records what each check ended as, with a reason code. One
 hundred and thirty-two runs have now accumulated, and the question is answerable for the first
@@ -32,7 +32,7 @@ same address is re-checked in run after run.
 
 ## The second request
 
-This is the step the honeypot story is about. Of the 435,244 proxies that answered a first request
+This is the step the bait story is about. Of the 435,244 proxies that answered a first request
 and returned a public exit IP:
 
 | Outcome of the second request | Checks | Share of this step |
@@ -112,14 +112,14 @@ changes the bytes too. I keep no sample of those pages, so I cannot tell you wha
 Of the 255,565 checks that reached the HTTPS step, 143,392 got far enough for a TLS handshake to
 happen at all. **3,823 of those — 2.67 %, about one in 38 — presented a certificate that did not
 verify for the test host.** The rest of the step is timeouts (32.66 %) and proxies that refuse to
-open a tunnel (7.40 %). On today's published list, 23 of 1,111 entries carry
+open a tunnel (7.40 %). On the published list of 2026-10-22 08:45 UTC, 23 of 1,111 entries carry
 `https: failed:tls_certificate_invalid`. Again: that is what the handshake saw, and it says
 nothing about who is on the other end.
 
 ## What this changes if you use free proxies
 
 - **One request is not enough, but not for the reason usually given.** Make a second request to a
-  different site. You will lose about a third of your hits, almost all of them to proxies that
+  different site. You will lose more than a third of your hits, almost all of them to proxies that
   cannot sustain a second connection.
 - **Comparing the exit IP across the two requests buys you about 1.8 %.** Worth doing — it is free
   once you are making the second request — but it is not the main filter anyone thinks it is.
@@ -153,7 +153,7 @@ moves.
 
 ## See also
 
-- [Check states and reason codes](check-states.md) — the four states, the 25 reason codes, and
+- [Check states and reason codes](check-states.md) — the four states, the 24 reason codes, and
   what each one is allowed to mean
 - [3.6 million checks of free proxy lists in a day](free-proxies-in-numbers.md) — the audit of the
   earlier numbers, and what did not survive it

@@ -285,7 +285,7 @@ def parse_args(argv: Optional[List[str]] = None) -> argparse.Namespace:
                    help="run as an MCP server over stdio, for AI agents like Claude Code (same as proxy-scraper-mcp; "
                         'needs pip install "proxy-scraper-cli[mcp]")')
     p.add_argument("--completion", action=CompletionAction, metavar="SHELL",
-                   help="print tab completion for bash, zsh or fish, e.g. eval \"$(proxy-scraper "
+                   help="print tab completion for bash, zsh, fish or powershell, e.g. eval \"$(proxy-scraper "
                         "--completion zsh)\"")
     m = p.add_argument_group("Start")
     m.add_argument("-i", "--interactive", action="store_true",

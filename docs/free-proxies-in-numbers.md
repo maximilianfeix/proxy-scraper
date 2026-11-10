@@ -8,7 +8,7 @@ This page has the numbers from 24 of those runs (28 Sep 09:43 UTC to 29 Sep 08:3
 
 Each run reads about 800 public proxy lists and ends up with **1.26 million candidates** on average. A candidate is a protocol plus an address: the same `ip:port` listed as HTTP and as SOCKS5 counts twice. The run then checks the 150,000 most promising ones. Proxies that passed before and lists with a good hit rate go first.
 
-24 runs × 150,000 = **3.6 million checks**. That is not 3.6 million proxies. The same sources go first in every run, so the 24 samples overlap, probably heavily. How many distinct candidates were checked that day was never recorded.
+24 runs × 150,000 = **3.6 million checks**. That is not the number of distinct proxies. The same sources go first in every run, so the 24 samples overlap, probably heavily. How many distinct candidates were checked that day was never recorded.
 
 | Step | What has to happen | Over 24 runs | Share |
 |---|---|---|---|
@@ -25,11 +25,11 @@ The per-run numbers in that CSV were read from the workflow's console logs ([`fu
 
 ### What the funnel doesn't tell you
 
-**Why the second request failed.** The logs have a count and no reasons. A proxy fails this step if it can't load two pages in a row, if its exit IP changes between the two requests (a rotating or chained exit), if it only answers the first check, or if the second site turns it away. The earlier version of this page called these "honeypots". Some may be. Nothing that was measured says how many.
+**Why the second request failed.** The logs have a count and no reasons. A proxy fails this step if it can't load two pages in a row, if its exit IP changes between the two requests (a rotating or chained exit), if it only answers the first check, or if the second site turns it away. The earlier version of this page described them as traps set up on purpose. Some may be. Nothing that was measured says how many.
 
 It also counts httpbin.org's own bad minutes. Until 1.30 the tool asked httpbin.org directly once, at the start of a run, and never again. If it went down halfway, every proxy after that failed the second request. None of the 24 runs logged a missing second target at the start; what happened during them is not in the logs.
 
-**Why the page differed.** The check compares one hash. A page cut off by the proxy, a cached older copy, a block page with status 200 and an injected script all give a different hash. The earlier version said these proxies "usually inject a script". That came from one early look at 270 proxies, of which 54 returned a changed page. No sample of those pages was kept, so it is not a finding. The earlier version also gave the share as "1 in 40 working proxies", which used the wrong denominator: 2,244 is 2.4 % of everything that answered, and 5.2 % of the proxies that reached this check.
+**Why the page differed.** The check compares one hash. A page cut off by the proxy, a cached older copy, a block page with status 200 and an injected script all give a different hash. The earlier version said most of these proxies add a script. That came from one early look at 270 proxies, of which 54 returned a changed page. No sample of those pages was kept, so it is not a finding. The earlier version also gave this share as a fraction of all working proxies, which used the wrong denominator: 2,244 is 2.4 % of everything that answered, and 5.2 % of the proxies that reached this check.
 
 **How many pages were compared.** In these runs a content request that timed out or came back as an error page counted as "unchanged", and the proxy was kept. So the 40,807 include an unknown number of proxies whose test page never arrived, and 5.2 % is a lower bound for the share of compared pages that differed.
 
@@ -58,7 +58,7 @@ First, what an entry is. The week saw 41,634 different `type://ip:port` entries.
 | … 24 runs or more | 215 | 203 |
 | Still listed, for 24 or more runs so far | 57 | 71 |
 
-The earlier version of this page said of the entries that had dropped off the list: "85 % were gone by the very next check, an hour later", and concluded that a day-old list is mostly dead. The 85 % is real, but it is narrower than it sounds: it counts only entries that are off the list at the end, and only the last stretch of each. Counting every stretch, 78 % were one run long, and 215 lasted a day or more, not 12. Entries that stay are in neither number. Asked the other way round:
+The earlier version of this page said that most entries that had dropped off the list were gone by the very next check, and concluded that a day-old list is mostly dead. The number behind that is the 85 % in the table, and it is narrower than it sounds: it counts only entries that are off the list at the end, and only the last stretch of each. Counting every stretch, 78 % were one run long, and 215 lasted a day or more, not 12. Entries that stay are in neither number. Asked the other way round:
 
 | Of the entries on one run's list … | all entries | without the 16 crowded hosts |
 |---|---|---|

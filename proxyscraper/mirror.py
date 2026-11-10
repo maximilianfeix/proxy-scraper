@@ -96,20 +96,68 @@ def country_table(counts: Dict[str, int], raw: str) -> str:
     return "\n".join(lines)
 
 
-def readme(stats: dict, counts: Dict[str, int], repo: str) -> str:
+CHECKS = (  # name in stats.json -> heading and what a pass means; {basic}/{confirm} are this run's test hosts
+    ("basic", "Handshake", "The proxy completed a real handshake and fetched a page from {basic}. The exit IP it "
+                           "showed was public and not the checker's own."),
+    ("confirm", "Second request", "A second request, to an unrelated site ({confirm}), came out of the same exit IP. "
+                                  "Proxies that answer once and then stall or switch exits drop out here."),
+    ("content", "Unchanged page", "A known static page ({confirm}/html) arrived byte for byte. A proxy that rewrites "
+                                  "plain-HTTP pages, e.g. injects ads or scripts, fails. It covers that one page at "
+                                  "that moment, nothing more."),
+    ("https", "Verified TLS", "A tunnel to port 443 with a TLS handshake whose certificate verified on one test host "
+                              "({basic}). It says nothing about other sites, later requests or who runs the proxy."),
+)
+
+
+def checks_table(stats: dict, run: dict) -> str:
+    """What each check means, which lists need it and how many proxies passed it in this run (run.json)."""
+    requires: Dict[str, List[str]] = stats.get("requires") or {}
+    targets = run.get("targets") or {}
+    hosts = {"basic": targets.get("basic") or "a test host", "confirm": targets.get("confirm") or "a second test host"}
+    results = run.get("checks") or {}
+    lines = ["| Check | What a pass means | Needed for | Passed in this run |", "|---|---|---|---:|"]
+    for name, title, text in CHECKS:
+        needed = [f for f, checks in requires.items() if name in checks]
+        if not needed:
+            continue
+        where = "every list" if len(needed) == len(requires) else ", ".join(f"`{f}`" for f in needed)
+        passed = (results.get(name) or {}).get("passed")
+        lines.append(f"| **{title}** | {text.format(**hosts)} | {where} | "
+                     f"{num(passed) if isinstance(passed, int) else '–'} |")
+    return "\n".join(lines) if len(lines) > 2 else ""
+
+
+def star_history(repo: str) -> str:
+    tool = REPO_URL.removeprefix("https://github.com/")
+    return (f"[![Star history](https://api.star-history.com/svg?repos={repo},{tool}&type=Date)]"
+            f"(https://star-history.com/#{repo}&{tool}&Date)")
+
+
+def readme(stats: dict, counts: Dict[str, int], repo: str, run: Optional[dict] = None,
+           sources: Optional[int] = None) -> str:
+    run = run or {}
     raw = f"https://raw.githubusercontent.com/{repo}/main"
     cdn = f"https://cdn.jsdelivr.net/gh/{repo}@main"
     updated = datetime.fromisoformat(stats["updated"]).strftime("%Y-%m-%d %H:%M UTC")
     by_type = stats["by_type"]
-    badges = " ".join(f"![{label}]({shield(label, value, color)})" for label, value, color in (
+    hours = stats.get("run_hours")
+    every = "every hour" if hours == 1 else f"every {hours} hours" if isinstance(hours, int) and hours > 1 else ""
+    badge_values = [
         ("working proxies", num(stats["total"]), "D4F77A"),
         ("http", num(by_type.get("http", 0)), "blue"),
         ("socks4", num(by_type.get("socks4", 0)), "blueviolet"),
         ("socks5", num(by_type.get("socks5", 0)), "green"),
         ("updated", updated, "grey"),
-    ))
-    lists = "\n".join(f"| {what} | {fmt} | {num(counts.get(name, 0))} | [{name}]({raw}/{name}) · [CDN]({cdn}/{name}) |"
-                      for name, what, fmt in LISTS)
+    ]
+    if every:
+        badge_values.append(("checked", every, "grey"))
+    badges = " ".join(f"![{label}]({shield(label, value, color)})" for label, value, color in badge_values)
+    stars = (f"[![Stars](https://img.shields.io/github/stars/{repo}?style=social)](https://github.com/{repo}) "
+             f"[![Stars of the tool](https://img.shields.io/github/stars/maximilianfeix/proxy-scraper"
+             f"?style=social&label=proxy-scraper)]({REPO_URL})")
+    lists = "\n".join(f"| {what} | {fmt} | {num(counts.get(name, 0))} | [GitHub]({raw}/{name}) · [CDN]({cdn}/{name}) · "
+                      f"[proxy-scraper.de]({SITE_URL}{name}) |" for name, what, fmt in LISTS)
+    copy_urls = "\n".join(f"{raw}/{name}" for name in ("all.txt", "http.txt", "socks4.txt", "socks5.txt"))
     site_counts = stats.get("sites") or {}
     sites = "\n".join(f"| {s.title or s.name} | {num(counts.get(f'works-with/{s.name}.txt', 0))} | "
                       f"[{s.name}.txt]({raw}/works-with/{s.name}.txt) |"
@@ -128,29 +176,65 @@ Many free proxies are blocked or sent to a captcha by the big sites. These got a
     if speed:
         facts.append(f"median download **{num(speed)} KB/s**")
     n_countries = sum(1 for name in counts if name.startswith("countries/"))
+    checked = run.get("checked")
+    if isinstance(checked, int) and checked > 0:
+        origin = f", collected from **{num(sources)}** tracked public sources" if sources else ""
+        funnel = (f"This run checked **{num(checked)}** candidates{origin}. **{num(stats['total'])}** "
+                  f"({stats['total'] / checked:.2%}) passed every check and made the list.")
+    else:
+        funnel = f"**{num(stats['total'])}** proxies passed every check in this run and made the list."
+    checks = checks_table(stats, run)
+    checks_block = (f"""<a id="checks"></a>
+
+## What the checks mean
+
+{checks}
+
+A pass means the proxy worked **from our checker, at that moment**. Free proxies come and go, so expect some entries \
+to be gone by the time you use them. Take the top of a file and skip what fails.
+""" if checks else "")
+    checks_link = " · [Checks](#checks)" if checks else ""
     return f"""<div align="center">
 
 # Free Proxy List
 
-**HTTP, SOCKS4 and SOCKS5 proxies that passed every check in the last run – rebuilt about every hour.**
+**{num(stats['total'])} free HTTP, SOCKS4 and SOCKS5 proxies that passed every check, re-checked \
+{every or "regularly"}. Plain text files, no signup, no API key.**
 
 {badges}
 
-[![Stars of the tool](https://img.shields.io/github/stars/maximilianfeix/proxy-scraper?style=social&label=proxy-scraper)]({REPO_URL})
+{stars}
 
-[Download](#download) · [Quick start](#quick-start) · [By country](#by-country) · [Why this list](#why-this-list) · \
-[Website]({SITE_URL}) · [The tool]({REPO_URL})
+[Download](#download) · [Usage](#quick-start) · [By country](#by-country){checks_link} · \
+[Why this list](#why-this-list) · [Website]({SITE_URL}) · [Benchmark]({SITE_URL}benchmark/) · [The tool]({REPO_URL})
 
 </div>
 
 ---
 
-Updated **about every hour** by [proxy-scraper]({REPO_URL}). It pulls candidates from hundreds of public lists, checks \
-150,000 of them per run and keeps only the ones that pass every check – a real handshake, the same exit IP on a second \
-request to another site, and a test page that arrives unchanged. HTTPS counts only with a certificate that verifies \
-on the test host.
+```text
+{copy_urls}
+```
+
+<sub>`http.txt`, `socks4.txt` and `socks5.txt` hold one `ip:port` per line, `all.txt` one `type://ip:port`. Best \
+first. The same files are at `{SITE_URL}<name>.txt` and on the [jsDelivr CDN]({cdn}/all.txt).</sub>
 
 **Last run:** {updated} · {" · ".join(facts)} · {n_countries} countries
+
+{funnel}
+
+<a id="download"></a>
+
+## Download
+
+Every file is sorted **best first** (first answer plus measured download speed), so `head -n 20` gives you the \
+good ones. Hitting the raw.githubusercontent rate limit or need CORS? Use the CDN or proxy-scraper.de link.
+
+| List | Format | Proxies | Download |
+|---|---|---:|---|
+{lists}
+| With all details | latency, country, provider, uptime, sites | {num(stats["total"])} | \
+[proxies.json]({raw}/proxies.json) · [proxies.csv]({raw}/proxies.csv) |
 
 <a href="{SITE_URL}"><picture>
   <source media="(prefers-color-scheme: dark)" srcset="{SITE_URL}chart-dark.svg">
@@ -158,28 +242,21 @@ on the test host.
   <img src="{SITE_URL}chart-dark.svg" alt="Working proxies over the last days, by protocol" width="100%">
 </picture></a>
 
-<a id="download"></a>
-
-## Download
-
-Every file is sorted **best first** – by first answer plus measured download speed – so `head -n 20` gives you the \
-good ones.
-
-| List | Format | Proxies | Link |
-|---|---|---:|---|
-{lists}
-| With all details | latency, country, provider, uptime, sites | {num(stats["total"])} | \
-[proxies.json]({raw}/proxies.json) · [proxies.csv]({raw}/proxies.csv) |
-
-Need CORS, or hitting the raw.githubusercontent rate limit? The same lists are on the \
-[website]({SITE_URL}) (e.g. `{SITE_URL}socks5.txt`), where you can also search and filter them.
-
 <a id="quick-start"></a>
 
-## Quick start
+## Usage
+
+### curl
 
 ```bash
-curl -sL {raw}/socks5.txt | head -n 20
+curl -sL {raw}/socks5.txt | head -n 20  # the 20 best SOCKS5 proxies
+curl -m 10 -x "socks5h://$(curl -sL {raw}/socks5.txt | head -n 1)" https://api.ipify.org
+```
+
+### wget
+
+```bash
+wget -qO http.txt {raw}/http.txt
 ```
 
 ### Python
@@ -196,6 +273,9 @@ for proxy in proxies[:20]:  # best first
     except requests.RequestException:
         continue
 ```
+
+<details>
+<summary><b>Node.js and Go</b></summary>
 
 ### Node.js
 
@@ -262,11 +342,7 @@ func main() {{
 }}
 ```
 
-### curl
-
-```bash
-curl -m 10 -x "socks5h://$(curl -sL {raw}/socks5.txt | head -n 1)" https://api.ipify.org
-```
+</details>
 
 Or let [proxy-scraper]({REPO_URL}) do the rotating and retrying for you:
 
@@ -288,17 +364,21 @@ with ProxyRotator(country="DE") as rotator:
 
 ## By country
 
+One file per country, best first, as `type://ip:port`: `{raw}/countries/<code>.txt` \
+(also at `{SITE_URL}country/<code>/proxies.txt`).
+
 {country_table(counts, raw)}
 
 {sites_block}
+{checks_block}
 <a id="why-this-list"></a>
 
 ## Why this list
 
-- **Checked, not collected.** Every proxy had to complete a real protocol handshake and load two different sites \
-through the same exit IP in the last run.
-- **A test page has to arrive unchanged.** Entries that return a changed test page are left out; HTTPS counts only \
-with a certificate that verifies on the test host.
+- **Checked, not just collected.** Every entry completed a real handshake and loaded two different sites through the \
+same exit IP in the last run.
+- **A test page has to arrive unchanged.** Entries that returned a changed test page are left out; HTTPS counts only \
+with a certificate that verified on the test host.
 - **Best first.** Sorted by how fast pages actually load, not by a single ping.
 - **Details for every proxy** in `proxies.json`: exit IP, country, ASN and provider, whether the provider looks like a \
 hosting company, anonymity, latency, download speed, share of runs on the list over 24 hours and 7 days, \
@@ -308,13 +388,18 @@ week's runs. Not being on the list is not a measured failure.
 - **Used by other tools.** [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) \
 and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list) pull these lists as a built-in source.
 
-Want more than a list? **[proxy-scraper]({REPO_URL})** is the open-source tool behind it: scan from your own \
-network, filter by country, protocol and site, a rotating proxy server, a Python API and an MCP server for AI \
-agents. If this list saves you time, a ⭐ on [the tool]({REPO_URL}) helps others find it.
+## Support
+
+If this list saves you time, a ⭐ helps others find it. A star on **[proxy-scraper]({REPO_URL})** counts too: \
+it's the open-source tool that builds this list. Run it to scan from your own network, filter by country, protocol \
+and site, or use its rotating proxy server, Python API and MCP server for AI agents.
+
+{star_history(repo)}
 
 ## Good to know
 
-- **Updates:** about every hour, around 20 minutes past. A run with too few hits is skipped – the last good list stays.
+- **Updates:** {every or "regularly"}, around 20 minutes past. A run with too few hits is skipped and the last \
+good list stays.
 - **History:** the git history is squashed at the start of every month so clones stay small. A daily archive of \
 `proxies.json` lives in the [snapshot releases]({REPO_URL}/releases?q=snapshots).
 - **Found a problem?** Please open an issue in the [tool repository]({REPO_URL}/issues).
@@ -323,6 +408,15 @@ agents. If this list saves you time, a ⭐ on [the tool]({REPO_URL}) helps other
 > Public proxies are run by strangers. Never send passwords or personal data through them, and use them only \
 for things you're allowed to do.
 """
+
+
+def optional_json(path: Path) -> Optional[dict]:
+    """run.json and sources.json only add numbers to the README – a run without them still gets one."""
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, ValueError):
+        return None
+    return data if isinstance(data, dict) else None
 
 
 def commit_message(stats: dict) -> str:
@@ -335,7 +429,11 @@ def mirror(public: Path, out: Path, repo: str) -> str:
     stats = json.loads((public / "stats.json").read_text(encoding="utf-8"))
     out.mkdir(parents=True, exist_ok=True)
     counts = write_files(public, out, rows)
-    (out / "README.md").write_text(readme(stats, counts, repo), encoding="utf-8")
+    run = optional_json(public / "run.json")
+    sources = (optional_json(public / "sources.json") or {}).get("sources")
+    (out / "README.md").write_text(readme(stats, counts, repo, run=run,
+                                          sources=len(sources) if isinstance(sources, list) else None),
+                                   encoding="utf-8")
     return commit_message(stats)
 
 

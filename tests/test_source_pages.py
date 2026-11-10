@@ -86,7 +86,7 @@ def test_page_and_json(tmp_path):
         f"{RAW}/tiny/x/main/all.txt": record(10, 9),
     })
     out = tmp_path / "public"
-    assert sourcepages.write_source_pages(quality, out, NOW) == ["sources/"]
+    assert sourcepages.write_source_pages(quality, out, NOW) == ["sources/", "benchmark/"]  # always, links point there
     page = (out / "sources" / "index.html").read_text(encoding="utf-8")
     assert "<h1>Which free proxy lists actually work?</h1>" in page
     assert 'href="https://github.com/a/lists"' in page and "2.0 %" in page

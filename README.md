@@ -56,7 +56,7 @@ The package is `proxy-scraper-cli` on PyPI (the plain name is taken). Once [inst
 | Command | Where the proxies come from | Checked | Takes |
 |---|---|---|---|
 | `proxy-scraper --pick 5` | the [published list](#live-list) | from GitHub's servers when the list was built, about every hour | under a second |
-| `proxy-scraper --pick 5 --verify` | the published list | **now, from your network** | seconds to a minute and a half at most |
+| `proxy-scraper --pick 5 --verify` | the published list | **now, from your network** | seconds; the checks stop after 90 s, plus a few seconds to load the list |
 | `proxy-scraper -y` | every list the tool knows | now, from your network | minutes (about three in the hourly runs) |
 
 **What you get**
@@ -148,9 +148,9 @@ curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-lis
 
 **Where they come from:** [which free proxy lists actually work](https://proxy-scraper.de/sources/) ranks every source of the hourly runs – how many proxies each one lists, how many passed every check and the share. The same as data: [sources.json](https://proxy-scraper.de/sources.json).
 
-**Over time:** every day the first run's `proxies.json` is kept for good as a gzipped asset of the release of that year, like [snapshots-2026](../../releases/tag/snapshots-2026) – `proxies-2026-09-28.json.gz` and so on, for anyone who wants to look at free proxies over weeks and months.
+**Over time:** every day the first run's `proxies.json` is kept for good as a gzipped asset of the release of that year, like [snapshots-2026](../../releases/tag/snapshots-2026) – `proxies-2026-09-27.json.gz` and so on, for anyone who wants to look at free proxies over weeks and months.
 
-Every file is also on GitHub Pages, which sits behind a CDN, isn't rate limited like raw.githubusercontent and sends CORS headers, so it works straight from the browser: `https://proxy-scraper.de/socks5.txt`. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) works too, but can lag behind by a few hours.
+Every file is also on the website, which isn't rate limited like raw.githubusercontent and sends CORS headers, so it works straight from the browser: `https://proxy-scraper.de/socks5.txt`. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) works too, but can lag behind by a few hours.
 
 Or let the tool start from it: `proxy-scraper --recheck live` downloads the list and checks it again from **your** network – well under a minute instead of a full scan. How many still work from your network differs a lot from the list's own count, which is the point of checking again. Add `--serve` and the result is a rotating proxy.
 
@@ -271,7 +271,7 @@ pool = itertools.cycle(p.url for p in proxies)
 r = requests.get("https://api.ipify.org", proxies={"https": next(pool)}, timeout=15)  # pip install "requests[socks]"
 ```
 
-Same filters as `find_proxies`, plus `min_uptime`, `works_on` (`["google"]`, `"reddit"`, `"amazon"`, `"instagram"`, `"tiktok"`, `"discord"`) and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours` and `sites`.
+It filters by `types`, `countries`, `https`, `anonymity`, `max_latency`, `no_datacenter` and `no_blocklisted` like `find_proxies`, plus `min_uptime`, `min_speed` (KiB/s), `works_on` (`["google"]`, `"reddit"`, `"amazon"`, `"instagram"`, `"tiktok"`, `"discord"`) and `limit`. Every result also has `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours`, `sites` and `speed_kbps`.
 
 Or let the library do the retrying: `ProxyRotator` loads a URL through the list and moves on to the next proxy when one fails, and `proxy_url()` gives requests, httpx, Playwright or Scrapy one local address that rotates behind the scenes – [Python API: rotating through the list](docs/python.md).
 
@@ -439,7 +439,7 @@ proxy-scraper stands on the work of the people who publish free proxy lists. Tha
 - [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list), whose curated source collections are read as meta sources
 - [Textualize/rich](https://github.com/Textualize/rich), which draws the whole terminal UI
 - [IP Geolocation by DB-IP](https://db-ip.com) – the free country database (CC BY 4.0) used for offline country lookups
-- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) and [ip-api.com](https://ip-api.com), used as check targets and for country lookups
+- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) and [ip-api.com](https://ip-api.com), used as check targets and for country lookups, and [speed.cloudflare.com](https://speed.cloudflare.com) for the download speed
 
 ## Disclaimer
 

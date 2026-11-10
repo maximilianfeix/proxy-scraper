@@ -54,7 +54,7 @@ El paquete se llama `proxy-scraper-cli` en PyPI (el nombre sin sufijo ya estaba 
 | Comando | De dónde salen los proxies | Comprobados | Tarda |
 |---|---|---|---|
 | `proxy-scraper --pick 5` | de la [lista publicada](#live-list) | desde los servidores de GitHub cuando se generó la lista, más o menos cada hora | menos de un segundo |
-| `proxy-scraper --pick 5 --verify` | de la lista publicada | **ahora, desde tu red** | de segundos a un minuto y medio como máximo |
+| `proxy-scraper --pick 5 --verify` | de la lista publicada | **ahora, desde tu red** | segundos; las comprobaciones se detienen a los 90 s, más unos segundos para cargar la lista |
 | `proxy-scraper -y` | de todas las listas que conoce la herramienta | ahora, desde tu red | minutos (unos tres en las ejecuciones horarias) |
 
 **Qué obtienes**
@@ -221,9 +221,9 @@ Cada protocolo y cada país tiene además su propia página con una descarga sim
 curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt | head
 ```
 
-**Con el tiempo:** cada día el `proxies.json` de la primera ejecución se conserva de forma permanente como un recurso comprimido en gzip de la release de ese año, como [snapshots-2026](../../releases/tag/snapshots-2026): `proxies-2026-09-28.json.gz` y así sucesivamente, para quien quiera estudiar los proxies gratuitos a lo largo de semanas y meses.
+**Con el tiempo:** cada día el `proxies.json` de la primera ejecución se conserva de forma permanente como un recurso comprimido en gzip de la release de ese año, como [snapshots-2026](../../releases/tag/snapshots-2026): `proxies-2026-09-27.json.gz` y así sucesivamente, para quien quiera estudiar los proxies gratuitos a lo largo de semanas y meses.
 
-Cada archivo está también en GitHub Pages, que va detrás de una CDN, no tiene límite de peticiones como raw.githubusercontent y envía cabeceras CORS, así que funciona directamente desde el navegador: `https://proxy-scraper.de/socks5.txt`. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) también sirve, pero puede ir con unas horas de retraso.
+Cada archivo está también en el sitio web, que no tiene límite de peticiones como raw.githubusercontent y envía cabeceras CORS, así que funciona directamente desde el navegador: `https://proxy-scraper.de/socks5.txt`. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) también sirve, pero puede ir con unas horas de retraso.
 
 O deja que la herramienta parta de ella: `proxy-scraper --recheck live` descarga la lista y la vuelve a comprobar desde **tu** red: bastante menos de un minuto en lugar de un escaneo completo. Cuántos siguen funcionando desde tu red difiere mucho de la cifra de la propia lista, y por eso merece la pena volver a comprobar. Añade `--serve` y el resultado es un proxy rotativo.
 
@@ -323,7 +323,7 @@ Si se inicia sin argumentos, la herramienta te pregunta qué necesitas con las t
 <td width="50%" valign="top">
 
 **Rápido**<br>
-Más de 350 listas curadas, además de las que se encuentran a través de metalistas y de la búsqueda en GitHub (entre 750 y 820 aproximadamente en las ejecuciones horarias), descargadas en paralelo. Las listas grandes se analizan en todos los núcleos de la CPU, y los handshakes HTTP/SOCKS escritos a mano se ejecutan directamente sobre `asyncio`, 2.000 comprobaciones a la vez.
+Más de 350 listas curadas, además de las que se encuentran a través de metalistas y de la búsqueda en GitHub (entre 781 y 869 activas en las ejecuciones horarias del 3 al 10 de noviembre de 2026), descargadas en paralelo. Las listas grandes se analizan en todos los núcleos de la CPU, y los handshakes HTTP/SOCKS escritos a mano se ejecutan directamente sobre `asyncio`, 2.000 comprobaciones a la vez.
 
 </td>
 </tr>
@@ -331,7 +331,7 @@ Más de 350 listas curadas, además de las que se encuentran a través de metali
 <td valign="top">
 
 **Verificación real**<br>
-Cada acierto tiene que responder a **una segunda petición** a un sitio no relacionado con la misma IP de salida: en más de 3,6 millones de comprobaciones, el 54 % de los proxies que respondieron a la primera petición no superaron la segunda. Una tercera petición descarga **una página de prueba estática que tiene que llegar byte por byte**: en el 5,2 % de los proxies que llegaron hasta ahí no fue así. Por qué un proxy falla una u otra (inestable, una salida que rota, una página modificada o cortada) es algo que esas ejecuciones no registraron; desde la versión 1.30 cada resultado lleva un código de motivo ([las cifras](docs/free-proxies-in-numbers.md), [estados de las comprobaciones](docs/check-states.md)). Además: HTTPS a través de un túnel con **un certificado TLS que se verifica** para el host de prueba, nivel de anonimato *elite / anonymous / transparent* y el país de la IP de salida.
+Cada acierto tiene que responder a **una segunda petición** a un sitio no relacionado con la misma IP de salida. Una tercera petición descarga **una página de prueba estática que tiene que llegar byte por byte**. Cada comprobación termina con un código de motivo. En las 591 ejecuciones publicadas del 16 de octubre al 10 de noviembre de 2026 (88,65 millones de primeras peticiones): el 51 % de los proxies que respondieron a la primera petición no superaron la segunda, una *IP de salida distinta* fue el 2,1 % de ese paso y los tiempos de espera agotados el 30,4 %; de las comprobaciones de contenido, el 5,7 % recibió bytes distintos y el 27 % no pudo comparar porque no llegó ninguna página ([por qué fallan los proxies gratuitos](docs/why-free-proxies-fail.md), [las cifras](docs/free-proxies-in-numbers.md), [estados de las comprobaciones](docs/check-states.md)). Además: HTTPS a través de un túnel con **un certificado TLS que se verifica** para el host de prueba, nivel de anonimato *elite / anonymous / transparent* y el país de la IP de salida.
 
 </td>
 <td valign="top">
@@ -379,7 +379,7 @@ macOS, Linux y Windows, Python 3.9 a 3.14. Solo dos dependencias: `rich` y `cert
 <td valign="top">
 
 **Probado a fondo**<br>
-Más de 1.100 tests se ejecutan sin conexión contra mini proxies reales con defectos conocidos en `localhost`, en Linux, macOS y Windows con Python 3.9, 3.11, 3.13 y 3.14.
+Más de 1.400 tests se ejecutan sin conexión contra mini proxies reales con defectos conocidos en `localhost`, en Linux, macOS y Windows con Python 3.9, 3.11, 3.13 y 3.14.
 
 </td>
 </tr>
@@ -461,7 +461,7 @@ pool = itertools.cycle(p.url for p in proxies)
 r = requests.get("https://api.ipify.org", proxies={"https": next(pool)}, timeout=15)  # pip install "requests[socks]"
 ```
 
-Mismos filtros que `find_proxies`, más `min_uptime`, `works_on` (`["google"]`, `"reddit"`, `"amazon"`, `"instagram"`, `"tiktok"`, `"discord"`) y `limit`. Cada resultado tiene además `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours` y `sites`.
+Filtra por `types`, `countries`, `https`, `anonymity`, `max_latency`, `no_datacenter` y `no_blocklisted` como `find_proxies`, y además por `min_uptime`, `min_speed` (KiB/s), `works_on` (`["google"]`, `"reddit"`, `"amazon"`, `"instagram"`, `"tiktok"`, `"discord"`) y `limit`. Cada resultado tiene además `uptime_24h`, `uptime_7d`, `first_seen`, `up_for_hours`, `sites` y `speed_kbps`.
 
 O deja que la biblioteca se encargue de los reintentos: `ProxyRotator` carga una URL a través de la lista y pasa al siguiente proxy cuando uno falla; HTTPS solo a través de proxies con TLS verificado.
 
@@ -531,7 +531,7 @@ Sin contraseña, el servidor no arranca en ninguna dirección que no sea `127.0.
 - cada conexión pasa por un proxy distinto (salvo con sticky); se prefieren los rápidos y probados
 - `CONNECT` para HTTPS y peticiones HTTP simples; detrás pueden estar proxies HTTP, SOCKS4 y SOCKS5 (SOCKS5 con DNS a través del proxy)
 - HTTPS prefiere los proxies que pasaron la prueba con **TLS verificado**; cuando ahora mismo no hay ninguno que encaje (ninguno cumple una petición como `country-de`, o todos han salido de la rotación) usa los demás; la comprobación de certificados de tu propio cliente sigue detectando un proxy que rompe el cifrado, así que déjala activada
-- si un proxy se queda en silencio dentro del túnel o devuelve una página de error en lugar de TLS, el mismo primer paquete pasa discretamente al siguiente
+- si un proxy se queda en silencio dentro del túnel o devuelve una página de error en lugar de TLS, el mismo primer paquete pasa discretamente al siguiente, pero solo cuando enviarlo dos veces no puede hacer nada dos veces: un handshake TLS (sin datos 0-RTT), nada en absoluto, o la cabecera de una única petición `GET`/`HEAD`/`OPTIONS`/`TRACE`
 - tres fallos seguidos y un proxy sale de la rotación; cada 5 minutos se vuelven a comprobar y regresan si vuelven a funcionar
 - `--serve-refill 6` comprueba proxies nuevos cada 6 horas en segundo plano (la lista en vivo con `--recheck live`, o si no la última ejecución + historial) con las mismas comprobaciones y filtros, y añade los aciertos: un servidor que lleva días en marcha no se queda sin proxies
 - escucha solo en `127.0.0.1` (salvo que `--serve-host` diga otra cosa), opcionalmente con contraseña; vista en vivo con peticiones, tasa de éxito, pool y las últimas conexiones
@@ -603,11 +603,11 @@ flowchart LR
 ```
 
 1. **Fuentes**: la lista curada en [`sources.json`](proxyscraper/sources.json), metafuentes (otros proyectos que mantienen listas de fuentes de proxies) y, una vez al día, una búsqueda en GitHub de repositorios mantenidos activamente. Cada búsqueda suma a lo que encontraron las anteriores; una lista que la búsqueda no ha visto en tres semanas se descarta.
-2. **Recopilar**: se reconocen texto simple, tablas HTML, APIs JSON y líneas `type://ip:port`; se descartan los rangos de direcciones privadas y reservadas. Las listas que no han cambiado desde la última ejecución responden `304` y salen de una caché local: una segunda ejecución justo después de la primera descarga solo lo que cambió (en una ejecución horaria registrada, 52 MB, con 431 de 746 listas sin cambios).
+2. **Recopilar**: se reconocen texto simple, tablas HTML, APIs JSON y líneas `type://ip:port`; se descartan los rangos de direcciones privadas y reservadas. Las listas que no han cambiado desde la última ejecución responden `304` y salen de una caché local: una segunda ejecución justo después de la primera descarga solo lo que cambió (en la ejecución horaria del 10 de noviembre de 2026, 11:22 UTC: 125 MB, con 538 de las 791 listas activas sin cambios).
 3. **Priorizar**: primero los proxies que se sabe que funcionan, luego según la tasa de aciertos aprendida de sus fuentes.
 4. **Comprobar**: cada proxy tiene que obtener su IP de salida de un objetivo de comprobación (`checkip.amazonaws.com`, con `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` e `ident.me` como reserva; ninguno detrás de Cloudflare) y devolver una IP válida y *ajena*. Si el objetivo se cae a mitad de ejecución, la herramienta cambia de objetivo y vuelve a comprobar los proxies afectados, para que las estadísticas no aprendan de una caída. A los objetivos de las comprobaciones posteriores se les pregunta directamente cuando una comprobación contra ellos falla; si tampoco responden, la comprobación del proxy queda como `unavailable`, no como `failed`. Quien deje pasar tu propia IP queda fuera. Después llega la **segunda petición** mediante `httpbin.org`, que tiene que ver la misma IP de salida: los proxies que solo responden a la primera comprobación con “200 + IP” fallan aquí, igual que los inestables y las salidas que rotan. Por último, una página HTML estática tiene que llegar byte por byte igual que sin proxy. Cada una de ellas deja [su resultado](docs/check-states.md) en el resultado del proxy.
-5. **Países y proveedores**: se consultan sin conexión en las bases de datos gratuitas de DB-IP, incluido el proveedor (ASN) y si el nombre del proveedor parece el de una empresa de hosting (entre el 45 % y el 65 % de las entradas en las listas que examinamos) (se descargan una vez al mes, ~2 µs por consulta); a ip-api.com solo se le pregunta por las pocas direcciones que no conoce.
-6. **Listas negras**: una consulta DNS por IP de salida contra SpamCop, en caché durante la ejecución: entre el 28 % y el 43 % de las entradas salían por una IP listada en las listas que examinamos, y los sitios que usan esa lista les muestran captchas o los bloquean. `--no-blocklisted` los descarta. Si SpamCop rechaza tu resolutor DNS (los grandes resolutores públicos lo son), la consulta se omite en lugar de adivinar.
+5. **Países y proveedores**: se consultan sin conexión en las bases de datos gratuitas de DB-IP, incluido el proveedor (ASN) y si el nombre del proveedor parece el de una empresa de hosting (entre el 31 % y el 72 % de las entradas en las instantáneas diarias del 27 de septiembre al 10 de noviembre de 2026) (se descargan una vez al mes, ~2 µs por consulta); a ip-api.com solo se le pregunta por las pocas direcciones que no conoce.
+6. **Listas negras**: una consulta DNS por IP de salida contra SpamCop, en caché durante la ejecución: entre el 21 % y el 53 % de las entradas de esas mismas instantáneas salían por una IP listada, y los sitios que usan esa lista les muestran captchas o los bloquean. `--no-blocklisted` los descarta. Si SpamCop rechaza tu resolutor DNS (los grandes resolutores públicos lo son), la consulta se omite en lugar de adivinar.
 7. **Aprender**: se guardan las tasas de aciertos y el historial. Las fuentes sin aciertos, con el contenido sin cambios durante una semana o permanentemente inaccesibles se omiten.
 
 <details>
@@ -812,7 +812,7 @@ pip download requests   # git, pip, npm y compañía ahora pasan por el pool
     https: true
     min-uptime: 90        # en la lista el 90 % o más de la semana
     min-speed: 100        # opcional: descargó 100+ KB/s en la última comprobación
-    works-on: google      # opcional: google, reddit, amazon
+    works-on: google      # opcional: google, reddit, amazon, instagram, tiktok, discord
     recheck: true         # opcional: volver a comprobarlos desde el runner
 - run: curl -x "${{ steps.proxies.outputs.proxy }}" https://api.ipify.org
 ```
@@ -865,12 +865,18 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--no-blocklisted` | omite proxies cuya IP de salida está en la lista negra de SpamCop: esos suelen recibir captchas |
 | `--no-dnsbl` | omite la consulta de listas negras |
 | `--target URL` | solo proxies que llegan a este sitio (repetible) |
-| `--recheck [FILE\|-\|live]` | comprueba solo proxies de un archivo, de stdin (`-`), de la última ejecución o de la lista pública en vivo |
+| `--recheck [FILE\|URL\|-\|live]` | comprueba solo proxies de un archivo, de una URL, de stdin (`-`), de la última ejecución o de la lista pública en vivo |
 | `--fast` | omite la prueba HTTPS (la confirmación y el anonimato se siguen ejecutando) |
 | `--no-geo` | omite la consulta de país |
 | `-c`, `--concurrency N` | comprobaciones simultáneas (por defecto: 2000) |
 | `-t`, `--timeout S` | tiempo de espera por proxy (por defecto: 8 s) |
+| `--connect-timeout S` | tiempo máximo para la conexión TCP (por defecto: 4 s) |
 | `--discover` | busca nuevas fuentes en GitHub ahora mismo |
+| `--no-discover` | sin búsqueda automática en GitHub |
+| `--discover-repos N` | como máximo N repositorios por búsqueda (por defecto: 400, 40 sin token) |
+| `--all-sources` | carga también las fuentes omitidas por muertas, desactualizadas o inaccesibles |
+| `--source URL\|FILE` | carga además esta lista (repetible); `socks5=…` fija el tipo, véase [tus propias listas](#how-it-works) |
+| `--only-sources` | solo las listas indicadas con `--source` |
 | `--no-cache` | descarga de nuevo todas las listas (las que no han cambiado normalmente se omiten mediante ETag) |
 | `--list-sources [N]` | muestra el ranking de fuentes (añade `--json` para scripts: url, estado, tasa de aciertos, comprobaciones, último cambio) |
 | `--pick [N]` | imprime N proxies (por defecto 1) de la lista horaria ya comprobada y sale: sin escaneo, mismos filtros, más `--min-uptime PERCENT`, `--min-speed KBPS` y `--works-on google,reddit,…` |
@@ -884,8 +890,9 @@ curl.exe -x (Get-Content "$run\all.txt" -TotalCount 1) http://api.ipify.org
 | `--serve-refill HOURS` | mientras sirve, comprueba proxies nuevos cada HOURS y añade los aciertos al pool |
 | `--serve [PORT]` | después sirve como proxy rotativo en `127.0.0.1:PORT` (por defecto: 8899) |
 | `-o FILE` | escribe además todos los aciertos en este archivo; `-o -` los imprime en stdout |
-| `--export FORMATS` | archivos adicionales para otras herramientas: `proxychains`, `clash`, `singbox`, `curl`, `pac` o `all` |
+| `--export FORMATS` | archivos adicionales para otras herramientas: `proxychains`, `clash`, `singbox`, `curl`, `pac`, `proxifier` o `all` |
 | `-V`, `--version` | imprime la versión |
+| `--mcp` | se ejecuta como servidor MCP por stdio, igual que `proxy-scraper-mcp` ([MCP](#mcp)) |
 | `--completion SHELL` | imprime el script de autocompletado para bash, zsh, fish o PowerShell |
 
 Todo lo demás: `proxy-scraper --help`
@@ -905,12 +912,15 @@ El repositorio hace parte del trabajo por sí mismo:
 |---|---|
 | [**tests**](../../actions/workflows/tests.yml) | 3 sistemas operativos × 4 versiones de Python, más un paquete compilado e instalado, en cada push y pull request |
 | [**lint**](../../actions/workflows/lint.yml) | `ruff` con versión fijada: mismas reglas en local y en CI |
-| [**codeql**](../../actions/workflows/codeql.yml) | análisis de seguridad en cada push y una vez por semana |
-| [**proxy list**](../../actions/workflows/proxy-list.yml) | más o menos cada hora: recopila, comprueba y publica en `proxy-list`. Las estadísticas aprendidas viven en la caché de Actions, así que la herramienta sigue mejorando también en la nube |
+| [**codeql**](../../actions/workflows/codeql.yml) | análisis de seguridad en cada push a `main`, en cada pull request y una vez por semana |
+| [**proxy list**](../../actions/workflows/proxy-list.yml) | más o menos cada hora: recopila, comprueba, publica en `proxy-list`, sube el sitio web a proxy-scraper.de y copia las listas a free-proxy-list. Las estadísticas aprendidas viven en la caché de Actions, así que la herramienta sigue mejorando también en la nube |
 | [**docker**](../../actions/workflows/docker.yml) | construye la imagen en cada cambio y ejecuta un escaneo real dentro de ella; con una etiqueta de versión publica `linux/amd64` + `linux/arm64` en `ghcr.io` |
 | [**release**](../../actions/workflows/release.yml) | con una etiqueta de versión: prueba, compila, hace un smoke test y publica una release de GitHub con el wheel |
 | [**discord bot**](../../actions/workflows/bot.yml) | prueba el bot y lo despliega en el servidor en cada cambio en `bot/` |
-| **Dependabot** | mantiene al día las versiones de las actions |
+| [**live smoke**](../../actions/workflows/live-smoke.yml) | una vez al día: la GitHub Action y unos pocos proxies reales contra la lista en vivo, sin bloquear pull requests |
+| [**scorecard**](../../actions/workflows/scorecard.yml) | OpenSSF Scorecard una vez por semana |
+| [**hf-rebuild**](../../actions/workflows/hf-rebuild.yml) | a mano: regenera todos los archivos Parquet del dataset de Hugging Face a partir de las instantáneas |
+| **Dependabot** | mantiene al día las versiones de las actions, las dependencias de Python y la imagen base de Docker |
 
 <a id="faq"></a>
 
@@ -927,7 +937,7 @@ Casi nadie gestiona un proxy gratuito para ti. Lo que acaba en las listas públi
 - **Servidores mal configurados**: un Squid, un router o una aplicación con un puerto de proxy que debía permanecer interno.
 - **Proxies abiertos deliberadamente**: unos pocos voluntarios y proyectos de investigación, y servicios que regalan algunos para vender el resto.
 - **Máquinas infectadas**: equipos y dispositivos IoT cuyos dueños no saben que retransmiten tráfico. Muchas salidas residenciales son así.
-- **Trampas**: honeypots que registran lo que pasa por ellos, y proxies que reescriben las páginas para inyectar anuncios o scripts.
+- **Trampas**: proxies montados para registrar lo que pasa por ellos, y proxies que reescriben las páginas para añadir anuncios o scripts.
 
 Esto es contexto general, no algo que este proyecto haya medido: una comprobación no puede ver quién gestiona un proxy ni por qué.
 
@@ -957,7 +967,7 @@ Sí, en PowerShell y Windows Terminal. `uvloop` no existe allí y se omite autom
 <summary><b>¿Por qué encuentra menos proxies de los que dicen tener otras listas?</b></summary>
 <br>
 
-Porque solo se conservan los proxies que superan todas las comprobaciones: dos peticiones independientes que muestran la misma IP de salida ajena, y una página de prueba que llega sin cambios. En las ejecuciones horarias eso es alrededor del 1 % de los 150.000 candidatos comprobados. Las superaron desde la red que los comprobó, en ese momento.
+Porque solo se conservan los proxies que superan todas las comprobaciones: dos peticiones independientes que muestran la misma IP de salida ajena, y una página de prueba que llega sin cambios. En las ejecuciones horarias eso es bastante menos del 1 % de los 300.000 candidatos comprobados (entre el 0,2 % y el 1,3 % por ejecución del 3 al 10 de noviembre de 2026; la cifra actual es `total` en [`stats.json`](https://proxy-scraper.de/stats.json)). Las superaron desde la red que los comprobó, en ese momento.
 
 </details>
 
@@ -1042,7 +1052,7 @@ proxyscraper/
 ├── geodb.py            base de datos de países de DB-IP (mensual, búsqueda binaria)
 ├── targets.py          sitios objetivo para --target
 ├── output.py           archivos de resultados
-├── exporters.py        formatos proxychains, Clash, sing-box, curl y PAC (--export)
+├── exporters.py        formatos proxychains, Clash, sing-box, curl, PAC y Proxifier (--export)
 ├── server/             servidor proxy rotativo (--serve): pool · http · upstream · socks · status · api · core
 ├── api.py              find_proxies() / check_proxies() para Python
 ├── agent.py            herramientas MCP sin el SDK: lista en vivo, filtros, descarga a través de proxies
@@ -1088,7 +1098,7 @@ proxy-scraper se apoya en el trabajo de quienes publican listas de proxies gratu
 - [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) y [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list), cuyas colecciones curadas de fuentes se leen como metafuentes
 - [Textualize/rich](https://github.com/Textualize/rich), que dibuja toda la interfaz de terminal
 - [IP Geolocation by DB-IP](https://db-ip.com): la base de datos gratuita de países (CC BY 4.0) usada para las consultas de país sin conexión
-- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) e [ip-api.com](https://ip-api.com), usados como objetivos de comprobación y para las consultas de país
+- [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) e [ip-api.com](https://ip-api.com), usados como objetivos de comprobación y para las consultas de país, y [speed.cloudflare.com](https://speed.cloudflare.com) para la velocidad de descarga
 
 ## Aviso legal
 

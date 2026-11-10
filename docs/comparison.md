@@ -70,7 +70,7 @@ For a shared, persistent pool behind Redis, proxy_pool is the better fit. proxy-
 
 Where the others are the better choice:
 
-- **monosans/proxy-scraper-checker** if you don't want Python: one binary with signed build provenance, and with the default settings every proxy it keeps passed a TLS-verified fetch (whether its published list is built with the defaults was not verified). It has 27 times the stars.
+- **monosans/proxy-scraper-checker** if you don't want Python: one binary with signed build provenance, and with the default settings every proxy it keeps passed a TLS-verified fetch (whether its published list is built with the defaults was not verified). It has about 17 times the stars (10 Nov 2026).
 - **jhao104/proxy_pool** for a long-running shared pool with a 2-minute re-check loop and per-proxy counters, and by far the most stars of the four. HTTP only, and its HTTPS check doesn't verify certificates.
 - **bluet/proxybroker2** for watching a negotiation fail step by step, for IPv6, and for cookie, referer and POST checks. Installed from git, pre-releases only, certificate verification off by default.
 - **proxy-scraper** for a few checked proxies with no setup, checking a pasted list, seeing what each check found, and a local rotating endpoint without a database.

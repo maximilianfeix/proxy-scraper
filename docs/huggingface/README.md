@@ -35,8 +35,8 @@ non_hoster.groupby("country").size().sort_values(ascending=False).head()
 
 ## How a proxy gets in
 
-About every hour 150,000 candidates are checked, out of roughly 1.2–1.4 million listed protocol/address
-combinations. Proxies that passed before and sources with a good hit rate go first. An entry is kept only if it
+About every hour 150,000 candidates are checked, out of 0.75 to 1.9 million listed protocol/address
+combinations (hourly runs of 3 to 10 Nov 2026). Proxies that passed before and sources with a good hit rate go first. An entry is kept only if it
 
 1. completes a real protocol handshake (HTTP CONNECT, SOCKS4 or SOCKS5) and a first request that returns a public
    exit IP that is not ours,
@@ -47,8 +47,9 @@ combinations. Proxies that passed before and sources with a good hit rate go fir
    determined,
 4. for `https = true`, tunnels to one test host on port 443 with a TLS certificate that verifies, at check time.
 
-Of 3.6 million checks of that prioritised sample in one day, 1.1 % passed. A day's snapshot holds between 1,000
-and 2,200 proxies.
+In 24 runs on 28 and 29 Sep 2026, 1.1 % of the checks of that prioritised sample passed; in the published runs of
+3 to 10 Nov 2026 it was between 0.2 % and 1.3 % per run. A day's snapshot held between 523 and 2,350 proxies
+from 27 Sep to 10 Nov 2026.
 
 ## Fields
 
@@ -98,7 +99,7 @@ snapshots in the GitHub release also carries `checked_at` and `checks`: how each
 
 - Free proxies are run by strangers: misconfigured servers, infected machines and traps. Don't send credentials
   or personal data through them.
-- Checks run from GitHub Actions in the US; a proxy can behave differently from another network.
+- Checks run from GitHub-hosted runners; a proxy can behave differently from another network.
 - A snapshot is the first published run of each UTC day; the live list on the
   [`proxy-list` branch](https://github.com/maximilianfeix/proxy-scraper/tree/proxy-list) and in
   [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) is rebuilt about every hour.

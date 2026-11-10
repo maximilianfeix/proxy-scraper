@@ -23,11 +23,11 @@ flowchart LR
 ```
 
 1. **Sources** – the curated list in [`sources.json`](../proxyscraper/sources.json), meta sources (other projects that maintain lists of proxy sources) and, once a day, a GitHub search for actively maintained repos. Every search adds to what earlier ones found; a list the search hasn't seen for three weeks drops out. Lists found by the search or named in someone else's meta list are only downloaded from public addresses: every address the name resolves to and every redirect is checked, and the connection goes to the address that was checked – a list whose name points to `127.0.0.1`, your router or another internal address is skipped. The curated lists and your own (`--source`, also `localhost` and files) are not restricted.
-2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads only what changed (in one logged hourly run 52 MB, with 431 of 746 lists unchanged).
+2. **Collect** – plain text, HTML tables, JSON APIs and `type://ip:port` lines are recognized; private and reserved address ranges are dropped. Lists that haven't changed since the last run answer `304` and come from a local cache – a second run right after the first loads only what changed (in the hourly run of 10 Nov 2026, 11:22 UTC: 125 MB, with 538 of the 791 active lists unchanged).
 3. **Prioritize** – known working proxies first, then by the learned hit rate of their sources.
 4. **Check** – every proxy has to fetch its exit IP from a check target (`checkip.amazonaws.com`, with `ifconfig.me`, `ipinfo.io`, `wtfismyip.com` and `ident.me` as reserves – none of them behind Cloudflare) and return a valid, *foreign* IP. If the target goes down mid-run, the tool switches and re-checks the proxies that were affected, so the statistics don't learn from an outage. The targets of the later checks are asked directly when a check against them fails; if they don't answer either, the proxy's check is `unavailable`, not `failed`. Anyone passing your own IP through is out. Then comes the **second request** via `httpbin.org`, which has to see the same exit IP: proxies that only answer the first check with “200 + IP” fail here, and so do unstable ones and exits that rotate. Finally a static HTML page has to arrive byte for byte as it does without a proxy. Each of these leaves [its outcome](check-states.md) on the result.
-5. **Countries and providers** – looked up offline in the free DB-IP databases, including the provider (ASN) and whether the provider's name looks like a hosting company (between 45 % and 65 % of the entries in the lists we looked at) (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
-6. **Blocklists** – one DNS lookup per exit IP against SpamCop, cached for the run: between 28 % and 43 % of the entries exited from a listed IP in the lists we looked at, and sites that use the list show those captchas or block them. `--no-blocklisted` drops them. If your DNS resolver is refused by SpamCop (large public resolvers are), the lookup is skipped instead of guessing.
+5. **Countries and providers** – looked up offline in the free DB-IP databases, including the provider (ASN) and whether the provider's name looks like a hosting company (between 31 % and 72 % of the entries in the daily snapshots from 27 Sep to 10 Nov 2026) (downloaded once a month, ~2 µs per lookup); ip-api.com is only asked for the few addresses it doesn't know.
+6. **Blocklists** – one DNS lookup per exit IP against SpamCop, cached for the run: between 21 % and 53 % of the entries in the same snapshots exited from a listed IP, and sites that use the list show those captchas or block them. `--no-blocklisted` drops them. If your DNS resolver is refused by SpamCop (large public resolvers are), the lookup is skipped instead of guessing.
 7. **Learn** – hit rates and history are stored. Sources without hits, with content unchanged for a week or permanently unreachable are skipped.
 
 <details>
@@ -54,7 +54,7 @@ Started without arguments, the tool asks what you need using the arrow keys – 
 <td width="50%" valign="top">
 
 **Fast**<br>
-350+ curated lists, plus the ones found through meta lists and GitHub search (about 750 to 820 in the hourly runs), fetched in parallel. Large lists are parsed on all CPU cores, and hand-written HTTP/SOCKS handshakes run directly on `asyncio`, 2,000 checks at once.
+350+ curated lists, plus the ones found through meta lists and GitHub search (781 to 869 active in the hourly runs from 3 to 10 Nov 2026), fetched in parallel. Large lists are parsed on all CPU cores, and hand-written HTTP/SOCKS handshakes run directly on `asyncio`, 2,000 checks at once.
 
 </td>
 </tr>
@@ -62,7 +62,7 @@ Started without arguments, the tool asks what you need using the arrow keys – 
 <td valign="top">
 
 **Real verification**<br>
-Every hit has to answer **a second request** to an unrelated site with the same exit IP: over 3.6 million checks, 54 % of the proxies that answered the first request did not pass the second. A third request fetches **a static test page that has to arrive byte for byte**: for 5.2 % of the proxies that got that far it didn't. Why a proxy fails either one (unstable, a rotating exit, a changed or cut-off page) is not something those runs recorded; from 1.30 on every result carries a reason code, and 132 published runs now say what those failures are: across 19.8 million checks, a *different exit IP* on the second request is 1.81 % of that step, while plain timeouts are 27.9 % ([why free proxies fail](why-free-proxies-fail.md), [the numbers](free-proxies-in-numbers.md), [check states](check-states.md)). Plus: HTTPS through a tunnel with **a TLS certificate that verifies** for the test host, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
+Every hit has to answer **a second request** to an unrelated site with the same exit IP. A third request fetches **a static test page that has to arrive byte for byte**. Every check ends with a reason code. In the 591 published runs from 16 Oct to 10 Nov 2026 (88.65 million first requests): 51 % of the proxies that answered the first request did not pass the second, a *different exit IP* was 2.1 % of that step and timeouts were 30.4 %; of the content checks, 5.7 % got different bytes and 27 % could not compare because no page came back ([why free proxies fail](why-free-proxies-fail.md) has an earlier window, [the numbers](free-proxies-in-numbers.md), [check states](check-states.md)). Plus: HTTPS through a tunnel with **a TLS certificate that verifies** for the test host, anonymity level *elite / anonymous / transparent* and the country of the exit IP.
 
 </td>
 <td valign="top">
@@ -110,7 +110,7 @@ macOS, Linux and Windows, Python 3.9 to 3.14. Only two dependencies: `rich` and 
 <td valign="top">
 
 **Thoroughly tested**<br>
-1,100+ tests run offline against real mini proxies with known flaws on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11, 3.13 and 3.14.
+1,400+ tests run offline against real mini proxies with known flaws on `localhost` – on Linux, macOS and Windows with Python 3.9, 3.11, 3.13 and 3.14.
 
 </td>
 </tr>
@@ -144,12 +144,15 @@ The repo does part of the work itself:
 |---|---|
 | [**tests**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/tests.yml) | 3 operating systems × 4 Python versions, plus a built and installed package – on every push and pull request |
 | [**lint**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/lint.yml) | `ruff` with a pinned version – same rules locally and in CI |
-| [**codeql**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml) | security analysis on every push and once a week |
-| [**proxy list**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/proxy-list.yml) | about every hour: collect, check, publish to `proxy-list`. The learned statistics live in the Actions cache, so the tool keeps getting better in the cloud too |
+| [**codeql**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/codeql.yml) | security analysis on every push to `main`, every pull request and once a week |
+| [**proxy list**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/proxy-list.yml) | about every hour: collect, check, publish to `proxy-list`, upload the website to proxy-scraper.de and mirror the lists to free-proxy-list. The learned statistics live in the Actions cache, so the tool keeps getting better in the cloud too |
 | [**docker**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/docker.yml) | builds the image on every change and runs a real scan inside it; on a version tag it publishes `linux/amd64` + `linux/arm64` to `ghcr.io` |
 | [**release**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/release.yml) | on a version tag: test, build, smoke-test and publish a GitHub release with the wheel |
 | [**discord bot**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/bot.yml) | tests the bot and deploys it to the server on every change in `bot/` |
-| **Dependabot** | keeps the action versions up to date |
+| [**live smoke**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/live-smoke.yml) | once a day: the GitHub Action and a few real proxies against the live list, without blocking pull requests |
+| [**scorecard**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/scorecard.yml) | OpenSSF Scorecard once a week |
+| [**hf-rebuild**](https://github.com/maximilianfeix/proxy-scraper/actions/workflows/hf-rebuild.yml) | by hand: rebuilds every Parquet file of the Hugging Face dataset from the snapshots |
+| **Dependabot** | keeps the action versions, the Python dependencies and the Docker base image up to date |
 
 ## Project structure
 

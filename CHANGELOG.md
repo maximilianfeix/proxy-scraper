@@ -10,11 +10,13 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ### Changed
 - The website moved from GitHub Pages to its own domain, https://proxy-scraper.de/ (own server). The hourly run uploads it there; canonical links, sitemap, feeds, the bookmarklet and the docs point to the new address. The `proxy-list` branch and its raw files stay as they are
 - The Discord/Telegram bot links to and reads from https://proxy-scraper.de; `CITATION.cff` and the PyPI documentation link point there too
+- The README of the list repository (`free-proxy-list`, written by `mirror.py`) starts with the raw URLs to copy, a "checked every hour" badge (from `run_hours`) and the repository's stars. Every list links to GitHub raw, jsDelivr and proxy-scraper.de; usage has `curl`, `wget` and Python up front, Node.js and Go folded away. A new section explains each check, which lists need it and how many proxies passed it in the run (`run.json`), the share of checked candidates that made the list replaces the fixed "150,000", and a star-history chart sits next to the star request. Without `run.json` those numbers are left out
 
 ### Fixed
 - The weekly report feed got a second entry for the same week after the move, because entries were matched by their full id (which contained the old address). Entries are matched by week now and only one per week is kept
 - The live list for the MCP tools and the Python API came only from the website, which is uploaded separately and may lag behind; when the website's copy is out of date the `proxy-list` branch is asked too and the newer list wins
 - The website upload gave every unchanged file a new timestamp each hour, so browsers and crawlers never got a `304`; unchanged files keep their time now
+- Docs checked against the current code and the live data of 10 Nov 2026: outdated numbers replaced by dated ones (sources, candidates, datacenter and blocklist shares, reason-code totals, test count), the GitHub Action example now uses a tag that exists, the options table lists every option, the website is described as its own server instead of GitHub Pages, and withdrawn wording is gone from the FAQ, the background pages and the translations. `--completion` help names PowerShell too
 
 ## [1.31.0] – 2026-10-23
 

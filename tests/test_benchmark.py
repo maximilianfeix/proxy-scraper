@@ -28,7 +28,17 @@ def test_only_the_popular_lists_highest_share_first():
 
 def test_names_match_whatever_their_case_and_ties_go_to_more_working_proxies():
     picked = benchmark.select([entry("thespeedx/proxy-list", 1000, 20), entry("JETKAI/proxy-list", 5000, 100)])
-    assert [s["name"] for s in picked] == ["JETKAI/proxy-list", "thespeedx/proxy-list"]
+    assert [s["name"] for s in picked] == ["jetkai/proxy-list", "TheSpeedX/PROXY-List"]  # spelled as in POPULAR
+
+
+def test_one_repository_under_two_spellings_is_one_row():
+    picked = benchmark.select([entry("TheSpeedX/PROXY-List", 4000, 80), entry("thespeedx/proxy-list", 900, 30)])
+    assert [(s["name"], s["checked"]) for s in picked] == [("TheSpeedX/PROXY-List", 4000)]
+
+
+def test_an_unreachable_list_shows_no_old_count():
+    row = dict(entry("jetkai/proxy-list", 5000, 100), status="unreachable", listed=123456)
+    assert "123,456" not in benchmark.page(benchmark.select([row]), NOW)
 
 
 def test_too_few_checked_lists_are_shown_last_without_a_place():
@@ -88,10 +98,11 @@ def test_names_are_escaped_everywhere(tmp_path):
     assert "<b>" not in svg and "&lt;b&gt;&amp;evil" in svg
 
 
-def test_nothing_popular_nothing_written(tmp_path):
+def test_nothing_popular_still_writes_the_page_so_links_never_break(tmp_path):
     out = tmp_path / "public"
-    assert benchmark.write_benchmark([entry("someone/else", 1000, 10)], out, NOW) == []
-    assert not (out / "benchmark").exists() and not (out / "benchmark.json").exists()
+    assert benchmark.write_benchmark([entry("someone/else", 1000, 10)], out, NOW) == ["benchmark/"]
+    page = (out / "benchmark" / "index.html").read_text(encoding="utf-8")
+    assert "Too few of their proxies have been checked yet" in page and "0 popular" not in page
 
 
 def test_page_without_any_ranked_list_says_so():

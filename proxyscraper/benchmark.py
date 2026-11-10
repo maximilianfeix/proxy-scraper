@@ -12,7 +12,7 @@ import statistics
 from datetime import datetime, timezone
 from html import escape
 from pathlib import Path
-from typing import List, Optional
+from typing import Dict, List, Optional
 from xml.sax.saxutils import escape as xml_escape
 
 from .charts import FONT, THEMES, WIDTH
@@ -34,8 +34,15 @@ STATUS = {"outdated": "unchanged for a week", "unreachable": "doesn't load", "de
 def select(ranking: List[dict]) -> List[dict]:
     """The popular lists out of the ranking of all sources, highest share first. Each gets "rank": its place, or
     None when too few of its proxies were checked to compare it (those go last)."""
-    wanted = {name.lower() for name in POPULAR}
-    picked = [dict(s) for s in ranking if s["name"].lower() in wanted and s.get("checked")]
+    wanted = {name.lower(): name for name in POPULAR}
+    # GitHub names ignore case, the sources don't: the same repository can come in under two spellings. The same
+    # files fetched twice carry the same proxies, so keep the entry with the most checks (not the sum), named as here.
+    best: Dict[str, dict] = {}
+    for s in ranking:
+        key = s["name"].lower()
+        if key in wanted and s.get("checked") and (key not in best or s["checked"] > best[key]["checked"]):
+            best[key] = dict(s, name=wanted[key])
+    picked = list(best.values())
     ranked = sorted((s for s in picked if s["checked"] >= MIN_CHECKED),
                     key=lambda s: (-s["share"], -s["working"], s["name"].lower()))
     rest = sorted((s for s in picked if s["checked"] < MIN_CHECKED), key=lambda s: s["name"].lower())
@@ -128,17 +135,19 @@ def _table(lists: List[dict], now: datetime) -> str:
         stamp = escape(s["last_change"] or "", quote=True)
         changed = (f'<time datetime="{stamp}">{escape(ago(s["last_change"], now))}</time>' if s.get("last_change")
                    else "–") + (f' <span class="muted">· {note}</span>' if note else "")
+        listed = "–" if s.get("status") == "unreachable" else f'{s["listed"]:,}'
         place = s["rank"] if s.get("rank") else '<span class="muted" title="too few checked to compare">–</span>'
         bar = (f'<span class="bar" aria-hidden="true"><i style="width:{100 * s["share"] / most:.0f}%"></i></span>'
                if s.get("rank") else "")
         return (f'<tr><td class="num">{place}</td><td><a href="{escape(s["url"], quote=True)}" '
-                f'rel="nofollow noopener">{escape(s["name"])}</a></td><td class="num">{s["listed"]:,}</td>'
+                f'rel="nofollow noopener">{escape(s["name"])}</a></td><td class="num">{listed}</td>'
                 f'<td class="num">{s["checked"]:,}</td><td class="num">{s["working"]:,}</td>'
                 f'<td class="num"><span class="share-cell">{bar}<span>{s["share"]:.1f}&nbsp;%</span></span></td>'
                 f'<td>{changed}</td></tr>')
 
     rows = "\n".join(row(s) for s in lists)
-    return ('<div class="table"><table><caption>Per list, in an average recent run: proxies in the latest download, '
+    return ('<div class="table" tabindex="0" role="region" aria-label="The popular lists compared">'
+            '<table><caption>Per list, in an average recent run: proxies in the latest download, '
             'how many of them were checked, how many passed every check and their share. Highest share first.'
             '</caption><thead><tr><th scope="col" class="num">#</th><th scope="col">List</th>'
             '<th scope="col" class="num">Proxies listed</th><th scope="col" class="num">Checked</th>'
@@ -165,11 +174,11 @@ def page(lists: List[dict], updated: datetime) -> str:
                  '<dd>proxies checked per run, counted per list</dd></div>')
     else:
         typical = 0.0
-        lede = (f"{len(lists)} popular free proxy lists on GitHub, checked about every hour. Too few of their proxies "
-                f"have been checked yet to compare them; the table fills up with the next runs. Updated {when}.")
-        facts = f'<div><dt>{len(lists)}</dt><dd>popular lists compared</dd></div>'
-    description = (f"{len(lists)} popular free proxy lists on GitHub, checked every hour: the share of their proxies "
-                   f"that pass a handshake, a second request and an unchanged test page"
+        lede = ("Popular free proxy lists on GitHub, checked about every hour. Too few of their proxies have been "
+                f"checked yet to compare them; the table fills up with the next runs. Updated {when}.")
+        facts = f'<div><dt>{len(lists)}</dt><dd>popular lists compared</dd></div>' if lists else ""
+    description = ("Popular free proxy lists on GitHub, checked every hour: the share of their proxies "
+                   "that pass a handshake, a second request and an unchanged test page"
                    + (f" ranges from {ranked[-1]['share']:.1f} % to {ranked[0]['share']:.1f} %." if ranked else "."))
     dataset = json.dumps({
         "@context": "https://schema.org", "@type": "Dataset", "name": title, "description": description,
@@ -234,12 +243,12 @@ def page(lists: List[dict], updated: datetime) -> str:
     </ul>
     <p><strong>Share</strong> is the proxies that passed against the proxies checked from that list. Both are averages
     of recent runs in which every run counts twice as much as the one before it, so the latest run makes up about half
-    and the last few hours almost all of it. <strong>Proxies listed</strong> is the latest download, which is why
-    <em>checked</em> can come out a little above it.</p>
-    <p>One run checks the most promising 150,000 candidates from all the lists it knows, so of a big list only a part
-    is checked each time. That part is not a random sample: proxies that worked before go first. A proxy that several
-    lists carry counts for each of them, and all files of one repository count as one list. Lists with fewer than
-    {MIN_CHECKED:,} proxies checked per run are shown without a place.</p>
+    and the last few hours almost all of it. <strong>Proxies listed</strong> is the latest successful download, which
+    is why <em>checked</em> can come out a little above it.</p>
+    <p>One run checks only the most promising part of the candidates from all the lists it knows, so of a big list
+    only a part is checked each time. That part is not a random sample: proxies that worked before go first. A proxy
+    that several lists carry counts for each of them, and all files of one repository count as one list. Lists with
+    fewer than {MIN_CHECKED:,} proxies checked per run are shown without a place.</p>
     <p>This is one measurement from one data center network, not a judgment of the maintainers. Many of these lists
     publish what they collect without filtering it, refresh at different times or are meant for other uses; a low share
     mostly means that many entries were offline or didn't pass at the moment they were checked. From your own network
@@ -266,10 +275,8 @@ def page(lists: List[dict], updated: datetime) -> str:
 
 def write_benchmark(ranking: List[dict], out: Path, updated: datetime) -> List[str]:
     """Writes benchmark/index.html, benchmark.json and the chart in both themes -> the paths for the sitemap
-    (none when none of the popular lists has been checked)."""
+    (always, so the links to it never point at nothing; without checked lists the page says so)."""
     lists = select(ranking)
-    if not lists:
-        return []
     folder = out / "benchmark"
     folder.mkdir(parents=True, exist_ok=True)
     (folder / "index.html").write_text(page(lists, updated), encoding="utf-8")

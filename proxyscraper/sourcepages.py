@@ -16,6 +16,7 @@ from pathlib import Path
 from typing import Dict, List, Optional, Tuple
 from urllib.parse import urlsplit
 
+from .benchmark import write_benchmark
 from .pages import CSS, PAGE_CSS, REPO_URL, SITE_URL
 from .sources import DECAY, GH_RAW, SourceRecord, SourceStats
 
@@ -160,6 +161,7 @@ def page(ranking: List[dict], updated: datetime) -> str:
     <p class="lede">{escape(lede)}</p>
     <div class="actions">
       <a class="btn primary" href="{root}#list">The proxies that passed</a>
+      <a class="btn" href="{root}benchmark/">The popular GitHub lists compared</a>
       <a class="btn" href="{root}sources.json">All sources as JSON</a>
       <a class="btn" href="{REPO_URL}/issues/new?template=new_source.yml">Add a list</a>
     </div>
@@ -196,7 +198,8 @@ def page(ranking: List[dict], updated: datetime) -> str:
 
 
 def write_source_pages(quality: Optional[SourceStats], out: Path, updated: datetime) -> List[str]:
-    """Writes sources/index.html and sources.json -> the paths for the sitemap (none without statistics)."""
+    """Writes sources/index.html and sources.json, plus the comparison of the popular GitHub lists (benchmark.py)
+    -> the paths for the sitemap (none without statistics)."""
     ranking = rank(quality, updated) if quality is not None else []
     if not ranking:
         return []
@@ -206,4 +209,4 @@ def write_source_pages(quality: Optional[SourceStats], out: Path, updated: datet
     (out / "sources.json").write_text(json.dumps(
         {"updated": updated.isoformat(timespec="seconds"), "sources": ranking}, indent=1, ensure_ascii=False),
         encoding="utf-8")
-    return ["sources/"]
+    return ["sources/", *write_benchmark(ranking, out, updated)]

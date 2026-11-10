@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.32.1] – 2026-11-10
+
 ### Changed
 - **Back to 150,000 candidates per run.** The hourly runs with 300,000 on 10 Nov passed the basic check about as
   often as before (1,682–2,701 vs 1,795–2,578): the second 150,000 are lists whose proxies almost never answer. The
@@ -434,7 +436,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.32.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.32.1...HEAD
+[1.32.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.29.0...v1.30.0

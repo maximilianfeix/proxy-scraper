@@ -44,7 +44,7 @@ Sur PyPI, le paquet s'appelle `proxy-scraper-cli` (le nom simple était pris). U
 | Commande | D'où viennent les proxys | Vérifiés | Durée |
 |---|---|---|---|
 | `proxy-scraper --pick 5` | de la [liste publiée](#live-list) | depuis les serveurs de GitHub, au moment où la liste a été construite, environ toutes les heures | moins d'une seconde |
-| `proxy-scraper --pick 5 --verify` | de la liste publiée | **maintenant, depuis votre réseau** | de quelques secondes à une minute et demie au maximum |
+| `proxy-scraper --pick 5 --verify` | de la liste publiée | **maintenant, depuis votre réseau** | quelques secondes ; les vérifications s'arrêtent après 90 s, plus quelques secondes pour charger la liste |
 | `proxy-scraper -y` | de toutes les listes que l'outil connaît | maintenant, depuis votre réseau | quelques minutes (environ trois dans les exécutions horaires) |
 
 **Ce que vous obtenez**
@@ -110,7 +110,7 @@ Pas envie de scanner vous-même ? GitHub Actions lance l'outil environ toutes le
 | Compatibles HTTPS seulement | `type://ip:port` | `…/https.txt` |
 | Elite seulement | `type://ip:port` | `…/elite.txt` |
 | Passent chez Google · Reddit · Amazon · Instagram · TikTok · Discord | `type://ip:port` | `…/works-with/google.txt` · `…/works-with/reddit.txt` · … |
-| Stables (présents dans 90 %+ des exécutions de la semaine) | `type://ip:port` | `…/stable.txt` |
+| Stables (présents dans au moins 90 % des exécutions de la semaine) | `type://ip:port` | `…/stable.txt` |
 | Avec tous les détails | latence, pays, HTTPS, anonymat, IP de sortie, disponibilité | `…/proxies.json` · `…/proxies.csv` |
 
 Chaque protocole et chaque pays a aussi sa page avec un téléchargement direct, par exemple [SOCKS5](https://proxy-scraper.de/socks5/) ou [France](https://proxy-scraper.de/country/fr/) (`country/fr/proxies.txt`).
@@ -120,9 +120,9 @@ curl -s https://proxy-scraper.de/socks5.txt | head
 ```
 
 > [!TIP]
-> Les fichiers sont aussi sur GitHub Pages, derrière un CDN – sans la limite de débit de `raw.githubusercontent.com` et avec des en-têtes CORS, donc utilisables directement depuis le navigateur. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) fonctionne aussi, avec parfois quelques heures de retard.
+> Les fichiers sont aussi sur le site web, sans la limite de débit de `raw.githubusercontent.com` et avec des en-têtes CORS, donc utilisables directement depuis le navigateur. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) fonctionne aussi, avec parfois quelques heures de retard.
 
-La vérification se fait depuis les serveurs de GitHub aux États-Unis. `proxy-scraper --recheck live` télécharge la liste et la revérifie depuis **votre** réseau – bien moins d'une minute au lieu d'un scan complet. Le nombre de proxys qui fonctionnent encore depuis votre réseau s'écarte beaucoup du chiffre de la liste, et c'est tout l'intérêt de revérifier. Ajoutez `--serve` et le résultat devient un proxy rotatif.
+La vérification se fait depuis des runners hébergés par GitHub. `proxy-scraper --recheck live` télécharge la liste et la revérifie depuis **votre** réseau – bien moins d'une minute au lieu d'un scan complet. Le nombre de proxys qui fonctionnent encore depuis votre réseau s'écarte beaucoup du chiffre de la liste, et c'est tout l'intérêt de revérifier. Ajoutez `--serve` et le résultat devient un proxy rotatif.
 
 <a id="pool-api"></a>
 
@@ -250,10 +250,10 @@ Pas de Python ? L'image Docker contient tout : `"command": "docker"`, `"args": [
 ## FAQ
 
 **Qui fait tourner les proxys gratuits – et peut-on les utiliser ?**
-Presque personne ne fait tourner un proxy gratuit pour vous. Ce qui atterrit sur les listes publiques, c'est généralement : des serveurs mal configurés avec un port ouvert par erreur ; quelques proxys ouverts volontairement ; des ordinateurs et objets connectés infectés, à l'insu de leurs propriétaires ; et des pièges – des honeypots qui journalisent le trafic et des proxys qui réécrivent les pages. C'est un rappel général, pas quelque chose que ce projet a mesuré : une vérification ne voit pas qui fait tourner un proxy ni pourquoi. proxy-scraper ne distingue pas un routeur domestique infecté d'un proxy de bureau ouvert, mais il filtre ce qui est mesurable : deux requêtes indépendantes doivent montrer la même IP de sortie, une page connue doit arriver octet pour octet, et le HTTPS ne compte qu'avec un certificat valide pour l'hôte de test. Bien pour les données publiques, pour voir un site depuis un autre pays, pour tester ses propres blocages et pour la recherche. N'envoyez jamais de mots de passe, cookies, données de paiement ou personnelles à travers un proxy gratuit.
+Presque personne ne fait tourner un proxy gratuit pour vous. Ce qui atterrit sur les listes publiques, c'est généralement : des serveurs mal configurés avec un port ouvert par erreur ; quelques proxys ouverts volontairement ; des ordinateurs et objets connectés infectés, à l'insu de leurs propriétaires ; et des pièges : des proxys installés pour journaliser le trafic et des proxys qui réécrivent les pages. C'est un rappel général, pas quelque chose que ce projet a mesuré : une vérification ne voit pas qui fait tourner un proxy ni pourquoi. proxy-scraper ne distingue pas un routeur domestique infecté d'un proxy de bureau ouvert, mais il filtre ce qui est mesurable : deux requêtes indépendantes doivent montrer la même IP de sortie, une page connue doit arriver octet pour octet, et le HTTPS ne compte qu'avec un certificat valide pour l'hôte de test. Bien pour les données publiques, pour voir un site depuis un autre pays, pour tester ses propres blocages et pour la recherche. N'envoyez jamais de mots de passe, cookies, données de paiement ou personnelles à travers un proxy gratuit.
 
 **Pourquoi trouve-t-il moins de proxys que d'autres listes n'en promettent ?**
-Parce que seuls restent les proxys qui passent chaque vérification : deux requêtes indépendantes qui montrent la même IP de sortie étrangère, et une page de test qui arrive inchangée. Dans les exécutions horaires, cela représente environ 1 % des 300 000 candidats vérifiés. Ils ont réussi depuis le réseau qui les a vérifiés, à ce moment-là.
+Parce que seuls restent les proxys qui passent chaque vérification : deux requêtes indépendantes qui montrent la même IP de sortie étrangère, et une page de test qui arrive inchangée. Dans les exécutions horaires, cela représente nettement moins de 1 % des 300 000 candidats vérifiés (entre 0,2 % et 1,3 % par exécution du 3 au 10 nov. 2026 ; le chiffre actuel est `total` dans [`stats.json`](https://proxy-scraper.de/stats.json)). Ils ont réussi depuis le réseau qui les a vérifiés, à ce moment-là.
 
 **Presque rien ne passe ?**
 Beaucoup de réseaux d'entreprise, d'école et d'université bloquent les connexions proxy. L'outil remarque un taux de réussite sous 0,2 % et vous prévient – un autre réseau, comme le partage de connexion du téléphone, aide.

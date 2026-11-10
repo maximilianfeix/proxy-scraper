@@ -13,7 +13,7 @@ Almost nobody runs a free proxy for you. What ends up on public lists is usually
 - **Misconfigured servers** – a Squid, a router or an app with a proxy port that was meant to stay internal.
 - **Deliberately open proxies** – a few volunteers and research projects, and services that give some away to sell the rest.
 - **Infected machines** – computers and IoT devices whose owners don't know they relay traffic. Many residential exits are like this.
-- **Traps** – honeypots that log what goes through them, and proxies that rewrite pages to inject ads or scripts.
+- **Traps** – proxies set up to log what goes through them, and proxies that rewrite pages to add ads or scripts.
 
 That is general background, not something this project measured: a check can't see who runs a proxy or why.
 
@@ -43,7 +43,7 @@ Yes, in PowerShell and Windows Terminal. `uvloop` doesn't exist there and is ski
 <summary><b>Why does it find fewer proxies than other lists claim to have?</b></summary>
 <br>
 
-Because only proxies that pass every check are kept: two independent requests that show the same foreign exit IP, and a test page that arrives unchanged. In the hourly runs that is about 1 % of the 300,000 candidates checked. They passed from the network that checked them, at that moment.
+Because only proxies that pass every check are kept: two independent requests that show the same foreign exit IP, and a test page that arrives unchanged. In the hourly runs that is well under 1 % of the 300,000 candidates checked (between 0.2 % and 1.3 % per run from 3 to 10 Nov 2026; the current count is `total` in [`stats.json`](https://proxy-scraper.de/stats.json)). They passed from the network that checked them, at that moment.
 
 </details>
 

@@ -19,6 +19,8 @@ Environment=PROXYBOT_READY_FILE=/run/proxybot/ready
 ExecStart=/opt/proxybot/current/venv/bin/python -m proxybot
 Restart=always
 RestartSec=10
+# exit 2 = a platform refused the token: restarting would only repeat failed logins until someone fixes it
+RestartPreventExitStatus=2
 
 # the bot only needs the network, its own state directory and /run/proxybot (emptied whenever it stops)
 StateDirectory=proxybot

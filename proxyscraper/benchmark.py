@@ -161,7 +161,8 @@ def page(lists: List[dict], updated: datetime) -> str:
         facts = (f'<div><dt>{len(lists)}</dt><dd>popular lists compared</dd></div>'
                  f'<div><dt>{best["share"]:.1f} %</dt><dd>highest share ({escape(best["name"])})</dd></div>'
                  f'<div><dt>{typical:.1f} %</dt><dd>in the typical list (median)</dd></div>'
-                 f'<div><dt>{sum(s["checked"] for s in lists):,}</dt><dd>checks per run across these lists</dd></div>')
+                 f'<div><dt>{sum(s["checked"] for s in lists):,}</dt>'
+                 '<dd>proxies checked per run, counted per list</dd></div>')
     else:
         typical = 0.0
         lede = (f"{len(lists)} popular free proxy lists on GitHub, checked about every hour. Too few of their proxies "

@@ -139,7 +139,7 @@ Many free proxies are blocked or sent to a captcha by the big sites. These got a
 [![Stars of the tool](https://img.shields.io/github/stars/maximilianfeix/proxy-scraper?style=social&label=proxy-scraper)]({REPO_URL})
 
 [Download](#download) · [Quick start](#quick-start) · [By country](#by-country) · [Why this list](#why-this-list) · \
-[Website]({SITE_URL}) · [The tool]({REPO_URL})
+[Website]({SITE_URL}) · [Benchmark]({SITE_URL}benchmark/) · [The tool]({REPO_URL})
 
 </div>
 

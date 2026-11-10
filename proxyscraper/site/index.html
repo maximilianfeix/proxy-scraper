@@ -580,7 +580,8 @@
     .hide-sm { display: none; }
     .btn { height: 48px; padding: 0 20px; }
   }
-  @media (max-width: 380px) { .addr-btn { font-size: 11.5px; } td { padding-inline: 4px; } }
+  @media (max-width: 380px) { .addr-btn { font-size: 11.5px; } td { padding-inline: 4px; } .tabs [role="tab"] { padding: 0 10px; } }
+  .closing .cmd { min-width: 0; max-width: 100%; }
   @media (prefers-reduced-motion: reduce) {
     html.js .transcript.pending p { opacity: 1; transform: none; }
     *, *::before, *::after { animation: none !important; transition: none !important; }
@@ -654,7 +655,7 @@
       </div>
       <aside class="live reveal" style="--o:.5s" aria-labelledby="live-title">
         <div class="live-top">
-          <div class="status" aria-live="polite"><span class="pulse" aria-hidden="true"></span><span id="updated">Loading the latest run…</span><span class="next" id="next-run"></span></div>
+          <div class="status"><span class="pulse" aria-hidden="true"></span><span id="updated">Loading the latest run…</span><span class="next" id="next-run"></span></div>
         </div>
         <h2 class="live-total" id="live-title"><span class="live-n" id="h-total">–</span><span class="live-label">proxies passed every check in the last run</span></h2>
         <div class="split" id="split" role="img" aria-label="Split by protocol, loading"><i class="http"></i><i class="socks4"></i><i class="socks5"></i></div>
@@ -668,7 +669,7 @@
       </aside>
     </div>
 
-    <div class="quick reveal" style="--o:.65s" aria-labelledby="quick-title">
+    <div class="quick reveal" style="--o:.65s" role="region" aria-labelledby="quick-title">
       <div class="quick-intro">
         <h2 id="quick-title">Quick start</h2>
         <p>Fetch the list in one line, or install the CLI and check it again from your own network. <a href="#use">More ways to use it</a></p>
@@ -1055,7 +1056,8 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   async function copy(text, msg) { try { await navigator.clipboard.writeText(text); toast(msg); } catch (e) { toast("Copying isn't allowed here. Select the text instead."); } }
   // Copy and download in the format the viewer picked – plain ip:port is what many tools want
   const CSV_COLS = ["proxy", "ptype", "country", "latency", "speed_kbps", "https", "anonymity", "uptime_7d", "org", "hosting", "blocklisted"];
-  const csvCell = (v) => v == null ? "" : /[",\n]/.test(String(v)) ? `"${String(v).replace(/"/g, '""')}"` : String(v);
+  // a provider name like =HYPERLINK(...) must stay text in a spreadsheet: a leading = + - @ gets an apostrophe
+  const csvCell = (v) => { if (v == null) return ""; let t = String(v); if (typeof v === "string" && /^[=+\-@\t\r]/.test(t)) t = "'" + t; return /[",\n]/.test(t) ? `"${t.replace(/"/g, '""')}"` : t; };
   const FORMATS = {
     url: { ext: "txt", type: "text/plain", text: (rows) => rows.map(r => r.url).join("\n") + "\n" },
     plain: { ext: "txt", type: "text/plain", text: (rows) => rows.map(r => r.proxy).join("\n") + "\n" },
@@ -1112,6 +1114,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   // Count up once the number is visible
   function countTo(el, to, decimals = 0) {
     const show = (v) => { el.textContent = decimals ? v.toFixed(decimals) : fmt(Math.round(v)); };
+    if (!Number.isFinite(to)) { el.textContent = "–"; return; }  // a missing figure is a dash, never NaN or 0
     el._to = to;  // a newer run replaces the target, also while the count waits for the figure to scroll in
     if (calm || el._counted) return show(to);
     if (el._waiting) return;
@@ -1318,11 +1321,12 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     $$("[data-n]").forEach((el) => { el.textContent = n[el.dataset.n] == null ? "–" : fmt(n[el.dataset.n]); });
     countTo($("#h-total"), st.total);
     const sum = TYPES.reduce((a, t) => a + (by[t] || 0), 0);
-    if (!sum) return;
+    const count = (t) => (by[t] == null ? "–" : fmt(by[t]));  // not in stats.json: unknown, not zero
+    if (!sum) { $("#split").setAttribute("aria-label", "Split by protocol: not available"); return; }
     const segs = $$("#split i");
-    TYPES.forEach((t, i) => { segs[i].style.width = `${(100 * (by[t] || 0) / sum).toFixed(2)}%`; segs[i].title = `${TYPE_NAMES[t]}: ${fmt(by[t] || 0)}`; });
+    TYPES.forEach((t, i) => { segs[i].style.width = `${(100 * (by[t] || 0) / sum).toFixed(2)}%`; segs[i].title = `${TYPE_NAMES[t]}: ${count(t)}`; });
     requestAnimationFrame(() => $("#split").classList.add("on"));
-    $("#split").setAttribute("aria-label", "Split by protocol: " + TYPES.map(t => `${TYPE_NAMES[t]} ${fmt(by[t] || 0)}`).join(", "));
+    $("#split").setAttribute("aria-label", "Split by protocol: " + TYPES.map(t => `${TYPE_NAMES[t]} ${count(t)}`).join(", "));
   }
   // Copy buttons that answer in place: the icon turns into a check for a moment
   const announce = $("#copied-live");
@@ -1495,16 +1499,17 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
   // the data sits right next to this page
   // The world map: loaded only when it comes near (d3-geo, topojson and the outlines are ~250 KB)
   const ISO = {"242":"FJ","834":"TZ","732":"EH","124":"CA","840":"US","398":"KZ","860":"UZ","598":"PG","360":"ID","032":"AR","152":"CL","180":"CD","706":"SO","404":"KE","729":"SD","148":"TD","332":"HT","214":"DO","643":"RU","044":"BS","238":"FK","578":"NO","304":"GL","260":"TF","626":"TL","710":"ZA","426":"LS","484":"MX","858":"UY","076":"BR","068":"BO","604":"PE","170":"CO","591":"PA","188":"CR","558":"NI","340":"HN","222":"SV","320":"GT","084":"BZ","862":"VE","328":"GY","740":"SR","250":"FR","218":"EC","630":"PR","388":"JM","192":"CU","716":"ZW","072":"BW","516":"NA","686":"SN","466":"ML","478":"MR","204":"BJ","562":"NE","566":"NG","120":"CM","768":"TG","288":"GH","384":"CI","324":"GN","624":"GW","430":"LR","694":"SL","854":"BF","140":"CF","178":"CG","266":"GA","226":"GQ","894":"ZM","454":"MW","508":"MZ","748":"SZ","024":"AO","108":"BI","376":"IL","422":"LB","450":"MG","275":"PS","270":"GM","788":"TN","012":"DZ","400":"JO","784":"AE","634":"QA","414":"KW","368":"IQ","512":"OM","548":"VU","116":"KH","764":"TH","418":"LA","104":"MM","704":"VN","408":"KP","410":"KR","496":"MN","356":"IN","050":"BD","064":"BT","524":"NP","586":"PK","004":"AF","762":"TJ","417":"KG","795":"TM","364":"IR","760":"SY","051":"AM","752":"SE","112":"BY","804":"UA","616":"PL","040":"AT","348":"HU","498":"MD","642":"RO","440":"LT","428":"LV","233":"EE","276":"DE","100":"BG","300":"GR","792":"TR","008":"AL","191":"HR","756":"CH","442":"LU","056":"BE","528":"NL","620":"PT","724":"ES","372":"IE","540":"NC","090":"SB","554":"NZ","036":"AU","144":"LK","156":"CN","158":"TW","380":"IT","208":"DK","826":"GB","352":"IS","031":"AZ","268":"GE","608":"PH","458":"MY","096":"BN","705":"SI","246":"FI","703":"SK","203":"CZ","232":"ER","392":"JP","600":"PY","887":"YE","682":"SA","010":"AQ","196":"CY","504":"MA","818":"EG","434":"LY","231":"ET","262":"DJ","800":"UG","646":"RW","070":"BA","807":"MK","688":"RS","499":"ME","780":"TT","728":"SS"};
-  const addScript = (src) => new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.onload = ok; s.onerror = fail; document.head.appendChild(s); });
+  // exact versions with their hash: a changed file on the CDN is refused instead of run
+  const addScript = (src, sri) => new Promise((ok, fail) => { const s = document.createElement("script"); s.src = src; s.integrity = sri; s.crossOrigin = "anonymous"; s.onload = ok; s.onerror = fail; document.head.appendChild(s); });
   let mapReady = null, mapCounts = {};
   function drawMap(counts) {
     mapCounts = counts;
     const el = $("#map");
     if (!mapReady) {
-      mapReady = addScript("https://cdn.jsdelivr.net/npm/d3-array@3/dist/d3-array.min.js")
-        .then(() => addScript("https://cdn.jsdelivr.net/npm/d3-geo@3/dist/d3-geo.min.js"))
-        .then(() => addScript("https://cdn.jsdelivr.net/npm/topojson-client@3/dist/topojson-client.min.js"))
-        .then(() => fetch("https://cdn.jsdelivr.net/npm/world-atlas@2/countries-110m.json")).then(r => r.json())
+      mapReady = addScript("https://cdn.jsdelivr.net/npm/d3-array@3.2.4/dist/d3-array.min.js", "sha384-VpKMdU+TlpggHFip46tJ/xkFUs8NFBwLqUMo3+3uiu411lU6eUQYsHVU+JFpA5ja")
+        .then(() => addScript("https://cdn.jsdelivr.net/npm/d3-geo@3.1.1/dist/d3-geo.min.js", "sha384-VNiKRUXp0MmglFfqDwkfuk+Y78C3WTJShdKSaFwOacLR3UmamxHIJLBTD3BadIXD"))
+        .then(() => addScript("https://cdn.jsdelivr.net/npm/topojson-client@3.1.0/dist/topojson-client.min.js", "sha384-Ukv1p/xTma6P4/2bY5KzWBw+ydSpXmhCMtyciIQVDJ1RmOxtCYNMF1uXT9T63H67"))
+        .then(() => fetch("https://cdn.jsdelivr.net/npm/world-atlas@2.0.2/countries-110m.json", { integrity: "sha384-yOCJ+8ShBm8UDqtAVtAvxTDDf4gXo5edxl/YG0FmVC5OTmqVLl7utuVGBDEeZWHf" })).then(r => r.json())
         .then((world) => {
           const W = 960;
           const land = topojson.feature(world, world.objects.countries).features.filter(f => f.properties.name !== "Antarctica");
@@ -1618,6 +1623,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
     let polling = false;
     const tick = async () => {
       const left = Math.round((due - Date.now()) / 60e3);
+      $("#updated").textContent = `Last run ${ago(st.updated)}`;  // a tab left open stays right
       $("#next-run").textContent = left > 1 ? `next check in ${left} min` : "next check any minute";
       if (left > 0 || polling || document.hidden) return;
       polling = true;

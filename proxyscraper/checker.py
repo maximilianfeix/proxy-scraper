@@ -116,7 +116,7 @@ RATE_LIMIT_HEADER_RE = re.compile(rb"(?im)^(?:ratelimit|ratelimit-policy|x-ratel
 # the hourly run's 3 s connect timeout left room for the first two at most, and 58 % of the confirm requests that
 # then failed with connect_timeout had needed more than 0.9 s to connect in the basic check (20 % of the confirmed
 # ones). Follow-up requests connect with at least this long; the time they get after the connect stays as it was,
-# so their whole limit grows by the same amount (6 s → 9 s in the hourly run, see Checker.followup_timeout).
+# so their whole limit grows by the same amount (6 s → 8 s in the hourly run, see Checker.followup_timeout).
 FOLLOWUP_CONNECT_TIMEOUT = 6.0
 # A second or content request that failed in transport is tried once more after RETRY_PAUSE seconds, through the
 # same pacing and 429 handling. Measured in production: retried after ~3 s, 29 % of failed confirms passed (43 of
@@ -474,7 +474,7 @@ class Checker:
         count against the proxy's timeout. start[0] is set to when the last attempt began.
 
         Worst case, pacing aside: three tries of followup_timeout (one transport retry, one after a 429) plus
-        retry_pause and RETRY_AFTER_MAX – 9 + 1.5 + 9 + 3 + 9 = 31.5 s with the hourly run's settings."""
+        retry_pause and RETRY_AFTER_MAX – 8 + 1.5 + 8 + 3 + 8 = 28.5 s with the hourly run's settings."""
         answer = HttpAnswer(0, b"", None)
         retried = rate_limited = False
         while True:

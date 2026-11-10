@@ -143,3 +143,11 @@ def test_a_job_builds_the_wheel_from_the_sdist_and_checks_the_installed_assets()
 def test_the_existing_wheel_and_mcp_smokes_stay(name):
     script = run_lines(workflow("tests.yml")["jobs"][name])
     assert "pip install dist/*.whl" in script and "proxy-scraper-mcp" in script
+
+
+def test_the_hourly_run_gives_the_basic_connect_four_seconds():
+    """Linux sends a lost SYN again after 1 s and 3 s; 3 s cut the second one off right as it went out."""
+    steps = workflow("proxy-list.yml")["jobs"]
+    run = next(step["run"] for job in steps.values() for step in job["steps"]
+               if "proxy_scraper.py" in str(step.get("run", "")))
+    assert "--timeout 6 --connect-timeout 4" in run

@@ -65,7 +65,8 @@ A check that is missing from `checks` never got that far.
 | `timeout` | failed | the proxy accepted the connection but did not answer in time |
 | `connection_closed` | failed | the proxy closed the connection before a complete answer |
 | `connection_error` | failed | the connection through the proxy broke |
-| `bad_status` | failed | the answer through the proxy was not an HTTP 200 |
+| `bad_status` | failed | the answer through the proxy had an HTTP status other than 200 |
+| `no_answer` | failed | the connection through the proxy ended before a complete HTTP response head arrived (up to 1.32.0 this was part of `bad_status`) |
 | `invalid_response` | failed | the answer was not what the target sends |
 | `private_exit_ip` | failed | the exit IP is a private or reserved address – the proxy answered by itself |
 | `own_ip_exposed` | failed | the target saw this machine's own IP |
@@ -76,6 +77,7 @@ A check that is missing from `checks` never got that far.
 | `tls_error` | failed | the TLS handshake inside the tunnel failed |
 | `target_not_configured` | unavailable | the check target did not answer when the run started, so the check never ran |
 | `target_unreachable` | unavailable | the check target did not answer directly either while this was checked (any of the four checks) |
+| `target_rate_limited` | unavailable | the second target (httpbin.org) refused the request with HTTP 429 and its rate-limit headers, also when asked again after its `Retry-After` (second and content request) |
 | `no_reference` | unavailable | there was no reference page to compare with |
 | `local_resource_limit` | unavailable | this machine ran out of sockets or file descriptors |
 | `fast_mode` | skipped | left out with `--fast` |
@@ -83,6 +85,8 @@ A check that is missing from `checks` never got that far.
 | `earlier_check_failed` | skipped | an earlier check did not pass (in `--diagnose` and `--pick --verify` output) |
 
 For the content check, a timeout or an error page is `unavailable` with the connection's reason code: no page came back, so nothing was compared.
+
+httpbin.org answers HTTP 429 above 17 requests per second per client IP, and many free proxies share one exit IP. So the second and the content request are spaced to at most 8 per second per exit IP across all proxies of a run; waiting for a slot doesn't count against the proxy's time limit and lasts at most 30 seconds. A 429 is asked once more after the target's `Retry-After` (at most 3 seconds). If the target still refuses, and its answer carries rate-limit headers (`RateLimit-Policy`, `RateLimit`, `X-RateLimit-*`), the check is `unavailable:target_rate_limited`. A bare 429 without them may be the proxy's own and stays `failed:bad_status`; so does a 503, which can't be told apart from the proxy's own.
 
 ## What a list requires
 

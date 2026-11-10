@@ -46,7 +46,8 @@ REASONS: Dict[str, str] = {
     "timeout": "the proxy accepted the connection but did not answer in time",
     "connection_closed": "the proxy closed the connection before a complete answer",
     "connection_error": "the connection through the proxy broke",
-    "bad_status": "the answer through the proxy was not an HTTP 200",
+    "bad_status": "the answer through the proxy had an HTTP status other than 200",
+    "no_answer": "the connection through the proxy ended before a complete HTTP response head arrived",
     "invalid_response": "the answer was not what the target sends (wrong format or content)",
     "private_exit_ip": "the exit IP is a private or reserved address – the proxy answered by itself",
     "own_ip_exposed": "the target saw this machine's own IP – the proxy does not hide it",
@@ -58,6 +59,7 @@ REASONS: Dict[str, str] = {
     # nothing learned about the proxy
     "target_not_configured": "the check target did not answer when this run started, so the check never ran",
     "target_unreachable": "the check target did not answer directly either while this was checked",
+    "target_rate_limited": "the check target refused the request with HTTP 429 (its rate limit), also when asked again",
     "no_reference": "there was no reference page to compare with",
     "local_resource_limit": "this machine ran out of sockets or file descriptors",
     # left out on purpose
@@ -142,8 +144,9 @@ def reason_for(error: BaseException) -> str:
 
 
 def state_for(reason: str) -> str:
-    """Our own shortage says nothing about the proxy; every other reason here is the proxy's."""
-    return UNAVAILABLE if reason == "local_resource_limit" else FAILED
+    """Our own shortage and the target's rate limit say nothing about the proxy; every other reason here is the
+    proxy's."""
+    return UNAVAILABLE if reason in ("local_resource_limit", "target_rate_limited") else FAILED
 
 
 def legacy_bool(check: Optional[Check]) -> Optional[bool]:

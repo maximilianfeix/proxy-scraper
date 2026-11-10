@@ -16,7 +16,7 @@ import ssl
 import time
 from collections import deque
 from pathlib import Path
-from typing import Callable, Deque, Dict, List, Optional, Set
+from typing import Callable, Deque, Dict, List, Optional, Sequence, Set
 
 from proxyscraper import checker as ck
 from proxyscraper.checkstate import CONFIRM, CONTENT, HTTPS
@@ -83,6 +83,7 @@ class Lab:
         self.rate_limited_reply = RATE_LIMITED
         self._recent: Dict[str, Deque[float]] = {}  # client IP -> times of its requests in the last second
         self.judge_port = self.confirm_port = self.tls_port = self.untrusted_port = 0
+        self.connections: Dict[str, int] = {}  # proxy "ip:port" -> connections it accepted
 
     async def __aenter__(self) -> "Lab":
         self.judge_port = await self._listen(self._judge)
@@ -195,7 +196,8 @@ class Lab:
     async def proxy(self, exit_ip: str, *, second_exit_ip: str = "", rewrite: Optional[Callable[[bytes], bytes]] = None,
                     only_first_target: bool = False, no_connect: bool = False, breaks_tls: bool = False,
                     answers_after: float = 0.0, garbage: bool = False, adds_header: str = "",
-                    hangs_up_on_second: bool = False, port: int = 0) -> str:
+                    hangs_up_on_second: bool = False, drops: Sequence[int] = (), stalls: Sequence[int] = (),
+                    port: int = 0) -> str:
         """An HTTP proxy that forwards to the lab's targets, with one flaw at most:
 
         second_exit_ip     the second target sees another address (a rotating or chained exit)
@@ -207,9 +209,20 @@ class Lab:
         garbage            answers every request with a page of its own
         adds_header        a header line it adds to forwarded requests (e.g. "X-Forwarded-For: 203.0.113.1")
         hangs_up_on_second closes the connection without a word when asked for the second target
+        drops              these connections (1 = the first it accepts) are closed at once, nothing read or sent –
+                           what a check sees of a lost SYN or a first accept that never came through
+        stalls             these connections are held open without an answer
         """
+        address = ""
+
         async def handle(reader, writer) -> None:
+            n = self.connections[address] = self.connections.get(address, 0) + 1
             try:
+                if n in drops:
+                    return
+                if n in stalls:
+                    await reader.read(-1)
+                    return
                 head = await reader.readuntil(b"\r\n\r\n")
                 if answers_after:
                     await asyncio.sleep(answers_after)
@@ -254,7 +267,8 @@ class Lab:
             finally:
                 writer.close()
 
-        return f"127.0.0.1:{await self._listen(handle, port=port)}"
+        address = f"127.0.0.1:{await self._listen(handle, port=port)}"
+        return address
 
     async def _upstream(self, port: int, exit_ip: str):
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
@@ -290,8 +304,9 @@ class Lab:
                        confirm_ip="127.0.0.1" if confirm else None, https_test=https_test,
                        judge=Judge("localhost", "/", self.judge_port),
                        integrity_reference=await self.reference() if reference and confirm else None,
-                       confirm_host="localhost", confirm_port=self.confirm_port)
+                       confirm_host="localhost", confirm_port=self.confirm_port, followup_connect_timeout=timeout)
         c.https_port, c.tls_context, c.reserved_exit_ips_ok = self.tls_port, client_context(), True
+        c.retry_pause = 0.05  # the pause before a second try: no need to wait seconds on localhost
         if controls:
             c.controls = {
                 CONFIRM: lambda: ck.probe_confirm_target("127.0.0.1", 1.0, self.confirm_port),

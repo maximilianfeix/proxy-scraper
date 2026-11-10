@@ -17,7 +17,7 @@ jobs:
     steps:
       - name: Get proxies
         id: proxies
-        uses: maximilianfeix/proxy-scraper@v1.27.1
+        uses: maximilianfeix/proxy-scraper@v1.31.0
         with:
           types: socks5
           https: "true"

@@ -12,6 +12,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 - The weekly report feed got a second entry for the same week after the move, because entries were matched by their full id (which contained the old address). Entries are matched by week now and only one per week is kept
 - The live list for the MCP tools and the Python API came only from the website, which is uploaded separately and may lag behind; when the website's copy is out of date the `proxy-list` branch is asked too and the newer list wins
 - The website upload gave every unchanged file a new timestamp each hour, so browsers and crawlers never got a `304`; unchanged files keep their time now
+- Docs checked against the current code and the live data of 10 Nov 2026: outdated numbers replaced by dated ones (sources, candidates, datacenter and blocklist shares, reason-code totals, test count), the GitHub Action example now uses a tag that exists, the options table lists every option, the website is described as its own server instead of GitHub Pages, and withdrawn wording is gone from the FAQ, the background pages and the translations. `--completion` help names PowerShell too
 
 ## [1.31.0] – 2026-10-23
 

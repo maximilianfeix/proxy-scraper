@@ -26,9 +26,9 @@ Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
 
 ```bash
 pipx install sigstore
-sigstore verify github proxy_scraper_cli-1.27.0-py3-none-any.whl \
-  --bundle proxy_scraper_cli-1.27.0-py3-none-any.whl.sigstore.json \
+sigstore verify github proxy_scraper_cli-1.31.0-py3-none-any.whl \
+  --bundle proxy_scraper_cli-1.31.0-py3-none-any.whl.sigstore.json \
   --repository maximilianfeix/proxy-scraper
 ```
 
-Workflows pin every action by commit SHA, install Python packages by hash, run CodeQL on every push and the [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/maximilianfeix/proxy-scraper) weekly. `main` is protected against force pushes and deletion.
+Workflows pin every action by commit SHA, install Python packages by hash, run CodeQL on every push to `main`, every pull request and once a week, and the [OpenSSF Scorecard](https://scorecard.dev/viewer/?uri=github.com/maximilianfeix/proxy-scraper) weekly. `main` is protected against force pushes and deletion.

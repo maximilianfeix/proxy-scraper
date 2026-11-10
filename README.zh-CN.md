@@ -44,7 +44,7 @@ PyPI 上的包名是 `proxy-scraper-cli`（不带后缀的名字已被占用）�
 | 命令 | 代理来源 | 检测时间和位置 | 耗时 |
 |---|---|---|---|
 | `proxy-scraper --pick 5` | [已发布的列表](#live-list) | 列表生成时从 GitHub 的服务器检测，大约每小时一次 | 不到一秒 |
-| `proxy-scraper --pick 5 --verify` | 已发布的列表 | **现在，从你的网络** | 几秒，最长一分半钟 |
+| `proxy-scraper --pick 5 --verify` | 已发布的列表 | **现在，从你的网络** | 几秒；检测最多 90 秒，另加几秒加载列表 |
 | `proxy-scraper -y` | 工具已知的所有列表 | 现在，从你的网络 | 几分钟（每小时的运行大约三分钟） |
 
 **你能得到什么**
@@ -123,9 +123,9 @@ curl -s https://proxy-scraper.de/socks5.txt | head
 ```
 
 > [!TIP]
-> 如果 `raw.githubusercontent.com` 访问不稳定，优先使用上面的 **GitHub Pages** 地址（有 CDN、支持 CORS）。也可以用 jsDelivr：`https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/socks5.txt`（可能会延迟几个小时）。
+> 如果 `raw.githubusercontent.com` 访问不稳定，优先使用上面的 **proxy-scraper.de** 地址（没有 raw.githubusercontent 那样的速率限制，支持 CORS）。也可以用 jsDelivr：`https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/socks5.txt`（可能会延迟几个小时）。
 
-这些代理是从 GitHub 位于美国的服务器上检测的。`proxy-scraper --recheck live` 会下载列表并从**你自己的网络**重新检测一遍，远不到一分钟，不必完整扫描。从你的网络还能用的数量，和列表自己的数字相差很大，这正是重新检测的意义。
+这些代理是从 GitHub 托管的运行器（runner）上检测的。`proxy-scraper --recheck live` 会下载列表并从**你自己的网络**重新检测一遍，远不到一分钟，不必完整扫描。从你的网络还能用的数量，和列表自己的数字相差很大，这正是重新检测的意义。
 
 <a id="pool-api"></a>
 
@@ -206,7 +206,7 @@ proxy-scraper --types socks5 --anonymity elite         # 高匿 SOCKS5
 proxy-scraper --country US,JP,SG --max-latency 1500    # 指定国家和最大延迟
 proxy-scraper --target www.google.com --want 20        # 只保留能访问目标网站的代理
 proxy-scraper --pick 5 --types socks5                  # 直接从每小时列表取 5 个，不扫描
-proxy-scraper --export clash                           # 导出 Clash 配置（也支持 proxychains、sing-box、curl）
+proxy-scraper --export clash                           # 导出 Clash 配置（也支持 proxychains、sing-box、curl、PAC 和 Proxifier）
 ```
 
 全部选项：`proxy-scraper --help`，或查看[英文文档](README.md#options)。
@@ -237,10 +237,10 @@ proxy-scraper --export clash                           # 导出 Clash 配置（�
 ## 常见问题
 
 **谁在运行免费代理？可以放心使用吗？**
-几乎没有人是专门为你提供的。公开列表上的代理通常是：配置错误、端口意外开放的服务器；少数有意开放的代理；被感染而主人并不知情的电脑和物联网设备；以及陷阱——记录流量的蜜罐和改写网页的代理。以上是一般性的背景，并不是本项目测量出来的结论：检测看不出代理由谁运行、出于什么目的。proxy-scraper 无法区分被感染的家用路由器和开放的办公代理，但会过滤它能测量的部分：两次独立请求必须显示相同的出口 IP，已知页面必须逐字节一致，HTTPS 只在证书对测试主机验证通过时才算数。适合公开数据、查看其他国家的网站效果、测试自己的封禁规则和科研；绝不要通过免费代理发送密码、Cookie、支付或个人信息。
+几乎没有人是专门为你提供的。公开列表上的代理通常是：配置错误、端口意外开放的服务器；少数有意开放的代理；被感染而主人并不知情的电脑和物联网设备；以及陷阱：有意记录流量的代理和改写网页的代理。以上是一般性的背景，并不是本项目测量出来的结论：检测看不出代理由谁运行、出于什么目的。proxy-scraper 无法区分被感染的家用路由器和开放的办公代理，但会过滤它能测量的部分：两次独立请求必须显示相同的出口 IP，已知页面必须逐字节一致，HTTPS 只在证书对测试主机验证通过时才算数。适合公开数据、查看其他国家的网站效果、测试自己的封禁规则和科研；绝不要通过免费代理发送密码、Cookie、支付或个人信息。
 
 **为什么比其他列表的代理少？**
-因为只保留通过全部检测的代理：两次独立请求显示同一个外部出口 IP，测试页面原样到达。在每小时的运行中，这大约是所检测的 15 万个候选代理的 1%。它们是在那个时刻、从执行检测的那个网络通过的。
+因为只保留通过全部检测的代理：两次独立请求显示同一个外部出口 IP，测试页面原样到达。在每小时的运行中，这远低于所检测的 15 万个候选代理的 1%（2026 年 11 月 3 日至 10 日，每次运行在 0.2% 到 1.3% 之间）。它们是在那个时刻、从执行检测的那个网络通过的。
 
 **几乎什么都检测不通过？**
 很多公司、学校和部分网络环境会拦截代理连接。工具在命中率低于 0.2% 时会给出提示，换一个网络（例如手机热点）通常有帮助。

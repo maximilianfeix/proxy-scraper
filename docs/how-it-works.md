@@ -181,6 +181,7 @@ proxyscraper/
 ├── mcp_server.py       MCP server (proxy-scraper-mcp) for AI agents
 ├── publish.py          live list for GitHub Actions
 ├── sourcepages.py      the ranking of the sources on the website
+├── benchmark.py        the popular GitHub lists compared (benchmark page, JSON, chart)
 ├── mirror.py           the same lists in their own repo (free-proxy-list)
 ├── paths.py            where state and results are stored
 ├── compat.py           differences between Unix and Windows

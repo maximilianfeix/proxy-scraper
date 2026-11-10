@@ -174,3 +174,98 @@ def test_the_helper_reads_a_response_that_arrives_in_parts():
             await server.wait_closed()
 
     assert asyncio.run(go()).endswith(b"first half, second half")
+
+
+async def _request(port, path, headers=()):
+    reader, writer = await asyncio.open_connection("127.0.0.1", port)
+    extra = "".join(f"{name}: {value}\r\n" for name, value in headers)
+    writer.write(f"GET {path} HTTP/1.1\r\n{extra}\r\n".encode())
+    await writer.drain()
+    data = await asyncio.wait_for(reader.read(), 5)
+    writer.close()
+    return data
+
+
+def test_without_a_password_a_host_name_gets_no_api_answer():
+    """DNS rebinding: a website points its own name at 127.0.0.1 and reads /all same-origin – its name is in the
+    Host header. Without a password the API only answers to an IP address or localhost."""
+    async def client(port):
+        return {host: await _request(port, "/all", [("Host", host)]) for host in
+                ["evil.example", f"evil.example:{port}", f"127.0.0.1:{port}", f"localhost:{port}", f"[::1]:{port}"]}
+
+    answers = run_server(client)
+    assert answers.pop("evil.example").startswith(b"HTTP/1.1 403")
+    assert answers.pop(next(h for h in answers if h.startswith("evil"))).startswith(b"HTTP/1.1 403")
+    assert all(a.startswith(b"HTTP/1.1 200") for a in answers.values())
+
+
+def test_with_a_password_a_host_name_may_use_the_api():
+    auth = "Basic " + base64.b64encode(b"any:s3cret").decode()
+
+    async def client(port):
+        return await _request(port, "/get", [("Host", "proxy.example.com"), ("Authorization", auth)])
+
+    assert run_server(client, password="s3cret").startswith(b"HTTP/1.1 200")
+
+
+@pytest.mark.parametrize("path", ["/delete?proxy=10.0.0.1:80", "/pop", "/report?proxy=10.0.0.1:80&ok=0",
+                                  "/delete/?proxy=10.0.0.1:80"])
+@pytest.mark.parametrize("headers", [
+    [("Sec-Fetch-Site", "cross-site")],          # <img src="http://127.0.0.1:8899/delete?..."> elsewhere
+    [("Sec-Fetch-Site", "same-site")],
+    [("Origin", "https://evil.example")],        # older browsers: only Origin
+    [("Origin", "null")],
+])
+def test_another_website_cannot_change_the_pool(path, headers):
+    async def client(port):
+        answer = await _request(port, path, [("Host", f"127.0.0.1:{port}"), *headers])
+        return answer, await _request(port, "/count", [("Host", f"127.0.0.1:{port}")])
+
+    answer, count = run_server(client)
+    assert answer.startswith(b"HTTP/1.1 403")
+    assert json.loads(count.partition(b"\r\n\r\n")[2])["count"]["total"] == 2  # nothing was taken out
+
+
+def test_curl_and_the_servers_own_pages_can_still_change_the_pool():
+    async def client(port):
+        host = ("Host", f"127.0.0.1:{port}")
+        return [await _request(port, "/report?proxy=10.0.0.1:80&ok=0", [host]),  # curl: no Origin, no Sec-Fetch
+                await _request(port, "/report?proxy=10.0.0.1:80&ok=0", [host, ("Sec-Fetch-Site", "none")]),
+                await _request(port, "/delete?proxy=10.0.0.1:80", [host, ("Sec-Fetch-Site", "same-origin"),
+                                                                   ("Origin", f"http://127.0.0.1:{port}")]),
+                await _request(port, "/get", [host, ("Sec-Fetch-Site", "cross-site")])]  # reading: CORS guards it
+
+    assert all(a.startswith(b"HTTP/1.1 200") for a in run_server(client))
+
+
+def _with_login():
+    return pool(CheckResult("http alice:pa55@10.0.0.9:80", "http", "alice:pa55@10.0.0.9:80", 50, "9.9.9.9",
+                            https=True, country="DE"))
+
+
+def test_upstream_logins_are_masked_without_a_password():
+    p = _with_login()
+    got = call(p, "/get")[2]
+    assert got["proxy"] == "alice:•••@10.0.0.9:80" and got["url"] == "http://alice:•••@10.0.0.9:80"
+    assert "pa55" not in json.dumps(call(p, "/all")[2], ensure_ascii=False)
+    assert "pa55" not in call(p, "/all?format=txt")[2] + call(p, "/get?format=txt")[2]
+    deleted = call(p, "/delete?proxy=10.0.0.9:80")[2]  # found by its address, the login stays hidden
+    assert deleted["src"] == "success" and "pa55" not in deleted["proxy"] and p.entries == []
+
+
+def test_with_a_password_the_api_hands_out_the_full_login():
+    got = api.handle(_with_login(), b"/get?format=txt", show_credentials=True)[2]
+    assert got == b"http://alice:pa55@10.0.0.9:80\n"
+
+    async def client(port):
+        return await _get(port, "/get", auth=b"any:s3cret")
+
+    async def go():
+        server = RotatingServer(_with_login(), port=0, timeout=3, password="s3cret")
+        await server.start()
+        try:
+            return await client(server.port)
+        finally:
+            await server.close()
+
+    assert json.loads(asyncio.run(go()).partition(b"\r\n\r\n")[2])["url"] == "http://alice:pa55@10.0.0.9:80"

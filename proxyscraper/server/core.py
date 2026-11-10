@@ -41,6 +41,7 @@ from .status import (
     METRICS_TYPE,
     STATUS_PATH,
     STATUS_PREFIX,
+    cross_site,
     host_allowed,
     metrics_text,
     password_ok,
@@ -620,8 +621,22 @@ class RotatingServer:
     async def _serve_api(self, writer, head: bytes) -> None:
         if not await self._local_auth(writer, head):
             return
-        status, kind, body = api.handle(self.pool, head.split(b" ", 2)[1])
-        await self._answer(writer, status, kind, body)
+        headers = [tuple(part.strip() for part in line.split(b":", 1)) for line in head.split(b"\r\n")[1:]
+                   if b":" in line]
+        target = head.split(b" ", 2)[1]
+        if not host_allowed(headers, self.password):
+            # DNS rebinding: a website pointing its own name at 127.0.0.1 could read the pool same-origin
+            status, body = b"403 Forbidden", (b'{"error": "without --serve-password the API only answers requests '
+                                              b'to an IP address or localhost"}')
+        elif api.endpoint(target) in api.CHANGING and cross_site(headers):
+            # <img src="http://127.0.0.1:8899/delete?proxy=..."> on some website – the browser would even send
+            # a saved password along
+            status, body = b"403 Forbidden", b'{"error": "the pool can\'t be changed from another website"}'
+        else:
+            status, kind, body = api.handle(self.pool, target, show_credentials=bool(self.password))
+            await self._answer(writer, status, kind, body)
+            return
+        await self._answer(writer, status, api.JSON_TYPE, body)
 
     async def _local_auth(self, writer, head: bytes) -> bool:
         """Status and API are asked of the server itself, so the password comes as Authorization, not Proxy-."""

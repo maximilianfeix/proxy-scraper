@@ -16,6 +16,7 @@ from typing import Any, Callable, Dict, List, Optional, Tuple
 from urllib.parse import parse_qs, urlsplit
 
 from ..parsing import PROXY_TYPES
+from ..ui.widgets import shown_proxy
 from .pool import PoolEntry
 
 API_PREFIX = b"GET /"
@@ -23,6 +24,7 @@ ANONYMITY_RANK = {"transparent": 0, "anonymous": 1, "elite": 2}
 TRUE = {"1", "true", "yes", "on"}
 TEXT_TYPE = b"text/plain; charset=utf-8"
 JSON_TYPE = b"application/json"
+CHANGING = {"/pop", "/delete", "/report"}  # endpoints that change the pool – never from another website
 ENDPOINTS = {
     "/get": "one proxy, chosen by the rotation strategy",
     "/pop": "like /get, and the proxy leaves the pool",
@@ -48,10 +50,13 @@ class BadRequest(ValueError):
     pass
 
 
-def handle(pool: Any, target: bytes) -> Response:
-    """target: the request target, e.g. b"/get?country=DE". -> (status, content type, body)."""
+def handle(pool: Any, target: bytes, show_credentials: bool = False) -> Response:
+    """target: the request target, e.g. b"/get?country=DE". -> (status, content type, body).
+
+    show_credentials: hand out upstream logins (user:password@) in full – only when the API itself wants a
+    password (--serve-password); otherwise they're masked like on the status page."""
     parts = urlsplit(target.decode("latin-1"))
-    path = parts.path.rstrip("/") or "/"
+    path = endpoint(target)
     query = {k.lower(): v[-1] for k, v in parse_qs(parts.query).items()}
     text = query.get("format", "").lower() == "txt"
     try:
@@ -63,15 +68,17 @@ def handle(pool: Any, target: bytes) -> Response:
                 return _not_found("no proxy matches", text)
             if path == "/pop":
                 pool.remove(entry)
-            return (b"200 OK", TEXT_TYPE, entry.result.url.encode() + b"\n") if text else _json(describe(entry))
+            if text:
+                return b"200 OK", TEXT_TYPE, _url(entry, show_credentials).encode() + b"\n"
+            return _json(describe(entry, show_credentials))
         if path == "/all":
             matches = [e for e in pool.usable if _matcher(query)(e)]  # the pool keeps them best first
             limit = _int(query, "limit")
             if limit is not None:
                 matches = matches[:max(limit, 0)]
             if text:
-                return b"200 OK", TEXT_TYPE, "".join(f"{e.result.url}\n" for e in matches).encode()
-            return _json([describe(e) for e in matches])
+                return b"200 OK", TEXT_TYPE, "".join(f"{_url(e, show_credentials)}\n" for e in matches).encode()
+            return _json([describe(e, show_credentials) for e in matches])
         if path == "/count":
             return _json({"count": count(pool.usable)})
         if path in ("/delete", "/report"):
@@ -82,19 +89,26 @@ def handle(pool: Any, target: bytes) -> Response:
                 pool.remove(entry)
             else:
                 pool.report(entry, query.get("ok", "0").lower() in TRUE)
-            return _json({"code": 0, "src": "success", "proxy": entry.result.proxy, "disabled": entry.disabled})
+            return _json({"code": 0, "src": "success", "proxy": _proxy(entry, show_credentials),
+                          "disabled": entry.disabled})
     except BadRequest as e:
         return b"400 Bad Request", JSON_TYPE, json.dumps({"code": 1, "error": str(e)}).encode()
     return b"404 Not Found", JSON_TYPE, json.dumps({"error": f"unknown path {path}, try / for the list of endpoints"}
                                                    ).encode()
 
 
-def describe(entry: PoolEntry) -> Dict[str, Any]:
-    """Our fields plus the ones proxy_pool clients read (proxy, https, region, anonymous, check_count, …)."""
+def endpoint(target: bytes) -> str:
+    """b"/delete/?proxy=…" -> "/delete" – the path handle() acts on."""
+    return urlsplit(target.decode("latin-1")).path.rstrip("/") or "/"
+
+
+def describe(entry: PoolEntry, show_credentials: bool = False) -> Dict[str, Any]:
+    """Our fields plus the ones proxy_pool clients read (proxy, https, region, anonymous, check_count, …).
+    A login in the proxy is masked ('alice:•••@1.2.3.4:1080') unless show_credentials."""
     r = entry.result
     return {
-        "proxy": r.proxy,
-        "url": r.url,
+        "proxy": _proxy(entry, show_credentials),
+        "url": _url(entry, show_credentials),
         "type": r.ptype,
         "https": bool(r.https),
         "country": r.country,
@@ -112,6 +126,14 @@ def describe(entry: PoolEntry) -> Dict[str, Any]:
         "fail_count": entry.fail,
         "last_status": not entry.disabled,
     }
+
+
+def _proxy(entry: PoolEntry, show_credentials: bool) -> str:
+    return entry.result.proxy if show_credentials else shown_proxy(entry.result.proxy)
+
+
+def _url(entry: PoolEntry, show_credentials: bool) -> str:
+    return entry.result.url if show_credentials else f"{entry.result.ptype}://{shown_proxy(entry.result.proxy)}"
 
 
 def count(entries: List[PoolEntry]) -> Dict[str, Any]:
@@ -155,13 +177,15 @@ def _matcher(query: Dict[str, str]) -> Callable[[PoolEntry], bool]:
 
 
 def _find(pool: Any, proxy: str) -> Optional[PoolEntry]:
-    """By 'ip:port' or a full URL ('socks5://ip:port') – with a URL the type has to match too."""
+    """By 'ip:port' or a full URL ('socks5://ip:port') – with a URL the type has to match too. A proxy with a
+    login is also found by its address alone, since the login is masked in the answers without a password."""
     proxy = proxy.strip()
     if not proxy:
         raise BadRequest("proxy=IP:PORT is missing")
     ptype, sep, address = proxy.rpartition("://")
     for entry in pool.entries:
-        if entry.result.proxy == address and (not sep or entry.result.ptype == ptype.lower()):
+        known = entry.result.proxy
+        if address in (known, known.rpartition("@")[2]) and (not sep or entry.result.ptype == ptype.lower()):
             return entry
     return None
 

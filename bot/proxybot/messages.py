@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import re
 from datetime import datetime
 from typing import List, Optional, Sequence
 
@@ -15,6 +16,21 @@ LIME = 0xD4F77A
 LOGO = "https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/main/docs/logo.png"
 FOOTER = "Free proxies are run by strangers. Never send passwords or personal data through them."
 TYPE_NAMES = {"http": "HTTP", "socks4": "SOCKS4", "socks5": "SOCKS5"}
+
+
+_MARKDOWN = re.compile(r"([\\*_~`|>#\[\]()<])")
+
+
+def _text(value: str) -> str:
+    """Third-party text (the provider name from the ASN database, fields of the list) as plain text in an embed:
+    [click](https://…) must not become a masked link, **, `, || etc. no formatting. Control characters go too."""
+    value = "".join(c if c.isprintable() else " " for c in value)
+    return _MARKDOWN.sub(r"\\\1", value)
+
+
+def _code(value: str) -> str:
+    """Text for inside a code block or `inline code`, where escapes don't work: no backtick may close it."""
+    return value.replace("`", "'")
 
 
 def _embed(title: str, description: str = "", url: str = SITE) -> discord.Embed:
@@ -49,7 +65,8 @@ def summary(snap: Snapshot, since: Optional[datetime] = None) -> discord.Embed:
     countries = top_countries(st)
     if countries:
         embed.add_field(name="Top countries", value=" · ".join(countries), inline=False)
-    embed.add_field(name="Fastest right now", value=f"```\n{table(snap.proxies, 10)}\n```", inline=False)
+    embed.add_field(name="Fastest right now", value=f"```\n{_code(table(snap.proxies, 10))}\n```",
+                    inline=False)
     embed.set_footer(text=FOOTER)
     return embed
 
@@ -61,7 +78,7 @@ def type_post(snap: Snapshot, ptype: str) -> discord.Embed:
     embed = _embed(f"{len(of_type):,} {TYPE_NAMES[ptype]} proxies",
                    f"{https:,} of them tunnel HTTPS. The complete list is attached, fastest first.")
     embed.timestamp = snap.updated
-    embed.add_field(name="Fastest 15", value=f"```\n{table(of_type, 15)}\n```", inline=False)
+    embed.add_field(name="Fastest 15", value=f"```\n{_code(table(of_type, 15))}\n```", inline=False)
     embed.set_footer(text=FOOTER)
     return embed
 
@@ -69,30 +86,32 @@ def type_post(snap: Snapshot, ptype: str) -> discord.Embed:
 def results(matches: List[Proxy], count: int, criteria: str) -> discord.Embed:
     """Answer to /proxies."""
     if not matches:
-        embed = _embed("No matching proxy", f"Nothing in the last run matches {criteria}. Try fewer filters.")
+        embed = _embed("No matching proxy", f"Nothing in the last run matches {_text(criteria)}. Try fewer filters.")
         return embed
     more = " The full list is attached." if len(matches) > count else ""
     # the table goes into the description: fields are capped at 1024 characters, descriptions at 4096
     return _embed(f"{len(matches):,} matching proxies",
-                  f"Filter: {criteria}. Fastest first.{more}\n```\n{table(matches, count)}\n```")
+                  f"Filter: {_text(criteria)}. Fastest first.{more}\n```\n{_code(table(matches, count))}\n```")
 
 
 def single(proxy: Optional[Proxy]) -> discord.Embed:
     """Answer to /proxy."""
     if proxy is None:
         return _embed("No proxy available", "The live list is empty right now. Try again after the next run.")
-    embed = _embed(proxy.url, f"```\n{proxy.url}\n```")
+    embed = _embed(proxy.url, f"```\n{_code(proxy.url)}\n```")
     embed.add_field(name="Latency", value=f"{proxy.latency:,} ms")
-    embed.add_field(name="Country", value=proxy.country or "–")
+    embed.add_field(name="Country", value=_text(proxy.country) or "–")
     embed.add_field(name="HTTPS", value="yes" if proxy.https else "no")
     if proxy.anonymity:
-        embed.add_field(name="Anonymity", value=proxy.anonymity)
+        embed.add_field(name="Anonymity", value=_text(proxy.anonymity))
     if proxy.org:
-        embed.add_field(name="Provider", value=proxy.org + (" (datacenter)" if proxy.hosting else ""), inline=False)
+        embed.add_field(name="Provider", value=_text(proxy.org) + (" (datacenter)" if proxy.hosting else ""),
+                        inline=False)
     if proxy.blocklisted is not None:
         embed.add_field(name="Blocklist", value="on SpamCop" if proxy.blocklisted else "not listed")
     scheme = "socks5h" if proxy.ptype == "socks5" else proxy.ptype
-    embed.add_field(name="Try it", value=f"`curl -x {scheme}://{proxy.address} https://api.ipify.org`", inline=False)
+    embed.add_field(name="Try it", value=f"`curl -x {scheme}://{_code(proxy.address)} https://api.ipify.org`",
+                    inline=False)
     return embed
 
 

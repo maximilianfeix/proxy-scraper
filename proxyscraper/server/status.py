@@ -91,6 +91,22 @@ def host_allowed(headers: List[Tuple[bytes, bytes]], password: str) -> bool:
         return False
 
 
+def cross_site(headers: List[Tuple[bytes, bytes]]) -> bool:
+    """A browser request started by another website (an <img> or a form pointing here): Sec-Fetch-Site says
+    so, or an Origin that isn't this server. curl, scripts and proxy_pool clients send neither."""
+    def header(wanted: bytes) -> Optional[str]:
+        return next((v.decode("latin-1").strip().lower() for k, v in headers if k.lower() == wanted), None)
+
+    site = header(b"sec-fetch-site")
+    if site is not None and site not in ("same-origin", "none"):
+        return True
+    origin = header(b"origin")
+    if origin is None:
+        return False
+    _, sep, authority = origin.partition("://")
+    return not sep or authority.rstrip("/") != (header(b"host") or "")
+
+
 def selection_from_headers(headers: List[Tuple[bytes, bytes]]) -> Selection:
     """Proxy-Authorization: Basic base64("country-de-session-abc:anything") -> Selection."""
     creds = basic_credentials(headers)

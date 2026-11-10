@@ -25,6 +25,7 @@ from typing import Dict, List, Optional
 from .charts import THEMES, countries_svg, trend_svg
 from .checkstate import BASIC, CONFIRM, CONTENT, HTTPS, PASSED
 from .exporters import pac
+from .output import csv_safe
 from .pages import SITE_URL, write_pages
 from .parsing import PROXY_TYPES
 from .proxypages import write_proxy_pages
@@ -342,7 +343,7 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
             r = csv_rows.get(listed_row.get("url", ""))
             if r is not None:
                 works = " ".join(name for name, ok in (listed_row.get("sites") or {}).items() if ok)
-                writer.writerow({**r, **{k: listed_row.get(k, "") for k in extra}, "works_with": works})
+                writer.writerow(csv_safe({**r, **{k: listed_row.get(k, "") for k in extra}, "works_with": works}))
     stats = stats_for(rows, now)
     # what "listed" means, in the data itself: the checks each list requires, and how many hits lacked one
     stats["requires"] = {name: list(needed) for name, needed in REQUIRES.items()}

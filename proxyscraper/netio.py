@@ -63,10 +63,11 @@ async def http_request(
     policy: for URLs nobody chose by hand (see netpolicy) – the URL and every redirect hop are checked, and
     the connection goes to an address the check approved. None: unrestricted (curated/own sources, APIs).
     """
-    extra = "".join(f"{k}: {v}\r\n" for k, v in (headers or {}).items())
-    if body is not None:
-        extra += f"Content-Length: {len(body)}\r\n"
+    headers = dict(headers or {})
     for _ in range(max_redirects + 1):
+        extra = "".join(f"{k}: {v}\r\n" for k, v in headers.items())
+        if body is not None:
+            extra += f"Content-Length: {len(body)}\r\n"
         target = await policy.resolve(url) if policy is not None else None
         u = urlsplit(url)
         https = u.scheme == "https"
@@ -75,7 +76,7 @@ async def http_request(
         # unverified only for GETs without a body and without custom headers (except the conditional ETag headers,
         # they carry no secret). Never tokens or sent data over an unverified connection.
         insecure_ok = insecure_fallback and method == "GET" and body is None and \
-            set(headers or ()) <= CONDITIONAL_HEADERS
+            set(headers) <= CONDITIONAL_HEADERS
         pinned = {"addresses": target.addresses} if target is not None else {}
         reader, writer = await _connect(u.hostname, port, https, allow_insecure=insecure_ok, timeout=timeout, **pinned)
         try:
@@ -92,9 +93,23 @@ async def http_request(
 
         if method == "GET" and status in (301, 302, 303, 307, 308) and b"location" in resp_headers:
             url = urljoin(url, resp_headers[b"location"].decode())
+            headers = without_credentials(headers, u, urlsplit(url))
             continue
         return status, resp_headers, resp_body
     raise ConnectionError("too many redirects")
+
+
+CREDENTIAL_HEADERS = {"authorization", "cookie", "proxy-authorization"}
+
+
+def without_credentials(headers: Dict[str, str], before, after) -> Dict[str, str]:
+    """Headers for the next redirect hop: a token (GitHub's Authorization: Bearer) is meant for the host it was
+    given to – a redirect to another host, or from https down to http, doesn't get it."""
+    same_host = (before.hostname or "").lower() == (after.hostname or "").lower()
+    downgrade = before.scheme == "https" and after.scheme != "https"
+    if same_host and not downgrade:
+        return headers
+    return {k: v for k, v in headers.items() if k.lower() not in CREDENTIAL_HEADERS}
 
 
 def host_header(hostname: str, port: Optional[int], https: bool) -> str:
@@ -110,13 +125,24 @@ def authority(hostname: str, port: int) -> str:
 
 async def http_get(
     url: str, timeout: float = 15.0, max_redirects: int = 3, headers: Optional[Dict[str, str]] = None,
-    policy: Optional[TargetPolicy] = None,
+    policy: Optional[TargetPolicy] = None, insecure_fallback: bool = True,
 ) -> bytes:
     """GET that raises an exception for anything but 200."""
-    status, _, body = await http_request(url, timeout, headers, max_redirects=max_redirects, policy=policy)
+    status, _, body = await http_request(url, timeout, headers, max_redirects=max_redirects, policy=policy,
+                                         insecure_fallback=insecure_fallback)
     if status != 200:
         raise ConnectionError(f"HTTP {status}")
     return body
+
+
+async def verified_get(
+    url: str, timeout: float = 15.0, max_redirects: int = 3, headers: Optional[Dict[str, str]] = None
+) -> bytes:
+    """http_get without the unverified retry – for data that is used as it arrives, not checked again: the live
+    list (handed out by --pick, the Python API and the MCP tools) and the country/provider databases. Public
+    proxy lists keep the fallback (behind a TLS-inspecting firewall they'd fail otherwise), because every
+    proxy from them is checked on its own before anyone gets it."""
+    return await http_get(url, timeout, max_redirects, headers, insecure_fallback=False)
 
 
 async def public_get(

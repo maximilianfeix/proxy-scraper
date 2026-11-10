@@ -31,7 +31,8 @@ import certifi
 from .api import find_proxies_async
 from .checker import CheckResult
 from .checkstate import STATES
-from .netio import http_get
+from .netio import verified_get
+from .netpolicy import is_public_address
 from .pages import SITE_URL
 from .parsing import PROXY_TYPES, make_key, normalize_proxy
 from .publish import RAW_BASE
@@ -125,7 +126,7 @@ class LiveSource:
     """The hourly list from the website (or the raw branch when that is newer), cached for a few minutes. A failed
     refresh keeps the old list."""
 
-    def __init__(self, fetch: Fetch = http_get, clock: Callable[[], float] = time.monotonic,
+    def __init__(self, fetch: Fetch = verified_get, clock: Callable[[], float] = time.monotonic,
                  ttl: float = CACHE_SECONDS, bases: Sequence[str] = LIVE_BASES,
                  wall: Callable[[], float] = time.time):
         self.fetch, self.clock, self.ttl, self.bases, self.wall = fetch, clock, ttl, bases, wall
@@ -368,9 +369,8 @@ def check_scheme(url: str) -> str:
 
 
 def _is_public(ip) -> bool:
-    if ip.version == 6 and ip.ipv4_mapped:
-        ip = ip.ipv4_mapped
-    return ip.is_global
+    # the same rule as the scanner's: also catches private IPv4 inside NAT64, 6to4, Teredo and IPv4-compatible
+    return is_public_address(ip)
 
 
 def check_target(url: str) -> str:

@@ -231,3 +231,25 @@ def test_the_published_csv_keeps_its_old_columns_in_place_and_adds_the_new_ones_
         header = next(csv.reader(fh))
     assert header[13:18] == ["url", "first_seen", "uptime_24h", "uptime_7d", "works_with"]  # where 1.28 had them
     assert header[-5:] == ["checked_at", "check_basic", "check_confirm", "check_content", "check_https"]
+
+
+def test_csv_cells_that_a_spreadsheet_would_run_stay_text(tmp_path):
+    """The provider name comes from the ASN database (whoever registered the network): =HYPERLINK(…) there
+    must not become a formula in proxies.csv – not in the run's file, not in the published one."""
+    import csv
+
+    from proxyscraper.output import csv_cell
+
+    evil = ['=HYPERLINK("http://x.example","click")', "+1+cmd|' /C calc'!A0", "-2+3", "@SUM(1)", "\tx", "\rx"]
+    rows = [_checked(i) for i in range(1, len(evil) + 1)]
+    for r, org in zip(rows, evil):
+        r.org = org
+    ResultWriter(run_dir=tmp_path / "run").finalize(rows)
+    out = tmp_path / "public"
+    assert publish.publish(tmp_path / "run", out, minimum=1) == 0
+    for path in (tmp_path / "run" / "proxies.csv", out / "proxies.csv"):
+        with path.open(newline="", encoding="utf-8") as fh:
+            orgs = sorted(row["org"] for row in csv.DictReader(fh))
+        assert orgs == sorted("'" + org for org in evil), path  # once, not twice in the published copy
+    numbers_and_plain_text = [-1, "-1", "+2.5", "1e-3", "ok", "", None]
+    assert [csv_cell(v) for v in numbers_and_plain_text] == numbers_and_plain_text

@@ -14,12 +14,15 @@ WorkingDirectory=/opt/proxybot/current
 EnvironmentFile=/etc/proxybot.env
 Environment=PROXYBOT_STATE=/var/lib/proxybot/state.json
 Environment=PYTHONUNBUFFERED=1
+# the bot writes its PID here once every bot logged in; deploy/install.sh waits for it before keeping a release
+Environment=PROXYBOT_READY_FILE=/run/proxybot/ready
 ExecStart=/opt/proxybot/current/venv/bin/python -m proxybot
 Restart=always
 RestartSec=10
 
-# the bot only needs the network and its own state directory
+# the bot only needs the network, its own state directory and /run/proxybot (emptied whenever it stops)
 StateDirectory=proxybot
+RuntimeDirectory=proxybot
 NoNewPrivileges=yes
 ProtectSystem=strict
 ProtectHome=yes

@@ -8,13 +8,20 @@
 # Every release gets its own venv, installed with --require-hashes from requirements.lock – the versions the
 # bot's CI tested. Only when that venv imports the bot does /opt/proxybot/current point at it; the release
 # before stays as /opt/proxybot/previous, venv and all, so going back never depends on what the new release
-# installed. If the bot doesn't come up after the restart, current goes back to the previous release by itself.
+# installed. If the bot doesn't log in after the restart, current goes back to the previous release by itself.
+#
+# "Comes up" means ready, not just running: once every configured bot has logged in (Discord on_ready, Telegram
+# getMe), the bot writes its PID to PROXYBOT_READY_FILE. A release counts only when that file holds the PID systemd
+# started and the same process still runs SETTLE seconds later. A refused token makes the bot exit instead of
+# retrying, so systemd restarts it with a new PID and it never gets there.
 set -eu
 
 BASE=${PROXYBOT_BASE:-/opt/proxybot}
 UNIT_DIR=${PROXYBOT_UNIT_DIR:-/etc/systemd/system}
 ENV_FILE=${PROXYBOT_ENV_FILE:-/etc/proxybot.env}
-SETTLE=${PROXYBOT_SETTLE:-8}   # seconds to give the bot to log in before looking whether it still runs
+READY_FILE=${PROXYBOT_READY_FILE:-/run/proxybot/ready}  # must match Environment= in deploy/proxybot.service
+READY_TIMEOUT=${PROXYBOT_READY_TIMEOUT:-90}  # seconds the bot gets to log in everywhere
+SETTLE=${PROXYBOT_SETTLE:-15}  # seconds the ready process must keep running (longer than RestartSec=10)
 KEEP=${PROXYBOT_KEEP:-3}       # releases kept on disk (current and previous always are)
 
 fail() {
@@ -31,14 +38,47 @@ point() {
   ln -sfn "$2" "$1"
 }
 
-# install the unit of release $1, restart and look whether the bot still runs a few seconds later
+# the PID of the running bot, empty if it doesn't run
+main_pid() {
+  pid=$(systemctl show -p MainPID --value proxybot 2>/dev/null) || pid=
+  [ "$pid" != 0 ] && printf '%s' "$pid"
+  return 0
+}
+
+# the bot runs and the process systemd started is the one that wrote the ready file (not a stale one)
+ready() {
+  systemctl is-active -q proxybot || return 1
+  pid=$(main_pid)
+  [ -n "$pid" ] && [ -f "$READY_FILE" ] && [ "$(cat "$READY_FILE" 2>/dev/null)" = "$pid" ]
+}
+
+# install the unit of release $1, restart and wait until the bot has logged in and stays up
 activate() {
   install -m 644 "$1/deploy/proxybot.service" "$UNIT_DIR/proxybot.service" || return 1
   systemctl daemon-reload || return 1
   systemctl enable -q proxybot || return 1
   systemctl restart proxybot || return 1
+  if ! grep -q PROXYBOT_READY_FILE "$1/deploy/proxybot.service"; then
+    # a release from before the ready file (going back to it): all it can tell is whether it runs
+    sleep "$SETTLE"
+    systemctl is-active -q proxybot
+    return
+  fi
+  waited=0
+  until ready; do
+    if [ "$waited" -ge "$READY_TIMEOUT" ]; then
+      echo "the bot did not log in within $READY_TIMEOUT s" >&2
+      return 1
+    fi
+    sleep 1
+    waited=$((waited + 1))
+  done
+  started=$(main_pid)
   sleep "$SETTLE"
-  systemctl is-active -q proxybot
+  if ! ready || [ "$(main_pid)" != "$started" ]; then
+    echo "the bot stopped again after logging in" >&2
+    return 1
+  fi
 }
 
 # This output ends up in the log of a public repository: on failure show the bot's own lines without the
@@ -61,8 +101,8 @@ prune() {
     dir=${dir%/}
     if [ "$dir" != "$cur" ] && [ "$dir" != "$prev" ]; then
       rm -rf "$dir"
+      excess=$((excess - 1))  # only what was removed counts: skipping current/previous frees nothing
     fi
-    excess=$((excess - 1))
   done
 }
 

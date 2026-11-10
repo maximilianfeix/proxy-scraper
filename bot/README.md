@@ -56,7 +56,11 @@ The venv is installed with `pip install --require-hashes -r requirements.lock`: 
 /opt/proxybot/previous         -> the one before
 ```
 
-`install.sh` switches `current` only after the new venv imports the bot. If the bot isn't running a few seconds after the restart, it points `current` back at the previous release, restarts that and fails the workflow – the bot log lines are in the workflow log. To go back by hand, e.g. after a release that starts but misbehaves:
+`install.sh` switches `current` only after the new venv imports the bot. After the restart it waits for the bot to be *ready*, not just running: once every configured bot has logged in (Discord `on_ready`, Telegram `getMe`), the bot writes its PID to `/run/proxybot/ready` (`PROXYBOT_READY_FILE`). The release is kept only when that file holds the PID systemd started within 90 seconds and the same process still runs 15 seconds later. Otherwise `install.sh` points `current` back at the previous release, restarts that and fails the workflow – the bot log lines are in the workflow log; older releases are only pruned after a release that came up.
+
+A token Discord or Telegram refuses (wrong or revoked) is not retried: the bot logs it and exits with code 2, so the service shows as failed (systemd tries again every 10 seconds) instead of looking healthy. Other errors – Discord or Telegram down at boot – still restart only the bot affected, a minute later.
+
+To go back by hand, e.g. after a release that starts but misbehaves:
 
 ```bash
 sudo sh /opt/proxybot/current/deploy/install.sh --rollback   # current <-> previous, then restart
@@ -86,6 +90,7 @@ DISCORD_TOKEN=... .venv/bin/python -m proxybot
 | `PROXYBOT_FEED_URL` | the GitHub Pages site | where `stats.json`, `proxies.json` and `history.json` come from |
 | `PROXYBOT_POLL_SECONDS` | `300` | how often to look for a new run (at least 60) |
 | `PROXYBOT_STATE` | `state.json` | remembers which run was posted where, so restarts don't post twice |
+| `PROXYBOT_READY_FILE` | – | where to write the PID once every bot is logged in (the service sets `/run/proxybot/ready`) |
 
 Tests: `cd bot && python -m pytest tests`
 

@@ -6,7 +6,7 @@ import asyncio
 import logging
 from datetime import timedelta
 from pathlib import Path
-from typing import Literal, Optional
+from typing import Callable, Literal, Optional
 
 import aiohttp
 import discord
@@ -25,10 +25,11 @@ TypeChoice = Literal["any", "http", "socks4", "socks5"]
 
 
 class ProxyBot(discord.Client):
-    def __init__(self, settings: Settings):
+    def __init__(self, settings: Settings, ready: Optional[Callable[[], None]] = None):
         # no privileged intents needed: the bot only posts and answers slash commands
         super().__init__(intents=discord.Intents.default())
         self.settings = settings
+        self.ready = ready  # called on every on_ready: logged in and connected to the gateway
         self.tree = app_commands.CommandTree(self)
         self.state = State(settings.state_file)
         self.snapshot: Optional[Snapshot] = None
@@ -55,6 +56,8 @@ class ProxyBot(discord.Client):
 
     async def on_ready(self) -> None:
         log.info("logged in as %s, in %d server(s)", self.user, len(self.guilds))
+        if self.ready:
+            self.ready()
         if self.user and self.user.avatar is None and LOGO_FILE.exists():
             try:
                 await self.user.edit(avatar=LOGO_FILE.read_bytes())

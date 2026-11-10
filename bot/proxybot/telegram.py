@@ -12,7 +12,7 @@ import html
 import logging
 import random
 import re
-from typing import Dict, List, Optional, Tuple
+from typing import Callable, Dict, List, Optional, Tuple
 
 import aiohttp
 
@@ -26,6 +26,8 @@ MAX_LIST = 20          # more than this reads badly in a chat – the website ha
 DEFAULT_LIST = 10
 _COMMAND_RE = re.compile(r"^/([a-z]+)(?:@(\w+))?(?:\s+(.*))?$", re.I | re.S)
 COMMANDS = ("proxy", "proxies", "stats", "help", "start")
+# what the Bot API answers for a token that is wrong or revoked – no point in asking again
+AUTH_ERRORS = (401, 403, 404)
 
 HELP = f"""<b>Working free proxies, checked every hour</b>
 
@@ -103,12 +105,25 @@ def reply(command: str, words: List[str], snap: Optional[Snapshot], rng: Optiona
     return "\n".join(_proxy_line(p) for p in shown) + more
 
 
+class TelegramError(RuntimeError):
+    """The Bot API said no; `code` is its error_code (an HTTP status)."""
+
+    def __init__(self, message: str, code: int = 0):
+        super().__init__(message)
+        self.code = code
+
+
+class AuthFailed(Exception):
+    """The token doesn't work. Retrying won't fix that – it ends the process (see __main__)."""
+
+
 class TelegramBot:
     """Long-polls for messages and answers them. `snapshot` is shared with whatever keeps the list fresh."""
 
-    def __init__(self, token: str, session: aiohttp.ClientSession):
+    def __init__(self, token: str, session: aiohttp.ClientSession, ready: Optional[Callable[[], None]] = None):
         self.token = token
         self.session = session
+        self.ready = ready  # called once getMe worked: the token is good
         self.snapshot: Optional[Snapshot] = None
         self.offset = 0
         self.me = ""  # our username, to ignore commands addressed to other bots
@@ -118,7 +133,7 @@ class TelegramBot:
                                      timeout=aiohttp.ClientTimeout(total=70)) as response:
             data = await response.json(content_type=None)
         if not data.get("ok"):
-            raise RuntimeError(f"{method}: {data.get('description', 'failed')}")
+            raise TelegramError(f"{method}: {data.get('description', 'failed')}", int(data.get("error_code") or 0))
         return data["result"]
 
     async def handle(self, update: dict) -> None:
@@ -130,8 +145,19 @@ class TelegramBot:
         await self.call("sendMessage", chat_id=chat, text=reply(*parsed, self.snapshot), parse_mode="HTML",
                         disable_web_page_preview=True)
 
+    async def call_or_fail(self, method: str, **params):
+        """call() for the requests only a bad token makes fail: turn that into AuthFailed."""
+        try:
+            return await self.call(method, **params)
+        except TelegramError as e:
+            if e.code in AUTH_ERRORS:
+                raise AuthFailed(f"telegram: the token was refused ({e})") from e
+            raise
+
     async def run(self) -> None:
-        self.me = (await self.call("getMe")).get("username", "")
+        self.me = (await self.call_or_fail("getMe")).get("username", "")
+        if self.ready:
+            self.ready()
         await self.call("setMyCommands", commands=[
             {"command": "proxy", "description": "one fast proxy to try"},
             {"command": "proxies", "description": "a short list, fastest first"},
@@ -139,7 +165,8 @@ class TelegramBot:
             {"command": "help", "description": "how to use the filters"}])
         while True:
             try:
-                updates = await self.call("getUpdates", offset=self.offset, timeout=50, allowed_updates=["message"])
+                updates = await self.call_or_fail("getUpdates", offset=self.offset, timeout=50,
+                                                  allowed_updates=["message"])
             except (aiohttp.ClientError, asyncio.TimeoutError, RuntimeError, ValueError) as e:
                 log.warning("telegram: %s", e)
                 await asyncio.sleep(10)

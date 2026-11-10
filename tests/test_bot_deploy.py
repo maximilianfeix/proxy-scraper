@@ -104,12 +104,20 @@ if [ "$1" = -m ] && [ "$2" = venv ]; then
 fi
 exit 0
 """,
-    # is-active fails while current points at a release with a file CRASHES
+    # restart starts a "bot" with a new PID that writes the ready file – unless current points at a release with a
+    # file NEVER_READY (runs but never logs in: a revoked token, retried forever) or CRASHES (is-active fails)
     "systemctl": """#!/bin/sh
 echo "systemctl $*" >> "$FAKE_LOG"
-if [ "$1" = is-active ]; then
-  [ ! -e "$PROXYBOT_BASE/current/CRASHES" ]
-fi
+cur="$PROXYBOT_BASE/current"
+case "$1" in
+  restart)
+    pid=$(( $(cat "$FAKE_PID" 2>/dev/null || echo 100) + 1 ))
+    echo "$pid" > "$FAKE_PID"
+    if [ ! -e "$cur/CRASHES" ] && [ ! -e "$cur/NEVER_READY" ]; then echo "$pid" > "$PROXYBOT_READY_FILE"; fi
+    ;;
+  is-active) [ ! -e "$cur/CRASHES" ] ;;
+  show) cat "$FAKE_PID" ;;
+esac
 """,
     "journalctl": "#!/bin/sh\necho 'bot log line'\n",
     "id": "#!/bin/sh\nexit 0\n",
@@ -137,17 +145,22 @@ def server(tmp_path):
     log.write_text("")
     env = {**os.environ, "PATH": f"{stubs}{os.pathsep}{os.environ['PATH']}", "PROXYBOT_BASE": str(base),
            "PROXYBOT_UNIT_DIR": str(tmp_path / "units"), "PROXYBOT_ENV_FILE": str(env_file),
-           "PROXYBOT_SETTLE": "0", "PROXYBOT_KEEP": "3", "FAKE_LOG": str(log)}
+           "PROXYBOT_SETTLE": "0", "PROXYBOT_KEEP": "3", "FAKE_LOG": str(log),
+           "PROXYBOT_READY_FILE": str(tmp_path / "ready"), "PROXYBOT_READY_TIMEOUT": "1",
+           "FAKE_PID": str(tmp_path / "pid")}
 
     class Server:
-        def release(self, name, broken=False, crashes=False):
+        def release(self, name, broken=False, crashes=False, never_ready=False, old_unit=False):
             """What the workflow unpacks: the bot directory without tests."""
             rel = base / "releases" / name
             shutil.copytree(ROOT / "bot", rel, ignore=shutil.ignore_patterns("tests", "__pycache__", ".venv"))
-            if broken:
-                (rel / "BROKEN").write_text("")
-            if crashes:
-                (rel / "CRASHES").write_text("")
+            for flag, wanted in (("BROKEN", broken), ("CRASHES", crashes), ("NEVER_READY", never_ready)):
+                if wanted:
+                    (rel / flag).write_text("")
+            if old_unit:  # a release from before the ready file
+                unit = rel / "deploy" / "proxybot.service"
+                unit.write_text("".join(line for line in unit.read_text().splitlines(keepends=True)
+                                        if "PROXYBOT_READY_FILE" not in line))
             return rel
 
         def install(self, *args):
@@ -166,6 +179,11 @@ def server(tmp_path):
         def log(self):
             return log.read_text()
 
+        def pid(self):
+            return (tmp_path / "pid").read_text().strip()
+
+        ready_file = tmp_path / "ready"
+
         releases = base / "releases"
         unit = tmp_path / "units" / "proxybot.service"
 
@@ -182,6 +200,7 @@ def test_a_release_gets_its_own_venv_from_the_lock_and_becomes_current(server):
     assert f"pip install -q --disable-pip-version-check --require-hashes -r {rel}/requirements.lock" in log
     assert "systemctl restart proxybot" in log
     assert server.unit.read_text() == (rel / "deploy" / "proxybot.service").read_text()
+    assert server.ready_file.read_text().strip() == server.pid()  # kept because the bot said it logged in
 
 
 def test_the_next_release_keeps_the_one_before_as_previous(server):
@@ -206,6 +225,32 @@ def test_a_bot_that_does_not_come_up_is_rolled_back(server):
     assert server.current() == "r1"
     assert server.log().count("systemctl restart proxybot") == 2  # the new one, then the old one again
     assert server.unit.read_text() == (server.releases / "r1" / "deploy" / "proxybot.service").read_text()
+
+
+def test_a_bot_that_runs_but_never_logs_in_is_rolled_back(server):
+    """A revoked token used to be retried inside a live process: active, but not working."""
+    assert server.install(server.release("r1")).returncode == 0
+    proc = server.install(server.release("r2", never_ready=True))  # the ready file still holds r1's PID
+    assert proc.returncode != 0
+    assert "did not log in" in proc.stderr and "rolling back to r1" in proc.stderr
+    assert (server.current(), server.previous()) == ("r1", None)
+    assert server.ready_file.read_text().strip() == server.pid()  # r1 is back and ready again
+    assert sorted(p.name for p in server.releases.iterdir()) == ["r1", "r2"]  # nothing pruned on failure
+
+
+def test_the_service_tells_the_bot_where_the_ready_file_goes():
+    unit = (ROOT / "bot" / "deploy" / "proxybot.service").read_text(encoding="utf-8")
+    assert "Environment=PROXYBOT_READY_FILE=/run/proxybot/ready\n" in unit
+    assert "RuntimeDirectory=proxybot\n" in unit
+    assert "${PROXYBOT_READY_FILE:-/run/proxybot/ready}" in INSTALL.read_text(encoding="utf-8")
+
+
+def test_going_back_to_a_release_from_before_the_ready_file_only_needs_it_running(server):
+    assert server.install(server.release("r1", never_ready=True, old_unit=True)).returncode == 0
+    proc = server.install(server.release("r2", never_ready=True))
+    assert proc.returncode != 0 and "rolling back to r1" in proc.stderr
+    assert "did not come up either" not in proc.stderr
+    assert server.current() == "r1"
 
 
 def test_rollback_by_hand_goes_back_to_the_previous_release(server):
@@ -236,3 +281,13 @@ def test_only_releases_under_the_prefix_are_installed(server, tmp_path):
     elsewhere.mkdir()
     proc = server.install(elsewhere)
     assert proc.returncode != 0 and "releases" in proc.stderr
+
+
+def test_prune_keeps_exactly_keep_releases_after_rollbacks(server):
+    """current and previous are the oldest after failed releases: skipping them must not count as removing."""
+    assert server.install(server.release("r1")).returncode == 0
+    for name in ("r2", "r3", "r4"):
+        assert server.install(server.release(name, never_ready=True)).returncode != 0
+    assert server.install(server.release("r5")).returncode == 0
+    assert (server.current(), server.previous()) == ("r5", "r1")
+    assert sorted(p.name for p in server.releases.iterdir()) == ["r1", "r4", "r5"]

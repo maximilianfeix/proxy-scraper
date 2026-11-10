@@ -206,7 +206,7 @@ to be gone by the time you use them. Take the top of a file and skip what fails.
 {stars}
 
 [Download](#download) · [Usage](#quick-start) · [By country](#by-country){checks_link} · \
-[Why this list](#why-this-list) · [Website]({SITE_URL}) · [The tool]({REPO_URL})
+[Why this list](#why-this-list) · [Website]({SITE_URL}) · [Benchmark]({SITE_URL}benchmark/) · [The tool]({REPO_URL})
 
 </div>
 

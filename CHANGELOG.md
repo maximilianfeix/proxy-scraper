@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- A benchmark page, https://proxy-scraper.de/benchmark/: "Which free proxy list on GitHub actually works?" The popular free proxy lists on GitHub side by side, rewritten with every hourly run – proxies listed, checked, passed every check and their share in recent runs, plus when each list last changed. The numbers are the ones of the sources ranking; the page explains how they are measured and why proxy-scraper's own list is not in it. Also as `benchmark.json` and as a chart to share or embed (`benchmark-light.svg`, `benchmark-dark.svg`), linked from the sources page, the sitemap and the README of the `proxy-list` branch
+
 ### Changed
 - Website: the first screen now shows what visitors come for. Next to a smaller headline are the count from the last run with its HTTP/SOCKS4/SOCKS5 split, the links to `all.txt`, `http.txt`, `socks4.txt` and `socks5.txt` with a copy button each, and "Star on GitHub" with the live star count. Below it, a quick start with tabs for curl, pipx, uvx and Python. All numbers come from `stats.json` and space is reserved for them, so nothing moves while they load
 - The website moved from GitHub Pages to its own domain, https://proxy-scraper.de/ (own server). The hourly run uploads it there; canonical links, sitemap, feeds, the bookmarklet and the docs point to the new address. The `proxy-list` branch and its raw files stay as they are

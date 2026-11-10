@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.32.0] – 2026-11-10
+
 ### Added
 - A benchmark page, https://proxy-scraper.de/benchmark/: "Which free proxy list on GitHub actually works?" The popular free proxy lists on GitHub side by side, rewritten with every hourly run – proxies listed, checked, passed every check and their share in recent runs, plus when each list last changed. The numbers are the ones of the sources ranking; the page explains how they are measured and why proxy-scraper's own list is not in it. Also as `benchmark.json` and as a chart to share or embed (`benchmark-light.svg`, `benchmark-dark.svg`), linked from the sources page, the sitemap and the README of the `proxy-list` branch
 
@@ -421,7 +423,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.31.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.32.0...HEAD
+[1.32.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.30.0...v1.31.0
 [1.30.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.29.0...v1.30.0
 [1.29.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.28.0...v1.29.0

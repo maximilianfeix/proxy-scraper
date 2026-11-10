@@ -7,6 +7,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ### Changed
 - The website moved from GitHub Pages to its own domain, https://proxy-scraper.de/ (own server). The hourly run uploads it there; canonical links, sitemap, feeds, the bookmarklet and the docs point to the new address. The `proxy-list` branch and its raw files stay as they are
 - The Discord/Telegram bot links to and reads from https://proxy-scraper.de; `CITATION.cff` and the PyPI documentation link point there too
+- The README of the list repository (`free-proxy-list`, written by `mirror.py`) starts with the raw URLs to copy, a "checked every hour" badge (from `run_hours`) and the repository's stars. Every list links to GitHub raw, jsDelivr and proxy-scraper.de; usage has `curl`, `wget` and Python up front, Node.js and Go folded away. A new section explains each check, which lists need it and how many proxies passed it in the run (`run.json`), the share of checked candidates that made the list replaces the fixed "150,000", and a star-history chart sits next to the star request. Without `run.json` those numbers are left out
 
 ### Fixed
 - The weekly report feed got a second entry for the same week after the move, because entries were matched by their full id (which contained the old address). Entries are matched by week now and only one per week is kept

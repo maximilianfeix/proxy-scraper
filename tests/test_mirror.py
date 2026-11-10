@@ -81,3 +81,57 @@ def test_the_list_readme_names_projects_that_use_it(tmp_path):
     readme = (out / "README.md").read_text(encoding="utf-8")
     assert "[monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker)" in readme
     assert "[gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list)" in readme
+
+
+RUN = {"checked": 1000, "targets": {"basic": "checkip.example", "confirm": "confirm.example"},
+       "checks": {"basic": {"passed": 40, "failed:timeout": 960}, "confirm": {"passed": 9},
+                  "content": {"passed": 6}, "https": {"passed": 3}}}
+
+
+def test_the_top_of_the_list_readme_has_urls_badges_and_the_mirror(tmp_path):
+    out = tmp_path / "list"
+    mirror.mirror(published(tmp_path), out, REPO)
+    readme = (out / "README.md").read_text(encoding="utf-8")
+    top = readme.split("## Download")[0]
+    # copy-paste raw URLs come before everything else
+    assert f"```text\nhttps://raw.githubusercontent.com/{REPO}/main/all.txt\n" in top
+    assert "**4 free HTTP, SOCKS4 and SOCKS5 proxies that passed every check, re-checked every hour." in top
+    assert "img.shields.io/badge/checked-every%20hour-grey" in top  # run_hours == 1 in stats.json
+    assert f"img.shields.io/github/stars/{REPO}?style=social" in top
+    # every list on GitHub, the CDN and the website
+    assert "[proxy-scraper.de](https://proxy-scraper.de/socks5.txt)" in readme
+    assert f"[CDN](https://cdn.jsdelivr.net/gh/{REPO}@main/socks5.txt)" in readme
+    assert "### wget" in readme
+    assert f"wget -qO http.txt https://raw.githubusercontent.com/{REPO}/main/http.txt" in readme
+    assert "https://proxy-scraper.de/country/<code>/proxies.txt" in readme
+    # the star ask and the chart
+    assert "If this list saves you time, a ⭐ helps others find it." in readme
+    assert f"api.star-history.com/svg?repos={REPO},maximilianfeix/proxy-scraper&type=Date" in readme
+    # without run.json there are no invented denominators
+    assert "candidates" not in readme and "## What the checks mean" in readme
+    assert "| **Verified TLS** |" in readme and "| `https.txt` | – |" in readme
+
+
+def test_the_list_readme_takes_its_numbers_from_the_run(tmp_path):
+    public = published(tmp_path)
+    (public / "run.json").write_text(json.dumps(RUN), encoding="utf-8")
+    (public / "sources.json").write_text(json.dumps({"sources": [{"name": "a"}, {"name": "b"}]}), encoding="utf-8")
+    out = tmp_path / "list"
+    mirror.mirror(public, out, REPO)
+    readme = (out / "README.md").read_text(encoding="utf-8")
+    assert "This run checked **1,000** candidates, collected from **2** tracked public sources. **4** (0.40%)" in readme
+    assert "fetched a page from checkip.example" in readme and "(confirm.example/html)" in readme
+    assert "| every list | 40 |" in readme and "| `https.txt` | 3 |" in readme
+    assert "150,000" not in readme
+
+
+def test_the_list_readme_stays_honest():
+    stats = {"updated": "2026-09-24T18:00:00+00:00", "total": 2, "by_type": {"http": 2}, "https": 0,
+             "median_latency": 100, "requires": {"all.txt": ["basic"]}}
+    text = mirror.readme(stats, {"all.txt": 2}, REPO, run=RUN)
+    lowered = text.lower()
+    for word in ("honeypot", "secure proxies", "safe to use", "supercharge", "seamless", "unlock"):
+        assert word not in lowered
+    assert "says nothing about other sites" not in text  # https is not required by any list here
+    assert "img.shields.io/badge/checked-" not in text  # no run_hours, no claim about the schedule
+    assert "re-checked regularly" in text

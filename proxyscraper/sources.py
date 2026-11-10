@@ -550,6 +550,11 @@ DEAD_MIN_CHECKED = 300      # this many checks without a hit -> the source count
 UNREACHABLE_STREAK = 3      # failed to load this many times in a row -> pause
 UNREACHABLE_PAUSE = 2 * DAY
 STALE_RECHECK = 3 * DAY     # an outdated list is still looked at this often – it may be maintained again
+# An unchanged list is only outdated while its proxies don't pass: a static list that still delivers (some
+# publish once and stay valid for weeks) keeps its place. 1 % is above the bulk dumps (0.2–0.7 %), below lists
+# that still pay off; it needs this many (decayed) checks to judge.
+STALE_KEEP_HIT_RATE = 0.01
+STALE_KEEP_MIN_CHECKED = 50
 
 
 @dataclass
@@ -598,7 +603,8 @@ class SourceStats:
         now = time.time() if now is None else now
         if rec.fail_streak >= UNREACHABLE_STREAK and now - rec.last_fetch < UNREACHABLE_PAUSE:
             return "unreachable"
-        if rec.last_change and now - rec.last_change > STALE_AFTER and now - rec.first_seen > STALE_AFTER:
+        if rec.last_change and now - rec.last_change > STALE_AFTER and now - rec.first_seen > STALE_AFTER \
+                and not (rec.checked >= STALE_KEEP_MIN_CHECKED and rec.working >= STALE_KEEP_HIT_RATE * rec.checked):
             return "outdated"
         if rec.runs >= 2 and rec.checked >= DEAD_MIN_CHECKED and rec.working < 0.5:
             return "dead"

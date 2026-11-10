@@ -36,7 +36,7 @@ flowchart LR
 | `sources.py` | source lists, meta sources, GitHub discovery, per-source hit statistics |
 | `fetchcache.py` | conditional downloads; parsed keys of unchanged lists come from `data/fetch-cache` |
 | `parsing.py` | finds proxies in any format, drops private/reserved ranges, keys are `"type ip:port"` strings |
-| `pipeline.py` | collect in parallel (process pool for big lists), prioritise, run the check workers |
+| `pipeline.py` | collect in parallel (process pool for big lists), prioritise (history first, then learned source hit rates; with a limit, 15 % of the slots sample barely-checked sources round-robin), run the check workers |
 | `checker.py` | the checks themselves, see below |
 | `checkstate.py` | the outcome of a check: four states, reason codes, what goes into JSON |
 | `verify.py` | checking a handful of proxies with every outcome kept: `--pick --verify` (bounded attempts, a few at a time, a time limit) and `--diagnose` |

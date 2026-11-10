@@ -504,7 +504,8 @@ class Run:
             hosts = sorted(INSECURE_HOSTS)
             note(f"Certificate could not be verified (TLS inspection on this network?), loaded anyway: "
                  f"{', '.join(hosts[:4])}{' …' if len(hosts) > 4 else ''}", MUTED, "ℹ")
-        return prioritize(res, self.quality, self.history, self.opts.types, listed_only=self.opts.only_sources)
+        return prioritize(res, self.quality, self.history, self.opts.types, listed_only=self.opts.only_sources,
+                          limit=self.opts.limit)
 
     # ------------------------------------------------------------------ phase 3+4: check, learn, report
 

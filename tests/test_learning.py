@@ -74,3 +74,14 @@ def test_without_the_cache_other_types_still_count_as_content(tmp_path, monkeypa
     st = srcs.SourceStats(tmp_path / "stats.json")
     asyncio.run(pipeline.scrape({url: "auto"}, ["http"], st, CollectView(1, 0.0), FetchCache(enabled=False)))
     assert st.get(url).fail_streak == 0  # it answered with socks5 proxies, --types http just doesn't want them
+
+
+def test_an_unchanged_list_that_still_delivers_is_not_outdated(tmp_path):
+    """A static list whose proxies still pass keeps its place; only unchanged lists that no longer deliver go."""
+    st = srcs.SourceStats(tmp_path / "stats.json")
+    for url in ("good", "bad"):
+        st.record_fetch(url, b"a", 500, now=1 * DAY)
+        st.record_fetch(url, b"a", 500, now=10 * DAY)  # unchanged for 9 days
+    st.record_checks({"good": (400, 20), "bad": (400, 1)})  # 5 % vs 0.25 % passed
+    assert st.skip_reason("good", now=11 * DAY) is None
+    assert st.skip_reason("bad", now=11 * DAY) == "outdated"

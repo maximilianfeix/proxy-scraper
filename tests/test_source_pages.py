@@ -65,13 +65,13 @@ def test_a_source_that_was_never_checked_or_is_our_own_list_stays_out(tmp_path):
 def test_status_says_when_a_list_is_no_longer_maintained_or_dead(tmp_path):
     quality = stats(tmp_path, {
         f"{RAW}/fresh/x/main/a.txt": record(500, 10),
-        f"{RAW}/old/x/main/a.txt": record(500, 10, changed_days_ago=20),
+        f"{RAW}/old/x/main/a.txt": record(500, 2, changed_days_ago=20),
         f"{RAW}/dead/x/main/a.txt": record(900, 0, runs=3),
         f"{RAW}/half/x/main/a.txt": record(500, 10),
-        f"{RAW}/half/x/main/b.txt": record(500, 10, changed_days_ago=20),
+        f"{RAW}/half/x/main/b.txt": record(500, 2, changed_days_ago=20),
         f"{RAW}/mixed/x/main/a.txt": record(900, 0, runs=3),
         f"{RAW}/mixed/x/main/b.txt": record(900, 0, runs=3),
-        f"{RAW}/mixed/x/main/c.txt": record(500, 10, changed_days_ago=20),
+        f"{RAW}/mixed/x/main/c.txt": record(500, 2, changed_days_ago=20),
     })
     status = {s["name"]: s["status"] for s in sourcepages.rank(quality, NOW)}
     # the best file decides: a source is only dead when every one of its files is

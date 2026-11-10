@@ -35,7 +35,7 @@ non_hoster.groupby("country").size().sort_values(ascending=False).head()
 
 ## How a proxy gets in
 
-About every hour 300,000 candidates are checked, out of 0.75 to 1.9 million listed protocol/address
+About every hour 150,000 candidates are checked, out of 0.75 to 1.9 million listed protocol/address
 combinations (hourly runs of 3 to 10 Nov 2026). Proxies that passed before and sources with a good hit rate go first. An entry is kept only if it
 
 1. completes a real protocol handshake (HTTP CONNECT, SOCKS4 or SOCKS5) and a first request that returns a public

@@ -4,6 +4,13 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- **Back to 150,000 candidates per run.** The hourly runs with 300,000 on 10 Nov passed the basic check about as
+  often as before (1,682–2,701 vs 1,795–2,578): the second 150,000 are lists whose proxies almost never answer. The
+  share for barely checked sources stays.
+- An unchanged list is only skipped as outdated when its proxies also stopped passing (under 1 % of at least 50
+  recent checks). Static lists that still deliver, e.g. one with a 25 % hit rate, kept being skipped after a week.
+
 ## [1.32.0] – 2026-11-10
 
 ### Added

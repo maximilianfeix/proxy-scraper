@@ -163,7 +163,7 @@ def markdown(f: dict) -> str:
     return f"""# The week in free proxies: {_period(f)}
 
 About every hour, [proxy-scraper](https://github.com/maximilianfeix/proxy-scraper) collects public HTTP, SOCKS4 and
-SOCKS5 proxies from 700+ lists, checks 300,000 of the candidates and keeps only the ones that pass a basic check, a
+SOCKS5 proxies from 700+ lists, checks 150,000 of the candidates and keeps only the ones that pass a basic check, a
 second request to another site and a content check. This is what {f['runs']:,} of those runs looked like. An entry
 that is not on the list was not necessarily measured as failing.
 

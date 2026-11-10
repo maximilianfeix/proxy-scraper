@@ -35,6 +35,13 @@ AUTO_DISCOVER_AFTER_DAYS = 1.0  # daily: found sources are kept, so every search
 # parse small lists directly – the detour through another process costs more than it saves
 INLINE_PARSE_BYTES = 256 * 1024
 DOWNLOAD_CONCURRENCY = 64
+# Share of a limited run's slots (after the history) that goes to sources with too few checks to judge yet.
+# The rest follows the learned hit rates; without it the order only ever confirms what it already knows.
+EXPLORE_SHARE = 0.15
+# A source with fewer (decayed) checks than this hasn't been sampled yet. Kept low on purpose: one round of
+# samples lifts a source past it, so the share isn't spent on the same weak lists run after run (in a
+# simulation, a bound of 31 – the weight of the prior – cost ~2 % of the hits for that reason).
+EXPLORE_BELOW_CHECKED = 10
 
 
 # --------------------------------------------------------------------------- #
@@ -206,19 +213,25 @@ async def scrape(sources: Dict[str, str], types, quality: srcs.SourceStats, view
 
 
 def prioritize(res: ScrapeResult, quality: srcs.SourceStats, history: ProxyHistory, types,
-               listed_only: bool = False) -> List[str]:
+               listed_only: bool = False, limit: int = 0, explore: float = EXPLORE_SHARE,
+               rng: Optional[random.Random] = None) -> List[str]:
     """Order of checking: known working proxies first, then by quality of the sources.
 
     Within the same source quality, proxies that appear in more lists win. listed_only (--only-sources):
     the history only moves proxies of these lists to the front, it doesn't add others.
+
+    limit (the run checks only the first `limit`, 0 = all): a share `explore` of the slots after the history
+    goes to under-explored sources (see explore_sample) – without it, a source whose proxies never make it
+    under the limit is never checked and keeps its prior score forever. The full order is returned either way.
     """
+    rng = rng or random
     wanted = set(types)
     known = [k for k in history.ranked_keys() if split_key(k)[0] in wanted and (not listed_only or k in res.index)]
     known_set = set(known)
 
     scores = [quality.score(u) for u in res.urls]
     keys = [k for k in res.index if k not in known_set]
-    random.shuffle(keys)  # shuffle real ties so every type makes progress
+    rng.shuffle(keys)  # shuffle real ties so every type makes progress
     index = res.index
 
     def priority(key: str) -> float:
@@ -229,7 +242,59 @@ def prioritize(res: ScrapeResult, quality: srcs.SourceStats, history: ProxyHisto
 
     prio = list(map(priority, keys))
     order = sorted(range(len(keys)), key=prio.__getitem__, reverse=True)
-    return known + [keys[i] for i in order]
+    ranked = [keys[i] for i in order]
+
+    budget = limit - len(known)
+    n_explore = int(budget * explore) if limit and budget > 0 and explore > 0 else 0
+    if not n_explore or len(ranked) <= budget:
+        return known + ranked  # everything fits anyway, or no exploration asked for
+    head = ranked[: budget - n_explore]
+    explored = explore_sample(res, quality, ranked[len(head):], n_explore, rng)
+    if not explored:
+        return known + ranked
+    taken = set(explored)
+    return known + head + explored + [k for k in ranked[len(head):] if k not in taken]
+
+
+def explore_sample(res: ScrapeResult, quality: srcs.SourceStats, pool: List[str], n: int,
+                   rng) -> List[str]:
+    """Up to n keys from `pool`, spread round-robin over the under-explored sources that list them.
+
+    Under-explored: fewer (decayed) checks than EXPLORE_BELOW_CHECKED – its learned hit rate is still
+    about the prior. Each round takes one random key from every such source, in a random source order, so every
+    one of them gets a sample when the budget allows and a different part of the long tail otherwise.
+    """
+    under = [quality.get(u).checked < EXPLORE_BELOW_CHECKED for u in res.urls]
+    if not any(under):
+        return []
+    per_source: Dict[int, List[str]] = {}
+    index = res.index
+    for key in pool:
+        for i in index[key]:
+            if under[i]:
+                per_source.setdefault(i, []).append(key)
+    picked: List[str] = []
+    seen: Set[str] = set()
+    active = list(per_source)
+    while active and len(picked) < n:
+        rng.shuffle(active)
+        still = []
+        for i in active:
+            bucket = per_source[i]
+            while bucket:  # random draw without replacement; a key another source already gave is skipped
+                j = rng.randrange(len(bucket))
+                bucket[j], bucket[-1] = bucket[-1], bucket[j]
+                key = bucket.pop()
+                if key not in seen:
+                    seen.add(key)
+                    picked.append(key)
+                    break
+            if bucket:
+                still.append(i)
+            if len(picked) >= n:
+                break
+        active = still
+    return picked
 
 
 def attribute_results(res: ScrapeResult, checked: List[str], working: Set[str]) -> Dict[str, Tuple[int, int]]:

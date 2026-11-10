@@ -43,7 +43,7 @@ Yes, in PowerShell and Windows Terminal. `uvloop` doesn't exist there and is ski
 <summary><b>Why does it find fewer proxies than other lists claim to have?</b></summary>
 <br>
 
-Because only proxies that pass every check are kept: two independent requests that show the same foreign exit IP, and a test page that arrives unchanged. In the hourly runs that is about 1 % of the 150,000 candidates checked. They passed from the network that checked them, at that moment.
+Because only proxies that pass every check are kept: two independent requests that show the same foreign exit IP, and a test page that arrives unchanged. In the hourly runs that is about 1 % of the 300,000 candidates checked. They passed from the network that checked them, at that moment.
 
 </details>
 

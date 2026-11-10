@@ -7,6 +7,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ### Changed
 - The website moved from GitHub Pages to its own domain, https://proxy-scraper.de/ (own server). The hourly run uploads it there; canonical links, sitemap, feeds, the bookmarklet and the docs point to the new address. The `proxy-list` branch and its raw files stay as they are
 - The Discord/Telegram bot links to and reads from https://proxy-scraper.de; `CITATION.cff` and the PyPI documentation link point there too
+- **The hourly run checks 300,000 candidates instead of 150,000** (about 4–5 minutes of checking instead of 2). The texts on the website, the source pages, the weekly report, the Hugging Face card and the FAQs say so
+- **A limited run samples lists that were barely checked.** With `--limit`, 15 % of the slots after the known working proxies go to sources with fewer than 10 checks in the learned statistics, one random proxy from each in turn and a different one every run. Before, a list whose proxies never made it under the limit was never checked, so it kept its starting estimate and never moved up. Slots that no such source needs go back to the usual order; without `--limit` nothing changes
 
 ### Fixed
 - The weekly report feed got a second entry for the same week after the move, because entries were matched by their full id (which contained the old address). Entries are matched by week now and only one per week is kept

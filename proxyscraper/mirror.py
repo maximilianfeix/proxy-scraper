@@ -146,7 +146,7 @@ Many free proxies are blocked or sent to a captcha by the big sites. These got a
 ---
 
 Updated **about every hour** by [proxy-scraper]({REPO_URL}). It pulls candidates from hundreds of public lists, checks \
-150,000 of them per run and keeps only the ones that pass every check – a real handshake, the same exit IP on a second \
+300,000 of them per run and keeps only the ones that pass every check – a real handshake, the same exit IP on a second \
 request to another site, and a test page that arrives unchanged. HTTPS counts only with a certificate that verifies \
 on the test host.
 

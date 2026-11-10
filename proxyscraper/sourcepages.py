@@ -180,7 +180,7 @@ def page(ranking: List[dict], updated: datetime) -> str:
     "Passed every check" is the number of proxies from a source that got through all of that in an average recent
     run, "Share" is that number against the proxies checked from it.</p>
     <p>A proxy that several lists carry counts for each of them. The files of one repository are one source.
-    A run checks the most promising 150,000 candidates, so of a very large list only a part is checked each time.
+    A run checks the most promising 300,000 candidates, so of a very large list only a part is checked each time.
     The lists published by proxy-scraper itself are left out: they are the result of these checks.</p>
     <p>The same ranking from your own network: <code class="mono">proxy-scraper --list-sources</code>.
     A list is missing? <a href="{REPO_URL}/issues/new?template=new_source.yml">Add it as a source</a>.</p>

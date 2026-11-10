@@ -957,7 +957,7 @@ Sí, en PowerShell y Windows Terminal. `uvloop` no existe allí y se omite autom
 <summary><b>¿Por qué encuentra menos proxies de los que dicen tener otras listas?</b></summary>
 <br>
 
-Porque solo se conservan los proxies que superan todas las comprobaciones: dos peticiones independientes que muestran la misma IP de salida ajena, y una página de prueba que llega sin cambios. En las ejecuciones horarias eso es alrededor del 1 % de los 150.000 candidatos comprobados. Las superaron desde la red que los comprobó, en ese momento.
+Porque solo se conservan los proxies que superan todas las comprobaciones: dos peticiones independientes que muestran la misma IP de salida ajena, y una página de prueba que llega sin cambios. En las ejecuciones horarias eso es alrededor del 1 % de los 300.000 candidatos comprobados. Las superaron desde la red que los comprobó, en ese momento.
 
 </details>
 

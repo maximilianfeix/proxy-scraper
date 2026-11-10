@@ -55,7 +55,7 @@ PyPI 上的包名是 `proxy-scraper-cli`（不带后缀的名字已被占用）�
 
 **它做不到的事。** 免费代理由陌生人运营；某一小时的列表里，一天后仍在列表上的只有大约四分之一。一次通过只是一次测量：来自一个网络，针对的是测试目标。它不保证下一个小时仍然可用，也不保证能访问你关心的网站。HTTPS 检测只是与一个测试主机建立经过验证的 TLS 连接，不是安全评级。免费代理只适合公开数据和测试，绝不要用于登录、支付或任何涉及个人信息的操作。→ [这些数字说明了什么，没说明什么（英文）](docs/free-proxies-in-numbers.md) · [与其他项目的对比（英文）](docs/comparison.md) · [谁在运行免费代理](#faq)
 
-**只想要列表？** 那你不需要这个工具：[free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) 按协议和国家提供纯文本文件，大约每小时重新生成一次。也可以直接从这里下载：[all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [更多格式](#live-list)
+**只想要列表？** 那你不需要这个工具：[free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) 按协议和国家提供纯文本文件，大约每小时重新生成一次。也可以直接从这里下载：[all.txt](https://proxy-scraper.de/all.txt) · [http.txt](https://proxy-scraper.de/http.txt) · [socks4.txt](https://proxy-scraper.de/socks4.txt) · [socks5.txt](https://proxy-scraper.de/socks5.txt) · [proxies.json](https://proxy-scraper.de/proxies.json) · [更多格式](#live-list)
 
 **谁在用：** 每小时更新的列表是 [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) 和 [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list) 的内置数据源。
 
@@ -106,12 +106,12 @@ docker run --rm ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
 
 不想自己扫描？GitHub Actions 大约每小时运行一次本工具并发布结果。列表中的每个代理在上一次运行中都通过了第一次请求、第二次请求和内容检测（HTTPS 测试的结果按条目记录，但不是入选条件），按「最优优先」排序：加载网页快、并且很可能仍然在线的排在最前面。
 
-- **网页版**（可按协议、国家、HTTPS、运营商、延迟筛选）：https://maximilianfeix.github.io/proxy-scraper/
+- **网页版**（可按协议、国家、HTTPS、运营商、延迟筛选）：https://proxy-scraper.de/
 - **纯列表仓库**（按协议、按国家、按网站分类的 TXT，以及 JSON / CSV）：[maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)
 
 | 列表 | 格式 | 地址 |
 |---|---|---|
-| 全部 | `socks5://1.2.3.4:1080` | `https://maximilianfeix.github.io/proxy-scraper/all.txt` |
+| 全部 | `socks5://1.2.3.4:1080` | `https://proxy-scraper.de/all.txt` |
 | HTTP · SOCKS4 · SOCKS5 | `1.2.3.4:8080` | `…/http.txt` · `…/socks4.txt` · `…/socks5.txt` |
 | 支持 HTTPS | `type://ip:port` | `…/https.txt` |
 | 高匿（elite） | `type://ip:port` | `…/elite.txt` |
@@ -119,7 +119,7 @@ docker run --rm ghcr.io/maximilianfeix/proxy-scraper --want 50 --https-only
 | 完整信息 | 延迟、国家、HTTPS、匿名级别、出口 IP、在线率 | `…/proxies.json` · `…/proxies.csv` |
 
 ```bash
-curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
+curl -s https://proxy-scraper.de/socks5.txt | head
 ```
 
 > [!TIP]

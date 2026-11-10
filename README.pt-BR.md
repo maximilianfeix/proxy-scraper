@@ -55,7 +55,7 @@ No PyPI o pacote se chama `proxy-scraper-cli` (o nome simples já estava ocupado
 
 **O que ele não faz.** Proxies gratuitos são mantidos por desconhecidos, e da lista de uma hora só cerca de um quarto está de novo na lista um dia depois. Passar em uma verificação é uma medição, feita de uma rede, contra alvos de teste: não é promessa para a próxima hora nem para o site que interessa a você. A verificação de HTTPS é uma conexão TLS verificada com um único host de teste, não uma nota de segurança. Use proxies gratuitos para dados públicos e testes, nunca para logins, pagamentos ou qualquer coisa pessoal. → [O que os números mostram e o que não mostram (em inglês)](docs/free-proxies-in-numbers.md) · [Comparação com outros projetos (em inglês)](docs/comparison.md) · [Quem mantém proxies gratuitos](#faq)
 
-**Só quer as listas?** Você não precisa desta ferramenta: o [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) tem todas em arquivos simples por protocolo e por país, refeitos mais ou menos a cada hora. Ou direto daqui: [all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [mais formatos](#live-list)
+**Só quer as listas?** Você não precisa desta ferramenta: o [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) tem todas em arquivos simples por protocolo e por país, refeitos mais ou menos a cada hora. Ou direto daqui: [all.txt](https://proxy-scraper.de/all.txt) · [http.txt](https://proxy-scraper.de/http.txt) · [socks4.txt](https://proxy-scraper.de/socks4.txt) · [socks5.txt](https://proxy-scraper.de/socks5.txt) · [proxies.json](https://proxy-scraper.de/proxies.json) · [mais formatos](#live-list)
 
 **Quem usa:** a lista de hora em hora é fonte embutida do [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) e do [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).
 
@@ -100,12 +100,12 @@ Iniciado sem argumentos, um assistente pergunta o que você procura: com as seta
 
 Não quer escanear você mesmo? O GitHub Actions roda a ferramenta mais ou menos a cada hora e publica os acertos. Cada proxy da lista passou na primeira requisição, na segunda requisição e na verificação de conteúdo na última execução (o teste de HTTPS é registrado por entrada, mas não é exigido), ordenado por "melhores primeiro": os rápidos, que provavelmente ainda estão no ar, ficam no topo.
 
-- **Site** (filtre por protocolo, país, HTTPS, provedor, latência): https://maximilianfeix.github.io/proxy-scraper/
+- **Site** (filtre por protocolo, país, HTTPS, provedor, latência): https://proxy-scraper.de/
 - **Só as listas** (TXT por protocolo, país e site, mais JSON/CSV): [maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)
 
 | Lista | Formato | Endereço |
 |---|---|---|
-| Todos | `socks5://1.2.3.4:1080` | `https://maximilianfeix.github.io/proxy-scraper/all.txt` |
+| Todos | `socks5://1.2.3.4:1080` | `https://proxy-scraper.de/all.txt` |
 | HTTP · SOCKS4 · SOCKS5 | `1.2.3.4:8080` | `…/http.txt` · `…/socks4.txt` · `…/socks5.txt` |
 | Só os capazes de HTTPS | `type://ip:port` | `…/https.txt` |
 | Só elite | `type://ip:port` | `…/elite.txt` |
@@ -113,10 +113,10 @@ Não quer escanear você mesmo? O GitHub Actions roda a ferramenta mais ou menos
 | Estáveis (em 90 %+ das execuções desta semana) | `type://ip:port` | `…/stable.txt` |
 | Com todos os detalhes | latência, país, HTTPS, anonimato, IP de saída, uptime | `…/proxies.json` · `…/proxies.csv` |
 
-Cada protocolo e cada país também tem a própria página com download direto, por exemplo [SOCKS5](https://maximilianfeix.github.io/proxy-scraper/socks5/) ou [Brasil](https://maximilianfeix.github.io/proxy-scraper/country/br/) (`country/br/proxies.txt`).
+Cada protocolo e cada país também tem a própria página com download direto, por exemplo [SOCKS5](https://proxy-scraper.de/socks5/) ou [Brasil](https://proxy-scraper.de/country/br/) (`country/br/proxies.txt`).
 
 ```bash
-curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
+curl -s https://proxy-scraper.de/socks5.txt | head
 ```
 
 > [!TIP]

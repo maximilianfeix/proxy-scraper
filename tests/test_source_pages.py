@@ -91,7 +91,7 @@ def test_page_and_json(tmp_path):
     assert "<h1>Which free proxy lists actually work?</h1>" in page
     assert 'href="https://github.com/a/lists"' in page and "2.0 %" in page
     assert "<script>/" not in page and "b/&lt;script&gt;" in page
-    assert '<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/sources/">' in page
+    assert '<link rel="canonical" href="https://proxy-scraper.de/sources/">' in page
     # the headline is the typical source (median of 2.0, 10.0 and 90.0), not the sum over all of them:
     # a working proxy is in many lists, so the sum would count it many times
     assert "<dt>10.0 %</dt><dd>work in a typical source (median)</dd>" in page
@@ -117,7 +117,7 @@ def test_publish_adds_the_ranking_to_the_site_and_the_sitemap(tmp_path):
     out = tmp_path / "public"
     assert publish.publish(run_dir(tmp_path), out, minimum=2, now=NOW, sources=quality.path) == 0
     assert (out / "sources" / "index.html").exists() and (out / "sources.json").exists()
-    assert "<loc>https://maximilianfeix.github.io/proxy-scraper/sources/</loc>" in (out / "sitemap.xml").read_text()
+    assert "<loc>https://proxy-scraper.de/sources/</loc>" in (out / "sitemap.xml").read_text()
     assert 'href="sources/"' in (out / "index.html").read_text(encoding="utf-8")
 
 

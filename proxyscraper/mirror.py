@@ -171,8 +171,8 @@ good ones.
 | With all details | latency, country, provider, uptime, sites | {num(stats["total"])} | \
 [proxies.json]({raw}/proxies.json) · [proxies.csv]({raw}/proxies.csv) |
 
-Need CORS, or hitting the raw.githubusercontent rate limit? The same lists are on \
-[GitHub Pages]({SITE_URL}) (e.g. `{SITE_URL}socks5.txt`), where you can also search and filter them.
+Need CORS, or hitting the raw.githubusercontent rate limit? The same lists are on the \
+[website]({SITE_URL}) (e.g. `{SITE_URL}socks5.txt`), where you can also search and filter them.
 
 <a id="quick-start"></a>
 

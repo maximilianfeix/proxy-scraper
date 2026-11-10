@@ -78,7 +78,7 @@ def test_markdown_page_and_post(tmp_path):
     html = (tmp_path / "report" / "index.html").read_text(encoding="utf-8")
     assert "<h1>" in html and "63 %" in html
     post = (tmp_path / "report" / "post.txt").read_text(encoding="utf-8").strip()
-    assert len(post) <= 280 and "maximilianfeix.github.io/proxy-scraper/report/" in post
+    assert len(post) <= 280 and "proxy-scraper.de/report/" in post
     for theme in ("dark", "light"):
         ET.fromstring((tmp_path / "report" / f"lifetimes-{theme}.svg").read_text(encoding="utf-8"))
 
@@ -144,6 +144,19 @@ def test_the_feed_gets_one_frozen_entry_per_finished_week():
     second = report.feed(at(monday + timedelta(days=7)), first)
     assert [i for i, _ in entries(second)] == [f"{report.REPORT_URL}2026-W40", f"{report.REPORT_URL}2026-W39"]
     assert "63 %" in ET.fromstring(second).find(f"{ATOM}entry").find(f"{ATOM}content").text
+
+
+def test_entries_from_before_the_site_moved_are_not_repeated():
+    monday = datetime(2026, 9, 28, 0, 17, tzinfo=timezone.utc)
+    old_base = "https://maximilianfeix.github.io/proxy-scraper/report/"
+    before = report.feed(at(monday), None).replace(report.REPORT_URL, old_base)
+    assert report.feed(at(monday + timedelta(days=3)), before) == before  # same week under the old URL: no new entry
+    # a feed that already got the week twice (once per URL) keeps it only once
+    old_entry = "<entry>" + before.split("<entry>", 1)[1].split("</entry>", 1)[0] + "</entry>"
+    twice = report.feed(at(monday), None).replace("</entry>", "</entry>\n  " + old_entry, 1)
+    assert [i.rsplit("/", 1)[1] for i, _ in entries(twice)] == ["2026-W39", "2026-W39"]
+    later = report.feed(at(monday + timedelta(days=7)), twice)
+    assert [i.rsplit("/", 1)[1] for i, _ in entries(later)] == ["2026-W40", "2026-W39"]
 
 
 def test_the_feed_keeps_twelve_weeks_and_survives_garbage():

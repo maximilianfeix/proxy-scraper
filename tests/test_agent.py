@@ -2,6 +2,7 @@
 
 import asyncio
 import json
+from datetime import datetime
 
 import pytest
 
@@ -39,7 +40,9 @@ def fake_fetch(calls, payloads=None, fail=False):
 
 def test_live_list_is_cached_for_a_few_minutes():
     calls, now = [], [1000.0]
-    source = agent.LiveSource(fetch=fake_fetch(calls), clock=lambda: now[0], ttl=300)
+    published = datetime.fromisoformat(STATS["updated"]).timestamp()
+    source = agent.LiveSource(fetch=fake_fetch(calls), clock=lambda: now[0], ttl=300,
+                              wall=lambda: published + 3700)  # an hour old: reloaded after ttl, not stale
 
     async def go():
         first = await source.get()
@@ -51,6 +54,22 @@ def test_live_list_is_cached_for_a_few_minutes():
     first, _ = asyncio.run(go())
     assert len(first.rows) == 5 and first.updated == STATS["updated"] and first.run_hours == 1
     assert len(calls) == 4  # proxies.json + stats.json, twice – the middle call came from the cache
+
+
+def test_an_old_website_copy_loses_to_a_newer_branch():
+    """The website is uploaded after the branch is pushed, and that upload may fail: the newer list wins."""
+    old = dict(STATS, updated="2026-09-26T09:17:00+00:00")
+    payloads = {"https://site.example": {"proxies.json": ROWS[:1], "stats.json": old},
+                "https://raw.example": {"proxies.json": ROWS, "stats.json": STATS}}
+
+    async def fetch(url, timeout=0, headers=None):
+        base, name = url.rsplit("/", 1)
+        return json.dumps(payloads[base][name]).encode()
+
+    now = datetime.fromisoformat(STATS["updated"]).timestamp() + 600
+    source = agent.LiveSource(fetch=fetch, bases=tuple(payloads), wall=lambda: now)
+    live = asyncio.run(source.get())
+    assert live.updated == STATS["updated"] and len(live.rows) == 5
 
 
 def test_a_failed_refresh_keeps_the_old_list():

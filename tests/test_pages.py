@@ -22,7 +22,7 @@ def test_every_page_with_its_download(tmp_path):
     de = (tmp_path / "country" / "de" / "index.html").read_text()
     assert "<h1>Free proxies in Germany</h1>" in de and "3 proxies in Germany" in de
     assert de.index("1.1.1.2:80") < de.index("1.1.1.1:80")  # fastest first
-    assert '<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/country/de/">' in de
+    assert '<link rel="canonical" href="https://proxy-scraper.de/country/de/">' in de
     assert (tmp_path / "country" / "de" / "proxies.txt").read_text().splitlines() == [
         "socks5://1.1.1.2:80", "http://1.1.1.4:80", "http://1.1.1.1:80"]
     assert (tmp_path / "https" / "proxies.txt").read_text() == "socks5://1.1.1.2:80\n"
@@ -41,7 +41,7 @@ def test_empty_countries_keep_their_page_but_stay_out_of_the_sitemap(tmp_path):
     assert "No proxies in Japan passed every check" in jp and "<table" not in jp
     sitemap = (tmp_path / "sitemap.xml").read_text()
     assert "country/de/" in listed and "country/us/" not in listed  # 1 proxy is below SITEMAP_MIN
-    assert "<loc>https://maximilianfeix.github.io/proxy-scraper/</loc>" in sitemap
+    assert "<loc>https://proxy-scraper.de/</loc>" in sitemap
     assert "country/jp/" not in sitemap and "socks4/" in sitemap and "2026-09-26T09:17:00+00:00" in sitemap
 
 

@@ -7,17 +7,17 @@
 <meta name="google-site-verification" content="dpSxu8MDNzVv2DGLn2hf8ShwV6xV29y8Pk-GP6HLRlo">
 <meta name="description" content="Free HTTP, SOCKS4 and SOCKS5 proxies, checked about every hour. Entries that fail a second request or return a changed test page are removed.">
 <meta name="theme-color" content="#121113">
-<link rel="canonical" href="https://maximilianfeix.github.io/proxy-scraper/">
+<link rel="canonical" href="https://proxy-scraper.de/">
 <meta property="og:type" content="website">
-<meta property="og:url" content="https://maximilianfeix.github.io/proxy-scraper/">
+<meta property="og:url" content="https://proxy-scraper.de/">
 <meta property="og:site_name" content="proxy-scraper">
 <meta property="og:title" content="proxy-scraper – free proxies that actually work">
-<meta property="og:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<meta property="og:image" content="https://proxy-scraper.de/og.png">
 <meta property="og:image:width" content="1280">
 <meta property="og:image:height" content="640">
 <meta property="og:image:alt" content="proxy-scraper logo and the line: free proxies that actually work">
 <meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="https://maximilianfeix.github.io/proxy-scraper/og.png">
+<meta name="twitter:image" content="https://proxy-scraper.de/og.png">
 <link rel="apple-touch-icon" href="apple-touch-icon.png">
 <meta property="og:description" content="Every proxy on this list passed a basic check, a second request to another site and a content check in the last run. Checked again about every hour.">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='18' fill='%23D4F77A'/%3E%3Cpath d='M13 31.5 26.5 44.5 51 18' fill='none' stroke='%23121113' stroke-width='5.5' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='13' cy='31.5' r='4.6' fill='%23121113'/%3E%3Ccircle cx='51' cy='18' r='4.6' fill='%23121113'/%3E%3Ccircle cx='26.5' cy='44.5' r='7.6' fill='%23D4F77A' stroke='%23121113' stroke-width='5'/%3E%3C/svg%3E">
@@ -28,15 +28,15 @@
 {"@context": "https://schema.org", "@type": "Dataset",
  "name": "Free proxy list, checked every hour",
  "description": "HTTP, SOCKS4 and SOCKS5 proxies from hundreds of public lists that passed a basic check, a second request to another site and a content check. With country, provider, latency, anonymity and HTTPS support.",
- "url": "https://maximilianfeix.github.io/proxy-scraper/",
+ "url": "https://proxy-scraper.de/",
  "license": "https://opensource.org/licenses/MIT",
  "isAccessibleForFree": true,
  "creator": {"@type": "Person", "name": "maximilianfeix", "url": "https://github.com/maximilianfeix"},
  "keywords": ["free proxy list", "socks5 proxies", "http proxies", "socks4 proxies", "proxy checker"],
  "distribution": [
-  {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://maximilianfeix.github.io/proxy-scraper/proxies.json"},
-  {"@type": "DataDownload", "encodingFormat": "text/csv", "contentUrl": "https://maximilianfeix.github.io/proxy-scraper/proxies.csv"},
-  {"@type": "DataDownload", "encodingFormat": "text/plain", "contentUrl": "https://maximilianfeix.github.io/proxy-scraper/all.txt"}]}
+  {"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://proxy-scraper.de/proxies.json"},
+  {"@type": "DataDownload", "encodingFormat": "text/csv", "contentUrl": "https://proxy-scraper.de/proxies.csv"},
+  {"@type": "DataDownload", "encodingFormat": "text/plain", "contentUrl": "https://proxy-scraper.de/all.txt"}]}
 </script>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -765,7 +765,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
       <div class="panel"><h3>Recheck from your network</h3><p>Starts from this list and checks it again from where you are. Takes about 30 seconds, then serves a rotating proxy on port 8899.</p>
         <div class="cmd"><pre>proxy-scraper --recheck live --serve</pre><button class="icon-btn" type="button" data-copy-pre aria-label="Copy the recheck command"><svg aria-hidden="true"><use href="#i-copy"/></svg></button></div></div>
       <div class="panel bookmarklet"><h3>One click, on any site</h3><p>Drag this button to your bookmarks bar. Clicking it copies a proxy that worked in 90&nbsp;%+ of this week's checks – on whatever page you're on, nothing to install.</p>
-        <a class="btn primary" id="bookmarklet" href="javascript:(async()=>{const%20b=&quot;https://maximilianfeix.github.io/proxy-scraper/&quot;,g=async%20f=>{const%20r=await%20fetch(b+f,{cache:&quot;no-cache&quot;});if(!r.ok)throw%200;return(await%20r.text()).split(&quot;%5Cn&quot;).filter(l=>/%5E[a-z0-9]+:%5C/%5C/%5CS+%24/.test(l))};try{let%20l=await%20g(&quot;stable.txt&quot;);if(!l.length)l=(await%20g(&quot;https.txt&quot;)).slice(0,30);if(!l.length)throw%200;const%20p=l[Math.floor(Math.random()*l.length)];try{await%20navigator.clipboard.writeText(p);alert(&quot;Copied%20a%20working%20proxy:%5Cn&quot;+p)}catch(e){prompt(&quot;A%20working%20proxy%20%E2%80%93%20copy%20it:&quot;,p)}}catch(e){alert(&quot;proxy-scraper:%20the%20list%20could%20not%20be%20loaded&quot;)}})()" title="Drag me to your bookmarks bar">Get a proxy</a>
+        <a class="btn primary" id="bookmarklet" href="javascript:(async()=>{const%20b=&quot;https://proxy-scraper.de/&quot;,g=async%20f=>{const%20r=await%20fetch(b+f,{cache:&quot;no-cache&quot;});if(!r.ok)throw%200;return(await%20r.text()).split(&quot;%5Cn&quot;).filter(l=>/%5E[a-z0-9]+:%5C/%5C/%5CS+%24/.test(l))};try{let%20l=await%20g(&quot;stable.txt&quot;);if(!l.length)l=(await%20g(&quot;https.txt&quot;)).slice(0,30);if(!l.length)throw%200;const%20p=l[Math.floor(Math.random()*l.length)];try{await%20navigator.clipboard.writeText(p);alert(&quot;Copied%20a%20working%20proxy:%5Cn&quot;+p)}catch(e){prompt(&quot;A%20working%20proxy%20%E2%80%93%20copy%20it:&quot;,p)}}catch(e){alert(&quot;proxy-scraper:%20the%20list%20could%20not%20be%20loaded&quot;)}})()" title="Drag me to your bookmarks bar">Get a proxy</a>
         <p class="note">Or right here: <button class="link-btn" type="button" id="pick-one">copy a reliable one now</button>.</p></div>
       </div>
       <div class="panel"><h3>Plain lists</h3><p>One proxy per line, fastest first, updated with every run.</p><div class="raw" id="raw"></div></div>
@@ -783,7 +783,7 @@ proxy-scraper --want 50 --https-only</pre><button class="icon-btn" type="button"
           <a href="https://github.com/maximilianfeix/proxy-scraper/releases?q=snapshots&amp;expanded=true"><span class="mono">snapshots</span><span>one proxies.json a day, kept for good</span></a>
         </div>
       </div>
-      <div class="cmd"><pre>curl -s https://maximilianfeix.github.io/proxy-scraper/proxies.json | jq '.[0]'
+      <div class="cmd"><pre>curl -s https://proxy-scraper.de/proxies.json | jq '.[0]'
 {
   "url": "socks5://203.0.113.10:1080",
   "proxy": "203.0.113.10:1080",

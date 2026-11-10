@@ -55,7 +55,7 @@ Sur PyPI, le paquet s'appelle `proxy-scraper-cli` (le nom simple était pris). U
 
 **Ce qu'il ne peut pas faire.** Les proxys gratuits sont tenus par des inconnus, et de la liste d'une heure donnée, un quart environ seulement figure encore sur la liste un jour plus tard. Une vérification réussie est une mesure, depuis un réseau, contre des cibles de test : ce n'est pas une promesse pour l'heure qui suit ni pour le site qui vous intéresse. La vérification HTTPS est une connexion TLS vérifiée vers un seul hôte de test, pas une évaluation de sécurité. Utilisez les proxys gratuits pour des données publiques et des tests, jamais pour des connexions à un compte, des paiements ou quoi que ce soit de personnel. → [Ce que les chiffres montrent et ce qu'ils ne montrent pas (en anglais)](docs/free-proxies-in-numbers.md) · [Comparaison avec d'autres projets (en anglais)](docs/comparison.md) · [Qui fait tourner les proxys gratuits](#faq)
 
-**Vous ne voulez que les listes ?** Vous n'avez pas besoin de cet outil : [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) les propose en fichiers bruts par protocole et par pays, reconstruits environ toutes les heures. Ou directement d'ici : [all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [autres formats](#live-list)
+**Vous ne voulez que les listes ?** Vous n'avez pas besoin de cet outil : [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) les propose en fichiers bruts par protocole et par pays, reconstruits environ toutes les heures. Ou directement d'ici : [all.txt](https://proxy-scraper.de/all.txt) · [http.txt](https://proxy-scraper.de/http.txt) · [socks4.txt](https://proxy-scraper.de/socks4.txt) · [socks5.txt](https://proxy-scraper.de/socks5.txt) · [proxies.json](https://proxy-scraper.de/proxies.json) · [autres formats](#live-list)
 
 **Qui l'utilise :** la liste horaire est une source intégrée de [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) et de [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).
 
@@ -100,12 +100,12 @@ Lancé sans argument, un assistant demande ce que vous cherchez : avec les flèc
 
 Pas envie de scanner vous-même ? GitHub Actions lance l'outil environ toutes les heures et publie les résultats. Chaque proxy de la liste a passé la première requête, la seconde requête et la vérification du contenu lors de la dernière exécution (le test HTTPS est enregistré pour chaque entrée, mais n'est pas exigé), trié « les meilleurs d'abord » : les rapides, qui ont de bonnes chances d'être encore en ligne, sont en haut.
 
-- **Site web** (filtres par protocole, pays, HTTPS, fournisseur, latence) : https://maximilianfeix.github.io/proxy-scraper/
+- **Site web** (filtres par protocole, pays, HTTPS, fournisseur, latence) : https://proxy-scraper.de/
 - **Rien que les listes** (TXT par protocole, pays et site, plus JSON/CSV) : [maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)
 
 | Liste | Format | Adresse |
 |---|---|---|
-| Tous | `socks5://1.2.3.4:1080` | `https://maximilianfeix.github.io/proxy-scraper/all.txt` |
+| Tous | `socks5://1.2.3.4:1080` | `https://proxy-scraper.de/all.txt` |
 | HTTP · SOCKS4 · SOCKS5 | `1.2.3.4:8080` | `…/http.txt` · `…/socks4.txt` · `…/socks5.txt` |
 | Compatibles HTTPS seulement | `type://ip:port` | `…/https.txt` |
 | Elite seulement | `type://ip:port` | `…/elite.txt` |
@@ -113,10 +113,10 @@ Pas envie de scanner vous-même ? GitHub Actions lance l'outil environ toutes le
 | Stables (présents dans 90 %+ des exécutions de la semaine) | `type://ip:port` | `…/stable.txt` |
 | Avec tous les détails | latence, pays, HTTPS, anonymat, IP de sortie, disponibilité | `…/proxies.json` · `…/proxies.csv` |
 
-Chaque protocole et chaque pays a aussi sa page avec un téléchargement direct, par exemple [SOCKS5](https://maximilianfeix.github.io/proxy-scraper/socks5/) ou [France](https://maximilianfeix.github.io/proxy-scraper/country/fr/) (`country/fr/proxies.txt`).
+Chaque protocole et chaque pays a aussi sa page avec un téléchargement direct, par exemple [SOCKS5](https://proxy-scraper.de/socks5/) ou [France](https://proxy-scraper.de/country/fr/) (`country/fr/proxies.txt`).
 
 ```bash
-curl -s https://maximilianfeix.github.io/proxy-scraper/socks5.txt | head
+curl -s https://proxy-scraper.de/socks5.txt | head
 ```
 
 > [!TIP]

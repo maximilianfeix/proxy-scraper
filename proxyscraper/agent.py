@@ -39,7 +39,7 @@ from .ranking import best_first
 from .server import ProxyPool, RotatingServer
 from .sites import SITES
 
-LIVE_BASES = (SITE_URL.rstrip("/"), RAW_BASE)  # GitHub Pages first, the raw branch as the mirror
+LIVE_BASES = (SITE_URL.rstrip("/"), RAW_BASE)  # the website first, the raw branch as the mirror
 CACHE_SECONDS = 300.0  # the list changes once an hour – no need to load 1 MB for every question
 RETRY_AFTER = 60.0  # after a failed refresh: serve the old list this long before asking GitHub again
 NEXT_RUN_GRACE = 300.0  # the hourly run takes a few minutes – look for the new list a bit after the hour
@@ -122,7 +122,8 @@ def listable(proxy: object) -> bool:
 
 
 class LiveSource:
-    """The hourly list from GitHub Pages, cached for a few minutes. A failed refresh keeps the old list."""
+    """The hourly list from the website (or the raw branch when that is newer), cached for a few minutes. A failed
+    refresh keeps the old list."""
 
     def __init__(self, fetch: Fetch = http_get, clock: Callable[[], float] = time.monotonic,
                  ttl: float = CACHE_SECONDS, bases: Sequence[str] = LIVE_BASES,
@@ -154,6 +155,13 @@ class LiveSource:
             if self._fresh_enough():
                 return self._cache
             error: Optional[Exception] = None
+            best: Optional[LiveList] = None
+            now = datetime.fromtimestamp(self.wall(), timezone.utc)
+
+            def age(live: LiveList) -> float:
+                minutes = live.age_minutes(now)
+                return float("inf") if minutes is None else minutes
+
             for base in self.bases:
                 try:
                     rows, stats = await asyncio.gather(self._json(f"{base}/proxies.json"),
@@ -162,10 +170,16 @@ class LiveSource:
                     error = e
                     continue
                 if isinstance(rows, list) and isinstance(stats, dict):
-                    self._cache = LiveList([r for r in rows if isinstance(r, dict) and listable(r.get("proxy"))],
-                                           stats, self.clock())
-                    self._expires = self.clock() + self._keep_for(self._cache)
-                    return self._cache
+                    live = LiveList([r for r in rows if isinstance(r, dict) and listable(r.get("proxy"))],
+                                    stats, self.clock())
+                    if best is None or age(live) < age(best):
+                        best = live
+                    if not live.stale(now):
+                        break  # the website and the branch are uploaded separately – ask the mirror only if it's old
+            if best is not None:
+                self._cache = best
+                self._expires = self.clock() + self._keep_for(best)
+                return best
             if self._cache:  # GitHub is unreachable: the old list, and don't wait for it again on every call
                 self._retry_at = self.clock() + RETRY_AFTER
                 self._cache.refresh_failed = True

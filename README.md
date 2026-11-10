@@ -15,7 +15,7 @@
 [![Stars](https://img.shields.io/github/stars/maximilianfeix/proxy-scraper?style=flat-square&color=D4F77A&labelColor=121113)](https://github.com/maximilianfeix/proxy-scraper/stargazers)
 [![License](https://img.shields.io/badge/license-MIT-D4F77A?style=flat-square&labelColor=121113)](LICENSE)
 
-<a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="https://img.shields.io/badge/Browse_the_live_list-D4F77A?style=for-the-badge&labelColor=121113" alt="Browse the live list"></a>
+<a href="https://proxy-scraper.de/"><img src="https://img.shields.io/badge/Browse_the_live_list-D4F77A?style=for-the-badge&labelColor=121113" alt="Browse the live list"></a>
 <a href="https://github.com/maximilianfeix/free-proxy-list"><img src="https://img.shields.io/badge/Just_the_lists-121113?style=for-the-badge" alt="Just the lists: free-proxy-list"></a>
 <a href="#install"><img src="https://img.shields.io/badge/Install-121113?style=for-the-badge" alt="Install"></a>
 <a href="#from-python"><img src="https://img.shields.io/badge/Python_API-121113?style=for-the-badge" alt="Python API"></a>
@@ -67,7 +67,7 @@ The package is `proxy-scraper-cli` on PyPI (the plain name is taken). Once [inst
 
 **What it can't do.** Free proxies are run by strangers, and of one hour's list only about a quarter is on the list again a day later. A pass is one measurement, from one network, against test targets: it is not a promise for the next hour or for the site you care about. The HTTPS check is a verified TLS connection to one test host, not a security rating. Use free proxies for public data and testing, never for logins, payments or anything personal. → [What the numbers show and what they don't](docs/free-proxies-in-numbers.md) · [Why free proxies fail](docs/why-free-proxies-fail.md) · [How it compares](docs/comparison.md) · [Who runs free proxies](docs/faq.md#who-runs-free-proxies)
 
-**Only want the lists?** You don't need this tool: [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) has them as plain files per protocol and country, rebuilt about every hour. Or straight from here: [all.txt](https://maximilianfeix.github.io/proxy-scraper/all.txt) · [http.txt](https://maximilianfeix.github.io/proxy-scraper/http.txt) · [socks4.txt](https://maximilianfeix.github.io/proxy-scraper/socks4.txt) · [socks5.txt](https://maximilianfeix.github.io/proxy-scraper/socks5.txt) · [proxies.json](https://maximilianfeix.github.io/proxy-scraper/proxies.json) · [more formats](#live-list)
+**Only want the lists?** You don't need this tool: [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list) has them as plain files per protocol and country, rebuilt about every hour. Or straight from here: [all.txt](https://proxy-scraper.de/all.txt) · [http.txt](https://proxy-scraper.de/http.txt) · [socks4.txt](https://proxy-scraper.de/socks4.txt) · [socks5.txt](https://proxy-scraper.de/socks5.txt) · [proxies.json](https://proxy-scraper.de/proxies.json) · [more formats](#live-list)
 
 **Used by:** the hourly list is a built-in source of [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list).
 
@@ -104,17 +104,17 @@ Don't want to scan yourself? About every hour **GitHub Actions** runs the tool a
 
 > **Just want the lists?** They also live in a repository of their own, **[maximilianfeix/free-proxy-list](https://github.com/maximilianfeix/free-proxy-list)** – one list per protocol, per country and per site, updated every hour, with the numbers of the last run on the front page. Watch or star it to keep it at hand. Other tools pull it too: [monosans/proxy-scraper-checker](https://github.com/monosans/proxy-scraper-checker) and [gfpcom/free-proxy-list](https://github.com/gfpcom/free-proxy-list) use it as a built-in source.
 
-<a href="https://maximilianfeix.github.io/proxy-scraper/"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://maximilianfeix.github.io/proxy-scraper/chart-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://maximilianfeix.github.io/proxy-scraper/chart-light.svg">
-  <img src="https://maximilianfeix.github.io/proxy-scraper/chart-dark.svg" alt="Working proxies over the last days, stacked by protocol – redrawn with every run" width="100%">
+<a href="https://proxy-scraper.de/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://proxy-scraper.de/chart-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://proxy-scraper.de/chart-light.svg">
+  <img src="https://proxy-scraper.de/chart-dark.svg" alt="Working proxies over the last days, stacked by protocol – redrawn with every run" width="100%">
 </picture></a>
 
-**→ [Browse it on the website](https://maximilianfeix.github.io/proxy-scraper/)** – search, filter by type, country, HTTPS, provider and latency, see how long each proxy has been on the list and in how many of the week's runs, copy or download exactly the proxies you need.
+**→ [Browse it on the website](https://proxy-scraper.de/)** – search, filter by type, country, HTTPS, provider and latency, see how long each proxy has been on the list and in how many of the week's runs, copy or download exactly the proxies you need.
 
-Every protocol and country also has its own page with a plain download, e.g. [SOCKS5](https://maximilianfeix.github.io/proxy-scraper/socks5/) or [Germany](https://maximilianfeix.github.io/proxy-scraper/country/de/) (`country/de/proxies.txt`).
+Every protocol and country also has its own page with a plain download, e.g. [SOCKS5](https://proxy-scraper.de/socks5/) or [Germany](https://proxy-scraper.de/country/de/) (`country/de/proxies.txt`).
 
-<div align="center"><a href="https://maximilianfeix.github.io/proxy-scraper/"><img src="docs/website.png" alt="The live list website" width="860"></a></div>
+<div align="center"><a href="https://proxy-scraper.de/"><img src="docs/website.png" alt="The live list website" width="860"></a></div>
 
 <div align="center">
 
@@ -136,21 +136,21 @@ Every protocol and country also has its own page with a plain download, e.g. [SO
 | Stable, on the list in 90 %+ of this week's runs | `type://ip:port` | [stable.txt](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/stable.txt) |
 | With all details | latency, country, HTTPS, anonymity, exit IP, uptime, sites | [proxies.json](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.json) · [proxies.csv](https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/proxies.csv) |
 
-<a href="https://maximilianfeix.github.io/proxy-scraper/"><picture>
-  <source media="(prefers-color-scheme: dark)" srcset="https://maximilianfeix.github.io/proxy-scraper/countries-dark.svg">
-  <source media="(prefers-color-scheme: light)" srcset="https://maximilianfeix.github.io/proxy-scraper/countries-light.svg">
-  <img src="https://maximilianfeix.github.io/proxy-scraper/countries-dark.svg" alt="Countries with the most working proxies right now" width="100%">
+<a href="https://proxy-scraper.de/"><picture>
+  <source media="(prefers-color-scheme: dark)" srcset="https://proxy-scraper.de/countries-dark.svg">
+  <source media="(prefers-color-scheme: light)" srcset="https://proxy-scraper.de/countries-light.svg">
+  <img src="https://proxy-scraper.de/countries-dark.svg" alt="Countries with the most working proxies right now" width="100%">
 </picture></a>
 
 ```bash
 curl -s https://raw.githubusercontent.com/maximilianfeix/proxy-scraper/proxy-list/socks5.txt | head
 ```
 
-**Where they come from:** [which free proxy lists actually work](https://maximilianfeix.github.io/proxy-scraper/sources/) ranks every source of the hourly runs – how many proxies each one lists, how many passed every check and the share. The same as data: [sources.json](https://maximilianfeix.github.io/proxy-scraper/sources.json).
+**Where they come from:** [which free proxy lists actually work](https://proxy-scraper.de/sources/) ranks every source of the hourly runs – how many proxies each one lists, how many passed every check and the share. The same as data: [sources.json](https://proxy-scraper.de/sources.json).
 
 **Over time:** every day the first run's `proxies.json` is kept for good as a gzipped asset of the release of that year, like [snapshots-2026](../../releases/tag/snapshots-2026) – `proxies-2026-09-28.json.gz` and so on, for anyone who wants to look at free proxies over weeks and months.
 
-Every file is also on GitHub Pages, which sits behind a CDN, isn't rate limited like raw.githubusercontent and sends CORS headers, so it works straight from the browser: `https://maximilianfeix.github.io/proxy-scraper/socks5.txt`. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) works too, but can lag behind by a few hours.
+Every file is also on GitHub Pages, which sits behind a CDN, isn't rate limited like raw.githubusercontent and sends CORS headers, so it works straight from the browser: `https://proxy-scraper.de/socks5.txt`. [jsDelivr](https://cdn.jsdelivr.net/gh/maximilianfeix/proxy-scraper@proxy-list/) works too, but can lag behind by a few hours.
 
 Or let the tool start from it: `proxy-scraper --recheck live` downloads the list and checks it again from **your** network – well under a minute instead of a full scan. How many still work from your network differs a lot from the list's own count, which is the point of checking again. Add `--serve` and the result is a rotating proxy.
 

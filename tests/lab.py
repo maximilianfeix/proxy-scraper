@@ -13,8 +13,10 @@ from __future__ import annotations
 import asyncio
 import json
 import ssl
+import time
+from collections import deque
 from pathlib import Path
-from typing import Callable, Dict, List, Optional, Set
+from typing import Callable, Deque, Dict, List, Optional, Set
 
 from proxyscraper import checker as ck
 from proxyscraper.checkstate import CONFIRM, CONTENT, HTTPS
@@ -52,9 +54,14 @@ async def _pipe(reader, writer) -> None:
         writer.close()
 
 
-def _reply(body: bytes, status: bytes = b"200 OK", content_type: bytes = b"text/plain") -> bytes:
-    return (b"HTTP/1.1 " + status + b"\r\nContent-Type: " + content_type
+def _reply(body: bytes, status: bytes = b"200 OK", content_type: bytes = b"text/plain", extra: bytes = b"") -> bytes:
+    return (b"HTTP/1.1 " + status + b"\r\nContent-Type: " + content_type + extra
             + b"\r\nContent-Length: %d\r\nConnection: close\r\n\r\n" % len(body) + body)
+
+
+# what httpbin.org answers above its limit (seen from 2026-10-29 on): 17 requests per second per client IP
+RATE_LIMITED = _reply(b"rate limit exceeded: 17 requests per second per client IP", b"429 Too Many Requests",
+                      extra=b'\r\nratelimit-policy: "general";q=17;w=1\r\nretry-after: 1')
 
 
 class Lab:
@@ -68,6 +75,13 @@ class Lab:
         self.confirm_down = False  # the second target stops answering (directly and through proxies)
         self.page = PAGE           # what /html returns at its source
         self.https_status = b"200 OK"  # what the TLS target answers with
+        # like httpbin.org: above this many requests per second from one client (exit) IP the second target
+        # answers 429 (0 = no limit); confirm_429 answers the next this many requests with 429 whatever the rate
+        self.confirm_rate_limit = 0
+        self.confirm_429 = 0
+        self.rate_limited = 0  # how many 429s the second target has sent
+        self.rate_limited_reply = RATE_LIMITED
+        self._recent: Dict[str, Deque[float]] = {}  # client IP -> times of its requests in the last second
         self.judge_port = self.confirm_port = self.tls_port = self.untrusted_port = 0
 
     async def __aenter__(self) -> "Lab":
@@ -142,6 +156,11 @@ class Lab:
             head = await reader.readuntil(b"\r\n\r\n")
             if self.confirm_down:
                 return
+            if self._over_limit(self._seen(writer)):
+                self.rate_limited += 1
+                writer.write(self.rate_limited_reply)
+                await writer.drain()
+                return
             path = head.split()[1]
             if path == b"/get":
                 lines = head.decode("latin-1").split("\r\n")[1:]
@@ -158,12 +177,25 @@ class Lab:
         finally:
             writer.close()
 
+    def _over_limit(self, client: str) -> bool:
+        if self.confirm_429 > 0:
+            self.confirm_429 -= 1
+            return True
+        if not self.confirm_rate_limit:
+            return False
+        now = time.monotonic()
+        recent = self._recent.setdefault(client, deque())
+        while recent and now - recent[0] >= 1.0:
+            recent.popleft()
+        recent.append(now)  # httpbin counts the refused requests too
+        return len(recent) > self.confirm_rate_limit
+
     # ------------------------------------------------------------------ proxies
 
     async def proxy(self, exit_ip: str, *, second_exit_ip: str = "", rewrite: Optional[Callable[[bytes], bytes]] = None,
                     only_first_target: bool = False, no_connect: bool = False, breaks_tls: bool = False,
                     answers_after: float = 0.0, garbage: bool = False, adds_header: str = "",
-                    port: int = 0) -> str:
+                    hangs_up_on_second: bool = False, port: int = 0) -> str:
         """An HTTP proxy that forwards to the lab's targets, with one flaw at most:
 
         second_exit_ip     the second target sees another address (a rotating or chained exit)
@@ -174,6 +206,7 @@ class Lab:
         answers_after      waits this many seconds before doing anything
         garbage            answers every request with a page of its own
         adds_header        a header line it adds to forwarded requests (e.g. "X-Forwarded-For: 203.0.113.1")
+        hangs_up_on_second closes the connection without a word when asked for the second target
         """
         async def handle(reader, writer) -> None:
             try:
@@ -201,6 +234,8 @@ class Lab:
                 if only_first_target and port != self.judge_port:
                     writer.write(_reply(b"", b"400 Bad Request"))
                     await writer.drain()
+                    return
+                if hangs_up_on_second and port == self.confirm_port:
                     return
                 seen_as = second_exit_ip if second_exit_ip and port == self.confirm_port else exit_ip
                 up_reader, up_writer = await self._upstream(port, seen_as)

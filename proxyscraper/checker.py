@@ -89,9 +89,28 @@ ANONYMITY_RANK = {"transparent": 0, "anonymous": 1, "elite": 2}
 # every CONTROL_GAP seconds (failures in between wait for the next answer and share it), and an answer that
 # says "down" stands for CONTROL_SECONDS.
 # reasons of a failed first request that a dead check target would produce just the same
-TARGET_DEPENDENT = {"timeout", "bad_status", "connection_closed", "connection_error", "invalid_response",
-                    "handshake_refused"}
+TARGET_DEPENDENT = {"timeout", "bad_status", "no_answer", "connection_closed", "connection_error",
+                    "invalid_response", "handshake_refused"}
 CONTROL_GAP = 3.0
+# httpbin.org, the second target, answers HTTP 429 above 17 requests per second per client IP (seen from
+# 2026-10-29 on: 'ratelimit-policy: "general";q=17;w=1', 'retry-after: 1'). Free proxies share exit IPs – one
+# hourly list had 350 proxies on 217 exits, up to 28 on one – and every proxy sends two requests there (confirm
+# and content). Checked side by side, the proxies of one exit tripped that limit themselves and were failed for
+# it. So requests to the second target are spaced per exit IP, at under half of the limit across both checks.
+EXIT_IP_RATE = 8.0
+# The wait for a slot doesn't count against the proxy's timeout. It is bounded, so that an exit with hundreds of
+# proxies can't hold workers for minutes: a request whose slot is further away than this goes after this wait
+# anyway and, if the target refuses it, the 429 handling below takes over. 30 s is 240 requests, 120 proxies on
+# one exit – four times the most seen in a run.
+PACING_MAX_WAIT = 30.0
+# a 429 is asked again once, after the Retry-After the target sends (1 s from httpbin), at most this long
+RETRY_AFTER_MAX = 3.0
+RETRY_AFTER_DEFAULT = 1.0
+RETRY_AFTER_RE = re.compile(rb"(?im)^retry-after:[ \t]*(\d+)[ \t]*\r?$")
+# A 429 that carries rate-limit headers (IETF RateLimit / RateLimit-Policy, X-RateLimit-*) is the target's limiter
+# talking, passed on by the proxy. A bare 429 may be the proxy's own and stays bad_status. A 503 is left as it is:
+# httpbin's own 503 (an overloaded load balancer) can't be told apart from a proxy's.
+RATE_LIMIT_HEADER_RE = re.compile(rb"(?im)^(?:ratelimit|ratelimit-policy|x-ratelimit-[a-z-]+):")
 CONTROL_SECONDS = 10.0
 CONTROL_TIMEOUT = 6.0
 Control = Callable[[], Awaitable[object]]
@@ -104,6 +123,41 @@ CONTENT_LIMITS = ("the bytes differ from the reference: an injected script or ad
                   "re-encoded or cut-off copy – this check doesn't tell which")
 HTTPS_LIMITS = ("a verified TLS connection to this one host worked through the proxy at this time – it says "
                 "nothing about other sites, later requests or who runs the proxy")
+
+
+class ExitPacer:
+    """Spaces requests that leave through the same exit IP at least 1/rate seconds apart, across all checks of a
+    run. A slot is reserved when asked for, so whoever asks first goes first. An unknown exit IP isn't paced."""
+
+    def __init__(self, rate: float = EXIT_IP_RATE, max_wait: float = PACING_MAX_WAIT):
+        self.interval = 1.0 / rate if rate > 0 else 0.0
+        self.max_wait = max_wait
+        self._next: Dict[str, float] = {}  # exit IP -> earliest time of its next request (time.monotonic())
+
+    async def wait(self, exit_ip: str) -> None:
+        if not exit_ip or not self.interval:
+            return
+        now = time.monotonic()
+        if len(self._next) > 4096:  # forget exits whose slot has passed: their next request can go right away
+            self._next = {ip: at for ip, at in self._next.items() if at > now}
+        at = max(now, self._next.get(exit_ip, now))
+        self._next[exit_ip] = at + self.interval
+        delay = min(at - now, self.max_wait)
+        if delay > 0:
+            await asyncio.sleep(delay)
+
+
+@dataclass
+class HttpAnswer:
+    status: int              # 0: no HTTP status line
+    head: bytes              # the response head (status line and headers)
+    body: Optional[bytes]    # only for a 200 with a complete body
+
+
+def retry_after(head: bytes) -> float:
+    """Seconds to wait before asking again: the target's Retry-After (in seconds), capped at RETRY_AFTER_MAX."""
+    m = RETRY_AFTER_RE.search(head)
+    return min(float(m.group(1)), RETRY_AFTER_MAX) if m else RETRY_AFTER_DEFAULT
 
 
 def control_clock() -> float:
@@ -203,6 +257,8 @@ class Checker:
         # block a slot for the full timeout.
         self.connect_timeout = min(connect_timeout, timeout)
         self.unreachable: Set[str] = set()
+        # requests to the second target, paced per exit IP (see EXIT_IP_RATE)
+        self.pacer = ExitPacer()
 
     def use_judge(self, judge: Judge, ip: str) -> None:
         """Set the check target or switch it mid-run (running checks still use the old one)."""
@@ -297,7 +353,7 @@ class Checker:
                 raise CheckFailed("handshake_refused")
             writer.write(with_proxy_auth(request, ep) if ptype == "http" else request)
             await writer.drain()
-            return await _read_http_200(reader)
+            return (await _read_http(reader)).body
         finally:
             writer.close()
 
@@ -358,10 +414,10 @@ class Checker:
         if not self.confirms:
             return Check(UNAVAILABLE, "target_not_configured", target, now_iso(), limits=UNCONFIRMED_LIMITS)
         began = control_clock()
-        start = time.perf_counter()
+        start = [time.perf_counter()]
         reason, data = "", {}
         try:
-            body = await wait_for(self._confirm(result.ptype, result.proxy), self.detail_timeout)
+            body = (await self._ask_second_target(result, start)).body
         except Exception as e:  # an error on the second request means: not reliable
             reason = reason_for(e)
         else:
@@ -379,10 +435,12 @@ class Checker:
                 else:
                     result.anonymity = anonymity
                     data = {"exit_ip": result.exit_ip, "anonymity": anonymity}
-        ms = round((time.perf_counter() - start) * 1000)
+        ms = round((time.perf_counter() - start[0]) * 1000)
         if not reason:
             return Check(PASSED, "", target, now_iso(), ms, data)
         state = state_for(reason)
+        if reason == "target_rate_limited":
+            return Check(state, reason, target, now_iso(), ms, limits=UNCONFIRMED_LIMITS)
         # a second site that saw another exit IP did answer; for anything else, the target may be the one
         # that is down – then nothing was learned about this proxy
         if state == FAILED and reason != "exit_ip_mismatch" and await self._target_ok(CONFIRM, began) is False:
@@ -390,8 +448,27 @@ class Checker:
         return Check(state, reason, target, now_iso(), ms, data,
                      limits=MISMATCH_LIMITS if reason == "exit_ip_mismatch" else "")
 
+    async def _ask_second_target(self, result: CheckResult, start: List[float], request: Optional[bytes] = None,
+                                 http_proxy_request: Optional[bytes] = None) -> HttpAnswer:
+        """One request to the second target through the proxy, paced per exit IP. A 429 is asked once more after
+        the target's Retry-After; if the target's limiter still refuses, CheckFailed("target_rate_limited").
+        Neither wait counts against the proxy's timeout. start[0] is set to when the last attempt began."""
+        answer = HttpAnswer(0, b"", None)
+        for attempt in range(2):
+            if attempt:
+                await asyncio.sleep(retry_after(answer.head))
+            await self.pacer.wait(result.exit_ip)
+            start[0] = time.perf_counter()
+            answer = await wait_for(self._confirm(result.ptype, result.proxy, request, http_proxy_request),
+                                    self.detail_timeout)
+            if answer.status != 429:
+                return answer
+        if RATE_LIMIT_HEADER_RE.search(answer.head):
+            raise CheckFailed("target_rate_limited")
+        return answer  # a 429 of the proxy's own: bad_status
+
     async def _confirm(self, ptype: str, proxy: str, request: Optional[bytes] = None,
-                       http_proxy_request: Optional[bytes] = None) -> Optional[bytes]:
+                       http_proxy_request: Optional[bytes] = None) -> HttpAnswer:
         ep = parse_endpoint(proxy)
         request = request or self.confirm_request
         http_proxy_request = http_proxy_request or self.http_proxy_confirm_request
@@ -402,7 +479,7 @@ class Checker:
             writer.write(with_proxy_auth(http_proxy_request, ep) if ptype == "http" else request)
             await writer.drain()
             # the response comes from the (untrusted) proxy – read only a limited amount
-            return await _read_http_200(reader)
+            return await _read_http(reader)
         finally:
             writer.close()
 
@@ -419,13 +496,13 @@ class Checker:
         if self.integrity_reference is None:
             return Check(UNAVAILABLE, "no_reference", target, now_iso())
         began = control_clock()
-        start = time.perf_counter()
+        start = [time.perf_counter()]
         try:
-            body = await wait_for(self._confirm(result.ptype, result.proxy, self.integrity_request,
-                                                self.http_proxy_integrity_request), self.detail_timeout)
+            body = (await self._ask_second_target(result, start, self.integrity_request,
+                                                  self.http_proxy_integrity_request)).body
         except Exception as e:  # no page, no comparison
-            return Check(UNAVAILABLE, reason_for(e), target, now_iso(), round((time.perf_counter() - start) * 1000))
-        ms = round((time.perf_counter() - start) * 1000)
+            return Check(UNAVAILABLE, reason_for(e), target, now_iso(), round((time.perf_counter() - start[0]) * 1000))
+        ms = round((time.perf_counter() - start[0]) * 1000)
         if body is None:
             return Check(UNAVAILABLE, "bad_status", target, now_iso(), ms)
         digest = page_hash(body)
@@ -774,10 +851,19 @@ def classify_anonymity(body: bytes, own_ips: Iterable[str]) -> Optional[str]:
 
 
 async def _read_http_200(reader) -> Optional[bytes]:
-    """Read a small HTTP response; the body only for status 200, otherwise None.
+    """The body of a small HTTP response with status 200, otherwise None (also for no answer at all)."""
+    try:
+        return (await _read_http(reader)).body
+    except CheckFailed:
+        return None
+
+
+async def _read_http(reader) -> HttpAnswer:
+    """Read a small HTTP response: its status and head, and the body only for status 200.
 
     Stops at the end of the body (Content-Length, or the last chunk of a chunked one), so a proxy that keeps
-    the connection open doesn't cost the whole timeout. A broken or cut-off chunked body -> None."""
+    the connection open doesn't cost the whole timeout. A broken or cut-off chunked body -> no body. A connection
+    that ends before the end of the head raises CheckFailed("no_answer")."""
     data = bytearray()
     want = None  # total length from Content-Length, once the header is there
     chunked: Optional[ChunkedDecoder] = None
@@ -794,8 +880,9 @@ async def _read_http_200(reader) -> Optional[bytes]:
             end = data.find(b"\r\n\r\n")
             if end < 0:
                 continue
-            if not data.startswith(b"HTTP/") or b" 200" not in data[: data.find(b"\r\n")]:
-                return None  # bail out early, the rest of the response doesn't matter
+            status = _status(bytes(data[: data.find(b"\r\n")]))
+            if status != 200:
+                return HttpAnswer(status, bytes(data[:end]), None)  # the rest of the response doesn't matter
             if CHUNKED_RE.search(data, 0, end):
                 want = -1
                 chunked = ChunkedDecoder(READ_LIMIT)
@@ -807,15 +894,27 @@ async def _read_http_200(reader) -> Optional[bytes]:
             try:
                 complete = chunked.feed(chunk)
             except FramingError:
-                return None
+                return HttpAnswer(200, bytes(data[: data.find(b"\r\n\r\n")]), None)
             if complete:
                 break
         elif 0 <= want <= len(data):
             break
 
+    if want is None:  # no end of the head
+        if len(data) < READ_LIMIT:
+            raise CheckFailed("no_answer")  # the connection ended (or was reset) first
+        return HttpAnswer(0, b"", None)
     head, _, body = bytes(data).partition(b"\r\n\r\n")
-    if not head.startswith(b"HTTP/") or b" 200" not in head.split(b"\r\n", 1)[0]:
-        return None
     if chunked is not None:
-        return bytes(chunked.body) if complete else None  # cut off or larger than READ_LIMIT
-    return body
+        return HttpAnswer(200, head, bytes(chunked.body) if complete else None)  # cut off or larger than READ_LIMIT
+    return HttpAnswer(200, head, body)
+
+
+def _status(line: bytes) -> int:
+    """The status code of a status line; 200 as the checks always read it (" 200" in an HTTP/ line), 0 for none."""
+    if not line.startswith(b"HTTP/"):
+        return 0
+    if b" 200" in line:
+        return 200
+    parts = line.split()
+    return int(parts[1]) if len(parts) > 1 and parts[1].isdigit() and parts[1] != b"200" else 0

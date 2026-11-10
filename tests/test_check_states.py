@@ -517,3 +517,124 @@ def test_a_dead_first_target_is_not_the_proxys_failure_where_a_control_is_set():
     (_, through_proxy), (_, no_proxy) = in_lab(scenario)
     assert states(through_proxy)[BASIC] == (UNAVAILABLE, "target_unreachable")
     assert no_proxy[BASIC].state == FAILED  # no connection to the proxy at all: that is the proxy's, target or not
+
+
+# --------------------------------------------------------------------------- the second target's rate limit
+
+SHARED_EXIT = "203.0.113.80"
+
+
+def test_proxies_on_one_exit_ip_are_paced_below_the_targets_limit():
+    """httpbin.org answers 429 above 17 requests per second per client IP, and free proxies share exit IPs:
+    checked all at once, the proxies of one exit tripped that limit themselves."""
+    async def scenario(lab, c):
+        lab.confirm_rate_limit = 17
+        proxies = [await lab.proxy(SHARED_EXIT) for _ in range(12)]  # 24 requests to the second target
+        outcomes = await asyncio.gather(*(all_checks(c, p) for p in proxies))
+        return [checks for _, checks in outcomes], lab.rate_limited
+
+    all_states, rate_limited = in_lab(scenario, timeout=3.0)
+    assert rate_limited == 0  # the pacing kept every exit under the limit, no retry needed
+    assert all(states(checks)[CONFIRM] == (PASSED, "") and states(checks)[CONTENT] == (PASSED, "")
+               for checks in all_states)
+
+
+def test_a_429_from_the_target_is_retried_once():
+    async def scenario(lab, c):
+        proxy = await lab.proxy(EXIT)
+        lab.confirm_429 = 1
+        return await all_checks(c, proxy)
+
+    result, checks = in_lab(scenario)
+    assert states(checks)[CONFIRM] == (PASSED, "") and result.anonymity == "elite"
+    assert states(checks)[CONTENT] == (PASSED, "")
+
+
+def test_a_target_that_keeps_answering_429_says_nothing_about_the_proxy():
+    async def scenario(lab, c):
+        proxy = await lab.proxy(EXIT)
+        lab.confirm_429 = 4  # the first try and the retry, of both the second request and the page
+        return await all_checks(c, proxy)
+
+    result, checks = in_lab(scenario)
+    assert states(checks)[CONFIRM] == (UNAVAILABLE, "target_rate_limited")
+    assert states(checks)[CONTENT] == (UNAVAILABLE, "target_rate_limited")
+    assert result.anonymity == ""
+
+
+def test_a_rate_limited_target_does_not_fail_the_proxies_of_a_run(tmp_path):
+    async def prepare(lab):
+        proxies = [await lab.proxy(f"203.0.113.{90 + i}") for i in range(3)]
+        lab.confirm_429 = 1000
+        return proxies
+
+    run, stats, jobs = lab_run(tmp_path, prepare)
+    assert run.working == set(jobs) and stats.fakes == 0 and stats.tampered == 0  # not learned as dead
+    assert run.states[CONFIRM] == {"unavailable:target_rate_limited": 3}
+    rows = json.loads((tmp_path / "run" / "proxies.json").read_text())
+    from proxyscraper.publish import meets_requirements
+    assert not any(meets_requirements(row) for row in rows)  # held back from the published list
+
+
+def test_a_proxy_that_hangs_up_without_an_answer_is_no_answer_not_bad_status():
+    async def scenario(lab, c):
+        return await all_checks(c, await lab.proxy(EXIT, hangs_up_on_second=True))
+
+    _, checks = in_lab(scenario)
+    assert states(checks)[CONFIRM] == (FAILED, "no_answer")
+
+
+def test_a_bare_429_without_rate_limit_headers_stays_the_proxys_bad_status():
+    """A 429 without the target's rate-limit headers may be the proxy's own – it says something about the proxy."""
+    async def scenario(lab, c):
+        proxy = await lab.proxy(EXIT)
+        lab.confirm_429 = 2
+        lab.rate_limited_reply = b"HTTP/1.1 429 Too Many Requests\r\nContent-Length: 0\r\nConnection: close\r\n\r\n"
+        return await all_checks(c, proxy)
+
+    _, checks = in_lab(scenario, controls=False)
+    assert states(checks)[CONFIRM] == (FAILED, "bad_status")
+
+
+def test_retry_after_is_read_in_seconds_and_capped():
+    assert ck.retry_after(b"HTTP/1.1 429 Too Many Requests\r\nretry-after: 1") == 1.0
+    assert ck.retry_after(b"HTTP/1.1 429 Too Many Requests\r\nRetry-After: 120") == ck.RETRY_AFTER_MAX
+    assert ck.retry_after(b"HTTP/1.1 429 Too Many Requests\r\nRetry-After: Wed, 21 Oct 2026 07:28:00 GMT") == 1.0
+    assert ck.retry_after(b"HTTP/1.1 429 Too Many Requests") == ck.RETRY_AFTER_DEFAULT
+
+
+def test_the_pacing_spaces_one_exit_only_and_leaves_unknown_exits_alone():
+    async def go():
+        pacer = ck.ExitPacer(rate=10.0, max_wait=0.25)
+        loop = asyncio.get_running_loop()
+        start = loop.time()
+        await asyncio.gather(pacer.wait("203.0.113.1"), pacer.wait("203.0.113.2"), pacer.wait(""), pacer.wait(""))
+        unrelated = loop.time() - start
+        start = loop.time()
+        await asyncio.gather(*(pacer.wait("203.0.113.3") for _ in range(4)))  # slots at 0, .1, .2, .3 s
+        shared = loop.time() - start
+        start = loop.time()
+        await asyncio.gather(*(pacer.wait("203.0.113.4") for _ in range(10)))  # the last slot is 0.9 s away
+        bounded = loop.time() - start
+        return unrelated, shared, bounded
+
+    unrelated, shared, bounded = asyncio.run(go())
+    assert unrelated < 0.05
+    assert 0.25 <= shared < 0.5
+    assert bounded < 0.5  # no request waits longer than max_wait
+
+
+def test_a_proxy_that_hangs_up_on_the_first_request_is_no_answer():
+    async def scenario(lab, c):
+        async def hang_up(reader, writer):
+            await reader.readuntil(b"\r\n\r\n")
+            writer.close()
+
+        server = await asyncio.start_server(hang_up, "127.0.0.1", 0)
+        try:
+            return await c.check_detailed(f"http 127.0.0.1:{server.sockets[0].getsockname()[1]}")
+        finally:
+            server.close()
+
+    result, basic = in_lab(scenario, controls=False)
+    assert result is None and (basic.state, basic.reason) == (FAILED, "no_answer")

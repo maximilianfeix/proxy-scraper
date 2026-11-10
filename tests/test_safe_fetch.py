@@ -281,3 +281,72 @@ def test_netio_public_get_is_http_get_with_the_public_only_policy(monkeypatch):
     monkeypatch.setattr(netio, "http_request", fake_request)
     assert asyncio.run(netio.public_get("https://lists.example/p.txt")) == b"x"
     assert seen["policy"] is PUBLIC_ONLY
+
+
+# --------------------------------------------------------------------------- #
+# credentials on redirects, verified downloads
+# --------------------------------------------------------------------------- #
+
+def test_a_token_is_not_sent_to_another_host_after_a_redirect():
+    """GitHub's Authorization: Bearer (sources.discover_github) belongs to the host it was given to."""
+    secret = {"Authorization": "Bearer ghp_secret", "Cookie": "session=1", "Accept": "application/json"}
+
+    async def go():
+        # 127.0.0.1 and localhost are two hosts for the redirect rule and need no DNS (uvloop resolves names
+        # itself, past a stubbed getaddrinfo)
+        async with Server(ok(b"same")) as same, Server(ok(b"other")) as other, \
+                Server(redirect(f"http://127.0.0.1:{same.port}/a")) as hop1, \
+                Server(redirect(f"http://localhost:{other.port}/b")) as hop2:
+            assert await netio.http_get(f"http://127.0.0.1:{hop1.port}/x", headers=secret) == b"same"
+            assert await netio.http_get(f"http://127.0.0.1:{hop2.port}/x", headers=secret) == b"other"
+            return hop1.requests + hop2.requests, same.requests, other.requests
+
+    first, same, other = asyncio.run(go())
+    assert all(b"Bearer ghp_secret" in head and b"session=1" in head for head in first)
+    assert b"Bearer ghp_secret" in same[0]  # the same host keeps it
+    assert b"ghp_secret" not in other[0] and b"session=1" not in other[0]
+    assert b"Accept: application/json" in other[0]  # other headers stay
+
+
+@pytest.mark.parametrize("before, after, kept", [
+    ("https://api.github.com/x", "https://api.github.com/y", True),
+    ("https://api.github.com/x", "https://API.github.com:8443/y", True),
+    ("https://api.github.com/x", "https://codeload.github.com/y", False),
+    ("https://api.github.com/x", "http://api.github.com/y", False),  # down to plain text
+])
+def test_without_credentials(before, after, kept):
+    from urllib.parse import urlsplit
+    got = netio.without_credentials({"authorization": "Bearer t", "X-A": "1"}, urlsplit(before), urlsplit(after))
+    assert ("authorization" in got) is kept and got["X-A"] == "1"
+
+
+def test_verified_get_never_falls_back_to_an_unverified_connection(monkeypatch):
+    monkeypatch.setattr(netio, "INSECURE_HOSTS", set())
+    server_ctx = ssl.SSLContext(ssl.PROTOCOL_TLS_SERVER)
+    server_ctx.load_cert_chain(DATA / "localhost-cert.pem", DATA / "localhost-key.pem")  # not trusted here
+
+    async def go():
+        async with Server(ok(b"data"), server_ctx) as srv:
+            with pytest.raises(ssl.SSLCertVerificationError):
+                await netio.verified_get(f"https://localhost:{srv.port}/proxies.json")
+            assert not netio.INSECURE_HOSTS
+            # a public proxy list may still take the fallback (its proxies are all checked anyway)
+            return await netio.http_get(f"https://localhost:{srv.port}/list.txt")
+    assert asyncio.run(go()) == b"data"
+
+
+def test_the_live_list_and_the_databases_are_downloaded_verified(monkeypatch):
+    import inspect
+
+    from proxyscraper import agent, api, asndb, geodb
+    assert agent.LiveSource().fetch is netio.verified_get
+    assert inspect.signature(geodb.load_country_db).parameters["fetch"].default is netio.verified_get
+    assert inspect.signature(asndb.load_asn_db).parameters["fetch"].default is netio.verified_get
+    seen = []
+
+    async def fake(url, **kwargs):
+        seen.append(url)
+        return b"[]"
+    monkeypatch.setattr(netio, "verified_get", fake)
+    asyncio.run(api._live_fetch("https://example.org/proxies.json"))
+    assert seen == ["https://example.org/proxies.json"]

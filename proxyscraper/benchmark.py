@@ -173,7 +173,6 @@ def page(lists: List[dict], updated: datetime) -> str:
                  f'<div><dt>{sum(s["checked"] for s in lists):,}</dt>'
                  '<dd>proxies checked per run, counted per list</dd></div>')
     else:
-        typical = 0.0
         lede = ("Popular free proxy lists on GitHub, checked about every hour. Too few of their proxies have been "
                 f"checked yet to compare them; the table fills up with the next runs. Updated {when}.")
         facts = f'<div><dt>{len(lists)}</dt><dd>popular lists compared</dd></div>' if lists else ""

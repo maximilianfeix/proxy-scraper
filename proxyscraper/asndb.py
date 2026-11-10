@@ -28,7 +28,7 @@ from pathlib import Path
 from typing import List, Optional
 
 from .geodb import _months
-from .netio import http_get
+from .netio import verified_get
 from .paths import DATA_DIR, atomic_writer
 
 DB_FILE = DATA_DIR / "geo" / "dbip-asn-ipv4.bin"
@@ -143,7 +143,7 @@ def is_current(db: Optional[AsnDB], today: Optional[date] = None) -> bool:
     return db is not None and db.month == (today or date.today()).strftime("%Y-%m")
 
 
-async def load_asn_db(path: Path = DB_FILE, today: Optional[date] = None, fetch=http_get) -> Optional[AsnDB]:
+async def load_asn_db(path: Path = DB_FILE, today: Optional[date] = None, fetch=verified_get) -> Optional[AsnDB]:
     """Database from data/ – new from DB-IP once a month. May download, so call it in the background."""
     today = today or date.today()
     current = AsnDB.load(path)

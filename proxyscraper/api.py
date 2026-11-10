@@ -188,8 +188,8 @@ class LiveProxy(CheckResult):
 
 
 def _live_fetch(url: str, timeout: float = 20, headers=None):
-    from .netio import http_get
-    return http_get(url, timeout=timeout, headers=headers)
+    from .netio import verified_get  # the list is handed out as it is – never over an unverified connection
+    return verified_get(url, timeout=timeout, headers=headers)
 
 
 def _live_proxy(row: dict, run_hours: int) -> LiveProxy:

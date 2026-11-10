@@ -154,7 +154,13 @@ jobs:
           if [ -z "$LIST_REPO_KEY" ]; then echo "LIST_REPO_KEY isn't set – skipped"; exit 0; fi
           install -m 700 -d ~/.ssh
           printf '%s\n' "$LIST_REPO_KEY" > ~/.ssh/list_repo && chmod 600 ~/.ssh/list_repo
-          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/list_repo -o IdentitiesOnly=yes -o StrictHostKeyChecking=accept-new"
+          # GitHub's published host keys (docs.github.com, "GitHub's SSH key fingerprints") – not trusted on first use
+          cat > ~/.ssh/github_known_hosts <<'KEYS'
+          github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+          github.com ecdsa-sha2-nistp256 AAAAE2VjZHNhLXNoYTItbmlzdHAyNTYAAAAIbmlzdHAyNTYAAABBBEmKSENjQEezOmxkZMy7opKgwFB9nkt5YRrYMjNuG5N87uRgg6CLrbo5wAdT/y6v0mKV0U2w0WZ2YB/++Tpockg=
+          github.com ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQCj7ndNxQowgcQnjshcLrqPEiiphnt+VTTvDP6mHBL9j1aNUkY4Ue1gvwnGLVlOhGeYrnZaMgRK6+PKCUXaDbC7qtbW8gIkhL7aGCsOr/C56SJMy/BCZfxd1nWzAOxSDPgVsmerOBYfNqltV9/hWCqBywINIR+5dIg6JTJ72pcEpEjcYgXkE2YEFXV1JHnsKgbLWNlhScqb2UmyRkQyytRLtL+38TGxkxCflmO+5Z8CSSNY7GidjMIZ7Q4zMjA2n1nGrlTDkzwDCsw+wqFPGQA179cnfGWOWRVruj16z6XyvxvjJwbz0wQZ75XK5tKSb7FNyeIEs4TT4jk+S4dhPeAUC5y+bDYirYgM4GC7uEnztnZyaVWQ7B381AK4Qdrwt51ZqExKbQpTUNn+EjqoTwvqNj4kqx5QUCI0ThS/YkOxJCXmPUWZbhjpCg56i+2aB6CmK2JGhn57K5mj0MNdBXA4/WnwH6XoPWJzK5Nyu2zB3nAZp+S5hpQs+p1vN1/wsjk=
+          KEYS
+          export GIT_SSH_COMMAND="ssh -i $HOME/.ssh/list_repo -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$HOME/.ssh/github_known_hosts"
           # without file contents: only the commits are needed to see when the history started
           git clone -q --filter=blob:none "git@github.com:${LIST_REPO}.git" list-repo
           message=$(python -m proxyscraper.mirror public list-repo --repo "$LIST_REPO")

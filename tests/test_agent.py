@@ -402,6 +402,16 @@ def test_disguised_local_addresses_are_refused_too():
             agent.check_target(bad)
 
 
+def test_private_ipv4_wrapped_in_ipv6_is_refused():
+    """NAT64 (64:ff9b::/96), 6to4, Teredo and IPv4-compatible addresses carry an IPv4 – a private one inside
+    is still the local network (the same rule as netpolicy.is_public_address)."""
+    for bad in ("http://[64:ff9b::7f00:1]/", "http://[64:ff9b::a00:5]/", "http://[2002:7f00:1::]/",
+                "http://[::7f00:1]/"):
+        with pytest.raises(agent.AgentError, match="private or reserved"):
+            agent.check_target(bad)
+    assert agent.check_target("http://[64:ff9b::5db8:d822]/") == "http://[64:ff9b::5db8:d822]/"  # a public IPv4
+
+
 def test_parallel_fetches_on_a_fresh_fetcher():
     async def client(fetcher, port):
         return await asyncio.gather(*(fetcher.fetch(f"http://127.0.0.1:{port}/ok") for _ in range(3)))

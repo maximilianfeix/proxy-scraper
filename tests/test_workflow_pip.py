@@ -51,6 +51,8 @@ def requirements(path):
         line = line.split("#")[0].strip()
         if line.startswith("-r "):
             out += requirements(path.parent / line[3:].strip())
+        elif line.startswith("-c "):  # a constraint (bot.in: the runtime lock) – pins, not requirements
+            continue
         elif line:
             out.append(Requirement(line))
     return out

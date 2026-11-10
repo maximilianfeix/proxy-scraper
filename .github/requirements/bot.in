@@ -1,3 +1,5 @@
-# the Discord bot tests (bot.yml)
+# the Discord bot tests (bot.yml): the deployed runtime lock, unchanged, plus the test tools.
+# -c keeps every runtime package at the version bot/requirements.lock – what the server installs – pins
+-c ../../bot/requirements.lock
 -r ../../bot/requirements.txt
 pytest

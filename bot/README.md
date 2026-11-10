@@ -44,20 +44,43 @@ Answers to commands are only visible to whoever asked, so `#commands` doesn't fi
    If the server does not allow `root` to log in, add the secret `DEPLOY_USER`: a user that may run `sudo` without
    a password. The workflow then logs in as that user and runs the same steps through `sudo`.
 
-4. **Deploy**: every push to `main` that changes `bot/` runs [`.github/workflows/bot.yml`](../.github/workflows/bot.yml): tests, then the code goes to `/opt/proxybot/app`, the token to `/etc/proxybot.env` (mode 600) and [`deploy/install.sh`](deploy/install.sh) sets up a system user, a venv and a hardened systemd service. *Run workflow* on the Actions page redeploys by hand.
+4. **Deploy**: every push to `main` that changes `bot/` runs [`.github/workflows/bot.yml`](../.github/workflows/bot.yml): tests, then the code goes to a new directory `/opt/proxybot/releases/<time>-<commit>`, the token to `/etc/proxybot.env` (mode 600) and [`deploy/install.sh`](deploy/install.sh) sets up a system user, the release's own venv and a hardened systemd service. *Run workflow* on the Actions page redeploys by hand.
+
+The venv is installed with `pip install --require-hashes -r requirements.lock`: the exact versions the bot's tests ran with ([`.github/requirements/bot.txt`](../.github/requirements/bot.txt) is the same lock plus pytest). `requirements.txt` only says which versions are acceptable; after changing it run `sh .github/requirements/compile.sh` (needs [uv](https://docs.astral.sh/uv/)) to update both locks.
+
+### Releases and rolling back
+
+```
+/opt/proxybot/releases/<id>/   code + venv of one deploy (the newest three are kept)
+/opt/proxybot/current          -> the release that runs (the systemd unit starts current/venv/bin/python)
+/opt/proxybot/previous         -> the one before
+```
+
+`install.sh` switches `current` only after the new venv imports the bot. After the restart it waits for the bot to be *ready*, not just running: once every configured bot has logged in (Discord `on_ready`, Telegram `getMe`), the bot writes its PID to `/run/proxybot/ready` (`PROXYBOT_READY_FILE`). The release is kept only when that file holds the PID systemd started within 90 seconds and the same process still runs 15 seconds later. Otherwise `install.sh` points `current` back at the previous release, restarts that and fails the workflow – the bot log lines are in the workflow log; older releases are only pruned after a release that came up.
+
+A token Discord or Telegram refuses (wrong or revoked) is not retried: the bot logs it and exits with code 2, so the service shows as failed (systemd tries again every 10 seconds) instead of looking healthy. Other errors – Discord or Telegram down at boot – still restart only the bot affected, a minute later.
+
+To go back by hand, e.g. after a release that starts but misbehaves:
+
+```bash
+sudo sh /opt/proxybot/current/deploy/install.sh --rollback   # current <-> previous, then restart
+```
+
+The first deploy with this layout leaves an older `/opt/proxybot/app` and `/opt/proxybot/venv` untouched (it goes back to them if the new release doesn't start); delete them once the bot runs from `/opt/proxybot/current`.
 
 On the server:
 
 ```bash
 systemctl status proxybot
 journalctl -u proxybot -f
+readlink /opt/proxybot/current /opt/proxybot/previous
 ```
 
 ## Running it locally
 
 ```bash
 cd bot
-python3 -m venv .venv && .venv/bin/pip install -r requirements.txt
+python3 -m venv .venv && .venv/bin/pip install --require-hashes -r requirements.lock
 DISCORD_TOKEN=... .venv/bin/python -m proxybot
 ```
 
@@ -67,6 +90,7 @@ DISCORD_TOKEN=... .venv/bin/python -m proxybot
 | `PROXYBOT_FEED_URL` | the GitHub Pages site | where `stats.json`, `proxies.json` and `history.json` come from |
 | `PROXYBOT_POLL_SECONDS` | `300` | how often to look for a new run (at least 60) |
 | `PROXYBOT_STATE` | `state.json` | remembers which run was posted where, so restarts don't post twice |
+| `PROXYBOT_READY_FILE` | – | where to write the PID once every bot is logged in (the service sets `/run/proxybot/ready`) |
 
 Tests: `cd bot && python -m pytest tests`
 

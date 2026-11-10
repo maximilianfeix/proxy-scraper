@@ -66,6 +66,12 @@ curl "http://127.0.0.1:8899/report?proxy=203.0.113.7:8080&ok=0"  # it failed you
 
 Filters work on `/get`, `/pop` and `/all`: `country=DE,AT`, `protocol=socks5`, `https=1`, `anonymity=elite`, `max_latency=1500`, and `format=txt` for plain URLs. With `--serve-password` the API wants it as Basic auth, like the status page.
 
+**What websites can't do.** A web page open in your browser can send requests to `127.0.0.1:8899` too, so the API protects itself:
+
+- Without `--serve-password` it only answers requests addressed to an IP or `localhost` (`http://127.0.0.1:8899/…`, `http://[::1]:8899/…`); a host name gets `403`. That keeps out a website that points its own name at 127.0.0.1 (DNS rebinding). To use the API by host name (another container, a LAN name), set a password.
+- `/pop`, `/delete` and `/report` refuse requests that a browser marks as coming from another website (`Sec-Fetch-Site: cross-site`/`same-site`, or an `Origin` that isn't this server) with `403`. `curl`, scripts and proxy_pool clients send neither and aren't affected.
+- Proxies with a login (`user:password@host:port`, from your own lists) are handed out with the password masked (`user:•••@host:port`), as on the status page – unless the API is protected by `--serve-password`, then `/get`, `/pop` and `/all` return the full URL. `/delete` and `/report` find such a proxy by its `IP:PORT` alone.
+
 **Coming from [jhao104/proxy_pool](https://github.com/jhao104/proxy_pool)?** The endpoints, `type=https` and most JSON fields (`proxy`, `https`, `region`, `check_count`, `fail_count`, …) are the same, so point your code at port 8899 and most of it keeps working (three differences: there is no `last_time`, `anonymous` is true/false, not a string, and `source` is always `proxy-scraper`) – without Redis, and with proxies that passed the second-request, content and TLS checks:
 
 ```python

@@ -4,6 +4,15 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Security
+- **The pool API of the rotating server is guarded like its status page.** Without `--serve-password` it answered any `GET`: a website that points its own name at `127.0.0.1` (DNS rebinding) could read `/all`, and an `<img src="http://127.0.0.1:8899/delete?proxy=…">` on any page could empty or change the pool through `/delete`, `/pop` and `/report`. Now, without a password, the API only answers requests addressed to an IP or `localhost` (`403` for a host name); `/pop`, `/delete` and `/report` refuse requests a browser marks as coming from another website (`Sec-Fetch-Site`, or a foreign `Origin`) with a password too; and logins of upstream proxies (`user:password@`) are masked in `/get`, `/pop`, `/all` and `/delete` (as on the status page) unless the API is protected by `--serve-password`. `curl` and scripts work as before
+- An `Authorization` header (the GitHub token of the source search) or a cookie is no longer sent on to another host – or from `https` to `http` – when a download is redirected
+- The page fetcher of the MCP server (`fetch_url`) refused private addresses but accepted them inside an IPv6 wrapper such as NAT64 (`http://[64:ff9b::7f00:1]/`); it now uses the same address check as the source downloads
+- `proxies.csv` (each run and the published one): text cells that start with `=`, `+`, `-`, `@`, a tab or a carriage return get a leading `'`, so a spreadsheet doesn't run a provider name from the ASN database as a formula. Numbers are unchanged
+- Discord bot: provider names and other fields from the list are escaped, so `[text](url)` can't become a masked link and a backtick can't close the code block
+- The list repository push pins GitHub's published SSH host keys instead of trusting the first key it sees (`StrictHostKeyChecking=accept-new`)
+- The live list (MCP tools, Python API) and the monthly country/provider databases are only downloaded over verified TLS; the unverified retry for TLS-inspecting firewalls is kept for public proxy lists, whose proxies are all checked before use
+
 ### Changed
 - The website moved from GitHub Pages to its own domain, https://proxy-scraper.de/ (own server). The hourly run uploads it there; canonical links, sitemap, feeds, the bookmarklet and the docs point to the new address. The `proxy-list` branch and its raw files stay as they are
 - The Discord/Telegram bot links to and reads from https://proxy-scraper.de; `CITATION.cff` and the PyPI documentation link point there too

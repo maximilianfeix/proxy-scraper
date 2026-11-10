@@ -259,3 +259,16 @@ def test_the_summary_trend_compares_with_the_last_post_not_the_last_hour():
     snap = parse_snapshot({"updated": "2026-09-26T12:17:00+00:00", "total": 1012}, [], history)
     assert snap.previous_total() == 1011                                                    # the run an hour ago
     assert snap.previous_total(datetime.fromisoformat("2026-09-26T06:17:00+00:00")) == 1006  # the last post
+
+
+def test_third_party_text_cannot_format_or_link_in_an_embed():
+    """The provider name comes from the ASN database – whoever registered the network picks it. In an embed
+    [text](url) would be a masked link and a backtick would close the code block."""
+    row = {"ptype": "http", "proxy": "7.7.7.7:80", "latency": 100, "country": "DE",
+           "anonymity": "elite`**x**", "org": "[Free Nitro](https://evil.example) **Cloud** ||x||\n# big"}
+    one = messages.single(Proxy.from_row(row))
+    provider = next(f.value for f in one.fields if f.name == "Provider")
+    assert provider == r"\[Free Nitro\]\(https://evil.example\) \*\*Cloud\*\* \|\|x\|\| \# big"
+    assert next(f.value for f in one.fields if f.name == "Anonymity") == r"elite\`\*\*x\*\*"
+    listed = messages.results([Proxy.from_row({**row, "proxy": "7.7.7.7:80```"})], 5, "DE").description
+    assert listed.count("```") == 2  # the table's own block, opened and closed once

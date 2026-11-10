@@ -20,7 +20,7 @@ from datetime import date
 from pathlib import Path
 from typing import Optional
 
-from .netio import http_get
+from .netio import verified_get
 from .paths import DATA_DIR, atomic_writer
 
 DB_FILE = DATA_DIR / "geo" / "dbip-country-ipv4.bin"
@@ -118,7 +118,8 @@ def is_current(db: Optional[CountryDB], today: Optional[date] = None) -> bool:
     return db is not None and db.month == (today or date.today()).strftime("%Y-%m")
 
 
-async def load_country_db(path: Path = DB_FILE, today: Optional[date] = None, fetch=http_get) -> Optional[CountryDB]:
+async def load_country_db(path: Path = DB_FILE, today: Optional[date] = None,
+                          fetch=verified_get) -> Optional[CountryDB]:
     """Database from data/ – new from DB-IP once a month. None if there is none at all.
 
     May download (up to two attempts of 30 s each) – so call it in the background."""

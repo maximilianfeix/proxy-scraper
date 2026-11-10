@@ -254,6 +254,8 @@ LIVE_URL = f"{RAW_BASE}/all.txt"
 async def load_live_jobs(types, history: ProxyHistory, fetch=http_get) -> List[str]:
     """Load the live list (only addresses that worked in the last GitHub Actions run) plus your own hits
     from the history – everything is then checked locally, from your own network."""
+    # http_get keeps its unverified retry here (TLS-inspecting firewalls): nothing from the list is used before
+    # the local check, unlike the live list the API and the MCP tools hand out (netio.verified_get)
     try:
         text = (await fetch(LIVE_URL, timeout=30)).decode("utf-8", "replace")
     except Exception:

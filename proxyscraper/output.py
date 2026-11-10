@@ -14,6 +14,7 @@ import contextlib
 import csv
 import json
 import os
+import re
 from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
@@ -84,7 +85,7 @@ class ResultWriter:
         with csv_path.open("w", newline="", encoding="utf-8") as fh:
             writer = csv.DictWriter(fh, fieldnames=list(_csv_row(rows[0]).keys()) if rows else ["proxy"])
             writer.writeheader()
-            writer.writerows(_csv_row(r) for r in rows)
+            writer.writerows(csv_safe(_csv_row(r)) for r in rows)
         files["Details (CSV)"] = csv_path
 
         now = datetime.now()
@@ -134,6 +135,22 @@ def _csv_row(r: CheckResult) -> dict:
     for name in CHECKS:
         d[f"check_{name}"] = r.checks[name].label() if name in r.checks else ""
     return d
+
+
+FORMULA_START = ("=", "+", "-", "@", "\t", "\r")
+_NUMBER = re.compile(r"[+-]?\d+(\.\d+)?([eE][+-]?\d+)?")
+
+
+def csv_cell(value):
+    """A text cell that a spreadsheet would run as a formula (=HYPERLINK(…) as a provider name from the ASN
+    database, a list's text) gets an apostrophe in front, so it stays text. Numbers stay numbers."""
+    if isinstance(value, str) and value.startswith(FORMULA_START) and not _NUMBER.fullmatch(value):
+        return "'" + value
+    return value
+
+
+def csv_safe(row: dict) -> dict:
+    return {k: csv_cell(v) for k, v in row.items()}
 
 
 RUN_SUMMARY = "run.json"

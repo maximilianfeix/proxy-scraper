@@ -156,6 +156,7 @@ Best first: by first answer plus the download speed measured
 right after the run, and by how long it has been on the list (entries that have been listed longer tend to stay).
 Browse and filter it on the [website]({SITE_URL}), or get the lists alone,
 one per country too, from [free-proxy-list](https://github.com/maximilianfeix/free-proxy-list).
+[Which free proxy list on GitHub actually works?]({SITE_URL}benchmark/) – the popular lists compared every hour.
 
 **Updated:** {updated} · **{num(stats["total"])} proxies** · median latency {num(stats["median_latency"])} ms
 

@@ -7,6 +7,7 @@ proxies checked against it into failures.
 import asyncio
 import contextlib
 import csv
+import dataclasses
 import json
 
 import pytest
@@ -611,17 +612,60 @@ def test_the_pacing_spaces_one_exit_only_and_leaves_unknown_exits_alone():
         await asyncio.gather(pacer.wait("203.0.113.1"), pacer.wait("203.0.113.2"), pacer.wait(""), pacer.wait(""))
         unrelated = loop.time() - start
         start = loop.time()
-        await asyncio.gather(*(pacer.wait("203.0.113.3") for _ in range(4)))  # slots at 0, .1, .2, .3 s
+        await asyncio.gather(*(pacer.wait("203.0.113.3") for _ in range(3)))  # slots at 0, .1, .2 s
         shared = loop.time() - start
-        start = loop.time()
-        await asyncio.gather(*(pacer.wait("203.0.113.4") for _ in range(10)))  # the last slot is 0.9 s away
-        bounded = loop.time() - start
-        return unrelated, shared, bounded
+        return unrelated, shared
 
-    unrelated, shared, bounded = asyncio.run(go())
+    unrelated, shared = asyncio.run(go())
     assert unrelated < 0.05
-    assert 0.25 <= shared < 0.5
-    assert bounded < 0.5  # no request waits longer than max_wait
+    assert 0.15 <= shared < 0.45  # the last slot is .2 s away; the loop clock may round a hair under it
+
+
+def test_a_slot_further_away_than_max_wait_is_refused_at_once_and_not_reserved():
+    """An overbooked exit used to make every later request wait the full max_wait and then go all at once."""
+    async def go():
+        pacer = ck.ExitPacer(rate=10.0, max_wait=0.25)
+        loop = asyncio.get_running_loop()
+        start = loop.time()
+        granted = await asyncio.gather(*(pacer.wait("203.0.113.4") for _ in range(10)))
+        elapsed = loop.time() - start
+        await asyncio.sleep(0.1)  # the refused ones reserved nothing: the next slot is .1 s after the last one
+        start = loop.time()
+        again = await pacer.wait("203.0.113.4")
+        return granted, elapsed, again, loop.time() - start
+
+    granted, elapsed, again, waited = asyncio.run(go())
+    assert granted == [True, True, True] + [False] * 7  # slots at 0, .1, .2 s; .3 s is beyond max_wait
+    assert elapsed < 0.4
+    assert again is True and waited < 0.2
+
+
+def test_an_overbooked_exit_ip_is_rate_limited_at_once_without_a_request():
+    """A backconnect pool: hundreds of ports leaving through one exit IP. Only as many second requests go out
+    as the exit's rate allows; the rest are unavailable:target_rate_limited at once, with no request sent."""
+    rate, max_wait = 20.0, 0.3
+
+    async def scenario(lab, c):
+        c.pacer = ck.ExitPacer(rate=rate, max_wait=max_wait)
+        lab.confirm_rate_limit = int(rate)  # like httpbin: more than this per second from one exit is a 429
+        # 200 proxies that passed the basic check, as 20 ports on each of 10 machines: a backconnect pool keeps
+        # few file descriptors open in the lab (macOS runners allow 256)
+        passed = [(await c.check_detailed(f"http {await lab.proxy(SHARED_EXIT)}"))[0] for _ in range(10)]
+        results = [dataclasses.replace(r, checks=dict(r.checks)) for r in passed for _ in range(20)]
+        loop = asyncio.get_running_loop()
+        start, before = loop.time(), len(lab.confirm_requests)  # the checker fetched the reference page directly
+        await asyncio.gather(*(c.confirm(r) for r in results))
+        return ([r.checks[CONFIRM] for r in results], loop.time() - start, lab.confirm_requests[before:],
+                lab.rate_limited)
+
+    confirms, elapsed, requests, rate_limited = in_lab(scenario, timeout=3.0)
+    assert elapsed < max_wait + 2.0  # bounded: nobody waits beyond max_wait and then goes anyway
+    assert rate_limited == 0  # no request beyond the rate reached the target
+    assert len(requests) == sum(1 for check in confirms if check.state == PASSED)
+    overflow = [check for check in confirms if check.state != PASSED]
+    assert len(overflow) > 150
+    assert all((check.state, check.reason) == (UNAVAILABLE, "target_rate_limited") for check in overflow)
+    assert all(check.limits == ck.UNCONFIRMED_LIMITS for check in overflow)
 
 
 def test_a_proxy_that_hangs_up_on_the_first_request_is_no_answer():

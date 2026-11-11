@@ -99,9 +99,11 @@ CONTROL_GAP = 3.0
 # it. So requests to the second target are spaced per exit IP, at under half of the limit across both checks.
 EXIT_IP_RATE = 8.0
 # The wait for a slot doesn't count against the proxy's timeout. It is bounded, so that an exit with hundreds of
-# proxies can't hold workers for minutes: a request whose slot is further away than this goes after this wait
-# anyway and, if the target refuses it, the 429 handling below takes over. 30 s is 240 requests, 120 proxies on
-# one exit – four times the most seen in a run.
+# proxies can't hold workers for minutes: a request whose slot is further away than this isn't sent at all – its
+# check is unavailable:target_rate_limited at once and reserves no slot. (Sent after the wait anyway, as up to
+# 1.33.0, every request of an overbooked exit waited the full 30 s and then all went at once into the target's 429:
+# a backconnect pool of hundreds of ports on one exit made a run's check phase 2.5 times as long.) 30 s is 240
+# requests, 120 proxies on one exit – four times the most seen in a run before backconnect pools.
 PACING_MAX_WAIT = 30.0
 # a 429 is asked again once, after the Retry-After the target sends (1 s from httpbin), at most this long
 RETRY_AFTER_MAX = 3.0
@@ -158,17 +160,22 @@ class ExitPacer:
         self.max_wait = max_wait
         self._next: Dict[str, float] = {}  # exit IP -> earliest time of its next request (time.monotonic())
 
-    async def wait(self, exit_ip: str) -> None:
+    async def wait(self, exit_ip: str) -> bool:
+        """Wait for the exit's next slot. False, at once and without reserving it, when that slot is further
+        away than max_wait: the request must not be sent (its check is target_rate_limited)."""
         if not exit_ip or not self.interval:
-            return
+            return True
         now = time.monotonic()
         if len(self._next) > 4096:  # forget exits whose slot has passed: their next request can go right away
             self._next = {ip: at for ip, at in self._next.items() if at > now}
         at = max(now, self._next.get(exit_ip, now))
+        delay = at - now
+        if delay > self.max_wait:
+            return False
         self._next[exit_ip] = at + self.interval
-        delay = min(at - now, self.max_wait)
         if delay > 0:
             await asyncio.sleep(delay)
+        return True
 
 
 @dataclass
@@ -501,7 +508,8 @@ class Checker:
         answer = HttpAnswer(0, b"", None)
         retried = rate_limited = False
         while True:
-            await self.pacer.wait(result.exit_ip)
+            if not await self.pacer.wait(result.exit_ip):  # the exit is booked beyond max_wait: no request
+                raise CheckFailed("target_rate_limited")
             start[0] = time.perf_counter()
             try:
                 answer = await wait_for(self._confirm(result.ptype, result.proxy, request, http_proxy_request),

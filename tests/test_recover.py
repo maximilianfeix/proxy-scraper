@@ -122,7 +122,7 @@ def test_the_retry_waits_for_its_slot_of_the_exit_ip():
 
         async def wait(self, exit_ip):
             self.asked.append(exit_ip)
-            await super().wait(exit_ip)
+            return await super().wait(exit_ip)
 
     async def scenario(lab, c):
         c.pacer = Recording()

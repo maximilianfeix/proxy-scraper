@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Fixed
+- **An exit IP with hundreds of proxies no longer stalls the check phase.** Once an exit was booked more than 30 s ahead, every further second or content request on it waited the full 30 s and then all went at once into the target's 429 (run of 11 Nov 08:24 UTC: a backconnect pool on one exit, a 2.5 times longer check phase, 1,457 proxies kept without a second request). Now a request whose slot is more than 30 s away is not sent and the check is `unavailable:target_rate_limited` at once
+
 ## [1.33.0] – 2026-11-11
 
 ### Added

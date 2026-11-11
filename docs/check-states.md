@@ -119,7 +119,7 @@ Every run writes `run.json` next to its results, and the hourly list publishes i
  "changed_pages": {"with_script_tag": 21, "without_script_tag": 36}}
 ```
 
-The numbers in this example are made up to show the shape. `candidates` are the proxies the run set out to check, `checked` the ones that got a verdict, `not_checked` the rest (stopped by `--want` or Ctrl+C, or this machine ran out of sockets: `no_verdict_local`). `changed_pages` splits the content mismatches by whether the page that came back contains a `<script` tag; the reference page has none. `basic` counts attempts: a proxy that is checked again after a check target switch counts once per try.
+The numbers in this example are made up to show the shape. `candidates` are the proxies the run set out to check, `checked` the ones that got a verdict, `not_checked` the rest (stopped by `--want` or Ctrl+C, or this machine ran out of sockets: `no_verdict_local`). `changed_pages` splits the content mismatches by whether the page that came back contains a `<script` tag; the reference page has none. `basic` counts attempts: a proxy that is checked again after a check target switch counts once per try, and so does an address that is tried as another protocol because the listed one answered wrongly (see [how it works](how-it-works.md)). A proxy found that way is in `working` under the protocol it speaks; the listed key counts as checked and failed.
 
 ## For code that reads the old fields
 

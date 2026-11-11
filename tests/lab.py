@@ -270,6 +270,50 @@ class Lab:
         address = f"127.0.0.1:{await self._listen(handle, port=port)}"
         return address
 
+    async def socks_proxy(self, exit_ip: str, version: int = 5) -> str:
+        """A SOCKS5 or SOCKS4 proxy (no login) in front of the lab's targets. Like real ones, it hangs up on a
+        request it doesn't understand (an HTTP request), and a SOCKS4 one answers a SOCKS5 greeting with a
+        SOCKS4 rejection."""
+        address = ""
+
+        async def handle(reader, writer) -> None:
+            self.connections[address] = self.connections.get(address, 0) + 1
+            try:
+                first = await reader.readexactly(1)
+                if version == 4 and first == b"\x05":
+                    writer.write(b"\x00\x5b" + b"\x00" * 6)
+                    await writer.drain()
+                    return
+                if first != bytes([version]):
+                    return
+                if version == 5:
+                    n = (await reader.readexactly(1))[0]
+                    await reader.readexactly(n)
+                    writer.write(b"\x05\x00")
+                    await writer.drain()
+                    head = await reader.readexactly(3)
+                    if head[1] != 1 or (await reader.readexactly(1)) != b"\x01":
+                        return
+                    await reader.readexactly(4)
+                    port = int.from_bytes(await reader.readexactly(2), "big")
+                    ok = b"\x05\x00\x00\x01" + b"\x00" * 6
+                else:
+                    request = await reader.readexactly(7)
+                    await reader.readuntil(b"\x00")  # the user ID
+                    port = int.from_bytes(request[1:3], "big")
+                    ok = b"\x00\x5a" + b"\x00" * 6
+                up_reader, up_writer = await self._upstream(port, exit_ip)
+                writer.write(ok)
+                await writer.drain()
+                await asyncio.gather(_pipe(reader, up_writer), _pipe(up_reader, writer))
+            except (ConnectionError, OSError, asyncio.IncompleteReadError, asyncio.LimitOverrunError):
+                pass
+            finally:
+                writer.close()
+
+        address = f"127.0.0.1:{await self._listen(handle)}"
+        return address
+
     async def _upstream(self, port: int, exit_ip: str):
         reader, writer = await asyncio.open_connection("127.0.0.1", port)
         self.exit_ips[writer.get_extra_info("sockname")[1]] = exit_ip

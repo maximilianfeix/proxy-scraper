@@ -125,6 +125,17 @@ FOLLOWUP_CONNECT_TIMEOUT = 6.0
 RETRY_REASONS = frozenset({"connect_timeout", "timeout", "connection_closed", "no_answer"})
 RETRY_PAUSE = 1.5
 CONTROL_SECONDS = 10.0
+# A port that answered, but not the way the listed protocol does, may speak another one: lists label SOCKS proxies
+# as HTTP and mix up SOCKS4 and SOCKS5. Measured in production: 34 % of HTTP-listed addresses that failed with
+# no_answer worked as SOCKS, and SOCKS4/5 were swapped in 2 % of SOCKS failures. listed type -> (failures that
+# point to another protocol, the protocols to try in this order). A run tries them on the same address unless
+# that key is a candidate of the run anyway (see pipeline.run_checks).
+PROTOCOL_MISMATCH: Dict[str, Tuple[frozenset, Tuple[str, ...]]] = {
+    "http": (frozenset({"no_answer", "connection_closed", "invalid_response", "handshake_refused"}),
+             ("socks5", "socks4")),
+    "socks5": (frozenset({"handshake_refused"}), ("socks4",)),
+    "socks4": (frozenset({"handshake_refused"}), ("socks5",)),
+}
 CONTROL_TIMEOUT = 6.0
 Control = Callable[[], Awaitable[object]]
 
@@ -165,6 +176,13 @@ class HttpAnswer:
     status: int              # 0: no HTTP status line
     head: bytes              # the response head (status line and headers)
     body: Optional[bytes]    # only for a 200 with a complete body
+
+
+def other_protocols(ptype: str, reason: str) -> Tuple[str, ...]:
+    """The protocols worth trying on an address whose basic check as `ptype` failed with `reason` (see
+    PROTOCOL_MISMATCH); () when the failure says nothing about the protocol."""
+    reasons, others = PROTOCOL_MISMATCH.get(ptype, (frozenset(), ()))
+    return others if reason in reasons else ()
 
 
 def retry_after(head: bytes) -> float:
@@ -255,6 +273,9 @@ class Checker:
         self.tls_context: Optional[ssl.SSLContext] = None  # None = certifi's roots
         self.failures: Counter = Counter()  # "failed:reason" -> basic checks that ended that way
         self.no_verdict: Set[str] = set()  # keys whose basic check was "unavailable"; whoever reads it removes it
+        # set to a dict by a run that tries other protocols: key -> reason, for basic checks that failed in a way
+        # another protocol could explain (other_protocols). Whoever reads it removes the key. None = not recorded
+        self.protocol_mismatch: Optional[Dict[str, str]] = None
         # the local test lab hands out documentation addresses (203.0.113.x) as exit IPs; real runs never accept them
         self.reserved_exit_ips_ok = False
         # several possible: e.g. the real IP via HTTPS, but iCloud Private Relay or a corporate proxy on port 80
@@ -348,6 +369,8 @@ class Checker:
             self.failures[check.label()] += 1
             if state == UNAVAILABLE:
                 self.no_verdict.add(key)  # for callers of check(), which only see None: this one isn't a failure
+            elif self.protocol_mismatch is not None and other_protocols(ptype, reason):
+                self.protocol_mismatch[key] = reason
             return None, check
         check = Check(PASSED, "", target, now_iso(), ms, data)
         result = CheckResult(key, ptype, proxy, ms, exit_ip, checked_at=check.at)

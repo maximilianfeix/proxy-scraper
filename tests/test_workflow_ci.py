@@ -151,3 +151,11 @@ def test_the_hourly_run_gives_the_basic_connect_four_seconds():
     run = next(step["run"] for job in steps.values() for step in job["steps"]
                if "proxy_scraper.py" in str(step.get("run", "")))
     assert "--timeout 6 --connect-timeout 4" in run
+
+
+def test_codeql_leaves_the_tests_out_through_its_config_file():
+    steps = workflow("codeql.yml")["jobs"]["analyze"]["steps"]
+    init = next(s for s in steps if s.get("uses", "").startswith("github/codeql-action/init@"))
+    config_file = init["with"]["config-file"]
+    config = yaml.safe_load((ROOT / config_file).read_text(encoding="utf-8"))
+    assert config["paths-ignore"] == ["tests"]

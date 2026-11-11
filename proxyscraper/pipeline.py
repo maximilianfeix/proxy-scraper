@@ -17,7 +17,7 @@ from urllib.request import url2pathname
 from . import sources as srcs
 from .asndb import ProviderLookup
 from .blocklist import Blocklist
-from .checker import Checker, CheckResult
+from .checker import Checker, CheckResult, other_protocols
 from .checkstate import CONFIRM, CONTENT, HTTPS, SKIPPED, Check, now_iso
 from .compat import on_interrupt
 from .fetchcache import FetchCache
@@ -28,7 +28,7 @@ from .netio import http_get, http_request
 from .netpolicy import TargetPolicy
 from .options import RunOptions
 from .output import ResultWriter
-from .parsing import PROXY_TYPES, parse_blob, split_key
+from .parsing import PROXY_TYPES, make_key, parse_blob, split_key
 from .ui import ACCENT, CheckDashboard, CollectView, fmt, widgets
 
 AUTO_DISCOVER_AFTER_DAYS = 1.0  # daily: found sources are kept, so every search adds to the pile
@@ -334,6 +334,9 @@ class CheckRun:
     changed_pages: Counter = field(default_factory=Counter)  # content mismatches: with / without a <script tag
     # check name -> "passed" / "failed:reason" / "unavailable:reason" / "skipped:reason" -> how many proxies
     states: Dict[str, Counter] = field(default_factory=dict)
+    # basic checks of another protocol on an address whose listed one answered wrongly, and how many passed them
+    fallback_tried: int = 0
+    fallback_found: int = 0
 
     def count(self, r: CheckResult, name: str) -> None:
         check = r.checks.get(name)
@@ -434,6 +437,38 @@ async def run_checks(
         watch.on_ok, watch.on_switch = judge_ok, judge_switched
     all_workers: Optional[asyncio.Future] = None
     no_verdict: Set[str] = getattr(checker, "no_verdict", set())  # keys whose basic check couldn't run at all
+    # Protocol fallback: an address whose listed protocol got an answer of another kind is tried as the other
+    # protocols (checker.other_protocols) – unless that key is a candidate of this run anyway or was tried already.
+    # Only for checkers that record why a basic check failed.
+    mismatch: Optional[Dict[str, str]] = None
+    if hasattr(checker, "protocol_mismatch"):
+        mismatch = checker.protocol_mismatch = {}
+    candidates: Set[str] = set(jobs)
+    wanted_types = set(opts.types)
+
+    async def basic_check(key: str) -> Optional[CheckResult]:
+        """The basic check of `key`; if it failed in a way another protocol could explain, the first other
+        protocol that passes on the same address (its result carries its own key)."""
+        r = await checker.check(key)
+        if r is not None or mismatch is None:
+            return r
+        reason = mismatch.pop(key, None)
+        if reason is None:
+            return None
+        ptype, proxy = split_key(key)
+        for other in other_protocols(ptype, reason):
+            alt = make_key(other, proxy)
+            if other not in wanted_types or alt in candidates:
+                continue
+            candidates.add(alt)
+            run.fallback_tried += 1
+            found = await checker.check(alt)
+            mismatch.pop(alt, None)
+            no_verdict.discard(alt)
+            if found is not None:
+                run.fallback_found += 1
+                return found
+        return None
 
     def consider(r: CheckResult) -> None:
         """Live file & goal counter, as soon as all the info the filters need is there."""
@@ -465,7 +500,7 @@ async def run_checks(
         for key in pending:
             started_count += 1
             gen, started = generation, started_count
-            r = await checker.check(key)
+            r = await basic_check(key)
             stats.add_checked(key.split(" ", 1)[0])
             dashboard.advance()
             if r is None and key in no_verdict:
@@ -480,6 +515,11 @@ async def run_checks(
                 if watch:
                     recent_failures.append((gen, started, key))
                 continue
+            listed = r.key == key
+            if not listed:
+                # found under another protocol: the listed one doesn't work. The job's key counts as checked and
+                # failed (that is what the source listed); the other key is learned from the results like any hit
+                run.checked.append(key)
             # A hit only counts as checked once the verdict is in: a worker cancelled during the next requests
             # (--want reached, Ctrl+C) must not record a proxy that just worked as a failure.
             # second, independent request – a proxy that only answers the check request passes the first by chance.
@@ -488,14 +528,16 @@ async def run_checks(
             confirmed = await checker.confirm(r)
             run.count(r, CONFIRM)
             if not confirmed:
-                run.checked.append(key)
+                if listed:
+                    run.checked.append(key)
                 stats.fakes += 1
                 continue
             # third request: does a known page arrive unchanged?
             modified = await checker.tampers(r)
             run.count(r, CONTENT)
             if modified:
-                run.checked.append(key)
+                if listed:
+                    run.checked.append(key)
                 stats.tampered += 1
                 # the proxy is dropped here, so what was measured about its page is kept as a count
                 changed = r.checks[CONTENT].data if CONTENT in r.checks else {}
@@ -507,9 +549,10 @@ async def run_checks(
                 providers.annotate(r)
             if blocklist:
                 r.blocklisted = await blocklist.lookup(r.exit_ip)
-            run.checked.append(key)
+            if listed:
+                run.checked.append(key)
             run.results.append(r)
-            run.working.add(key)
+            run.working.add(r.key)
             by_exit_ip.setdefault(r.exit_ip, []).append(r)
             r.country = geo.request(r.exit_ip)
             if r.country:

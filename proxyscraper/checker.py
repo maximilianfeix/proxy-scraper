@@ -111,7 +111,31 @@ RETRY_AFTER_RE = re.compile(rb"(?im)^retry-after:[ \t]*(\d+)[ \t]*\r?$")
 # talking, passed on by the proxy. A bare 429 may be the proxy's own and stays bad_status. A 503 is left as it is:
 # httpbin's own 503 (an overloaded load balancer) can't be told apart from a proxy's.
 RATE_LIMIT_HEADER_RE = re.compile(rb"(?im)^(?:ratelimit|ratelimit-policy|x-ratelimit-[a-z-]+):")
+# Follow-up requests (second, content, target sites) go to proxies that just answered the basic check, so a
+# connect that takes long there is a lost packet, not a dead proxy. Linux sends a SYN again after 1 s and 3 s:
+# the hourly run's 3 s connect timeout left room for the first two at most, and 58 % of the confirm requests that
+# then failed with connect_timeout had needed more than 0.9 s to connect in the basic check (20 % of the confirmed
+# ones). Follow-up requests connect with at least this long; the time they get after the connect stays as it was,
+# so their whole limit grows by the same amount (6 s → 8 s in the hourly run, see Checker.followup_timeout).
+FOLLOWUP_CONNECT_TIMEOUT = 6.0
+# A second or content request that failed in transport is tried once more after RETRY_PAUSE seconds, through the
+# same pacing and 429 handling. Measured in production: retried after ~3 s, 29 % of failed confirms passed (43 of
+# 144 that had failed with connect_timeout). Failures that came from an answer – another exit IP, a bad status, a
+# wrong or changed page – are not tried again: the proxy did answer, and the answer was the problem.
+RETRY_REASONS = frozenset({"connect_timeout", "timeout", "connection_closed", "no_answer"})
+RETRY_PAUSE = 1.5
 CONTROL_SECONDS = 10.0
+# A port that answered, but not the way the listed protocol does, may speak another one: lists label SOCKS proxies
+# as HTTP and mix up SOCKS4 and SOCKS5. Measured in production: 34 % of HTTP-listed addresses that failed with
+# no_answer worked as SOCKS, and SOCKS4/5 were swapped in 2 % of SOCKS failures. listed type -> (failures that
+# point to another protocol, the protocols to try in this order). A run tries them on the same address unless
+# that key is a candidate of the run anyway (see pipeline.run_checks).
+PROTOCOL_MISMATCH: Dict[str, Tuple[frozenset, Tuple[str, ...]]] = {
+    "http": (frozenset({"no_answer", "connection_closed", "invalid_response", "handshake_refused"}),
+             ("socks5", "socks4")),
+    "socks5": (frozenset({"handshake_refused"}), ("socks4",)),
+    "socks4": (frozenset({"handshake_refused"}), ("socks5",)),
+}
 CONTROL_TIMEOUT = 6.0
 Control = Callable[[], Awaitable[object]]
 
@@ -152,6 +176,13 @@ class HttpAnswer:
     status: int              # 0: no HTTP status line
     head: bytes              # the response head (status line and headers)
     body: Optional[bytes]    # only for a 200 with a complete body
+
+
+def other_protocols(ptype: str, reason: str) -> Tuple[str, ...]:
+    """The protocols worth trying on an address whose basic check as `ptype` failed with `reason` (see
+    PROTOCOL_MISMATCH); () when the failure says nothing about the protocol."""
+    reasons, others = PROTOCOL_MISMATCH.get(ptype, (frozenset(), ()))
+    return others if reason in reasons else ()
 
 
 def retry_after(head: bytes) -> float:
@@ -218,7 +249,8 @@ class Checker:
                  targets: Sequence[Tuple[Target, str]] = (), https_test: bool = True,
                  judge: Judge = DEFAULT_JUDGE, integrity_reference: Optional[bytes] = None,
                  confirm_host: str = CONFIRM_HOST, confirm_port: int = CONFIRM_PORT,
-                 controls: Optional[Dict[str, Control]] = None):
+                 controls: Optional[Dict[str, Control]] = None,
+                 followup_connect_timeout: float = FOLLOWUP_CONNECT_TIMEOUT):
         self.use_judge(judge, judge_ip)
         # hash of the page as it arrives directly – without a reference there is no tampering check
         self.integrity_reference = integrity_reference
@@ -241,6 +273,9 @@ class Checker:
         self.tls_context: Optional[ssl.SSLContext] = None  # None = certifi's roots
         self.failures: Counter = Counter()  # "failed:reason" -> basic checks that ended that way
         self.no_verdict: Set[str] = set()  # keys whose basic check was "unavailable"; whoever reads it removes it
+        # set to a dict by a run that tries other protocols: key -> reason, for basic checks that failed in a way
+        # another protocol could explain (other_protocols). Whoever reads it removes the key. None = not recorded
+        self.protocol_mismatch: Optional[Dict[str, str]] = None
         # the local test lab hands out documentation addresses (203.0.113.x) as exit IPs; real runs never accept them
         self.reserved_exit_ips_ok = False
         # several possible: e.g. the real IP via HTTPS, but iCloud Private Relay or a corporate proxy on port 80
@@ -253,6 +288,10 @@ class Checker:
         # confirmation and HTTPS test may take longer than the (possibly latency-limited) basic check
         self.detail_timeout = detail_timeout or timeout
         self.detail_connect_timeout = min(detail_connect_timeout or connect_timeout, self.detail_timeout)
+        # follow-up requests connect with at least FOLLOWUP_CONNECT_TIMEOUT and keep the rest of their time
+        self.followup_connect_timeout = max(self.detail_connect_timeout, followup_connect_timeout)
+        self.followup_timeout = self.detail_timeout + self.followup_connect_timeout - self.detail_connect_timeout
+        self.retry_pause = RETRY_PAUSE
         # the vast majority of dead proxies already fail at the TCP connect – they shouldn't
         # block a slot for the full timeout.
         self.connect_timeout = min(connect_timeout, timeout)
@@ -330,6 +369,8 @@ class Checker:
             self.failures[check.label()] += 1
             if state == UNAVAILABLE:
                 self.no_verdict.add(key)  # for callers of check(), which only see None: this one isn't a failure
+            elif self.protocol_mismatch is not None and other_protocols(ptype, reason):
+                self.protocol_mismatch[key] = reason
             return None, check
         check = Check(PASSED, "", target, now_iso(), ms, data)
         result = CheckResult(key, ptype, proxy, ms, exit_ip, checked_at=check.at)
@@ -372,9 +413,9 @@ class Checker:
 
     async def _connect(self, proxy: str, detail: bool = False):
         """TCP connection to the proxy. Only the basic check remembers unreachable proxies and uses the
-        (possibly latency-limited) short timeout – detail checks get the normal one."""
+        (possibly latency-limited) short timeout – follow-up requests get followup_connect_timeout."""
         ep = parse_endpoint(proxy)
-        timeout = self.detail_connect_timeout if detail else self.connect_timeout
+        timeout = self.followup_connect_timeout if detail else self.connect_timeout
         try:
             reader, writer = await asyncio.wait_for(asyncio.open_connection(ep.host, ep.port), timeout)
         except (asyncio.TimeoutError, ConnectionRefusedError):
@@ -450,19 +491,34 @@ class Checker:
 
     async def _ask_second_target(self, result: CheckResult, start: List[float], request: Optional[bytes] = None,
                                  http_proxy_request: Optional[bytes] = None) -> HttpAnswer:
-        """One request to the second target through the proxy, paced per exit IP. A 429 is asked once more after
-        the target's Retry-After; if the target's limiter still refuses, CheckFailed("target_rate_limited").
-        Neither wait counts against the proxy's timeout. start[0] is set to when the last attempt began."""
+        """One request to the second target through the proxy, paced per exit IP. A failure in transport
+        (RETRY_REASONS) is tried once more after retry_pause seconds. A 429 is asked once more after the target's
+        Retry-After; if the target's limiter still refuses, CheckFailed("target_rate_limited"). None of the waits
+        count against the proxy's timeout. start[0] is set to when the last attempt began.
+
+        Worst case, pacing aside: three tries of followup_timeout (one transport retry, one after a 429) plus
+        retry_pause and RETRY_AFTER_MAX – 8 + 1.5 + 8 + 3 + 8 = 28.5 s with the hourly run's settings."""
         answer = HttpAnswer(0, b"", None)
-        for attempt in range(2):
-            if attempt:
-                await asyncio.sleep(retry_after(answer.head))
+        retried = rate_limited = False
+        while True:
             await self.pacer.wait(result.exit_ip)
             start[0] = time.perf_counter()
-            answer = await wait_for(self._confirm(result.ptype, result.proxy, request, http_proxy_request),
-                                    self.detail_timeout)
+            try:
+                answer = await wait_for(self._confirm(result.ptype, result.proxy, request, http_proxy_request),
+                                        self.followup_timeout)
+            except Exception as e:
+                # a failure in transport (see RETRY_REASONS) is tried once more, after a short pause
+                if retried or reason_for(e) not in RETRY_REASONS:
+                    raise
+                retried = True
+                await asyncio.sleep(self.retry_pause)
+                continue
             if answer.status != 429:
                 return answer
+            if rate_limited:
+                break
+            rate_limited = True
+            await asyncio.sleep(retry_after(answer.head))
         if RATE_LIMIT_HEADER_RE.search(answer.head):
             raise CheckFailed("target_rate_limited")
         return answer  # a 429 of the proxy's own: bad_status
@@ -580,7 +636,7 @@ class Checker:
     async def _safe(self, coro):
         try:
             async with self._slots():
-                return await wait_for(coro, self.detail_timeout)
+                return await wait_for(coro, self.followup_timeout)
         except Exception:  # detail check failed -> "no"/"unknown", the basic result stays
             return None
 

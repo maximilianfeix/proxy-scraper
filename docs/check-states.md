@@ -88,6 +88,8 @@ For the content check, a timeout or an error page is `unavailable` with the conn
 
 httpbin.org answers HTTP 429 above 17 requests per second per client IP, and many free proxies share one exit IP. So the second and the content request are spaced to at most 8 per second per exit IP across all proxies of a run; waiting for a slot doesn't count against the proxy's time limit and lasts at most 30 seconds. A 429 is asked once more after the target's `Retry-After` (at most 3 seconds). If the target still refuses, and its answer carries rate-limit headers (`RateLimit-Policy`, `RateLimit`, `X-RateLimit-*`), the check is `unavailable:target_rate_limited`. A bare 429 without them may be the proxy's own and stays `failed:bad_status`; so does a 503, which can't be told apart from the proxy's own.
 
+The second and the content request go to a proxy that has just answered the first one, so a connection that doesn't come about there is more often a lost packet than a dead proxy. They connect with at least 6 seconds (more if `--connect-timeout` is higher); the time they get after the connect stays the same, so their whole limit grows by the difference (8 seconds instead of 6 in the hourly run, `--timeout 6 --connect-timeout 4`). A request that failed in transport – `connect_timeout`, `timeout`, `connection_closed` or `no_answer` – is tried once more after 1.5 seconds, through the same pacing and 429 handling; the check records only how the last try ended. An answer that was the problem – another exit IP, a status other than 200, a wrong or changed page – is not tried again. Worst case, a proxy's second request can now take about 28.5 seconds instead of 15 in the hourly run (three tries of 8 seconds, the pause and a `Retry-After`), plus the wait for its slot; so can the content request.
+
 ## What a list requires
 
 | Where | `basic` | `confirm` | `content` | `https` |
@@ -117,7 +119,7 @@ Every run writes `run.json` next to its results, and the hourly list publishes i
  "changed_pages": {"with_script_tag": 21, "without_script_tag": 36}}
 ```
 
-The numbers in this example are made up to show the shape. `candidates` are the proxies the run set out to check, `checked` the ones that got a verdict, `not_checked` the rest (stopped by `--want` or Ctrl+C, or this machine ran out of sockets: `no_verdict_local`). `changed_pages` splits the content mismatches by whether the page that came back contains a `<script` tag; the reference page has none. `basic` counts attempts: a proxy that is checked again after a check target switch counts once per try.
+The numbers in this example are made up to show the shape. `candidates` are the proxies the run set out to check, `checked` the ones that got a verdict, `not_checked` the rest (stopped by `--want` or Ctrl+C, or this machine ran out of sockets: `no_verdict_local`). `changed_pages` splits the content mismatches by whether the page that came back contains a `<script` tag; the reference page has none. `basic` counts attempts: a proxy that is checked again after a check target switch counts once per try, and so does an address that is tried as another protocol because the listed one answered wrongly (see [how it works](how-it-works.md)). A proxy found that way is in `working` under the protocol it speaks; the listed key counts as checked and failed.
 
 ## For code that reads the old fields
 

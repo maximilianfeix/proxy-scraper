@@ -6,6 +6,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ### Changed
 - A GitHub release now shows its version's section of this changelog. Before, it listed the merged pull requests, the release pull request included; the generated list is only the fallback for a version without a section
+- The PyPI project links point at the changelog and the docs in the repository and add the live list and the benchmark on proxy-scraper.de. The development status says Beta instead of Production/Stable
 
 ### Fixed
 - **An exit IP with hundreds of proxies no longer stalls the check phase.** Once an exit was booked more than 30 s ahead, every further second or content request on it waited the full 30 s and then all went at once into the target's 429 (run of 11 Nov 08:24 UTC: a backconnect pool on one exit, a 2.5 times longer check phase, 1,457 proxies kept without a second request). Now a request whose slot is more than 30 s away is not sent and the check is `unavailable:target_rate_limited` at once

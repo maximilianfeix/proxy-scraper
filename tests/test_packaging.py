@@ -53,3 +53,18 @@ def test_server_json_is_valid_for_the_registry():
     schema_file = ROOT / "tests" / "data" / "mcp-server.schema.json"
     server = json.loads((ROOT / "server.json").read_text(encoding="utf-8"))
     jsonschema.validate(server, json.loads(schema_file.read_text(encoding="utf-8")))
+
+
+def test_the_project_links_point_at_the_changelog_the_docs_the_live_list_and_the_benchmark():
+    text = pyproject()
+    urls = dict(re.findall(r'^"?([^"=\n]+?)"? = "(https://[^"]+)"$', text.split("[project.urls]", 1)[1], re.M))
+    blob = "https://github.com/maximilianfeix/proxy-scraper/blob/main/"
+    assert urls["Changelog"] == f"{blob}CHANGELOG.md"
+    assert urls["Documentation"] == f"{blob}docs/README.md"
+    assert urls["Live list"] == "https://proxy-scraper.de/"
+    assert urls["Benchmark"] == "https://proxy-scraper.de/benchmark/"
+    assert (ROOT / "docs" / "README.md").is_file()
+
+
+def test_the_development_status_does_not_claim_production_stable():
+    assert "Production/Stable" not in pyproject()

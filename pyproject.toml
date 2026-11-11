@@ -15,7 +15,7 @@ requires-python = ">=3.9"
 dependencies = ["rich>=13", "certifi"]
 keywords = ["proxy", "proxy-list", "proxy-checker", "proxy-scraper", "socks5", "socks4", "http-proxy", "rotating-proxy", "asyncio", "mcp", "mcp-server", "ai-agents"]
 classifiers = [
-    "Development Status :: 5 - Production/Stable",
+    "Development Status :: 4 - Beta",
     "Environment :: Console",
     "Framework :: AsyncIO",
     "Intended Audience :: Developers",
@@ -64,10 +64,12 @@ proxy-scraper-mcp = "proxyscraper.mcp_entry:main"
 
 [project.urls]
 Homepage = "https://github.com/maximilianfeix/proxy-scraper"
-Documentation = "https://proxy-scraper.de/"
+Documentation = "https://github.com/maximilianfeix/proxy-scraper/blob/main/docs/README.md"
 Source = "https://github.com/maximilianfeix/proxy-scraper"
 Issues = "https://github.com/maximilianfeix/proxy-scraper/issues"
-Changelog = "https://github.com/maximilianfeix/proxy-scraper/releases"
+Changelog = "https://github.com/maximilianfeix/proxy-scraper/blob/main/CHANGELOG.md"
+"Live list" = "https://proxy-scraper.de/"
+Benchmark = "https://proxy-scraper.de/benchmark/"
 "Live proxy list" = "https://github.com/maximilianfeix/proxy-scraper/tree/proxy-list"
 
 [tool.setuptools.dynamic]

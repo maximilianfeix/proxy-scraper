@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.33.1] – 2026-11-11
+
 ### Changed
 - A GitHub release now shows its version's section of this changelog. Before, it listed the merged pull requests, the release pull request included; the generated list is only the fallback for a version without a section
 - **A second or content request that httpbin.org's rate limit held back goes to a fallback target.** After v1.33.0, 14.8 % of the confirm checks and 19.1 % of the content checks in 12 hourly runs ended `unavailable:target_rate_limited` – proxies on shared exits and backconnect pools, about 290 working proxies a run held back from the published list. In a measurement on 11 Nov (440 proxies; 39 parallel requests through 13 proxies sharing one exit) httpbin.org's `/get` and `/html` answered 78 of 78 with 429, while `http://ipv4.icanhazip.com/` returned the right IP 78 of 78 times (median 0.47 s) and `http://example.com/` the same 577 bytes 78 of 78 times (byte-identical across 176 exits), never a 429. Now such a confirm runs against `ipv4.icanhazip.com` (the same exit IP, or `failed:exit_ip_mismatch`) and such a content check against `example.com`, with `info.cern.ch` in reserve (byte for byte as fetched directly at the start of the run, or `failed:content_mismatch`). The check's `target` names the fallback, and `run.json` lists the run's fallback targets under `targets`. A proxy confirmed via the IP echo has no anonymity level – the echo shows no headers – so it isn't in `elite.txt`, and its check's `limits` say so. Without an answer from the echo or a reference page at the start of a run there is no fallback, and the check stays `unavailable:target_rate_limited`. Only the overflow goes there, with its own pacing of 20 requests per second per exit. How many proxies this brings back to the list will show in the next runs
@@ -460,7 +462,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.33.0...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.33.1...HEAD
+[1.33.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.33.0...v1.33.1
 [1.33.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.31.0...v1.32.0

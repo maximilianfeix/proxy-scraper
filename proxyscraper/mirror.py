@@ -275,7 +275,7 @@ for proxy in proxies[:20]:  # best first
 ```
 
 <details>
-<summary><b>Node.js and Go</b></summary>
+<summary><b>Node.js, Go, Java and Rust</b></summary>
 
 ### Node.js
 
@@ -339,6 +339,52 @@ func main() {{
 			break
 		}}
 	}}
+}}
+```
+
+### Java
+
+```java
+import java.net.*;
+import java.net.http.*;
+import java.time.Duration;
+import java.util.Random;
+
+// java.net.http speaks HTTP(S) proxies, so use the https.txt list (type://ip:port lines)
+public class Main {{
+    public static void main(String[] args) throws Exception {{
+        var list = HttpClient.newHttpClient().send(
+            HttpRequest.newBuilder(URI.create("{raw}/https.txt")).build(),
+            HttpResponse.BodyHandlers.ofString()).body();
+        var proxies = list.lines().toList();
+        var uri = URI.create(proxies.get(new Random().nextInt(proxies.size())));
+        var client = HttpClient.newBuilder()
+            .proxy(ProxySelector.of(new InetSocketAddress(uri.getHost(), uri.getPort())))
+            .connectTimeout(Duration.ofSeconds(10))
+            .build();
+        var ip = client.send(HttpRequest.newBuilder(URI.create("https://api.ipify.org")).build(),
+            HttpResponse.BodyHandlers.ofString()).body();
+        System.out.println(uri + " -> " + ip);
+    }}
+}}
+```
+
+### Rust
+
+```rust
+// cargo add reqwest --features blocking,socks rand
+use rand::seq::IndexedRandom;
+
+fn main() -> Result<(), Box<dyn std::error::Error>> {{
+    let list = reqwest::blocking::get("{raw}/socks5.txt")?.text()?;
+    let proxies: Vec<&str> = list.lines().collect();
+    let proxy = proxies.choose(&mut rand::rng()).unwrap(); // socks5.txt lines are ip:port
+    let client = reqwest::blocking::Client::builder()
+        .proxy(reqwest::Proxy::all(format!("socks5://{{}}", proxy))?)
+        .timeout(std::time::Duration::from_secs(10))
+        .build()?;
+    println!("{{}} -> {{}}", proxy, client.get("https://api.ipify.org").send()?.text()?);
+    Ok(())
 }}
 ```
 

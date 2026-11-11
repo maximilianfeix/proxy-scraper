@@ -4,6 +4,9 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Documentation
+- The README starts with the lists: the four list URLs to copy, live counts per protocol and the time of the last run as badges, and the one-line `uvx proxy-scraper-cli --pick 3 --verify`. A new "Why this list" section shows the hourly benchmark chart of the popular GitHub lists and what each check requires. The video, the demo and the comparison of the three ways to get proxies moved to a section on the tool further down; nothing was dropped. The translations are unchanged
+
 ## [1.33.0] – 2026-11-11
 
 ### Added

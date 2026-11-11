@@ -19,8 +19,8 @@ Two rules follow from that:
 | Name | What runs | `passed` means | It does not mean |
 |---|---|---|---|
 | `basic` | Handshake (HTTP, SOCKS4 or SOCKS5) and a first request to a check target that returns the caller's IP | The proxy returned a public exit IP that isn't yours | That it will answer the next request |
-| `confirm` | A second request to an unrelated site (httpbin.org) | That site saw the same exit IP; the headers it received give the anonymity level | That the proxy is "safe" or that nobody logs the traffic |
-| `content` | A static test page over plain HTTP, compared with its hash as fetched directly | The page arrived byte for byte | That other pages arrive unchanged, or that HTTPS pages are handled the same way |
+| `confirm` | A second request to an unrelated site (httpbin.org; ipv4.icanhazip.com when httpbin's rate limit held it back) | That site saw the same exit IP; via httpbin, the headers it received give the anonymity level | That the proxy is "safe" or that nobody logs the traffic. Via ipv4.icanhazip.com: the anonymity level, which stays unknown |
+| `content` | A static test page over plain HTTP (httpbin.org/html; example.com or info.cern.ch when httpbin's rate limit held it back), compared with its hash as fetched directly | The page arrived byte for byte | That other pages arrive unchanged, or that HTTPS pages are handled the same way |
 | `https` | A tunnel to the check target on port 443 with a TLS handshake that verifies | A verified TLS connection to that one host worked through the proxy at that time | Anything about other sites, later connections or who runs the proxy. What protects an `https://` page is your own client checking certificates – leave that on |
 
 A failed check is a measurement, not a verdict about the operator. `exit_ip_mismatch` can be a rotating pool or a proxy that fakes the first answer. `content_mismatch` can be an injected script, an ad, a portal page or a copy that was cut off. The check doesn't tell which, and every such result says so in its `limits`.
@@ -88,6 +88,17 @@ For the content check, a timeout or an error page is `unavailable` with the conn
 
 httpbin.org answers HTTP 429 above 17 requests per second per client IP, and many free proxies share one exit IP. So the second and the content request are spaced to at most 8 per second per exit IP across all proxies of a run; waiting for a slot doesn't count against the proxy's time limit and lasts at most 30 seconds. A request whose slot is further away than that is not sent: the check is `unavailable:target_rate_limited` at once. A 429 is asked once more after the target's `Retry-After` (at most 3 seconds). If the target still refuses, and its answer carries rate-limit headers (`RateLimit-Policy`, `RateLimit`, `X-RateLimit-*`), the check is `unavailable:target_rate_limited`. A bare 429 without them may be the proxy's own and stays `failed:bad_status`; so does a 503, which can't be told apart from the proxy's own.
 
+### Fallback targets
+
+A second or content request that httpbin.org's rate limit held back (`target_rate_limited`, either way above) is sent once more through the same proxy to a fallback target, and the check records that target in `target`:
+
+| Check | Fallback target | What it proves | What it does not give |
+|---|---|---|---|
+| `confirm` | `http://ipv4.icanhazip.com/` – its whole answer is the caller's IPv4 address and a newline | The same as via httpbin: a second, unrelated site saw the same exit IP. Another address is `failed:exit_ip_mismatch`, any other wrong answer fails with the usual reason codes | The anonymity level: the echo shows no request headers, so `anonymity` stays empty (`elite.txt` doesn't list the proxy) and the check's `limits` say so. Nothing is guessed |
+| `content` | `http://example.com/`, or `http://info.cern.ch/` if example.com did not answer when the run started | The same as via httpbin: the page arrived byte for byte as fetched directly (over verified HTTPS) at the start of the run. Different bytes are `failed:content_mismatch` | – |
+
+The fallback targets are asked directly once when a run starts. Without an IP address from the echo, or without a reference page from either site, there is no fallback for that check and it stays `unavailable:target_rate_limited`. A failed fallback request is checked against the fallback target asked directly, like the other later checks. Each fallback target has its own pacing of 20 requests per second per exit IP; if that is overbooked too, or the fallback answers 429 with rate-limit headers, the check stays `unavailable:target_rate_limited` (with the fallback as its `target`). Only the overflow goes there – a few hundred requests an hour in the hourly run. ipv4.icanhazip.com (Cloudflare) documents no limit; example.com is IANA's, served best effort and not meant for production use, which is why it has a reserve. In a measurement on 11 Nov 2026, 39 parallel requests through 13 proxies sharing one exit got 78 of 78 HTTP 429 from httpbin.org, and 78 of 78 correct answers from each fallback target.
+
 The second and the content request go to a proxy that has just answered the first one, so a connection that doesn't come about there is more often a lost packet than a dead proxy. They connect with at least 6 seconds (more if `--connect-timeout` is higher); the time they get after the connect stays the same, so their whole limit grows by the difference (8 seconds instead of 6 in the hourly run, `--timeout 6 --connect-timeout 4`). A request that failed in transport – `connect_timeout`, `timeout`, `connection_closed` or `no_answer` – is tried once more after 1.5 seconds, through the same pacing and 429 handling; the check records only how the last try ended. An answer that was the problem – another exit IP, a status other than 200, a wrong or changed page – is not tried again. Worst case, a proxy's second request can now take about 28.5 seconds instead of 15 in the hourly run (three tries of 8 seconds, the pause and a `Retry-After`), plus the wait for its slot; so can the content request.
 
 ## What a list requires
@@ -109,7 +120,8 @@ Every run writes `run.json` next to its results, and the hourly list publishes i
 
 ```json
 {"schema": 1, "version": "1.30.0", "started": "…", "finished": "…",
- "targets": {"basic": "checkip.amazonaws.com", "basic_switches": [], "confirm": "httpbin.org", "content_reference": true},
+ "targets": {"basic": "checkip.amazonaws.com", "basic_switches": [], "confirm": "httpbin.org", "content_reference": true,
+             "confirm_fallback": "ipv4.icanhazip.com", "content_fallback": "example.com"},
  "candidates": 150000, "checked": 150000, "not_checked": 0, "no_verdict_local": 0, "stopped": null,
  "working": 1104, "kept": 1104,
  "checks": {"basic": {"failed:connect_refused": 30122, "failed:connect_timeout": 101220, "passed": 2391},
@@ -120,7 +132,7 @@ Every run writes `run.json` next to its results, and the hourly list publishes i
  "changed_pages": {"with_script_tag": 21, "without_script_tag": 36}}
 ```
 
-The numbers in this example are made up to show the shape. `candidates` are the proxies the run set out to check, `checked` the ones that got a verdict, `not_checked` the rest (stopped by `--want` or Ctrl+C, or this machine ran out of sockets: `no_verdict_local`). `changed_pages` splits the content mismatches by whether the page that came back contains a `<script` tag; the reference page has none. `basic` counts attempts: a proxy that is checked again after a check target switch counts once per try. An address that is tried as another protocol because the listed one answered wrongly (see [how it works](how-it-works.md)) is counted apart: `fallback.tried` such checks ran, `fallback.found` of them passed, and `checks.fallback` (present when any ran) says how they ended. A proxy found that way is in `working` under the protocol it speaks; the listed key counts as checked and failed. `fallback` and `checks.fallback` are new after 1.33.0; in 1.33.0 these checks were part of `checks.basic`.
+The numbers in this example are made up to show the shape. `candidates` are the proxies the run set out to check, `checked` the ones that got a verdict, `not_checked` the rest (stopped by `--want` or Ctrl+C, or this machine ran out of sockets: `no_verdict_local`). `changed_pages` splits the content mismatches by whether the page that came back contains a `<script` tag; the reference page has none. `basic` counts attempts: a proxy that is checked again after a check target switch counts once per try. An address that is tried as another protocol because the listed one answered wrongly (see [how it works](how-it-works.md)) is counted apart: `fallback.tried` such checks ran, `fallback.found` of them passed, and `checks.fallback` (present when any ran) says how they ended. A proxy found that way is in `working` under the protocol it speaks; the listed key counts as checked and failed. `fallback` and `checks.fallback` are new after 1.33.0; in 1.33.0 these checks were part of `checks.basic`. `targets.confirm_fallback` and `targets.content_fallback` name the [fallback targets](#fallback-targets) for httpbin.org's rate limit (`null`: none this run; which proxy used one is in its check's `target`) – also new after 1.33.0.
 
 ## For code that reads the old fields
 

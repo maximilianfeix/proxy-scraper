@@ -16,7 +16,7 @@ from dataclasses import dataclass, field
 from typing import Callable, Dict, Iterable, List, Optional, Tuple
 from urllib.parse import unquote, urlsplit
 
-from .checker import Checker, CheckResult, direct_controls, integrity_reference
+from .checker import Checker, CheckResult, direct_controls, fallback_targets, integrity_reference
 from .checkstate import (
     BASIC,
     CHECKS,
@@ -60,10 +60,12 @@ async def prepare(timeout: float, connect_timeout: float) -> Checker:
     if not own_ips:
         own_ips = list(dict.fromkeys(j.seen_ip for j in judges if j.seen_ip and "." in j.seen_ip))
     confirm_ip = await confirm_target()
-    reference = await integrity_reference(timeout=8) if confirm_ip else None
+    reference, fallbacks = (await asyncio.gather(integrity_reference(timeout=8), fallback_targets(timeout=8))
+                            if confirm_ip else (None, (None, None)))
     best = judges[0]
     checker = Checker(best.ip, own_ips, timeout, connect_timeout, confirm_ip, judge=best.judge,
                       integrity_reference=reference)
+    checker.confirm_fallback, checker.content_fallback = fallbacks
     checker.controls = direct_controls(checker, confirm_ip)
     # a scan watches its first check target and switches when it goes down; here there is no watcher, so a
     # failed first request asks the target directly, like the later checks do
@@ -320,7 +322,8 @@ def _measured(report: Report, name: str) -> str:
     if name == BASIC:
         return f"exit IP {r.exit_ip}, first answer after {check.ms} ms"
     if name == CONFIRM:
-        return f"same exit IP on a second site, anonymity: {r.anonymity}"
+        # unknown after the IP echo fallback: it sees no request headers (FALLBACK_CONFIRM_LIMITS)
+        return f"same exit IP on a second site, anonymity: {r.anonymity or 'unknown'}"
     if name == CONTENT:
         return f"static page arrived unchanged ({check.data.get('bytes', '?')} bytes)"
     return f"verified TLS through the tunnel ({check.ms} ms)"

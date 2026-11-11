@@ -30,7 +30,9 @@ from .checker import (
     JUDGE_HOST,
     Checker,
     CheckResult,
+    SecondTarget,
     direct_controls,
+    fallback_targets,
     integrity_reference,
     probe_confirm_target,
 )
@@ -128,6 +130,10 @@ async def confirm_target() -> Optional[str]:
         return None
     ip = infos[0][4][0]
     return ip if await probe_confirm_target(ip, timeout=8) else None
+
+
+def _host(target: Optional[SecondTarget]) -> Optional[str]:
+    return target.host if target is not None else None
 
 
 STDIN = "-"  # --recheck -: the candidates come from a pipe
@@ -337,6 +343,8 @@ class Run:
         self.checker: Optional[Checker] = None
         self.kept: List[CheckResult] = []  # hits that pass every filter (for the Python API)
         self.confirm_ip: Optional[str] = None
+        # where a confirm or content request that httpbin's rate limit held back goes instead (see checker)
+        self.fallbacks: Tuple[Optional[SecondTarget], Optional[SecondTarget]] = (None, None)
         self.targets: List[Tuple[Target, str]] = []
         self.own_ips: List[str] = []
         self.blocklist: Optional[Blocklist] = None
@@ -386,8 +394,9 @@ class Run:
         if not await self.resolve_targets():
             return False
         self.confirm_ip = await confirm_target()
-        if self.confirm_ip:  # reference page for the check against modified content
-            self.integrity = await integrity_reference(timeout=8)
+        if self.confirm_ip:  # reference page for the check against modified content, and the fallback targets
+            self.integrity, self.fallbacks = await asyncio.gather(integrity_reference(timeout=8),
+                                                                  fallback_targets(timeout=8))
         best, reserve = self.judges[0], [j.judge.host for j in self.judges[1:]]
         info("Check target", Text.assemble(
             (f"{best.judge.host} ({best.ip}, {best.latency} ms)", MUTED),
@@ -527,6 +536,7 @@ class Run:
                           detail_connect_timeout=opts.connect_timeout, targets=self.targets,
                           https_test=not opts.fast or opts.filters.https_only, judge=judge.judge,
                           integrity_reference=self.integrity)
+        checker.confirm_fallback, checker.content_fallback = self.fallbacks
         # a failed second request or HTTPS test only counts against a proxy while the target itself answers
         checker.controls = direct_controls(checker, self.confirm_ip)
         self.checker = checker  # for the proxy server: rechecking disabled proxies
@@ -716,6 +726,9 @@ class Run:
                 "basic_switches": run.judge_switches,
                 "confirm": CONFIRM_HOST if self.confirm_ip else None,  # None: no second request ran at all
                 "content_reference": self.integrity is not None,
+                # where rate-limited confirm/content requests went instead; None: nowhere (see the checks' target)
+                "confirm_fallback": _host(self.checker.confirm_fallback),
+                "content_fallback": _host(self.checker.content_fallback),
             },
             "candidates": len(jobs),
             "checked": len(run.checked),            # got a verdict

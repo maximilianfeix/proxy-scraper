@@ -5,6 +5,10 @@ Confirmation (only for proxies that pass the basic check, so only a few):
   - a second, independent request to httpbin.org/get that has to see the same exit IP – a proxy that
     answers only the check request with "200 + IP" doesn't pass it, nor does an unstable one or an exit
     that changes. The same response shows the headers that arrive and with that the anonymity level.
+  - when httpbin.org's rate limit holds that request back, the same proof against an IP echo
+    (ipv4.icanhazip.com): it sees only the exit IP, so the anonymity level then stays unknown.
+Content check: a static page through the proxy, byte for byte as fetched directly (httpbin.org/html; held back
+by its rate limit: example.com, info.cern.ch in reserve).
 Detail check:
   - HTTPS: open a tunnel to port 443 and a verified TLS connection inside it – fails for proxies
     that can't CONNECT or that break up TLS (MITM).
@@ -141,7 +145,30 @@ PROTOCOL_MISMATCH: Dict[str, Tuple[frozenset, Tuple[str, ...]]] = {
 CONTROL_TIMEOUT = 6.0
 Control = Callable[[], Awaitable[object]]
 
+# Fallback targets, for the overflow only: a confirm or content request that httpbin.org's rate limit held back
+# (target_rate_limited: the exit had no free slot within PACING_MAX_WAIT, or a 429 with rate-limit headers came
+# back after the retry) goes once to another target through the same proxy. In production that was 14.8 % of the
+# confirms and 19.1 % of the content checks after v1.33.0 (12 runs) – about 290 working proxies a run held back,
+# mostly on shared exits and backconnect pools. Measured on 11 Nov 2026 with 440 proxies, 39 parallel requests via
+# 13 proxies sharing one exit: httpbin.org /get and /html answered 78 of 78 with 429; http://ipv4.icanhazip.com/
+# answered 78 of 78 with the right IP (median 0.47 s) and http://example.com/ 78 of 78 with the same 577 bytes
+# (byte-identical across 176 exits) – neither ever sent a 429.
+# Policies: icanhazip.com is run by Cloudflare and documents no limit; example.com is IANA's, served best effort
+# and not meant for production use – which is why it only takes the overflow and has a reserve (info.cern.ch,
+# 646 bytes, unchanged since 2014). Expected load: a few hundred requests an hour. The ipv4. name matters: the bare
+# icanhazip.com may answer over IPv6 and with an IPv6 address.
+CONFIRM_FALLBACK_HOST = "ipv4.icanhazip.com"
+CONTENT_FALLBACK_HOSTS = ("example.com", "info.cern.ch")
+# each fallback target has its own pacing: generous, the overflow is small and no limit has been seen
+FALLBACK_EXIT_IP_RATE = 20.0
+# the names of their direct controls (see Checker.controls)
+CONFIRM_FALLBACK = "confirm_fallback"
+CONTENT_FALLBACK = "content_fallback"
+
 # what the results do not say – written next to them, so nobody has to guess
+FALLBACK_CONFIRM_LIMITS = (f"confirmed via the IP echo ({CONFIRM_FALLBACK_HOST}) because httpbin.org's rate limit "
+                           "held the request back: it shows the exit IP only, not the request headers, so the "
+                           "anonymity level is unknown")
 UNCONFIRMED_LIMITS = "no second request ran: a proxy that only answers the first check would look the same"
 MISMATCH_LIMITS = ("the second site saw another exit IP: a rotating or chained exit, or a proxy that fakes the "
                    "first answer – this check can't tell which")
@@ -176,6 +203,29 @@ class ExitPacer:
         if delay > 0:
             await asyncio.sleep(delay)
         return True
+
+
+@dataclass
+class SecondTarget:
+    """A fallback for the second target: plain HTTP on `ip` (resolved once, SOCKS4 needs it), path `path`.
+    reference: for the page fallback, the hash of the page as fetched directly."""
+    host: str
+    ip: str
+    port: int = 80
+    path: str = "/"
+    reference: Optional[bytes] = None
+    pacer: ExitPacer = field(default_factory=lambda: ExitPacer(FALLBACK_EXIT_IP_RATE))
+
+    @property
+    def label(self) -> str:
+        return authority(self.host, self.port)
+
+    def requests(self) -> Tuple[bytes, bytes, bytes, int]:
+        """(request, request for an HTTP proxy, target IP as bytes, port) – what _confirm sends."""
+        host = host_header(self.host, self.port, False)
+        headers = f"Host: {host}\r\nUser-Agent: {USER_AGENT}\r\nAccept: */*\r\nConnection: close\r\n\r\n"
+        return (f"GET {self.path} HTTP/1.1\r\n{headers}".encode(),
+                f"GET http://{host}{self.path} HTTP/1.1\r\n{headers}".encode(), socket.inet_aton(self.ip), self.port)
 
 
 @dataclass
@@ -305,6 +355,10 @@ class Checker:
         self.unreachable: Set[str] = set()
         # requests to the second target, paced per exit IP (see EXIT_IP_RATE)
         self.pacer = ExitPacer()
+        # where a rate-limited confirm or content request goes instead (see CONFIRM_FALLBACK_HOST); None = nowhere,
+        # the check stays unavailable:target_rate_limited. The page fallback is only set with its reference.
+        self.confirm_fallback: Optional[SecondTarget] = None
+        self.content_fallback: Optional[SecondTarget] = None
 
     def use_judge(self, judge: Judge, ip: str) -> None:
         """Set the check target or switch it mid-run (running checks still use the old one)."""
@@ -483,22 +537,53 @@ class Checker:
                 else:
                     result.anonymity = anonymity
                     data = {"exit_ip": result.exit_ip, "anonymity": anonymity}
+        if reason == "target_rate_limited" and self.confirm_fallback is not None:
+            return await self._confirm_via_fallback(result, self.confirm_fallback)
+        return await self._confirm_outcome(reason, data, target, start, began, CONFIRM)
+
+    async def _confirm_via_fallback(self, result: CheckResult, fallback: SecondTarget) -> Check:
+        """The confirm against the IP echo: its whole answer is the exit IP and a newline. It sees no request
+        headers, so it leaves result.anonymity as it is (unknown) – FALLBACK_CONFIRM_LIMITS says so."""
+        began = control_clock()
+        start = [time.perf_counter()]
+        reason, data = "", {}
+        try:
+            body = (await self._ask_second_target(result, start, fallback=fallback)).body
+        except Exception as e:
+            reason = reason_for(e)
+        else:
+            seen = body.strip().decode("ascii", "ignore") if body is not None else ""
+            if body is None:
+                reason = "bad_status"
+            elif not _is_ipv4(seen):
+                reason = "invalid_response"
+            elif seen != result.exit_ip:
+                reason, data = "exit_ip_mismatch", {"exit_ip": result.exit_ip, "second_exit_ip": seen}
+            else:
+                data = {"exit_ip": result.exit_ip}
+        return await self._confirm_outcome(reason, data, fallback.label, start, began, CONFIRM_FALLBACK,
+                                           FALLBACK_CONFIRM_LIMITS)
+
+    async def _confirm_outcome(self, reason: str, data: dict, target: str, start: List[float], began: float,
+                               control: str, passed_limits: str = "") -> Check:
         ms = round((time.perf_counter() - start[0]) * 1000)
         if not reason:
-            return Check(PASSED, "", target, now_iso(), ms, data)
+            return Check(PASSED, "", target, now_iso(), ms, data, limits=passed_limits)
         state = state_for(reason)
         if reason == "target_rate_limited":
             return Check(state, reason, target, now_iso(), ms, limits=UNCONFIRMED_LIMITS)
         # a second site that saw another exit IP did answer; for anything else, the target may be the one
         # that is down – then nothing was learned about this proxy
-        if state == FAILED and reason != "exit_ip_mismatch" and await self._target_ok(CONFIRM, began) is False:
+        if state == FAILED and reason != "exit_ip_mismatch" and await self._target_ok(control, began) is False:
             return Check(UNAVAILABLE, "target_unreachable", target, now_iso(), ms, limits=UNCONFIRMED_LIMITS)
         return Check(state, reason, target, now_iso(), ms, data,
                      limits=MISMATCH_LIMITS if reason == "exit_ip_mismatch" else "")
 
     async def _ask_second_target(self, result: CheckResult, start: List[float], request: Optional[bytes] = None,
-                                 http_proxy_request: Optional[bytes] = None) -> HttpAnswer:
-        """One request to the second target through the proxy, paced per exit IP. A failure in transport
+                                 http_proxy_request: Optional[bytes] = None,
+                                 fallback: Optional[SecondTarget] = None) -> HttpAnswer:
+        """One request to the second target (or to `fallback`, with its own pacing) through the proxy, paced
+        per exit IP. A failure in transport
         (RETRY_REASONS) is tried once more after retry_pause seconds. A 429 is asked once more after the target's
         Retry-After; if the target's limiter still refuses, CheckFailed("target_rate_limited"). None of the waits
         count against the proxy's timeout. start[0] is set to when the last attempt began.
@@ -506,12 +591,15 @@ class Checker:
         Worst case, pacing aside: three tries of followup_timeout (one transport retry, one after a 429) plus
         retry_pause and RETRY_AFTER_MAX – 8 + 1.5 + 8 + 3 + 8 = 28.5 s with the hourly run's settings."""
         retried = rate_limited = False
+        pacer, to = self.pacer, None
+        if fallback is not None:
+            pacer, (request, http_proxy_request, *to) = fallback.pacer, fallback.requests()
         while True:
-            if not await self.pacer.wait(result.exit_ip):  # the exit is booked beyond max_wait: no request
+            if not await pacer.wait(result.exit_ip):  # the exit is booked beyond max_wait: no request
                 raise CheckFailed("target_rate_limited")
             start[0] = time.perf_counter()
             try:
-                answer = await wait_for(self._confirm(result.ptype, result.proxy, request, http_proxy_request),
+                answer = await wait_for(self._confirm(result.ptype, result.proxy, request, http_proxy_request, to),
                                         self.followup_timeout)
             except Exception as e:
                 # a failure in transport (see RETRY_REASONS) is tried once more, after a short pause
@@ -531,13 +619,15 @@ class Checker:
         return answer  # a 429 of the proxy's own: bad_status
 
     async def _confirm(self, ptype: str, proxy: str, request: Optional[bytes] = None,
-                       http_proxy_request: Optional[bytes] = None) -> HttpAnswer:
+                       http_proxy_request: Optional[bytes] = None, to: Optional[Sequence] = None) -> HttpAnswer:
+        """The request through the proxy to the second target – or to `to` (target IP as bytes, port)."""
         ep = parse_endpoint(proxy)
         request = request or self.confirm_request
         http_proxy_request = http_proxy_request or self.http_proxy_confirm_request
+        ip_bytes, port = to or (self.confirm_ip_bytes, self.confirm_port)
         reader, writer = await self._connect_or_fail(proxy, detail=True)
         try:
-            if not await self._handshake(ptype, ep, reader, writer, self.confirm_ip_bytes, self.confirm_port):
+            if not await self._handshake(ptype, ep, reader, writer, ip_bytes, port):
                 raise CheckFailed("handshake_refused")
             writer.write(with_proxy_auth(http_proxy_request, ep) if ptype == "http" else request)
             await writer.drain()
@@ -558,24 +648,43 @@ class Checker:
             return Check(UNAVAILABLE, "target_not_configured", target, now_iso())
         if self.integrity_reference is None:
             return Check(UNAVAILABLE, "no_reference", target, now_iso())
+        return await self._compare_page(result, target, None)
+
+    async def _compare_page(self, result: CheckResult, target: str, fallback: Optional[SecondTarget]) -> Check:
+        """Fetch the page through the proxy (httpbin's /html, or `fallback`'s) and compare it with its reference.
+        A request httpbin's rate limit held back goes to the content fallback, if there is one."""
+        reference = self.integrity_reference if fallback is None else fallback.reference
         began = control_clock()
         start = [time.perf_counter()]
         try:
-            body = (await self._ask_second_target(result, start, self.integrity_request,
-                                                  self.http_proxy_integrity_request)).body
+            if fallback is None:
+                answer = await self._ask_second_target(result, start, self.integrity_request,
+                                                       self.http_proxy_integrity_request)
+            else:
+                answer = await self._ask_second_target(result, start, fallback=fallback)
+            body = answer.body
         except Exception as e:  # no page, no comparison
-            return Check(UNAVAILABLE, reason_for(e), target, now_iso(), round((time.perf_counter() - start[0]) * 1000))
+            reason = reason_for(e)
+            if reason == "target_rate_limited" and fallback is None and self.content_fallback is not None:
+                fallback = self.content_fallback
+                return await self._compare_page(result, f"{fallback.label}{fallback.path}", fallback)
+            return Check(UNAVAILABLE, reason, target, now_iso(), round((time.perf_counter() - start[0]) * 1000))
         ms = round((time.perf_counter() - start[0]) * 1000)
         if body is None:
             return Check(UNAVAILABLE, "bad_status", target, now_iso(), ms)
         digest = page_hash(body)
-        if digest != self.integrity_reference and CONTENT in self.controls:
+        control = CONTENT if fallback is None else CONTENT_FALLBACK
+        if digest != reference and control in self.controls:
             # the page may have changed at its source since the run started: compare with how it is now
-            current = await self._control(CONTENT, began)
+            current = await self._control(control, began)
             if not isinstance(current, bytes):
                 return Check(UNAVAILABLE, "target_unreachable", target, now_iso(), ms)
-            self.integrity_reference = current
-        if digest == self.integrity_reference:
+            reference = current
+            if fallback is None:
+                self.integrity_reference = current
+            else:
+                fallback.reference = current
+        if digest == reference:
             return Check(PASSED, "", target, now_iso(), ms, {"bytes": len(body)})
         data = {"bytes": len(body), "sha256": digest.hex()[:16], "script_tags": body.lower().count(b"<script")}
         return Check(FAILED, "content_mismatch", target, now_iso(), ms, data, limits=CONTENT_LIMITS)
@@ -868,18 +977,84 @@ def direct_controls(checker: "Checker", confirm_ip: Optional[str]) -> Dict[str, 
     if confirm_ip:
         controls[CONFIRM] = lambda: probe_confirm_target(confirm_ip, CONTROL_TIMEOUT, checker.confirm_port)
         controls[CONTENT] = lambda: integrity_reference(CONTROL_TIMEOUT)
+    confirm_fallback, content_fallback = checker.confirm_fallback, checker.content_fallback
+    if confirm_fallback is not None:
+        controls[CONFIRM_FALLBACK] = lambda: probe_ip_echo(confirm_fallback.host, confirm_fallback.ip, CONTROL_TIMEOUT,
+                                                           confirm_fallback.port)
+    if content_fallback is not None:
+        controls[CONTENT_FALLBACK] = lambda: integrity_reference(CONTROL_TIMEOUT,
+                                                                 url=f"https://{content_fallback.host}/")
     return controls
+
+
+async def probe_ip_echo(host: str, ip: str, timeout: float, port: int = 80) -> bool:
+    """Does the IP echo answer directly the way the fallback confirm reads it: a 200 with an IPv4 address?"""
+    request, _, _, _ = SecondTarget(host, ip, port).requests()
+
+    async def probe() -> Optional[bytes]:
+        reader, writer = await asyncio.open_connection(ip, port)
+        try:
+            writer.write(request)
+            await writer.drain()
+            return await _read_http_200(reader)
+        finally:
+            writer.close()
+
+    try:
+        body = await wait_for(probe(), timeout)
+    except Exception:
+        return False
+    return body is not None and _is_ipv4(body.strip().decode("ascii", "ignore"))
+
+
+async def _resolve_ipv4(host: str) -> Optional[str]:
+    try:
+        infos = await asyncio.get_running_loop().getaddrinfo(host, 80, family=socket.AF_INET)
+    except OSError:
+        return None
+    return infos[0][4][0] if infos else None
+
+
+async def fallback_targets(timeout: float, fetch=None, resolve=None
+                           ) -> Tuple[Optional[SecondTarget], Optional[SecondTarget]]:
+    """The fallback targets of a run, each asked directly once at its start: (IP echo, page). The IP echo only
+    if it answers with an IPv4 address; the page – example.com, else info.cern.ch – only with its reference,
+    fetched over verified HTTPS like httpbin's (the same bytes as over HTTP). None: no fallback, the check stays
+    unavailable:target_rate_limited where httpbin's limit holds it back."""
+    fetch, resolve = fetch or http_request, resolve or _resolve_ipv4
+
+    async def ip_echo() -> Optional[SecondTarget]:
+        ip = await resolve(CONFIRM_FALLBACK_HOST)
+        if ip is None:
+            return None
+        try:  # by name, not by the resolved address: the probe of a control (probe_ip_echo) pins that one
+            status, _, body = await fetch(f"http://{CONFIRM_FALLBACK_HOST}/", timeout=timeout, max_redirects=0)
+        except Exception:
+            return None
+        return SecondTarget(CONFIRM_FALLBACK_HOST, ip) if status == 200 and _is_ipv4(
+            body.strip().decode("ascii", "ignore")) else None
+
+    async def page() -> Optional[SecondTarget]:
+        for host in CONTENT_FALLBACK_HOSTS:
+            ip = await resolve(host)
+            reference = await integrity_reference(timeout, fetch, url=f"https://{host}/") if ip else None
+            if reference is not None:
+                return SecondTarget(host, ip, reference=reference)
+        return None
+
+    confirm, content = await asyncio.gather(ip_echo(), page())
+    return confirm, content
 
 
 def page_hash(body: bytes) -> bytes:
     return hashlib.sha256(body).digest()
 
 
-async def integrity_reference(timeout: float, fetch=None) -> Optional[bytes]:
+async def integrity_reference(timeout: float, fetch=None, url: str = f"https://{CONFIRM_HOST}/html") -> Optional[bytes]:
     """Hash of the reference page, fetched directly – over verified HTTPS. Over HTTP a captive portal
     or a filter on your own network could already falsify the reference. Both ways return the same bytes."""
     try:
-        status, _, body = await (fetch or http_request)(f"https://{CONFIRM_HOST}/html", timeout=timeout,
+        status, _, body = await (fetch or http_request)(url, timeout=timeout,
                                                         max_redirects=0, insecure_fallback=False)
     except Exception:
         return None

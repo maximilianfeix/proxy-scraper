@@ -7,6 +7,7 @@ All notable changes to this project are listed here. The format follows [Keep a 
 ### Fixed
 - **An exit IP with hundreds of proxies no longer stalls the check phase.** Once an exit was booked more than 30 s ahead, every further second or content request on it waited the full 30 s and then all went at once into the target's 429 (run of 11 Nov 08:24 UTC: a backconnect pool on one exit, a 2.5 times longer check phase, 1,457 proxies kept without a second request). Now a request whose slot is more than 30 s away is not sent and the check is `unavailable:target_rate_limited` at once
 - **`run.json` keeps the protocol fallback apart from the basic checks.** The extra checks of another protocol on the same address were counted in `checks.basic`, so `checks.basic` no longer added up to `checked`; they are now under `checks.fallback`, and a new `fallback` field says how many ran and how many found a proxy (`{"tried": n, "found": n}`). In the per-protocol numbers of the live view and the summary, a proxy found this way now counts as checked for the protocol it was found as, not only as working
+- When `-o -` output went to a pipe that closed early, the devnull descriptor used to quiet it stayed open; it is now closed. A dead assignment in the second-request code is gone (both found by CodeQL)
 
 ## [1.33.0] – 2026-11-11
 

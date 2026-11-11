@@ -113,7 +113,11 @@ class ResultWriter:
 def _silence(stream: TextIO) -> None:
     """Point a closed pipe at devnull, so the interpreter doesn't fail flushing it again on exit."""
     with contextlib.suppress(OSError, ValueError, AttributeError):
-        os.dup2(os.open(os.devnull, os.O_WRONLY), stream.fileno())
+        devnull = os.open(os.devnull, os.O_WRONLY)
+        try:
+            os.dup2(devnull, stream.fileno())
+        finally:
+            os.close(devnull)
 
 
 def _row(r: CheckResult) -> dict:

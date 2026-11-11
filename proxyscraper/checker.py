@@ -505,7 +505,6 @@ class Checker:
 
         Worst case, pacing aside: three tries of followup_timeout (one transport retry, one after a 429) plus
         retry_pause and RETRY_AFTER_MAX – 8 + 1.5 + 8 + 3 + 8 = 28.5 s with the hourly run's settings."""
-        answer = HttpAnswer(0, b"", None)
         retried = rate_limited = False
         while True:
             if not await self.pacer.wait(result.exit_ip):  # the exit is booked beyond max_wait: no request

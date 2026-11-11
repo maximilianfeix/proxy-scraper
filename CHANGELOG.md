@@ -4,6 +4,8 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+## [1.33.0] – 2026-11-11
+
 ### Added
 - New source: proxyelite.info's free list (mixed protocols, updated every 15 min). A search of 432 GitHub repositories and
   31 public endpoints found no other new list that wasn't a mirror of one already read, blocked by robots.txt or stale.
@@ -445,7 +447,8 @@ First public version.
 - Results as txt, json and csv under `results/`
 - Live dashboard in the terminal
 
-[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.32.1...HEAD
+[Unreleased]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.33.0...HEAD
+[1.33.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.32.1...v1.33.0
 [1.32.1]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.32.0...v1.32.1
 [1.32.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.31.0...v1.32.0
 [1.31.0]: https://github.com/maximilianfeix/proxy-scraper/compare/v1.30.0...v1.31.0

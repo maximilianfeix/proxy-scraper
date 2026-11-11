@@ -26,8 +26,8 @@ Every [release](https://github.com/maximilianfeix/proxy-scraper/releases/latest)
 
 ```bash
 pipx install sigstore
-sigstore verify github proxy_scraper_cli-1.32.1-py3-none-any.whl \
-  --bundle proxy_scraper_cli-1.32.1-py3-none-any.whl.sigstore.json \
+sigstore verify github proxy_scraper_cli-1.33.0-py3-none-any.whl \
+  --bundle proxy_scraper_cli-1.33.0-py3-none-any.whl.sigstore.json \
   --repository maximilianfeix/proxy-scraper
 ```
 

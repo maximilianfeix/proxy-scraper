@@ -346,6 +346,7 @@
   ],
   "auto": [
    "https://api.proxyscrape.com/v4/free-proxy-list/get?request=display_proxies&proxy_format=protocolipport&format=text",
+   "https://proxyelite.info/free-proxy-list/",
    "https://raw.githubusercontent.com/398001/ProxysList/main/all_working.txt",
    "https://raw.githubusercontent.com/AvenCores/goida-vpn-configs/main/githubmirror/4.txt",
    "https://raw.githubusercontent.com/Bes-js/public-proxy-list/main/proxies.txt",

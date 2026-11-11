@@ -25,6 +25,9 @@ from proxyscraper.judges import Judge
 DATA = Path(__file__).parent / "data"
 PAGE = (b"<!DOCTYPE html><html><head><title>Lab page</title></head><body><h1>Herman Melville - Moby-Dick</h1>"
         b"<p>Call me Ishmael.</p></body></html>")
+# what the content check's fallback target (example.com in a real run) returns
+FALLBACK_PAGE = (b"<!doctype html><html><head><title>Example Domain</title></head>"
+                 b"<body><p>Lab fallback page.</p></body></html>")
 INJECTED = PAGE.replace(b"</body>", b'<script src="http://203.0.113.99/ad.js"></script></body>')
 OWN_IP = "203.0.113.1"  # what the targets see when this machine asks them directly
 
@@ -84,6 +87,12 @@ class Lab:
         self._recent: Dict[str, Deque[float]] = {}  # client IP -> times of its requests in the last second
         self.confirm_requests: List[float] = []  # time.monotonic() of every request that reached the second target
         self.judge_port = self.confirm_port = self.tls_port = self.untrusted_port = 0
+        # the fallback targets of a rate-limited second target: an IP echo (ipv4.icanhazip.com) and a static
+        # page (example.com)
+        self.ip_echo_port = self.page_port = 0
+        self.ip_echo_down = self.page_down = False
+        self.fallback_page = FALLBACK_PAGE
+        self.fallback_requests = 0  # requests through a proxy that reached either fallback target
         self.connections: Dict[str, int] = {}  # proxy "ip:port" -> connections it accepted
 
     async def __aenter__(self) -> "Lab":
@@ -91,6 +100,8 @@ class Lab:
         self.confirm_port = await self._listen(self._confirm)
         self.tls_port = await self._listen(self._tls_judge, _context("localhost-cert.pem", "localhost-key.pem"))
         self.untrusted_port = await self._listen(self._judge, _context("untrusted-cert.pem", "untrusted-key.pem"))
+        self.ip_echo_port = await self._listen(self._ip_echo)
+        self.page_port = await self._listen(self._page)
         return self
 
     async def __aexit__(self, *exc) -> None:
@@ -180,6 +191,29 @@ class Lab:
         finally:
             writer.close()
 
+    async def _ip_echo(self, reader, writer) -> None:
+        """Like ipv4.icanhazip.com: the client's address and a newline, nothing else."""
+        await self._fallback(reader, writer, self.ip_echo_down, lambda: _reply(self._seen(writer).encode() + b"\n"))
+
+    async def _page(self, reader, writer) -> None:
+        """Like example.com: one static page."""
+        await self._fallback(reader, writer, self.page_down,
+                             lambda: _reply(self.fallback_page, content_type=b"text/html"))
+
+    async def _fallback(self, reader, writer, down: bool, answer: Callable[[], bytes]) -> None:
+        try:
+            await reader.readuntil(b"\r\n\r\n")
+            if down:
+                return
+            if self._seen(writer) != OWN_IP:  # through a proxy, not the reference asked directly
+                self.fallback_requests += 1
+            writer.write(answer())
+            await writer.drain()
+        except (ConnectionError, OSError, asyncio.IncompleteReadError):
+            pass
+        finally:
+            writer.close()
+
     def _over_limit(self, client: str) -> bool:
         if self.confirm_429 > 0:
             self.confirm_429 -= 1
@@ -252,14 +286,15 @@ class Lab:
                     return
                 if hangs_up_on_second and port == self.confirm_port:
                     return
-                seen_as = second_exit_ip if second_exit_ip and port == self.confirm_port else exit_ip
+                second = port in (self.confirm_port, self.ip_echo_port)
+                seen_as = second_exit_ip if second_exit_ip and second else exit_ip
                 up_reader, up_writer = await self._upstream(port, seen_as)
                 extra = (adds_header + "\r\n").encode() if adds_header else b""
                 up_writer.write(method + b" /" + path.encode() + b" " + rest[:-2] + extra + b"\r\n")
                 await up_writer.drain()
                 answer = await up_reader.read(-1)  # the targets close after one answer
                 up_writer.close()
-                if rewrite and path == "html":
+                if rewrite and (path == "html" or port == self.page_port) and answer.startswith(b"HTTP/1.1 200"):
                     answer_head, _, body = answer.partition(b"\r\n\r\n")
                     answer = _reply(rewrite(body), content_type=b"text/html") if answer_head else answer
                 writer.write(answer)
@@ -344,8 +379,20 @@ class Lab:
             return None
         return ck.page_hash(body) if body else None
 
+    async def page_reference(self) -> Optional[bytes]:
+        """The hash of the fallback page asked directly – None while it is down."""
+        try:
+            reader, writer = await asyncio.open_connection("127.0.0.1", self.page_port)
+            writer.write(b"GET / HTTP/1.1\r\nHost: localhost\r\n\r\n")
+            await writer.drain()
+            body = (await reader.read(-1)).partition(b"\r\n\r\n")[2]
+            writer.close()
+        except (ConnectionError, OSError):
+            return None
+        return ck.page_hash(body) if body else None
+
     async def checker(self, timeout: float = 2.0, confirm: bool = True, reference: bool = True,
-                      https_test: bool = True, controls: bool = True) -> ck.Checker:
+                      https_test: bool = True, controls: bool = True, fallback: bool = False) -> ck.Checker:
         c = ck.Checker("127.0.0.1", {OWN_IP}, timeout=timeout, connect_timeout=timeout,
                        confirm_ip="127.0.0.1" if confirm else None, https_test=https_test,
                        judge=Judge("localhost", "/", self.judge_port),
@@ -360,6 +407,15 @@ class Lab:
                 HTTPS: lambda: ck.probe_https_target("localhost", "127.0.0.1", c.https_port, c.tls_context, 1.0,
                                                      request=c.request),
             }
+        if fallback:  # set up the way a run sets them up: the page fallback only with a reference
+            c.confirm_fallback = ck.SecondTarget("localhost", "127.0.0.1", self.ip_echo_port)
+            page_reference = await self.page_reference()
+            if page_reference is not None:
+                c.content_fallback = ck.SecondTarget("localhost", "127.0.0.1", self.page_port, reference=page_reference)
+            if controls:
+                c.controls[ck.CONFIRM_FALLBACK] = lambda: ck.probe_ip_echo("localhost", "127.0.0.1", 1.0,
+                                                                           self.ip_echo_port)
+                c.controls[ck.CONTENT_FALLBACK] = self.page_reference
         return c
 
 

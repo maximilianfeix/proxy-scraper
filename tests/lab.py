@@ -82,6 +82,7 @@ class Lab:
         self.rate_limited = 0  # how many 429s the second target has sent
         self.rate_limited_reply = RATE_LIMITED
         self._recent: Dict[str, Deque[float]] = {}  # client IP -> times of its requests in the last second
+        self.confirm_requests: List[float] = []  # time.monotonic() of every request that reached the second target
         self.judge_port = self.confirm_port = self.tls_port = self.untrusted_port = 0
         self.connections: Dict[str, int] = {}  # proxy "ip:port" -> connections it accepted
 
@@ -157,6 +158,7 @@ class Lab:
             head = await reader.readuntil(b"\r\n\r\n")
             if self.confirm_down:
                 return
+            self.confirm_requests.append(time.monotonic())
             if self._over_limit(self._seen(writer)):
                 self.rate_limited += 1
                 writer.write(self.rate_limited_reply)

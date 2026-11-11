@@ -52,7 +52,14 @@ jobs:
           if gh release view "$GITHUB_REF_NAME" > /dev/null 2>&1; then
             gh release upload "$GITHUB_REF_NAME" dist/* --clobber
           else
-            gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" --generate-notes --verify-tag
+            # the version's CHANGELOG section; GitHub's generated list of pull requests only if there is none
+            python .github/scripts/release_notes.py CHANGELOG.md "$GITHUB_REF_NAME" > "$RUNNER_TEMP/notes.md"
+            if [ -s "$RUNNER_TEMP/notes.md" ]; then
+              notes=(--notes-file "$RUNNER_TEMP/notes.md")
+            else
+              notes=(--generate-notes)
+            fi
+            gh release create "$GITHUB_REF_NAME" dist/* --title "$GITHUB_REF_NAME" "${notes[@]}" --verify-tag
           fi
       - name: Move the major tag for the GitHub Action (uses maximilianfeix/proxy-scraper@v1)
         run: |

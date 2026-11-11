@@ -59,7 +59,8 @@ REASONS: Dict[str, str] = {
     # nothing learned about the proxy
     "target_not_configured": "the check target did not answer when this run started, so the check never ran",
     "target_unreachable": "the check target did not answer directly either while this was checked",
-    "target_rate_limited": "the check target refused the request with HTTP 429 (its rate limit), also when asked again",
+    "target_rate_limited": ("the check target refused the request with HTTP 429 (its rate limit), also when asked "
+                            "again – or the request wasn't sent: its exit IP had no free slot within the pacing wait"),
     "no_reference": "there was no reference page to compare with",
     "local_resource_limit": "this machine ran out of sockets or file descriptors",
     # left out on purpose

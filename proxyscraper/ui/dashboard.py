@@ -135,9 +135,14 @@ class LiveStats:
     def found(self) -> int:
         return sum(self.working_by_type.values())
 
-    def add_checked(self, ptype: str) -> None:
+    def add_checked(self, ptype: str, listed: str = "") -> None:
+        """One job checked, counted for `ptype`. A job listed as `listed` but found as another protocol moves to
+        that protocol's total, so each type's progress still ends at its total."""
         self.checked += 1
         self.checked_by_type[ptype] += 1
+        if listed and listed != ptype:
+            self.total_by_type[listed] = self.total_by_type.get(listed, 0) - 1
+            self.total_by_type[ptype] = self.total_by_type.get(ptype, 0) + 1
 
     def add_working(self, r: CheckResult) -> None:
         """Confirmed hit – the anonymity is known from here on."""

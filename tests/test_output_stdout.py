@@ -64,3 +64,22 @@ def test_a_pipe_closed_before_the_end_still_exits_cleanly(tmp_path):
     err = writer.stderr.read()
     writer.wait(30)
     assert writer.returncode == 0 and b"BrokenPipe" not in err
+
+
+def test_silencing_a_closed_pipe_leaves_no_descriptor_open():
+    """_silence opened devnull for dup2 and never closed it (CodeQL: file not closed)."""
+    import os
+
+    from proxyscraper import output
+
+    read, write = os.pipe()
+    try:
+        with os.fdopen(write, "w") as stream:
+            probe = os.open(os.devnull, os.O_RDONLY)  # the lowest free descriptor
+            os.close(probe)
+            output._silence(stream)
+            again = os.open(os.devnull, os.O_RDONLY)
+            os.close(again)
+            assert again == probe  # devnull's descriptor was closed again after dup2
+    finally:
+        os.close(read)

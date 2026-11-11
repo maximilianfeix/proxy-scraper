@@ -1,0 +1,6 @@
+name: proxy-scraper CodeQL config
+
+# The tests start throwaway servers on localhost and feed the code deliberately broken input; findings there
+# are noise, not something a user of the package runs into.
+paths-ignore:
+  - tests

@@ -18,7 +18,7 @@ from . import sources as srcs
 from .asndb import ProviderLookup
 from .blocklist import Blocklist
 from .checker import Checker, CheckResult, other_protocols
-from .checkstate import CONFIRM, CONTENT, HTTPS, SKIPPED, Check, now_iso
+from .checkstate import BASIC, CONFIRM, CONTENT, HTTPS, PASSED, SKIPPED, Check, now_iso
 from .compat import on_interrupt
 from .fetchcache import FetchCache
 from .geo import GeoResolver
@@ -29,8 +29,10 @@ from .netpolicy import TargetPolicy
 from .options import RunOptions
 from .output import ResultWriter
 from .parsing import PROXY_TYPES, make_key, parse_blob, split_key
-from .ui import ACCENT, CheckDashboard, CollectView, fmt, widgets
+from .ui import ACCENT, CheckDashboard, CollectView, LiveStats, fmt, widgets
 
+# run.json `checks` key for the basic checks of another protocol (see run_checks: protocol fallback)
+FALLBACK = "fallback"
 AUTO_DISCOVER_AFTER_DAYS = 1.0  # daily: found sources are kept, so every search adds to the pile
 # parse small lists directly – the detour through another process costs more than it saves
 INLINE_PARSE_BYTES = 256 * 1024
@@ -334,7 +336,8 @@ class CheckRun:
     changed_pages: Counter = field(default_factory=Counter)  # content mismatches: with / without a <script tag
     # check name -> "passed" / "failed:reason" / "unavailable:reason" / "skipped:reason" -> how many proxies
     states: Dict[str, Counter] = field(default_factory=dict)
-    # basic checks of another protocol on an address whose listed one answered wrongly, and how many passed them
+    # basic checks of another protocol on an address whose listed one answered wrongly, and how many passed them;
+    # how they ended is in states[FALLBACK], not in the basic checks
     fallback_tried: int = 0
     fallback_found: int = 0
 
@@ -342,6 +345,17 @@ class CheckRun:
         check = r.checks.get(name)
         if check is not None:
             self.states.setdefault(name, Counter())[check.label()] += 1
+
+
+def check_counts(run: CheckRun, stats: LiveStats, failures: Counter) -> Dict[str, Dict[str, int]]:
+    """How each check of a run ended (run.json's `checks`). `failures` are the checker's basic checks that didn't
+    pass, fallback checks included: those are counted under FALLBACK only, so `basic` is one per listed entry
+    (plus repeats after a check target switch)."""
+    fallback = run.states.get(FALLBACK, Counter())
+    basic_failures = Counter(failures) - Counter({k: v for k, v in fallback.items() if k != PASSED})
+    basic = {PASSED: stats.found + stats.fakes + stats.tampered - run.fallback_found}
+    basic.update(sorted(basic_failures.items()))
+    return {BASIC: basic, **{name: dict(sorted(c.items())) for name, c in run.states.items()}}
 
 
 class JobQueue:
@@ -462,7 +476,8 @@ async def run_checks(
                 continue
             candidates.add(alt)
             run.fallback_tried += 1
-            found = await checker.check(alt)
+            found, check = await checker.check_detailed(alt)
+            run.states.setdefault(FALLBACK, Counter())[check.label()] += 1
             mismatch.pop(alt, None)
             no_verdict.discard(alt)
             if found is not None:
@@ -501,7 +516,9 @@ async def run_checks(
             started_count += 1
             gen, started = generation, started_count
             r = await basic_check(key)
-            stats.add_checked(key.split(" ", 1)[0])
+            listed_type = key.split(" ", 1)[0]
+            # a proxy found under another protocol counts for the protocol it was found as (checked and working)
+            stats.add_checked(r.ptype if r is not None else listed_type, listed=listed_type)
             dashboard.advance()
             if r is None and key in no_verdict:
                 no_verdict.discard(key)

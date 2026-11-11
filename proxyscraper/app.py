@@ -34,7 +34,7 @@ from .checker import (
     integrity_reference,
     probe_confirm_target,
 )
-from .checkstate import BASIC, now_iso
+from .checkstate import now_iso
 from .compat import on_interrupt, raise_fd_limit
 from .fetchcache import FetchCache
 from .geo import GeoResolver
@@ -64,6 +64,7 @@ from .pipeline import (
     ScrapeResult,
     attribute_results,
     best_sources,
+    check_counts,
     collect_sources,
     prioritize,
     run_checks,
@@ -705,9 +706,6 @@ class Run:
     def summary(self, jobs: List[str], run: CheckRun, stats: LiveStats, kept: List[CheckResult]) -> dict:
         """The run in numbers, with its denominators: how many candidates there were, how many got a verdict,
         and how each check ended – "not checked" and "the target was down" apart from "checked and failed"."""
-        basic = {"passed": stats.found + stats.fakes + stats.tampered}
-        # attempts: a proxy checked again after a check target switch counts once per try
-        basic.update(dict(sorted(self.checker.failures.items())))
         return {
             "schema": 1,
             "version": __version__,
@@ -726,7 +724,10 @@ class Run:
             "stopped": "goal" if run.reached_goal else "interrupted" if run.interrupted else None,
             "working": len(run.results),            # passed basic, not failed by confirm or content
             "kept": len(kept),                      # … and passed the filters
-            "checks": {BASIC: basic, **{name: dict(sorted(c.items())) for name, c in run.states.items()}},
+            # basic counts attempts: a proxy checked again after a check target switch counts once per try. The
+            # checks of another protocol on the same address are under "fallback", not "basic"
+            "checks": check_counts(run, stats, self.checker.failures),
+            "fallback": {"tried": run.fallback_tried, "found": run.fallback_found},
             # of the pages that arrived with different bytes: how many contain a <script tag (the reference has none)
             "changed_pages": dict(sorted(run.changed_pages.items())),
         }

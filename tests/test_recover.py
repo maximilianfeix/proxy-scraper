@@ -172,17 +172,23 @@ def test_a_slow_connect_fails_the_basic_check_but_not_a_follow_up_request(monkey
 
 def lab_run(tmp_path, prepare, opts=None):
     """A run over the jobs `prepare(lab)` returns ("type ip:port"); also returns every basic check it asked for."""
+    run, asked, jobs, _, _ = lab_run_with_stats(tmp_path, prepare, opts)
+    return run, asked, jobs
+
+
+def lab_run_with_stats(tmp_path, prepare, opts=None):
+    """lab_run, plus the run's LiveStats and its checker."""
     async def go():
         async with Lab() as lab:
             c = await lab.checker()
             asked = []
-            original = c.check
+            original = c.check_detailed
 
             async def counting(key):
                 asked.append(key)
                 return await original(key)
 
-            c.check = counting
+            c.check_detailed = counting  # check() goes through it as well
             jobs = await prepare(lab)
             stats = LiveStats(Counter(job.split(" ")[0] for job in jobs))
             writer = output.ResultWriter(run_dir=tmp_path / "run")
@@ -190,8 +196,52 @@ def lab_run(tmp_path, prepare, opts=None):
             dashboard = CheckDashboard(stats, writer.live_path, 4, options.details)
             run = await pipeline.run_checks(jobs, c, options, dashboard, writer, GeoResolver(enabled=False),
                                             live_factory=lambda _: contextlib.nullcontext())
-            return run, asked, jobs
+            return run, asked, jobs, stats, c
     return asyncio.run(go())
+
+
+def fallback_run(tmp_path):
+    """Three HTTP-listed addresses: one speaks SOCKS5, one answers garbage (tried as SOCKS5 and SOCKS4, both fail),
+    one is a working HTTP proxy."""
+    async def prepare(lab):
+        return [f"http {await lab.socks_proxy(EXIT, version=5)}", f"http {await lab.proxy(EXIT, garbage=True)}",
+                f"http {await lab.proxy('203.0.113.32')}"]
+
+    return lab_run_with_stats(tmp_path, prepare)
+
+
+def test_fallback_checks_are_counted_apart_from_the_basic_checks(tmp_path):
+    """The extra basic checks of another protocol went into checks.basic, which then no longer matched `checked`."""
+    run, _, jobs, stats, c = fallback_run(tmp_path)
+    assert (run.fallback_tried, run.fallback_found) == (3, 1)
+    counts = pipeline.check_counts(run, stats, c.failures)
+    assert sum(counts["basic"].values()) == len(run.checked) == len(jobs)  # one basic check per listed entry
+    assert counts["basic"]["passed"] == 1
+    assert sum(counts["fallback"].values()) == run.fallback_tried
+    assert counts["fallback"]["passed"] == run.fallback_found
+
+
+def test_run_json_says_how_many_fallback_checks_ran_and_found_a_proxy(tmp_path):
+    from types import SimpleNamespace
+
+    from proxyscraper.app import Run
+
+    run, _, jobs, stats, c = fallback_run(tmp_path)
+    app = Run(RunOptions(no_geo=True), show_banner=False)
+    app.checker, app.judges = c, [SimpleNamespace(judge=c.judge)]
+    summary = app.summary(jobs, run, stats, run.results)
+    assert summary["fallback"] == {"tried": 3, "found": 1}
+    assert sum(summary["checks"]["basic"].values()) == summary["checked"]
+    assert summary["checks"]["fallback"]["passed"] == 1
+
+
+def test_a_proxy_found_by_fallback_counts_for_the_protocol_it_was_found_as(tmp_path):
+    """add_checked used the listed type, add_working the found one: SOCKS5 could show more working than checked."""
+    _, _, jobs, stats, _ = fallback_run(tmp_path)
+    assert stats.working_by_type == Counter({"socks5": 1, "http": 1})
+    assert stats.checked_by_type == Counter({"http": 2, "socks5": 1})
+    assert stats.total_by_type == {"http": 2, "socks5": 1}  # the job moved with it, so the progress bars still end full
+    assert stats.checked == len(jobs)
 
 
 def test_an_address_listed_as_http_that_speaks_socks5_is_found_as_socks5(tmp_path):

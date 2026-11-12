@@ -17,7 +17,7 @@ from urllib.request import url2pathname
 from . import sources as srcs
 from .asndb import ProviderLookup
 from .blocklist import Blocklist
-from .checker import Checker, CheckResult, other_protocols
+from .checker import RETRY_REASONS, Checker, CheckResult, other_protocols
 from .checkstate import BASIC, CONFIRM, CONTENT, HTTPS, PASSED, SKIPPED, Check, now_iso
 from .compat import on_interrupt
 from .fetchcache import FetchCache
@@ -33,6 +33,13 @@ from .ui import ACCENT, CheckDashboard, CollectView, LiveStats, fmt, widgets
 
 # run.json `checks` key for the basic checks of another protocol (see run_checks: protocol fallback)
 FALLBACK = "fallback"
+# A proxy whose confirm or content request broke off in transport (RETRY_REASONS) right after a passed basic check
+# gets its follow-ups once more at the end of the run, at least this many seconds later: free proxies drop
+# connections for a while and come back. Before, ~350 confirms and ~280 content checks of every hourly run ended
+# that way and the proxies were lost, although they had just answered the basic check.
+SECOND_CHANCE_DELAY = 20.0
+# run.json `checks` key: how the repeated follow-ups ended ("passed" = the proxy made it into the results)
+SECOND_CHANCE = "second_chance"
 AUTO_DISCOVER_AFTER_DAYS = 1.0  # daily: found sources are kept, so every search adds to the pile
 # parse small lists directly – the detour through another process costs more than it saves
 INLINE_PARSE_BYTES = 256 * 1024
@@ -510,6 +517,94 @@ async def run_checks(
     geo_task = asyncio.ensure_future(geo.run())
     watch_task = asyncio.ensure_future(watch.run()) if watch else None
 
+    # proxies waiting for their second chance: (when the first try ended, result, job key, listed under it)
+    deferred: List[Tuple[float, CheckResult, str, bool]] = []
+
+    def broke_off(r: CheckResult, name: str) -> bool:
+        check = r.checks.get(name)
+        return check is not None and check.state != PASSED and check.reason in RETRY_REASONS
+
+    async def follow_up(r: CheckResult, key: str, listed: bool, last_try: bool) -> bool:
+        """Confirm, content and details of a proxy that passed its basic check. False: a follow-up request broke
+        off in transport and this wasn't the last try – nothing is recorded, the proxy waits for second_chance."""
+        # second, independent request – a proxy that only answers the check request passes the first by chance.
+        # False only when the request ran and didn't confirm it; an unreachable confirmation target leaves
+        # the proxy in, marked "unavailable" (r.checks) – it's the target that failed, not the proxy
+        confirmed = await checker.confirm(r)
+        if not confirmed and not last_try and broke_off(r, CONFIRM):
+            return False
+        if not confirmed:
+            run.count(r, CONFIRM)
+            if listed:
+                run.checked.append(key)
+            stats.fakes += 1
+            return True
+        # third request: does a known page arrive unchanged?
+        modified = await checker.tampers(r)
+        if not modified and not last_try and broke_off(r, CONTENT):
+            return False
+        run.count(r, CONFIRM)
+        run.count(r, CONTENT)
+        if modified:
+            if listed:
+                run.checked.append(key)
+            stats.tampered += 1
+            # the proxy is dropped here, so what was measured about its page is kept as a count
+            changed = r.checks[CONTENT].data if CONTENT in r.checks else {}
+            run.changed_pages["with_script_tag" if changed.get("script_tags") else "without_script_tag"] += 1
+            return True
+        if CONFIRM in r.checks and not r.checks[CONFIRM].ok:
+            stats.confirm_unavailable += 1
+        if providers:
+            providers.annotate(r)
+        if blocklist:
+            r.blocklisted = await blocklist.lookup(r.exit_ip)
+        if listed:
+            run.checked.append(key)
+        run.results.append(r)
+        run.working.add(r.key)
+        by_exit_ip.setdefault(r.exit_ip, []).append(r)
+        r.country = geo.request(r.exit_ip)
+        if r.country:
+            stats.countries[r.country] += 1
+        stats.add_working(r)
+        if details:
+            # HTTPS test only if the proxy can still pass the filters at all
+            if filters.may_pass(r):
+                await checker.enrich(r)
+                enriched.add(r.key)
+                stats.add_details(r)
+            else:
+                stats.details_saved += 1
+                r.checks[HTTPS] = Check(SKIPPED, "filtered_out", at=now_iso())
+        else:
+            r.checks[HTTPS] = Check(SKIPPED, "fast_mode", at=now_iso())
+        run.count(r, HTTPS)
+        consider(r)
+        return True
+
+    async def second_chance() -> None:
+        """Both follow-ups once more for the deferred proxies, each at least SECOND_CHANCE_DELAY after its first
+        try. This time they count whatever they end as."""
+        gate = asyncio.Semaphore(max(1, opts.concurrency))
+        outcomes = run.states.setdefault(SECOND_CHANCE, Counter())
+
+        async def one(item: Tuple[float, CheckResult, str, bool]) -> None:
+            at, r, key, listed = item
+            await asyncio.sleep(max(0.0, at + SECOND_CHANCE_DELAY - loop.time()))
+            async with gate:
+                await follow_up(r, key, listed, last_try=True)
+            deferred.remove(item)  # what is still in `deferred` after a stop never got its second try
+            outcomes[PASSED if r.key in run.working else "failed"] += 1
+
+        tasks = [asyncio.ensure_future(one(item)) for item in list(deferred)]
+        try:
+            await asyncio.gather(*tasks)
+        except asyncio.CancelledError:
+            for task in tasks:
+                task.cancel()
+            raise
+
     async def worker() -> None:
         nonlocal started_count
         for key in pending:
@@ -539,65 +634,27 @@ async def run_checks(
                 run.checked.append(key)
             # A hit only counts as checked once the verdict is in: a worker cancelled during the next requests
             # (--want reached, Ctrl+C) must not record a proxy that just worked as a failure.
-            # second, independent request – a proxy that only answers the check request passes the first by chance.
-            # False only when the request ran and didn't confirm it; an unreachable confirmation target leaves
-            # the proxy in, marked "unavailable" (r.checks) – it's the target that failed, not the proxy
-            confirmed = await checker.confirm(r)
-            run.count(r, CONFIRM)
-            if not confirmed:
-                if listed:
-                    run.checked.append(key)
-                stats.fakes += 1
-                continue
-            # third request: does a known page arrive unchanged?
-            modified = await checker.tampers(r)
-            run.count(r, CONTENT)
-            if modified:
-                if listed:
-                    run.checked.append(key)
-                stats.tampered += 1
-                # the proxy is dropped here, so what was measured about its page is kept as a count
-                changed = r.checks[CONTENT].data if CONTENT in r.checks else {}
-                run.changed_pages["with_script_tag" if changed.get("script_tags") else "without_script_tag"] += 1
-                continue
-            if CONFIRM in r.checks and not r.checks[CONFIRM].ok:
-                stats.confirm_unavailable += 1
-            if providers:
-                providers.annotate(r)
-            if blocklist:
-                r.blocklisted = await blocklist.lookup(r.exit_ip)
-            if listed:
-                run.checked.append(key)
-            run.results.append(r)
-            run.working.add(r.key)
-            by_exit_ip.setdefault(r.exit_ip, []).append(r)
-            r.country = geo.request(r.exit_ip)
-            if r.country:
-                stats.countries[r.country] += 1
-            stats.add_working(r)
-            if details:
-                # HTTPS test only if the proxy can still pass the filters at all
-                if filters.may_pass(r):
-                    await checker.enrich(r)
-                    enriched.add(r.key)
-                    stats.add_details(r)
-                else:
-                    stats.details_saved += 1
-                    r.checks[HTTPS] = Check(SKIPPED, "filtered_out", at=now_iso())
-            else:
-                r.checks[HTTPS] = Check(SKIPPED, "fast_mode", at=now_iso())
-            run.count(r, HTTPS)
-            consider(r)
+            if not await follow_up(r, key, listed, last_try=False):
+                deferred.append((loop.time(), r, key, listed))
 
     with live_factory(dashboard):
         workers = [asyncio.ensure_future(worker()) for _ in range(min(opts.concurrency, len(jobs)))]
         all_workers = asyncio.gather(*workers)
         # Ctrl+C stops cleanly so the results still get saved (on Windows too)
-        with contextlib.nullcontext() if quiet else on_interrupt(loop, all_workers.cancel):
+        with contextlib.nullcontext() if quiet else on_interrupt(loop, lambda: all_workers.cancel()):
             try:
                 await all_workers
+                if deferred:
+                    all_workers = asyncio.ensure_future(second_chance())
+                    await all_workers
             except asyncio.CancelledError:
                 run.interrupted = not run.reached_goal
+        # stopped before their second chance: they did fail a follow-up, so they end as unconfirmed – the basic
+        # check counts (check_counts) stay complete
+        for *_, key, listed in deferred:
+            if listed:
+                run.checked.append(key)
+            stats.fakes += 1
 
     if watch_task:
         watch_task.cancel()

@@ -443,3 +443,130 @@ def test_prioritize_history_larger_than_limit(tmp_path):
         history.record_ok(f"http 7.7.7.{i}:80", 100, "7.7.7.7")
     order = pipeline.prioritize(res, quality, history, ["http"], limit=3, rng=random.Random(5))
     assert all(k.startswith("http 7.7.7.") for k in order[:5])
+
+
+def _second_chance_run(tmp_path, monkeypatch, confirm_plan, content_plan):
+    """run_checks with a checker whose confirm/content end as the plans say, one entry per try and proxy."""
+    import asyncio
+    import contextlib
+
+    from proxyscraper.checkstate import CONFIRM, CONTENT, FAILED, Check
+    from proxyscraper.geo import GeoResolver
+    from proxyscraper.options import RunOptions
+    from proxyscraper.ui import CheckDashboard, LiveStats
+
+    monkeypatch.setattr(pipeline, "SECOND_CHANCE_DELAY", 0.0)
+    calls = Counter()
+
+    def outcome(plan, r, name):
+        calls[(name, r.key)] += 1
+        state, reason = plan[r.key][calls[(name, r.key)] - 1]
+        r.checks[name] = Check(state, reason)
+        return state
+
+    class StubChecker:
+        async def check(self, key):
+            ptype, proxy = key.split(" ")
+            return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
+
+        async def confirm(self, r):
+            return outcome(confirm_plan, r, CONFIRM) != FAILED
+
+        async def tampers(self, r):
+            return outcome(content_plan, r, CONTENT) == FAILED
+
+        async def enrich(self, r):
+            r.https = True
+
+    async def go():
+        jobs = sorted(set(confirm_plan))
+        stats = LiveStats({"http": len(jobs)})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, len(jobs), True)
+        run = await pipeline.run_checks(jobs, StubChecker(), RunOptions(no_geo=True), dashboard, writer,
+                                        GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext())
+        return run, stats
+
+    run, stats = asyncio.run(go())
+    return run, stats, calls
+
+
+def test_follow_ups_that_broke_off_get_a_second_chance(tmp_path, monkeypatch):
+    ok, drop, flaky, gone = "http 1.1.1.1:80", "http 2.2.2.2:80", "http 3.3.3.3:80", "http 4.4.4.4:80"
+    passed = ("passed", "")
+    confirm_plan = {
+        ok: [passed],
+        drop: [("failed", "exit_ip_mismatch")],                 # a real verdict: no second try
+        flaky: [("failed", "connect_timeout"), passed],          # broke off, works a little later
+        gone: [passed, passed],
+    }
+    content_plan = {ok: [passed], flaky: [passed], gone: [("unavailable", "timeout"), ("unavailable", "timeout")]}
+    run, stats, calls = _second_chance_run(tmp_path, monkeypatch, confirm_plan, content_plan)
+
+    assert sorted(r.key for r in run.results) == [ok, flaky, gone]
+    assert calls[("confirm", drop)] == 1 and calls[("confirm", flaky)] == 2 and calls[("content", gone)] == 2
+    assert calls[("confirm", ok)] == 1  # nothing to repeat
+    # every proxy is counted once per check, as its last try ended
+    assert run.states["confirm"] == Counter({"passed": 3, "failed:exit_ip_mismatch": 1})
+    assert run.states["content"] == Counter({"passed": 2, "unavailable:timeout": 1})
+    assert run.states[pipeline.SECOND_CHANCE] == Counter({"passed": 2})
+    assert stats.fakes == 1 and stats.found == 3
+    assert sorted(run.checked) == sorted([ok, drop, flaky, gone])
+
+
+def test_second_chance_failure_counts_once(tmp_path, monkeypatch):
+    key = "http 5.5.5.5:80"
+    plan = {key: [("failed", "connect_timeout"), ("failed", "timeout")]}
+    run, stats, calls = _second_chance_run(tmp_path, monkeypatch, plan, {})
+    assert run.results == [] and calls[("confirm", key)] == 2
+    assert run.states["confirm"] == Counter({"failed:timeout": 1})
+    assert run.states[pipeline.SECOND_CHANCE] == Counter({"failed": 1})
+    assert stats.fakes == 1 and run.checked == [key]
+
+
+def test_goal_reached_during_second_chance_counts_every_proxy_once(tmp_path, monkeypatch):
+    """--want reached in one second chance while another is in its HTTPS test: the cut-off one must not end
+    as working and unconfirmed at once."""
+    import asyncio
+    import contextlib
+
+    from proxyscraper.checkstate import CONFIRM, CONTENT, Check
+    from proxyscraper.geo import GeoResolver
+    from proxyscraper.options import RunOptions
+    from proxyscraper.ui import CheckDashboard, LiveStats
+
+    monkeypatch.setattr(pipeline, "SECOND_CHANCE_DELAY", 0.0)
+    keys = ["http 1.1.1.1:80", "http 2.2.2.2:80"]
+    calls = Counter()
+
+    class StubChecker:
+        async def check(self, key):
+            ptype, proxy = key.split(" ")
+            return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
+
+        async def confirm(self, r):
+            calls[r.key] += 1
+            first = calls[r.key] == 1
+            r.checks[CONFIRM] = Check("failed", "connect_timeout") if first else Check("passed", "")
+            return not first
+
+        async def tampers(self, r):
+            r.checks[CONTENT] = Check("passed", "")
+            return False
+
+        async def enrich(self, r):
+            await asyncio.sleep(1 if r.key == keys[1] else 0.1)
+            r.https = True
+
+    async def go():
+        stats = LiveStats({"http": 2})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, 2, True)
+        run = await pipeline.run_checks(keys, StubChecker(), RunOptions(no_geo=True, want=1), dashboard, writer,
+                                        GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext())
+        return run, stats
+
+    run, stats = asyncio.run(go())
+    assert run.reached_goal
+    assert stats.found + stats.fakes == 2
+    assert sorted(run.checked) == keys

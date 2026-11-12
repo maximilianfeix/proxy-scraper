@@ -2,7 +2,7 @@ name: proxy list
 
 on:
   schedule:
-    - cron: "17 * * * *"     # every hour – a full run takes about 3 minutes
+    - cron: "17 * * * *"     # every hour – the checks take about 5–6 minutes
   workflow_dispatch:
 
 permissions:
@@ -38,7 +38,7 @@ jobs:
       - name: Collect and check proxies
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}   # for the GitHub discovery
-        run: python proxy_scraper.py -y --limit 150000 --timeout 6 --connect-timeout 4
+        run: python proxy_scraper.py -y --limit 150000 --timeout 10 --connect-timeout 4
 
       # Google, Reddit, Amazon, Instagram, TikTok and Discord turn many free proxies away – note which got through (~2 min).
       # Optional: if it fails, the list is published without it.

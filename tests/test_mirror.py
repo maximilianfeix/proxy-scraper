@@ -49,6 +49,7 @@ def test_mirror_writes_lists_countries_and_readme(tmp_path):
     assert "Timeout:   10 * time.Second" in readme
     assert "Proxy: http.ProxyURL(proxyURL)" in readme
     assert "ProxySelector.of(new InetSocketAddress(uri.getHost(), uri.getPort()))" in readme
+    assert 'list.lines().filter(l -> l.startsWith("http://")).toList()' in readme
     assert "reqwest::Proxy::all" in readme
     assert 'curl -m 10 -x "socks5h://$(curl -sL' in readme
     assert 'socks5.txt | head -n 1)" https://api.ipify.org' in readme

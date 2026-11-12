@@ -350,13 +350,13 @@ import java.net.http.*;
 import java.time.Duration;
 import java.util.Random;
 
-// java.net.http speaks HTTP(S) proxies, so use the https.txt list (type://ip:port lines)
+// Java 16+. java.net.http only speaks HTTP proxies: keep the http:// lines of https.txt
 public class Main {{
     public static void main(String[] args) throws Exception {{
         var list = HttpClient.newHttpClient().send(
             HttpRequest.newBuilder(URI.create("{raw}/https.txt")).build(),
             HttpResponse.BodyHandlers.ofString()).body();
-        var proxies = list.lines().toList();
+        var proxies = list.lines().filter(l -> l.startsWith("http://")).toList();
         var uri = URI.create(proxies.get(new Random().nextInt(proxies.size())));
         var client = HttpClient.newBuilder()
             .proxy(ProxySelector.of(new InetSocketAddress(uri.getHost(), uri.getPort())))

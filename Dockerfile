@@ -3,13 +3,13 @@
 # build: collect ready-made wheels. uvloop exists as a binary for amd64 and arm64 – --only-binary makes
 # a missing wheel show up right away instead of quietly needing a compiler. The mcp extra makes
 # "docker run -i --rm IMAGE --mcp" an MCP server for AI agents
-FROM python:3.15-slim@sha256:8c13a3f37a6a5b71498228e902c4b9f51c1f7900d49fabf71f9a650c6120e0d0 AS build
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928 AS build
 WORKDIR /src
 COPY pyproject.toml README.md LICENSE ./
 COPY proxyscraper ./proxyscraper
 RUN pip wheel --no-cache-dir --only-binary uvloop --wheel-dir /wheels ".[fast,mcp]"
 
-FROM python:3.15-slim@sha256:8c13a3f37a6a5b71498228e902c4b9f51c1f7900d49fabf71f9a650c6120e0d0
+FROM python:3.15-slim@sha256:65a65fc7b30b06cb6df4930fd4650697cb23f4c2698ab81fc87e4b031bc36928
 LABEL org.opencontainers.image.title="proxy-scraper" \
       org.opencontainers.image.description="Free proxies that actually work – scraped, verified, learned." \
       org.opencontainers.image.source="https://github.com/maximilianfeix/proxy-scraper" \

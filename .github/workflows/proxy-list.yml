@@ -76,7 +76,7 @@ jobs:
           done
           if python -m proxyscraper.publish "results/$(cat results/latest.txt)" public --min 20 \
               --history history.json --streaks streaks.json --seen seen.json --feed report/feed.xml \
-              --sources data/source_stats.json; then
+              --sources data/source_stats.json --removed removed.txt; then
             echo "publish=true" >> "$GITHUB_OUTPUT"
           else
             rc=$?

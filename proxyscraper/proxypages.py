@@ -172,10 +172,7 @@ def _render(proxy: str, entries: List[dict], updated: datetime, bits: Optional[i
 <meta name="description" content="{escape(description)}">
 {robots}<link rel="canonical" href="{SITE_URL}{page_path(proxy)}">
 <link rel="icon" href="{root}logo.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
-      rel="stylesheet">
+<link rel="stylesheet" href="{root}vendor/fonts.css">
 <link rel="stylesheet" href="../style.css">
 </head>
 <body>
@@ -199,7 +196,9 @@ def _render(proxy: str, entries: List[dict], updated: datetime, bits: Optional[i
     that isn't encrypted.</p>
   </section>
   <footer><span>Checked every hour by <a href="https://github.com/maximilianfeix/proxy-scraper">proxy-scraper</a>,
-  open source.</span></footer>
+  open source.</span>
+  <span><a href="{root}legal.html">Impressum</a> · <a href="{root}legal.html#datenschutz">Datenschutz</a> ·
+    <a href="{root}legal.html#entfernen">Remove an address</a></span></footer>
 </div>
 {COPY_JS}
 </body>

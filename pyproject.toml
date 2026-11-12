@@ -79,7 +79,7 @@ version = { attr = "proxyscraper.__version__" }
 include = ["proxyscraper*"]
 
 [tool.setuptools.package-data]
-proxyscraper = ["sources.json", "site/*.html", "site/*.png", "server/dashboard.html"]
+proxyscraper = ["sources.json", "site/*.html", "site/*.png", "site/vendor/*", "server/dashboard.html"]
 
 [tool.ruff]
 line-length = 120

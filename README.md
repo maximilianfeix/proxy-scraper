@@ -471,9 +471,13 @@ proxy-scraper stands on the work of the people who publish free proxy lists. Tha
 - [IP Geolocation by DB-IP](https://db-ip.com) – the free country database (CC BY 4.0) used for offline country lookups
 - [httpbin](https://httpbin.org), [checkip.amazonaws.com](https://checkip.amazonaws.com), [ifconfig.me](https://ifconfig.me), [ipinfo.io](https://ipinfo.io), [wtfismyip.com](https://wtfismyip.com), [ident.me](https://ident.me) and [ip-api.com](https://ip-api.com), used as check targets and for country lookups, and [speed.cloudflare.com](https://speed.cloudflare.com) for the download speed
 
-## Disclaimer
+## Legal and acceptable use
 
-This tool only collects publicly listed proxies and checks whether they work. You are responsible for how you use them – respect the terms of the sites you visit and the laws where you live.
+proxy-scraper collects proxies that are already listed publicly and checks whether they work. It doesn't scan for open proxies or get into anything: every address comes from one of the [public sources](proxyscraper/sources.json).
+
+- The proxies are run by third parties, often without the owner knowing. Use them only for legal purposes, and never for logins, payments or personal data. You are responsible for how you use them: respect the terms of the sites you visit and the laws where you live.
+- **Your address on the list?** Open a [removal request](https://github.com/maximilianfeix/proxy-scraper/issues/new?template=remove_address.yml) or email the address in the [Impressum](https://proxy-scraper.de/legal.html#impressum). It goes into [`removed.txt`](removed.txt) and is gone from every list, the website and the mirror with the next hourly run.
+- Impressum and privacy policy: [proxy-scraper.de/legal.html](https://proxy-scraper.de/legal.html). The website sets no cookies, has no tracking and loads its fonts and scripts from itself.
 
 <div align="center">
 

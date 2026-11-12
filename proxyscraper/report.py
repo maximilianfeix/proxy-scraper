@@ -233,10 +233,7 @@ def page(f: dict) -> str:
 <meta property="og:description" content="{escape(_lines(f)[0])}">
 <meta property="og:image" content="{SITE_URL}og.png">
 <link rel="icon" href="{root}logo.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
-      rel="stylesheet">
+<link rel="stylesheet" href="{root}vendor/fonts.css">
 <style>{CSS}
 .report p {{ font-size: 19px; max-width: 64ch; margin: 0 0 18px; }}
 .report p:first-child {{ font-size: 24px; letter-spacing: -.01em; }}
@@ -264,7 +261,9 @@ picture img {{ width: 100%; height: auto; border-radius: 16px; }}
   </picture>
   <footer><span>Want to share it? <a href="report.md">Markdown</a> · <a href="post.txt">a short post</a> ·
   <a href="feed.xml">RSS/Atom feed</a> ·
-  <a href="https://github.com/maximilianfeix/proxy-scraper">the code</a></span></footer>
+  <a href="https://github.com/maximilianfeix/proxy-scraper">the code</a></span>
+  <span><a href="{root}legal.html">Impressum</a> · <a href="{root}legal.html#datenschutz">Datenschutz</a> ·
+    <a href="{root}legal.html#entfernen">Remove an address</a></span></footer>
 </div>
 </body>
 </html>

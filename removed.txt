@@ -1,0 +1,3 @@
+# Addresses whose owner asked to be left out of the published lists and the website (https://proxy-scraper.de/legal.html#entfernen).
+# One IP address or network (CIDR) per line. A proxy is left out when its own address or its exit IP matches.
+# The next hourly run applies a change here.

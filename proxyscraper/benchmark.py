@@ -206,10 +206,7 @@ def page(lists: List[dict], updated: datetime) -> str:
 <meta name="twitter:card" content="summary_large_image">
 <link rel="icon" href="{root}logo.png">
 <link rel="apple-touch-icon" href="{root}apple-touch-icon.png">
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Geist:wght@400..700&family=Geist+Mono:wght@400;500&display=swap"
-      rel="stylesheet">
+<link rel="stylesheet" href="{root}vendor/fonts.css">
 <style>{CSS}{PAGE_CSS}{BENCH_CSS}</style>
 <script type="application/ld+json">{dataset}</script>
 </head>
@@ -265,6 +262,8 @@ def page(lists: List[dict], updated: datetime) -> str:
   <footer>
     <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>
     <span>Collected and checked by <a href="{REPO_URL}">proxy-scraper</a>, open source, MIT licensed.</span>
+    <span><a href="{root}legal.html">Impressum</a> · <a href="{root}legal.html#datenschutz">Datenschutz</a> ·
+    <a href="{root}legal.html#entfernen">Remove an address</a></span>
   </footer>
 </div>
 </body>

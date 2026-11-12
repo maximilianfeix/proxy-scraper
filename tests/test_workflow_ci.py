@@ -150,7 +150,8 @@ def test_the_hourly_run_gives_the_basic_connect_four_seconds():
     steps = workflow("proxy-list.yml")["jobs"]
     run = next(step["run"] for job in steps.values() for step in job["steps"]
                if "proxy_scraper.py" in str(step.get("run", "")))
-    assert "--timeout 6 --connect-timeout 4" in run
+    # and the whole request 10 s: ~10,000 candidates a run answered after 6 s (A/B on 12 Nov 2026)
+    assert "--timeout 10 --connect-timeout 4" in run
 
 
 def test_codeql_leaves_the_tests_out_through_its_config_file():

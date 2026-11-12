@@ -452,3 +452,64 @@ def test_verify_control_asks_the_pinned_judge_address(monkeypatch):
 
     asyncio.run(go())
     assert asked == ["1.1.1.1"]
+
+
+def test_switch_during_the_second_chances_still_rechecks(tmp_path, monkeypatch):
+    """The second chances run after the workers: a check target switch then must still repeat the failures of
+    the outage – there is no worker left to take them from the queue unless run_checks starts one."""
+    from proxyscraper.checkstate import CONFIRM, CONTENT, Check
+
+    monkeypatch.setattr(pipeline, "SECOND_CHANCE_DELAY", 0.0)
+    victim, flaky = "http 1.1.1.1:80", "http 2.2.2.2:80"
+
+    class StubWatch:
+        on_ok = on_switch = None
+
+        async def run(self):
+            self.on_ok()
+            await asyncio.sleep(3600)
+
+    watch = StubWatch()
+
+    class Checker:
+        def __init__(self):
+            self.down = True
+            self.confirms = 0
+
+        async def check(self, key):
+            if key == victim and self.down:
+                return None  # falls into the outage
+            ptype, proxy = key.split(" ")
+            return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
+
+        async def confirm(self, r):
+            self.confirms += 1
+            if self.confirms == 1:
+                r.checks[CONFIRM] = Check("failed", "connect_timeout")
+                return False
+            if self.down:  # during the second chance the watchdog notices the outage
+                self.down = False
+                watch.on_switch(JudgeProbe(Judge("a"), "1.1.1.1", 1), JudgeProbe(Judge("b"), "2.2.2.2", 1))
+            r.checks[CONFIRM] = Check("passed", "")
+            return True
+
+        async def tampers(self, r):
+            r.checks[CONTENT] = Check("passed", "")
+            return False
+
+        async def enrich(self, r):
+            r.https = True
+
+    async def go():
+        jobs = [victim, flaky]
+        stats = LiveStats({"http": 2})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, 1, True)
+        run = await pipeline.run_checks(jobs, Checker(), RunOptions(no_geo=True, concurrency=1), dashboard, writer,
+                                        GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext(),
+                                        watch=watch)
+        return run
+
+    run = asyncio.run(go())
+    assert run.working == {victim, flaky}
+    assert sorted(run.checked) == [victim, flaky] and run.rechecked == 1

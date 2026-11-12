@@ -40,6 +40,8 @@ FALLBACK = "fallback"
 SECOND_CHANCE_DELAY = 20.0
 # run.json `checks` key: how the repeated follow-ups ended ("passed" = the proxy made it into the results)
 SECOND_CHANCE = "second_chance"
+# a proxy waiting for its second chance: (when its first try ended, its result, the job key, listed under that key)
+Deferred = Tuple[float, CheckResult, str, bool]
 AUTO_DISCOVER_AFTER_DAYS = 1.0  # daily: found sources are kept, so every search adds to the pile
 # parse small lists directly – the detour through another process costs more than it saves
 INLINE_PARSE_BYTES = 256 * 1024
@@ -517,16 +519,23 @@ async def run_checks(
     geo_task = asyncio.ensure_future(geo.run())
     watch_task = asyncio.ensure_future(watch.run()) if watch else None
 
-    # proxies waiting for their second chance: (when the first try ended, result, job key, listed under it)
-    deferred: List[Tuple[float, CheckResult, str, bool]] = []
+    deferred: List[Deferred] = []  # proxies waiting for their second chance
 
     def broke_off(r: CheckResult, name: str) -> bool:
         check = r.checks.get(name)
         return check is not None and check.state != PASSED and check.reason in RETRY_REASONS
 
-    async def follow_up(r: CheckResult, key: str, listed: bool, last_try: bool) -> bool:
+    async def follow_up(r: CheckResult, key: str, listed: bool, last_try: bool,
+                        item: Optional[Deferred] = None) -> bool:
         """Confirm, content and details of a proxy that passed its basic check. False: a follow-up request broke
-        off in transport and this wasn't the last try – nothing is recorded, the proxy waits for second_chance."""
+        off in transport and this wasn't the last try – nothing is recorded, the proxy waits for second_chance.
+        item: its entry in `deferred` (on the second chance), taken out as soon as the verdict is recorded – a
+        stop after that must not count the proxy again."""
+
+        def recorded() -> None:
+            if item is not None:
+                deferred.remove(item)
+
         # second, independent request – a proxy that only answers the check request passes the first by chance.
         # False only when the request ran and didn't confirm it; an unreachable confirmation target leaves
         # the proxy in, marked "unavailable" (r.checks) – it's the target that failed, not the proxy
@@ -534,6 +543,7 @@ async def run_checks(
         if not confirmed and not last_try and broke_off(r, CONFIRM):
             return False
         if not confirmed:
+            recorded()
             run.count(r, CONFIRM)
             if listed:
                 run.checked.append(key)
@@ -543,6 +553,7 @@ async def run_checks(
         modified = await checker.tampers(r)
         if not modified and not last_try and broke_off(r, CONTENT):
             return False
+        recorded()
         run.count(r, CONFIRM)
         run.count(r, CONTENT)
         if modified:
@@ -587,15 +598,14 @@ async def run_checks(
         """Both follow-ups once more for the deferred proxies, each at least SECOND_CHANCE_DELAY after its first
         try. This time they count whatever they end as."""
         gate = asyncio.Semaphore(max(1, opts.concurrency))
-        outcomes = run.states.setdefault(SECOND_CHANCE, Counter())
 
-        async def one(item: Tuple[float, CheckResult, str, bool]) -> None:
+        async def one(item: Deferred) -> None:
             at, r, key, listed = item
             await asyncio.sleep(max(0.0, at + SECOND_CHANCE_DELAY - loop.time()))
             async with gate:
-                await follow_up(r, key, listed, last_try=True)
-            deferred.remove(item)  # what is still in `deferred` after a stop never got its second try
-            outcomes[PASSED if r.key in run.working else "failed"] += 1
+                await follow_up(r, key, listed, last_try=True, item=item)
+            outcome = PASSED if r.key in run.working else "failed"
+            run.states.setdefault(SECOND_CHANCE, Counter())[outcome] += 1
 
         tasks = [asyncio.ensure_future(one(item)) for item in list(deferred)]
         try:
@@ -644,13 +654,20 @@ async def run_checks(
         with contextlib.nullcontext() if quiet else on_interrupt(loop, lambda: all_workers.cancel()):
             try:
                 await all_workers
-                if deferred:
-                    all_workers = asyncio.ensure_future(second_chance())
+                # the second chances take 20 s and more: a check target switch in that time puts basic checks
+                # back into the queue (requeue), and nobody would take them out – so: workers again until both
+                # are empty
+                while deferred or pending.retry:
+                    if pending.retry:
+                        all_workers = asyncio.gather(*(asyncio.ensure_future(worker())
+                                                       for _ in range(min(opts.concurrency, len(pending.retry)))))
+                    else:
+                        all_workers = asyncio.ensure_future(second_chance())
                     await all_workers
             except asyncio.CancelledError:
                 run.interrupted = not run.reached_goal
-        # stopped before their second chance: they did fail a follow-up, so they end as unconfirmed – the basic
-        # check counts (check_counts) stay complete
+        # stopped before their second chance was recorded: they did fail a follow-up, so they end as unconfirmed –
+        # the basic check counts (check_counts) stay complete
         for *_, key, listed in deferred:
             if listed:
                 run.checked.append(key)

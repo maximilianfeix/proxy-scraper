@@ -522,3 +522,51 @@ def test_second_chance_failure_counts_once(tmp_path, monkeypatch):
     assert run.states["confirm"] == Counter({"failed:timeout": 1})
     assert run.states[pipeline.SECOND_CHANCE] == Counter({"failed": 1})
     assert stats.fakes == 1 and run.checked == [key]
+
+
+def test_goal_reached_during_second_chance_counts_every_proxy_once(tmp_path, monkeypatch):
+    """--want reached in one second chance while another is in its HTTPS test: the cut-off one must not end
+    as working and unconfirmed at once."""
+    import asyncio
+    import contextlib
+
+    from proxyscraper.checkstate import CONFIRM, CONTENT, Check
+    from proxyscraper.geo import GeoResolver
+    from proxyscraper.options import RunOptions
+    from proxyscraper.ui import CheckDashboard, LiveStats
+
+    monkeypatch.setattr(pipeline, "SECOND_CHANCE_DELAY", 0.0)
+    keys = ["http 1.1.1.1:80", "http 2.2.2.2:80"]
+    calls = Counter()
+
+    class StubChecker:
+        async def check(self, key):
+            ptype, proxy = key.split(" ")
+            return CheckResult(key, ptype, proxy, 100, "9.9.9.9")
+
+        async def confirm(self, r):
+            calls[r.key] += 1
+            first = calls[r.key] == 1
+            r.checks[CONFIRM] = Check("failed", "connect_timeout") if first else Check("passed", "")
+            return not first
+
+        async def tampers(self, r):
+            r.checks[CONTENT] = Check("passed", "")
+            return False
+
+        async def enrich(self, r):
+            await asyncio.sleep(1 if r.key == keys[1] else 0.1)
+            r.https = True
+
+    async def go():
+        stats = LiveStats({"http": 2})
+        writer = output.ResultWriter(run_dir=tmp_path / "run")
+        dashboard = CheckDashboard(stats, writer.live_path, 2, True)
+        run = await pipeline.run_checks(keys, StubChecker(), RunOptions(no_geo=True, want=1), dashboard, writer,
+                                        GeoResolver(enabled=False), live_factory=lambda _: contextlib.nullcontext())
+        return run, stats
+
+    run, stats = asyncio.run(go())
+    assert run.reached_goal
+    assert stats.found + stats.fakes == 2
+    assert sorted(run.checked) == keys

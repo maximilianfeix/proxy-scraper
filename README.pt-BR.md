@@ -22,7 +22,7 @@
 
 ---
 
-**Verificações de proxy que você pode inspecionar: o que passou, o que falhou e quando.** O proxy-scraper coleta proxies HTTP, SOCKS4 e SOCKS5 públicos de centenas de listas, roda até quatro verificações em cada um e guarda o resultado de cada verificação para os proxies que ele lista (para os demais, registra apenas como cada verificação terminou). Assim, "funciona" passa a ser algo que você pode conferir, e não um rótulo em que precisa confiar.
+**Verificações de proxy que você pode inspecionar: o que passou, o que falhou e quando.** O proxy-scraper coleta proxies HTTP, SOCKS4 e SOCKS5 públicos de centenas de listas, roda até quatro verificações em cada um e guarda o resultado de cada verificação para os proxies que ele lista (para os demais, só contabiliza como cada verificação terminou). Assim, "funciona" passa a ser algo que você pode conferir, e não um rótulo em que precisa confiar.
 
 <div align="center">
 <img src="docs/demo/checks.gif" alt="Gravação de terminal: proxy-scraper --pick 2 --verify --https-only imprime dois proxies e diz no stderr por que os outros quatro ficaram de fora; proxy-scraper --diagnose mostra cada verificação de um proxy com o resultado" width="880">

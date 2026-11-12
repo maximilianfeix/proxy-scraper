@@ -4,6 +4,14 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Added
+- **Remove an address from the lists.** An IP address or network in `removed.txt` is left out of every published list, the website (including the page of a proxy that is no longer listed) and the free-proxy-list mirror from the next hourly run on; the proxy's own address and its exit IP both count. A malformed line stops the publish step instead of publishing the address. Requests come in by email or through a new issue form (`Remove my IP address`)
+- proxy-scraper.de has an Impressum and a privacy policy (`legal.html`), linked from the footer of every page
+
+### Changed
+- **The website loads its fonts and scripts from itself.** Geist and Geist Mono came from Google Fonts, the map scripts (d3-array, d3-geo, topojson-client, the world outlines) and Lenis from jsDelivr, so every visit sent the visitor's IP address to Google and jsDelivr. The same files, unchanged from their npm packages and with the same SRI hashes, are now served from `vendor/` (licenses in `vendor/LICENSES.txt`)
+- The README's disclaimer is a short "Legal and acceptable use" section
+
 ## [1.34.0] – 2026-11-12
 
 ### Changed

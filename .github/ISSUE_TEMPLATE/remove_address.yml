@@ -1,0 +1,17 @@
+name: 🚫 Remove my IP address
+description: Your address or network is on the list and you don't want it there
+labels: [removal]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The address goes into `removed.txt` and is left out of every list, the website and the free-proxy-list mirror from the next hourly run on. Older versions stay in the Git history and in copies others made.
+        Rather not post it publicly? Use the email address in the [Impressum](https://proxy-scraper.de/legal.html#impressum).
+        If you didn't set up a proxy on that address, the device is probably misconfigured or compromised: other lists will keep publishing it until the port is closed.
+  - type: input
+    id: address
+    attributes:
+      label: IP address or network
+      placeholder: 203.0.113.7 or 203.0.113.0/24
+    validations:
+      required: true

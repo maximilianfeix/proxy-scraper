@@ -1,0 +1,2 @@
+# served byte for byte and checked against SRI hashes: never convert line endings
+proxyscraper/site/vendor/** -text

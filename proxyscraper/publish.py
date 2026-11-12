@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import argparse
 import csv
+import ipaddress
 import json
 import os
 import statistics
@@ -20,7 +21,7 @@ from collections import Counter
 from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from types import SimpleNamespace
-from typing import Dict, List, Optional
+from typing import Dict, List, Optional, Union
 
 from .charts import THEMES, countries_svg, trend_svg
 from .checkstate import BASIC, CONFIRM, CONTENT, HTTPS, PASSED
@@ -51,6 +52,43 @@ def is_public(row: dict) -> bool:
 def load_rows(run_dir: Path) -> List[dict]:
     rows = json.loads((run_dir / "proxies.json").read_text(encoding="utf-8"))
     return best_first(r for r in rows if is_public(r))
+
+
+# Addresses whose owner asked to be left out (removed.txt in the repository, legal.html#entfernen): one IP or
+# network per line, "#" starts a comment. A proxy is left out when its own address or its exit IP is in there.
+Networks = Union[ipaddress.IPv4Network, ipaddress.IPv6Network]
+
+
+def load_removed(path: Optional[Path]) -> List[Networks]:
+    if path is None or not path.exists():
+        return []
+    networks = []
+    for number, line in enumerate(path.read_text(encoding="utf-8").splitlines(), 1):
+        entry = line.split("#", 1)[0].strip()
+        if not entry:
+            continue
+        try:
+            networks.append(ipaddress.ip_network(entry, strict=False))
+        except ValueError:  # one typo must not publish an address someone asked to remove: stop instead
+            raise SystemExit(f"{path}:{number}: not an IP address or network: {entry!r}") from None
+    return networks
+
+
+def _host(proxy: str) -> str:
+    """1.2.3.4 from 'socks5://1.2.3.4:1080', '1.2.3.4:1080' or '[2001:db8::1]:8080'."""
+    host = proxy.split("://", 1)[-1].rsplit("@", 1)[-1].rsplit(":", 1)[0]
+    return host.strip("[]")
+
+
+def is_removed(proxy: str, exit_ip: str, networks: List[Networks]) -> bool:
+    for value in (_host(proxy), exit_ip):
+        try:
+            ip = ipaddress.ip_address(value)
+        except ValueError:
+            continue
+        if any(ip in net for net in networks if net.version == ip.version):
+            return True
+    return False
 
 
 # What a proxy must have passed – measured, not assumed – to be on a published list (docs/check-states.md).
@@ -296,8 +334,9 @@ def load_streaks(path: Optional[Path]) -> Dict[str, int]:
 
 def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime] = None,
             history: Optional[Path] = None, streaks: Optional[Path] = None, seen: Optional[Path] = None,
-            feed: Optional[Path] = None, sources: Optional[Path] = None) -> int:
-    rows = load_rows(run_dir)
+            feed: Optional[Path] = None, sources: Optional[Path] = None, removed: Optional[Path] = None) -> int:
+    networks = load_removed(removed)
+    rows = [r for r in load_rows(run_dir) if not is_removed(r.get("proxy", ""), r.get("exit_ip") or "", networks)]
     held_back = sum(1 for r in rows if not meets_requirements(r))
     rows = [r for r in rows if meets_requirements(r)]
     if held_back:
@@ -316,6 +355,8 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     rows = best_first(rows)  # again, now that the streaks say who is likely to last
     runs = [*past_runs, history_entry(stats_for(rows, now), summary)][-HISTORY_LIMIT:]
     listed = update_seen(rows, load_seen(seen, past_runs[-1].get("updated") if past_runs else None), now)
+    # a removed address also leaves the record of earlier runs, so it gets no "no longer listed" page either
+    listed = {url: e for url, e in listed.items() if not is_removed(url, "", networks)}
     for row in rows:
         entry = listed[row["url"]]
         row["first_seen"] = entry["first_seen"]
@@ -364,6 +405,11 @@ def publish(run_dir: Path, out: Path, minimum: int = 20, now: Optional[datetime]
     for asset in SITE.iterdir():
         if asset.suffix in (".html", ".png"):
             (out / asset.name).write_bytes(asset.read_bytes())
+    # fonts and scripts come from the site itself, so a visit sends no visitor's IP to a CDN (site/vendor/)
+    (out / "vendor").mkdir(exist_ok=True)
+    for asset in (SITE / "vendor").iterdir():
+        if asset.is_file():
+            (out / "vendor" / asset.name).write_bytes(asset.read_bytes())
     (out / ".nojekyll").write_text("", encoding="utf-8")  # GitHub Pages (the branch) should serve the files unchanged
     # a page per proxy (with its week as a timeline), then the pages per protocol and country plus sitemap.xml
     try:
@@ -409,9 +455,11 @@ def main(argv: Optional[List[str]] = None) -> int:
     p.add_argument("--feed", type=Path, help="report/feed.xml from last time (the weekly entries it keeps)")
     p.add_argument("--sources", type=Path,
                    help="data/source_stats.json of this run (for the ranking of the sources on the website)")
+    p.add_argument("--removed", type=Path,
+                   help="removed.txt: addresses whose owner asked to be left out (one IP or network per line)")
     args = p.parse_args(argv)
     return publish(args.run_dir, args.out_dir, args.min, history=args.history, streaks=args.streaks, seen=args.seen,
-                   feed=args.feed, sources=args.sources)
+                   feed=args.feed, sources=args.sources, removed=args.removed)
 
 
 if __name__ == "__main__":

@@ -72,7 +72,8 @@ def test_proxies_with_credentials_are_never_published(tmp_path):
     ResultWriter(run_dir=tmp_path / "run").finalize(rows)
     out = tmp_path / "public"
     assert publish.publish(tmp_path / "run", out, minimum=2) == 0
-    everything = "".join(p.read_text(encoding="utf-8") for p in out.rglob("*") if p.is_file() and p.suffix != ".png")
+    everything = "".join(p.read_text(encoding="utf-8") for p in out.rglob("*")
+                         if p.is_file() and p.suffix not in (".png", ".woff2"))
     assert "geheim" not in everything and "alice" not in everything and "2.2.2.2" not in everything
     assert (out / "http.txt").read_text().count("\n") == 3
 
@@ -253,3 +254,107 @@ def test_csv_cells_that_a_spreadsheet_would_run_stay_text(tmp_path):
         assert orgs == sorted("'" + org for org in evil), path  # once, not twice in the published copy
     numbers_and_plain_text = [-1, "-1", "+2.5", "1e-3", "ok", "", None]
     assert [csv_cell(v) for v in numbers_and_plain_text] == numbers_and_plain_text
+
+
+# --------------------------------------------------------------------------- removal requests (removed.txt)
+
+def _history_and_seen(tmp_path, now, extra):
+    """A day of hourly runs, and a seen.json in which the urls in `extra` were listed in every one of them."""
+    from datetime import timedelta
+    runs = [{"updated": (now - timedelta(hours=h)).isoformat(timespec="seconds"), "total": 5, "https": 1,
+             "by_type": {}, "median_latency": 1} for h in range(30, 0, -1)]
+    history = tmp_path / "history.json"
+    history.write_text(json.dumps(runs))
+    seen = tmp_path / "seen.json"
+    seen.write_text(json.dumps({"last_run": runs[-1]["updated"],
+                                "proxies": {url: {"first_seen": runs[0]["updated"], "bits": "3fffffff"}
+                                            for url in extra}}))
+    return history, seen
+
+
+def test_removed_addresses_are_left_out_everywhere(tmp_path):
+    from proxyscraper.proxypages import page_path
+    now = datetime(2026, 11, 12, 18, 0, tzinfo=timezone.utc)
+    history, seen = _history_and_seen(tmp_path, now, ["http://7.7.7.7:80", "http://6.6.6.6:80"])
+    removed = tmp_path / "removed.txt"
+    removed.write_text("# comment\n1.1.1.1  # the proxy's own address\n8.8.8.0/24\n\n7.7.7.7\n")
+    out = tmp_path / "public"
+    assert publish.publish(run_dir(tmp_path), out, minimum=2, now=now, history=history, seen=seen,
+                           removed=removed) == 0
+    files = [p for p in out.rglob("*") if p.is_file() and p.suffix not in (".png", ".woff2")]
+    everything = "".join(p.read_text(encoding="utf-8") for p in files)
+    assert "1.1.1.1:80" not in everything
+    assert "2.2.2.2:1080" not in everything  # its exit IP 8.8.8.8 is in a removed network
+    assert "7.7.7.7" not in everything        # listed in earlier runs: no "no longer listed" page, not in seen.json
+    assert "6.6.6.6" in everything and (out / page_path("6.6.6.6:80")).exists()  # the same case, kept
+    assert sorted((out / "http.txt").read_text().split()) == ["1.1.1.0:80", "1.1.1.2:80"]
+
+
+def test_without_removed_txt_nothing_is_left_out(tmp_path):
+    out = tmp_path / "public"
+    assert publish.publish(run_dir(tmp_path), out, minimum=2, removed=tmp_path / "missing.txt") == 0
+    assert "1.1.1.1:80" in (out / "all.txt").read_text()
+
+
+def test_a_malformed_removal_line_stops_the_publish(tmp_path):
+    import pytest
+    removed = tmp_path / "removed.txt"
+    removed.write_text("1.1.1.1\n1.1.1.300\n")
+    with pytest.raises(SystemExit, match=r"removed.txt:2"):
+        publish.publish(run_dir(tmp_path), tmp_path / "public", minimum=2, removed=removed)
+    assert not (tmp_path / "public").exists()
+
+
+def test_is_removed_reads_every_address_form():
+    import ipaddress
+    assert publish.load_removed(None) == []
+    nets = [ipaddress.ip_network(n) for n in ("10.0.0.0/8", "2001:db8::/32")]
+    assert publish.is_removed("socks5://10.1.2.3:1080", "", nets)
+    assert publish.is_removed("10.1.2.3:1080", "", nets)
+    assert publish.is_removed("http://[2001:db8::1]:8080", "", nets)
+    assert publish.is_removed("1.2.3.4:80", "10.9.9.9", nets)
+    assert not publish.is_removed("1.2.3.4:80", "", nets)
+    assert not publish.is_removed("example.com:80", "not-an-ip", nets)
+
+
+def test_the_repository_removal_list_parses():
+    from pathlib import Path
+    publish.load_removed(Path(__file__).resolve().parents[1] / "removed.txt")
+
+
+# --------------------------------------------------------------------------- no third parties on the website
+
+def test_the_website_loads_no_fonts_or_scripts_from_a_cdn(tmp_path):
+    out = tmp_path / "public"
+    assert publish.publish(run_dir(tmp_path), out, minimum=2) == 0
+    pages = list(out.rglob("*.html"))
+    assert len(pages) > 10
+    for page in pages:
+        html = page.read_text(encoding="utf-8")
+        for host in ("fonts.googleapis.com", "fonts.gstatic.com", "cdn.jsdelivr.net", "unpkg.com", "cdnjs"):
+            assert host not in html, f"{page.relative_to(out)} loads from {host}"
+        if page.name != "legal.html" and not page.name.startswith("google"):  # not the Search Console token
+            assert "legal.html" in html, f"{page.relative_to(out)} has no link to the Impressum"
+    for name in ("fonts.css", "Geist-Variable.woff2", "GeistMono-Variable.woff2", "lenis.min.js", "LICENSES.txt"):
+        assert (out / "vendor" / name).is_file()
+
+
+def test_the_vendored_files_match_the_hashes_the_page_checks():
+    import base64
+    import hashlib
+    import re
+
+    from proxyscraper.publish import SITE
+    html = (SITE / "index.html").read_text(encoding="utf-8")
+    pinned = re.findall(r'"vendor/([\w.-]+)",\s*(?:\{ integrity: )?"(sha384-[\w+/=]+)"', html)
+    assert len(pinned) == 4
+    for name, sri in pinned:
+        digest = base64.b64encode(hashlib.sha384((SITE / "vendor" / name).read_bytes()).digest()).decode()
+        assert sri == f"sha384-{digest}", name
+
+
+def test_the_imprint_is_filled_in():
+    """legal.html ships with placeholders for name, address, email and the server-log sentence."""
+    from proxyscraper.publish import SITE
+    html = (SITE / "legal.html").read_text(encoding="utf-8")
+    assert "TODO_" not in html, "fill in the Impressum in proxyscraper/site/legal.html"

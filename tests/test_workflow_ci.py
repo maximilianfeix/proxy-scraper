@@ -160,3 +160,11 @@ def test_codeql_leaves_the_tests_out_through_its_config_file():
     config_file = init["with"]["config-file"]
     config = yaml.safe_load((ROOT / config_file).read_text(encoding="utf-8"))
     assert config["paths-ignore"] == ["tests"]
+
+
+def test_the_hourly_publish_leaves_out_the_removed_addresses():
+    steps = workflow("proxy-list.yml")["jobs"]
+    run = next(step["run"] for job in steps.values() for step in job["steps"]
+               if "proxyscraper.publish" in str(step.get("run", "")))
+    assert "--removed removed.txt" in run
+    assert (ROOT / "removed.txt").is_file()

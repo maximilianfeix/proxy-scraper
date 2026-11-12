@@ -4,6 +4,11 @@ All notable changes to this project are listed here. The format follows [Keep a 
 
 ## [Unreleased]
 
+### Changed
+- **A proxy whose second or content request broke off in transport gets a second chance at the end of the run.** Free proxies drop connections for a while: in every hourly run about 350 confirms and 280 content checks ended in `connect_timeout`, `timeout`, `connection_closed` or `no_answer` right after the proxy had passed its basic check (and after the retry 1.5 s later), and those proxies were lost. Now they get both requests once more at the end of the run, at least 20 seconds after their try, and count with whatever those end as. `checks.second_chance` in `run.json` says how the second chances ended
+- **The hourly run gives a request 10 seconds instead of 6** (`--timeout 10`; the connect stays at 4 s). Free proxies are slow – the median latency of the list is above 2 seconds – and ~10,000 candidates a run connected but answered after the 6 seconds. The check phase takes about 5–6 minutes instead of 3–5
+- Measured in A/B runs on 12 Nov 2026 (runners started at the same time, 150,000 candidates each): the hourly list grew from 768 proxies (as before) to 986 with the second chance and to 1,177 with both. A 15-second timeout gave 6 % more than 10 seconds with a slower list; six new self-checking sources found by a source search gave 3 more proxies – their proxies are in the existing lists already – and were not added. The hourly list still swings with one backconnect gateway (45.74.31.40–47, ~230,000 listed addresses): when it is up, a run lists 2,000–2,500 proxies, otherwise around 1,000–1,200. Checking all its addresses instead of 150,000 candidates gave 537 instead of 323 on 12 Nov, and a run without the 150,000 limit 1,111 instead of 1,095 – the limit isn't what holds the list back
+
 ## [1.33.1] – 2026-11-11
 
 ### Changed

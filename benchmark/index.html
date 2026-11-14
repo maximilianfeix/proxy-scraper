@@ -1,0 +1,161 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Which free proxy list on GitHub actually works? Free proxy lists compared every hour | proxy-scraper</title>
+<meta name="description" content="Popular free proxy lists on GitHub, checked every hour: the share of their proxies that pass a handshake, a second request and an unchanged test page ranges from 0.2 % to 17.5 %.">
+<link rel="canonical" href="https://proxy-scraper.de/benchmark/">
+<meta property="og:title" content="Which free proxy list on GitHub actually works?">
+<meta property="og:description" content="Popular free proxy lists on GitHub, checked every hour: the share of their proxies that pass a handshake, a second request and an unchanged test page ranges from 0.2 % to 17.5 %.">
+<meta property="og:image" content="https://proxy-scraper.de/og.png">
+<meta property="og:url" content="https://proxy-scraper.de/benchmark/">
+<meta name="twitter:card" content="summary_large_image">
+<link rel="icon" href="../logo.png">
+<link rel="apple-touch-icon" href="../apple-touch-icon.png">
+<link rel="stylesheet" href="../vendor/fonts.css">
+<style>
+:root { --bg: #121113; --panel: #1A191C; --line: #2B292F; --text: #EDEBE6; --muted: #9A97A0; --signal: #D4F77A;
+        --signal-ink: #D4F77A; --on-signal: #121113; color-scheme: dark; }
+@media (prefers-color-scheme: light) {
+  :root { --bg: #EFEFEC; --panel: #FFFFFF; --line: #DAD9D4; --text: #121113; --muted: #5F5C66;
+          --signal-ink: #3F5A00; color-scheme: light; }
+}
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--text); font: 400 16px/1.55 "Geist", ui-sans-serif, system-ui,
+       sans-serif; padding-inline: 16px; }
+.wrap { max-width: 1080px; margin: 0 auto; padding-block: 28px 64px; display: grid; gap: 36px; }
+a { color: var(--signal-ink); }
+:focus-visible { outline: 2px solid var(--signal-ink); outline-offset: 3px; border-radius: 6px; }
+.mono { font-family: "Geist Mono", ui-monospace, Menlo, monospace; }
+header { display: flex; justify-content: space-between; align-items: center; gap: 16px; flex-wrap: wrap; }
+.brand { display: flex; align-items: center; gap: 10px; color: var(--text); text-decoration: none; font-weight: 600;
+         letter-spacing: -.03em; font-size: 18px; }
+.brand img { width: 30px; height: 30px; border-radius: 9px; }
+h1 { margin: 0; font-size: clamp(36px, 6vw, 72px); line-height: 1; letter-spacing: -.05em; font-weight: 600;
+     text-wrap: balance; }
+.lede { margin: 16px 0 0; color: var(--muted); font-size: 18px; max-width: 62ch; }
+.actions { display: flex; gap: 10px; flex-wrap: wrap; margin-top: 22px; }
+.btn { display: inline-flex; align-items: center; padding: 10px 18px; border-radius: 99px; text-decoration: none;
+       font-weight: 500; border: 1px solid var(--line); color: var(--text); }
+.btn.primary { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+.table { overflow-x: auto; background: var(--panel); border: 1px solid var(--line); border-radius: 16px; }
+table { border-collapse: collapse; width: 100%; min-width: 640px; font-size: 14px; }
+caption { text-align: left; padding: 14px 16px 0; color: var(--muted); font-size: 13px; }
+th { text-align: left; font-weight: 500; color: var(--muted); padding: 12px 16px;
+     border-bottom: 1px solid var(--line); }
+td { padding: 10px 16px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums;
+     white-space: nowrap; }
+tr:last-child td { border-bottom: 0; }
+.empty { padding: 28px 16px; color: var(--muted); }
+nav h2 { font-size: 15px; font-weight: 500; color: var(--muted); margin: 0 0 10px; }
+nav ul { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px; }
+nav a { display: inline-block; padding: 5px 12px; border: 1px solid var(--line); border-radius: 99px;
+        text-decoration: none; color: var(--text); font-size: 14px; }
+nav a[aria-current] { background: var(--signal); color: var(--on-signal); border-color: var(--signal); }
+footer { color: var(--muted); font-size: 14px; display: grid; gap: 6px; }
+
+.wrap > * { min-width: 0; }  /* grid items default to their content's width: the wide table would push the page */
+.facts { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 150px), 1fr)); gap: 1px; margin: 0;
+         background: var(--line); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+.facts div { background: var(--panel); padding: 16px 18px; }
+.facts dt { font-size: 26px; font-weight: 600; letter-spacing: -.02em; font-variant-numeric: tabular-nums; }
+.facts dd { margin: 2px 0 0; color: var(--muted); font-size: 14px; }
+h2 { font-size: 24px; letter-spacing: -.02em; margin: 0 0 12px; font-weight: 600; }
+.use pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+           overflow-x: auto; font-size: 14px; margin: 0 0 10px; }
+.note { color: var(--muted); font-size: 14px; }
+.faq h3 { font-size: 18px; font-weight: 500; margin: 22px 0 6px; }
+.faq p { margin: 0; color: var(--muted); max-width: 70ch; }
+
+td.num, th.num { text-align: right; }
+td .muted { color: var(--muted); }
+.share-cell { display: inline-flex; align-items: center; gap: 10px; }
+.bar { width: 96px; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; flex: none; }
+.bar i { display: block; height: 100%; background: var(--signal-ink); border-radius: 3px; }
+.method p, .method li { color: var(--muted); max-width: 70ch; }
+.method p { margin: 0 0 12px; }
+.method ul { margin: 0 0 12px; padding-left: 20px; }
+.method li { margin-bottom: 6px; }
+.method strong { color: var(--text); font-weight: 500; }
+.share-it pre { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px;
+                overflow-x: auto; font-size: 13px; margin: 0 0 10px; }
+</style>
+<script type="application/ld+json">{"@context": "https://schema.org", "@type": "Dataset", "name": "Which free proxy list on GitHub actually works?", "description": "Popular free proxy lists on GitHub, checked every hour: the share of their proxies that pass a handshake, a second request and an unchanged test page ranges from 0.2 % to 17.5 %.", "url": "https://proxy-scraper.de/benchmark/", "dateModified": "2026-11-14T19:29:05+00:00", "creator": {"@type": "Organization", "name": "proxy-scraper", "url": "https://github.com/maximilianfeix/proxy-scraper"}, "license": "https://opensource.org/licenses/MIT", "isAccessibleForFree": true, "distribution": [{"@type": "DataDownload", "encodingFormat": "application/json", "contentUrl": "https://proxy-scraper.de/benchmark.json"}]}</script>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <a class="brand" href="../"><img src="../logo.png" alt="">proxy-scraper</a>
+    <a href="../#list">The live list</a>
+  </header>
+  <main>
+    <h1>Which free proxy list on GitHub actually works?</h1>
+    <p class="lede">16 popular free proxy lists on GitHub, checked about every hour. In recent runs ProxyScrape/free-proxy-list had the highest share of its checked proxies pass every check, 17.5 %; in the typical list it was 5.2 %. Updated 14 Nov 2026, 19:29 UTC.</p>
+    <div class="actions">
+      <a class="btn primary" href="../#list">The proxies that passed</a>
+      <a class="btn" href="../sources/">All sources ranked</a>
+      <a class="btn" href="../benchmark.json">As JSON</a>
+    </div>
+  </main>
+  <dl class="facts"><div><dt>16</dt><dd>popular lists compared</dd></div><div><dt>17.5 %</dt><dd>highest share (ProxyScrape/free-proxy-list)</dd></div><div><dt>5.2 %</dt><dd>in the typical list (median)</dd></div><div><dt>142,084</dt><dd>proxies checked per run, counted per list</dd></div></dl>
+  <section><h2>The popular lists, side by side</h2>
+  <div class="table" tabindex="0" role="region" aria-label="The popular lists compared"><table><caption>Per list, in an average recent run: proxies in the latest download, how many of them were checked, how many passed every check and their share. Highest share first.</caption><thead><tr><th scope="col" class="num">#</th><th scope="col">List</th><th scope="col" class="num">Proxies listed</th><th scope="col" class="num">Checked</th><th scope="col" class="num">Passed every check</th><th scope="col" class="num">Share</th><th scope="col">Last change</th></tr></thead><tbody><tr><td class="num">1</td><td><a href="https://github.com/ProxyScrape/free-proxy-list" rel="nofollow noopener">ProxyScrape/free-proxy-list</a></td><td class="num">3,812</td><td class="num">3,661</td><td class="num">640</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:100%"></i></span><span>17.5&nbsp;%</span></span></td><td><time datetime="2026-11-14T19:21:51+00:00">within the hour</time></td></tr>
+<tr><td class="num">2</td><td><a href="https://github.com/iplocate/free-proxy-list" rel="nofollow noopener">iplocate/free-proxy-list</a></td><td class="num">2,562</td><td class="num">2,553</td><td class="num">347</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:78%"></i></span><span>13.6&nbsp;%</span></span></td><td><time datetime="2026-11-14T19:21:48+00:00">within the hour</time></td></tr>
+<tr><td class="num">3</td><td><a href="https://github.com/Zaeem20/FREE_PROXIES_LIST" rel="nofollow noopener">Zaeem20/FREE_PROXIES_LIST</a></td><td class="num">356</td><td class="num">360</td><td class="num">44</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:70%"></i></span><span>12.2&nbsp;%</span></span></td><td><time datetime="2026-11-14T15:21:57+00:00">4 h ago</time></td></tr>
+<tr><td class="num">4</td><td><a href="https://github.com/mmpx12/proxy-list" rel="nofollow noopener">mmpx12/proxy-list</a></td><td class="num">3,137</td><td class="num">3,139</td><td class="num">349</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:63%"></i></span><span>11.1&nbsp;%</span></span></td><td><time datetime="2026-11-14T19:21:48+00:00">within the hour</time></td></tr>
+<tr><td class="num">5</td><td><a href="https://github.com/monosans/proxy-list" rel="nofollow noopener">monosans/proxy-list</a></td><td class="num">1,322</td><td class="num">1,390</td><td class="num">133</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:55%"></i></span><span>9.6&nbsp;%</span></span></td><td><time datetime="2026-11-14T19:21:48+00:00">within the hour</time></td></tr>
+<tr><td class="num">6</td><td><a href="https://github.com/sunny9577/proxy-scraper" rel="nofollow noopener">sunny9577/proxy-scraper</a></td><td class="num">2,093</td><td class="num">2,402</td><td class="num">178</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:42%"></i></span><span>7.4&nbsp;%</span></span></td><td><time datetime="2026-11-14T19:21:47+00:00">within the hour</time></td></tr>
+<tr><td class="num">7</td><td><a href="https://github.com/zloi-user/hideip.me" rel="nofollow noopener">zloi-user/hideip.me</a></td><td class="num">5,267</td><td class="num">4,849</td><td class="num">289</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:34%"></i></span><span>6.0&nbsp;%</span></span></td><td><time datetime="2026-11-14T19:21:48+00:00">within the hour</time></td></tr>
+<tr><td class="num">8</td><td><a href="https://github.com/vakhov/fresh-proxy-list" rel="nofollow noopener">vakhov/fresh-proxy-list</a></td><td class="num">2,146</td><td class="num">2,146</td><td class="num">117</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:31%"></i></span><span>5.4&nbsp;%</span></span></td><td><time datetime="2026-09-27T06:58:58+00:00">27 Sep 2026</time></td></tr>
+<tr><td class="num">9</td><td><a href="https://github.com/TheSpeedX/PROXY-List" rel="nofollow noopener">TheSpeedX/PROXY-List</a></td><td class="num">5,643</td><td class="num">5,654</td><td class="num">283</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:29%"></i></span><span>5.0&nbsp;%</span></span></td><td><time datetime="2026-11-14T13:22:13+00:00">6 h ago</time></td></tr>
+<tr><td class="num">10</td><td><a href="https://github.com/roosterkid/openproxylist" rel="nofollow noopener">roosterkid/openproxylist</a></td><td class="num">598</td><td class="num">586</td><td class="num">29</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:28%"></i></span><span>4.9&nbsp;%</span></span></td><td><time datetime="2026-11-14T19:21:47+00:00">within the hour</time></td></tr>
+<tr><td class="num">11</td><td><a href="https://github.com/proxifly/free-proxy-list" rel="nofollow noopener">proxifly/free-proxy-list</a></td><td class="num">21,623</td><td class="num">21,521</td><td class="num">718</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:19%"></i></span><span>3.3&nbsp;%</span></span></td><td><time datetime="2026-11-14T17:21:39+00:00">2 h ago</time></td></tr>
+<tr><td class="num">12</td><td><a href="https://github.com/r00tee/Proxy-List" rel="nofollow noopener">r00tee/Proxy-List</a></td><td class="num">9,663</td><td class="num">9,663</td><td class="num">283</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:17%"></i></span><span>2.9&nbsp;%</span></span></td><td><time datetime="2026-09-24T16:01:08+00:00">24 Sep 2026</time></td></tr>
+<tr><td class="num">13</td><td><a href="https://github.com/hookzof/socks5_list" rel="nofollow noopener">hookzof/socks5_list</a></td><td class="num">5,354</td><td class="num">3,281</td><td class="num">86</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:15%"></i></span><span>2.6&nbsp;%</span></span></td><td><time datetime="2026-11-14T17:21:38+00:00">2 h ago</time></td></tr>
+<tr><td class="num">14</td><td><a href="https://github.com/jetkai/proxy-list" rel="nofollow noopener">jetkai/proxy-list</a></td><td class="num">14,434</td><td class="num">11,473</td><td class="num">112</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:6%"></i></span><span>1.0&nbsp;%</span></span></td><td><time datetime="2026-09-27T11:28:13+00:00">27 Sep 2026</time></td></tr>
+<tr><td class="num">15</td><td><a href="https://github.com/ErcinDedeoglu/proxies" rel="nofollow noopener">ErcinDedeoglu/proxies</a></td><td class="num">122,002</td><td class="num">68,606</td><td class="num">577</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:5%"></i></span><span>0.8&nbsp;%</span></span></td><td><time datetime="2026-11-08T09:22:03+00:00">6 days ago</time></td></tr>
+<tr><td class="num">16</td><td><a href="https://github.com/clarketm/proxy-list" rel="nofollow noopener">clarketm/proxy-list</a></td><td class="num">800</td><td class="num">800</td><td class="num">1</td><td class="num"><span class="share-cell"><span class="bar" aria-hidden="true"><i style="width:1%"></i></span><span>0.2&nbsp;%</span></span></td><td><time datetime="2026-09-27T11:28:12+00:00">27 Sep 2026</time> <span class="muted">· unchanged for a week</span></td></tr></tbody></table></div>
+  </section>
+  <section class="method"><h2>How it's measured</h2>
+    <p>About every hour a GitHub Actions runner downloads each of these lists and checks its proxies.
+    A proxy <strong>passed every check</strong> when it got through all three:</p>
+    <ul>
+      <li>a real HTTP, SOCKS4 or SOCKS5 handshake that returns a foreign exit IP,</li>
+      <li>a second request to another site that has to show the same exit IP,</li>
+      <li>a static test page that has to arrive unchanged, byte for byte.</li>
+    </ul>
+    <p><strong>Share</strong> is the proxies that passed against the proxies checked from that list. Both are averages
+    of recent runs in which every run counts twice as much as the one before it, so the latest run makes up about half
+    and the last few hours almost all of it. <strong>Proxies listed</strong> is the latest successful download, which
+    is why <em>checked</em> can come out a little above it.</p>
+    <p>One run checks only the most promising part of the candidates from all the lists it knows, so of a big list
+    only a part is checked each time. That part is not a random sample: proxies that worked before go first. A proxy
+    that several lists carry counts for each of them, and all files of one repository count as one list. Lists with
+    fewer than 300 proxies checked per run are shown without a place.</p>
+    <p>This is one measurement from one data center network, not a judgment of the maintainers. Many of these lists
+    publish what they collect without filtering it, refresh at different times or are meant for other uses; a low share
+    mostly means that many entries were offline or didn't pass at the moment they were checked. From your own network
+    the numbers can differ.</p>
+    <p>proxy-scraper's own published list is not in the table. It is made of the proxies that passed these same checks
+    an hour earlier, so measuring it with them would not be a fair comparison.</p>
+    <p>Every list it knows, not only these, is ranked on <a href="../sources/">the sources page</a>. The same
+    numbers from your own network: <code class="mono">proxy-scraper --list-sources</code>.</p>
+  </section>
+  <section class="share-it"><h2>Share or embed the chart</h2>
+    <p class="note">Rewritten with every run: <a href="../benchmark-light.svg">light</a> ·
+    <a href="../benchmark-dark.svg">dark</a>. For a README:</p>
+    <pre class="mono">&lt;a href=&quot;https://proxy-scraper.de/benchmark/&quot;&gt;&lt;picture&gt;
+  &lt;source media=&quot;(prefers-color-scheme: light)&quot; srcset=&quot;https://proxy-scraper.de/benchmark-light.svg&quot;&gt;
+  &lt;img src=&quot;https://proxy-scraper.de/benchmark-dark.svg&quot; alt=&quot;Which free proxy list on GitHub actually works?&quot; width=&quot;100%&quot;&gt;
+&lt;/picture&gt;&lt;/a&gt;</pre>
+  </section>
+  <footer>
+    <span>Free proxies are run by strangers. Never send passwords or personal data through them.</span>
+    <span>Collected and checked by <a href="https://github.com/maximilianfeix/proxy-scraper">proxy-scraper</a>, open source, MIT licensed.</span>
+    <span><a href="../legal.html">Impressum</a> · <a href="../legal.html#datenschutz">Datenschutz</a> ·
+    <a href="../legal.html#entfernen">Remove an address</a></span>
+  </footer>
+</div>
+</body>
+</html>

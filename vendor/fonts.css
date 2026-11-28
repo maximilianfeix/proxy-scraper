@@ -1,0 +1,3 @@
+/* Geist and Geist Mono (SIL Open Font License 1.1, see LICENSES.txt), served from this site, so no visitor's IP goes to a font CDN */
+@font-face { font-family: "Geist"; src: url("Geist-Variable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
+@font-face { font-family: "Geist Mono"; src: url("GeistMono-Variable.woff2") format("woff2"); font-weight: 100 900; font-style: normal; font-display: swap; }
